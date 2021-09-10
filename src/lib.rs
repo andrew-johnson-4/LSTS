@@ -8,17 +8,27 @@ impl Judgements {
 }
 
 pub enum Type {
-   Ground(String)
+   Ground(String),
+   Var(String),
+   Ascript(Box<Type>,Box<Type>),
 }
 impl std::fmt::Display for Type {
    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
       match self {
-         Type::Ground(g) => write!(f, "{}", g)
+         Type::Ground(g) => write!(f, "{}", g),
+         Type::Var(v) => write!(f, "'{}", v),
+         Type::Ascript(l,r) => write!(f, "{}:{}", l, r),
       }
    }
 }
 pub fn ground(s: &str) -> Type {
    Type::Ground(s.to_string())
+}
+pub fn var(s: &str) -> Type {
+   Type::Var(s.to_string())
+}
+pub fn ascript(l: Type, r: Type) -> Type {
+   Type::Ascript(Box::new(l),Box::new(r))
 }
 
 pub fn declare<I>(ds: I) -> Judgements
