@@ -1,0 +1,11 @@
+[package]
+name = "lsts"
+version = "0.0.1"
+authors = ["Andrew <andrew@subarctic.org>"]
+license = "MIT"
+description = "Large Scale Type Systems"
+edition = "2018"
+readme = "README.md"
+repository = "https://github.com/andrew-johnson-4/LSTS"
+documentation = "https://docs.rs/LSTS/"
+keywords = ["type","logic","automated","theorem","proof"]
