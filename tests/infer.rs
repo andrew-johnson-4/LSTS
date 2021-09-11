@@ -10,3 +10,16 @@ fn test_ground1(){
       "int".to_string()
    );
 }
+
+#[test]
+fn test_arrow1(){
+   let ts = lsts::declare([
+      lsts::var("a"),
+      lsts::ascript("a", lsts::arrow(lsts::ground("int"), lsts::ground("bool")))
+   ]).normalize();
+
+   assert_eq!(
+      ts.lines[0].to_string(),
+      "int -> bool".to_string()
+   );
+}
