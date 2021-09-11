@@ -56,6 +56,7 @@ impl Judgements {
 pub enum Type {
    Ground(String),
    Var(String),
+   Arrow(Box<Type>,Box<Type>),
    Ascript(String,Box<Type>),
    Sub(String,Box<Type>),
 }
@@ -64,6 +65,7 @@ impl std::fmt::Display for Type {
       match self {
          Type::Ground(g) => write!(f, "{}", g),
          Type::Var(v) => write!(f, "'{}", v),
+         Type::Arrow(l,r) => write!(f, "{} -> {}", l, r), //TODO disambiguate nesting of arrows
          Type::Ascript(l,r) => write!(f, "{}:{}", l, r),
          Type::Sub(_v,s) => write!(f, "{}", s),
       }
@@ -74,6 +76,9 @@ pub fn ground(s: &str) -> Type {
 }
 pub fn var(s: &str) -> Type {
    Type::Var(s.to_string())
+}
+pub fn arrow(l: Type, r: Type) -> Type {
+   Type::Arrow(Box::new(l),Box::new(r))
 }
 pub fn ascript(l: &str, r: Type) -> Type {
    Type::Ascript(l.to_string(),Box::new(r))
