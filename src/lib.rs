@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub struct Judgements {
    pub lines: Vec<Type>
@@ -76,6 +77,11 @@ pub fn ground(s: &str) -> Type {
 }
 pub fn var(s: &str) -> Type {
    Type::Var(s.to_string())
+}
+//create a unique variable
+pub fn uvar() -> Type {
+   static COUNTER: AtomicUsize = AtomicUsize::new(0);
+   Type::Var(format!("uvar_{}", COUNTER.fetch_add(1, Ordering::Relaxed)))
 }
 pub fn arrow(l: Type, r: Type) -> Type {
    Type::Arrow(Box::new(l),Box::new(r))
