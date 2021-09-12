@@ -60,6 +60,9 @@ pub enum Type {
    Arrow(Box<Type>,Box<Type>),
    Ascript(String,Box<Type>),
    Sub(String,Box<Type>),
+   ForAll(usize,Vec<String>),
+   Exists(usize,Vec<String>),
+   End(usize),
 }
 impl std::fmt::Display for Type {
    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -69,6 +72,9 @@ impl std::fmt::Display for Type {
          Type::Arrow(l,r) => write!(f, "{} -> {}", l, r), //TODO disambiguate nesting of arrows
          Type::Ascript(l,r) => write!(f, "{}:{}", l, r),
          Type::Sub(_v,s) => write!(f, "{}", s),
+         Type::ForAll(_,vs) => write!(f, "forall {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(",")),
+         Type::Exists(_,vs) => write!(f, "exists {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(",")),
+         Type::End(t) => write!(f, "end {}", t),
       }
    }
 }
@@ -78,16 +84,38 @@ pub fn ground(s: &str) -> Type {
 pub fn var(s: &str) -> Type {
    Type::Var(s.to_string())
 }
-//create a unique variable
-pub fn uvar() -> Type {
+//create a unique number
+pub fn unique_ordinal() -> usize {
    static COUNTER: AtomicUsize = AtomicUsize::new(0);
-   Type::Var(format!("uvar_{}", COUNTER.fetch_add(1, Ordering::Relaxed)))
+   COUNTER.fetch_add(1, Ordering::Relaxed)
+}
+pub fn uvar() -> Type {
+   Type::Var(format!("uvar_{}", unique_ordinal()))
 }
 pub fn arrow(l: Type, r: Type) -> Type {
    Type::Arrow(Box::new(l),Box::new(r))
 }
 pub fn ascript(l: &str, r: Type) -> Type {
    Type::Ascript(l.to_string(),Box::new(r))
+}
+pub fn forall<I,S>(scope: &mut usize, vs: I) -> Type
+where
+    S: Into<String>,
+    I: IntoIterator<Item = S>,
+{
+   *scope = unique_ordinal();
+   Type::ForAll(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>())
+}
+pub fn exists<I,S>(scope: &mut usize, vs: I) -> Type
+where
+    S: Into<String>,
+    I: IntoIterator<Item = S>,
+{
+   *scope = unique_ordinal();
+   Type::Exists(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>())
+}
+pub fn end(scope: usize) -> Type {
+   Type::End(scope)
 }
 
 pub fn declare<I>(ds: I) -> Judgements
