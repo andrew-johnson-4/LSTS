@@ -6,14 +6,14 @@ fn test_arith1(){
          lsts::ground("Zero"),
          lsts::param("Succ",[lsts::ground("Int")]),
       ])),
-      lsts::typefun("Int::add", {let add = |args| {
+      lsts::typefun("Int::add", {fn add(args:Vec<Box<lsts::Type>>) -> Box<lsts::Type> {
          //type functions are weakly typed themselves
          match args {
             [lsts::Type::Ground("Zero"),r] => r,
             [lsts::Type::Param("Succ",[dl]),r] => lsts::param("Succ",[add([dl,r])]),
             _ => lsts::tfalse()
          }
-      }; f}),
+      } add}),
       lsts::eq(
          lsts::param("Succ",[
             lsts::param("Succ",[

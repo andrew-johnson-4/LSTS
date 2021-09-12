@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::rc::Rc;
 
 pub struct Judgements {
    pub lines: Vec<Type>
@@ -53,6 +54,16 @@ impl Judgements {
    }
 }
 
+#[derive(Clone)]
+pub struct Typefun {
+   f: Rc<dyn Fn(Vec<Box<Type>>) -> Box<Type>>
+}
+impl Hash for Typefun {
+   fn hash<H: Hasher>(&self, state: &mut H) {
+      std::ptr::hash(&*(self.f), state)
+   }
+}
+
 #[derive(Hash,Clone)]
 pub enum Type {
    True,
@@ -68,6 +79,8 @@ pub enum Type {
    Exists(usize,Vec<String>,Box<Type>),
    End(usize),
    Typedef(String,Box<Type>),
+   Typefun(String,Typefun),
+   Typecall(String,Vec<Box<Type>>),
    Eq(Box<Type>,Box<Type>),
 }
 impl std::fmt::Display for Type {
@@ -86,6 +99,8 @@ impl std::fmt::Display for Type {
          Type::Exists(_,vs,tt) => write!(f, "exists {}. {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(","), tt),
          Type::End(t) => write!(f, "end {}", t),
          Type::Typedef(t,b) => write!(f, "{} = {}", t, b),
+         Type::Typefun(n,_) => write!(f, "\\{}", n),
+         Type::Typecall(n,ps) => write!(f, "\\{}({})", n, ps.iter().map(|p| p.to_string()).collect::<Vec<String>>().join(",")),
          Type::Eq(l,r) => write!(f, "{} == {}", l, r),
       }
    }
@@ -144,11 +159,23 @@ where
    *scope = unique_ordinal();
    Type::Exists(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>(), Box::new(tt))
 }
+pub fn typecall<A>(f: &str, vs: A) -> Type
+where
+    A: IntoIterator<Item = Type>,
+{
+   Type::Typecall(f.to_string(), vs.into_iter().map(|t| Box::new(t)).collect::<Vec<Box<Type>>>())
+}
 pub fn end(scope: usize) -> Type {
    Type::End(scope)
 }
 pub fn typedef(n: &str, t: Type) -> Type {
    Type::Typedef(n.to_string(), Box::new(t))
+}
+pub fn typefun<F>(n: &str, f: F) -> Type
+where
+    F: 'static + Fn(Vec<Box<Type>>) -> Box<Type>
+{
+   Type::Typefun(n.to_string(), Typefun { f:Rc::new(f) })
 }
 pub fn eq(l: Type, r: Type) -> Type {
    Type::Eq(Box::new(l), Box::new(r))
