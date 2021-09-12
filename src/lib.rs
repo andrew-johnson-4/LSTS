@@ -62,8 +62,14 @@ impl Hash for Typefun {
       std::ptr::hash(&*(self.f), state)
    }
 }
+impl PartialEq for Typefun {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(&*(self.f), &*(other.f))
+    }
+}
+impl Eq for Typefun {}
 
-#[derive(Hash,Clone)]
+#[derive(PartialEq,Eq,Hash,Clone)]
 pub enum Type {
    True,
    False,
@@ -112,6 +118,22 @@ impl Type {
          box Type::True |
          box Type::False | 
          box Type::Ground(_) => (true, false, tt.clone()),
+         box Type::Param(gn,gs) => {
+            let mut gd = Vec::new();
+            let mut normalized = true;
+            let mut changed = false;
+            for g in gs.iter() {
+               let (n,c,tt) = Type::normalize(g, ascripts, typefuns);
+               normalized &= n;
+               changed |= c;
+               gd.push(tt);
+            }
+            if changed {
+               (normalized, true, param(gn,gd))
+            } else {
+               (normalized, changed, tt.clone())
+            }
+         }
          box Type::Arrow(l,r) => {
             let (ln,lc,lt) = Type::normalize(&l, ascripts, typefuns);
             let (rn,rc,rt) = Type::normalize(&r, ascripts, typefuns);
@@ -122,6 +144,35 @@ impl Type {
               Type::normalize(&vt, ascripts, typefuns)
             } else {
               (false, false, tt.clone())
+            }
+         },
+         box Type::Typecall(f,ps) => {
+            if let Some(vt) = typefuns.get(f) {
+               let mut pd = Vec::new();
+               let mut normalized = true;
+               let mut changed = false;
+               for p in ps.iter() {
+                  let (n,c,tt) = Type::normalize(p, ascripts, typefuns);
+                  normalized &= n;
+                  changed |= c;
+                  pd.push(tt);
+               }
+               if normalized {
+                  (true, true, (vt.f)(pd))
+               } else {
+                  (false, changed, typecall(f, pd))
+               }
+            } else {
+               (false, false, tt.clone())
+            }            
+         }
+         box Type::Eq(l,r) => {
+            let (ln,lc,lt) = Type::normalize(&l, ascripts, typefuns);
+            let (rn,rc,rt) = Type::normalize(&r, ascripts, typefuns);
+            if ln && rn {
+               (true, true, if lt==rt { ttrue() } else { tfalse() })
+            } else {
+               (false, lc||rc, eq(lt,rt))
             }
          },
          _ => (false, false, tt.clone()),
