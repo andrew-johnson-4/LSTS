@@ -20,36 +20,34 @@ impl Judgements {
       }
    }
    pub fn normalize(mut self) -> Judgements {
-      let mut last_hash = Judgements::zero().hash();
-      let mut this_hash = self.hash();
-      while last_hash != this_hash {
-         let mut ts = self.lines.clone();
+      let mut fresh = true;
+      while fresh {
+         fresh = false;
 
          //gather type ascriptions to be substituted
+         //gather type functions to be applied
          let mut ascripts: HashMap<String,Box<Type>> = HashMap::new();
+         let mut typefuns: HashMap<String,Typefun> = HashMap::new();
          for l in self.lines.iter() {
             match l {
                box Type::Ascript(v,vt) => {
                   ascripts.insert(v.to_string(), vt.clone());
+               }, box Type::Typefun(v,vt) => {
+                  typefuns.insert(v.to_string(), vt.clone());
                }, _ => {}
             }
          }
 
          //substitute type ascriptions over variables
-         for (li,l) in self.lines.iter().enumerate() {
-            match l {
-               box Type::Var(v) => {
-                  if let Some(vt) = ascripts.get(v) {
-                     ts[li] = Box::new(Type::Sub(v.to_string(),vt.clone()));
-                  }
-               }, _ => {}
+         for li in 0..self.lines.len() {
+            let (normalized, changed, result) = Type::normalize(&self.lines[li], &ascripts, &typefuns);
+            if normalized {
+               if changed {
+                  fresh = true;
+               }
+               self.lines[li] = result;
             }
          }
-
-         //recalculate hash
-         self.lines = ts;
-         last_hash = this_hash;
-         this_hash = self.hash();
       }
       self
    }
@@ -106,6 +104,31 @@ impl std::fmt::Display for Type {
       }
    }
 }
+impl Type {
+   pub fn normalize(tt: &Box<Type>,
+                    ascripts: &HashMap<String,Box<Type>>,
+                    typefuns: &HashMap<String,Typefun>) -> (bool, bool, Box<Type>) {
+      match tt {
+         box Type::True |
+         box Type::False | 
+         box Type::Ground(_) => (true, false, tt.clone()),
+         box Type::Arrow(l,r) => {
+            let (ln,lc,lt) = Type::normalize(&l, ascripts, typefuns);
+            let (rn,rc,rt) = Type::normalize(&r, ascripts, typefuns);
+            (ln&&rn, lc||rc, arrow(lt,rt))
+         }
+         box Type::Var(v) => {
+            if let Some(vt) = ascripts.get(v) {
+              Type::normalize(&vt, ascripts, typefuns)
+            } else {
+              (false, false, tt.clone())
+            }
+         },
+         _ => (false, false, tt.clone()),
+      }
+   }
+}
+
 pub fn ttrue() -> Box<Type> {
    Box::new(Type::True)
 }
