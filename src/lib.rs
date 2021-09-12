@@ -55,28 +55,33 @@ impl Judgements {
 
 #[derive(Hash,Clone)]
 pub enum Type {
+   True,
    Ground(String),
    Var(String),
    Arrow(Box<Type>,Box<Type>),
    Ascript(String,Box<Type>),
    Sub(String,Box<Type>),
-   ForAll(usize,Vec<String>),
-   Exists(usize,Vec<String>),
+   ForAll(usize,Vec<String>,Box<Type>),
+   Exists(usize,Vec<String>,Box<Type>),
    End(usize),
 }
 impl std::fmt::Display for Type {
    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
       match self {
+         Type::True => write!(f, "T"),
          Type::Ground(g) => write!(f, "{}", g),
          Type::Var(v) => write!(f, "'{}", v),
          Type::Arrow(l,r) => write!(f, "{} -> {}", l, r), //TODO disambiguate nesting of arrows
          Type::Ascript(l,r) => write!(f, "{}:{}", l, r),
          Type::Sub(_v,s) => write!(f, "{}", s),
-         Type::ForAll(_,vs) => write!(f, "forall {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(",")),
-         Type::Exists(_,vs) => write!(f, "exists {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(",")),
+         Type::ForAll(_,vs,tt) => write!(f, "forall {}. {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(","), tt),
+         Type::Exists(_,vs,tt) => write!(f, "exists {}. {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(","), tt),
          Type::End(t) => write!(f, "end {}", t),
       }
    }
+}
+pub fn ttrue() -> Type {
+   Type::True
 }
 pub fn ground(s: &str) -> Type {
    Type::Ground(s.to_string())
@@ -98,21 +103,21 @@ pub fn arrow(l: Type, r: Type) -> Type {
 pub fn ascript(l: &str, r: Type) -> Type {
    Type::Ascript(l.to_string(),Box::new(r))
 }
-pub fn forall<I,S>(scope: &mut usize, vs: I) -> Type
+pub fn forall<I,S>(scope: &mut usize, vs: I, tt: Type) -> Type
 where
     S: Into<String>,
     I: IntoIterator<Item = S>,
 {
    *scope = unique_ordinal();
-   Type::ForAll(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>())
+   Type::ForAll(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>(), Box::new(tt))
 }
-pub fn exists<I,S>(scope: &mut usize, vs: I) -> Type
+pub fn exists<I,S>(scope: &mut usize, vs: I, tt: Type) -> Type
 where
     S: Into<String>,
     I: IntoIterator<Item = S>,
 {
    *scope = unique_ordinal();
-   Type::Exists(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>())
+   Type::Exists(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>(), Box::new(tt))
 }
 pub fn end(scope: usize) -> Type {
    Type::End(scope)

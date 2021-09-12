@@ -44,14 +44,14 @@ fn test_arrow1(){
 fn test_forall1(){
    let mut f1token = 0;
    let ts = lsts::declare([
-      lsts::forall(&mut f1token, ["a"]),
+      lsts::forall(&mut f1token, ["a"], lsts::ttrue()),
       lsts::arrow(lsts::var("a"), lsts::ground("bool")),
       lsts::end(f1token),
    ]).normalize();
 
    assert_eq!(
       ts.lines[0].to_string(),
-      format!("forall 'a")
+      format!("forall 'a. T")
    );
    assert_eq!(
       ts.lines[1].to_string(),
@@ -67,14 +67,14 @@ fn test_forall1(){
 fn test_exists1(){
    let mut e1token = 0;
    let ts = lsts::declare([
-      lsts::exists(&mut e1token, ["a"]),
+      lsts::exists(&mut e1token, ["a"], lsts::ttrue()),
       lsts::arrow(lsts::var("a"), lsts::ground("bool")),
       lsts::end(e1token),
    ]).normalize();
 
    assert_eq!(
       ts.lines[0].to_string(),
-      format!("exists 'a")
+      format!("exists 'a. T")
    );
    assert_eq!(
       ts.lines[1].to_string(),
