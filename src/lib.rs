@@ -79,7 +79,6 @@ pub enum Type {
    Arrow(Box<Type>,Box<Type>),
    Or(Vec<Box<Type>>),
    Ascript(String,Box<Type>),
-   Sub(String,Box<Type>),
    ForAll(usize,Vec<String>,Box<Type>),
    Exists(usize,Vec<String>,Box<Type>),
    End(usize),
@@ -99,7 +98,6 @@ impl std::fmt::Display for Type {
          Type::Arrow(l,r) => write!(f, "{} -> {}", l, r), //TODO disambiguate nesting of arrows
          Type::Or(os) => write!(f, "{}", os.iter().map(|o| o.to_string()).collect::<Vec<String>>().join(" | ")),
          Type::Ascript(l,r) => write!(f, "{}:{}", l, r),
-         Type::Sub(_v,s) => write!(f, "{}", s),
          Type::ForAll(_,vs,tt) => write!(f, "forall {}. {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(","), tt),
          Type::Exists(_,vs,tt) => write!(f, "exists {}. {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(","), tt),
          Type::End(t) => write!(f, "end {}", t),
