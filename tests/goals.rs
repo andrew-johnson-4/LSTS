@@ -1,3 +1,5 @@
+#![feature(box_patterns)]
+
 #[test]
 fn test_arith1(){
    //prove that 2 + 2 = 4
@@ -8,9 +10,12 @@ fn test_arith1(){
       ])),
       lsts::typefun("Int::add", {fn add(args:Vec<Box<lsts::Type>>) -> Box<lsts::Type> {
          //type functions are weakly typed themselves
-         match args {
-            [lsts::Type::Ground("Zero"),r] => r,
-            [lsts::Type::Param("Succ",[dl]),r] => lsts::param("Succ",[add([dl,r])]),
+         match args.as_slice() {
+            [box lsts::Type::Ground("Zero"),r] => r.clone(),
+            [box lsts::Type::Param("Succ",dls),r] => match dls.as_slice() {
+               [dl] => lsts::param("Succ",[add(vec![dl.clone(),r.clone()])]),
+               _ => lsts::tfalse()
+            }
             _ => lsts::tfalse()
          }
       } add}),

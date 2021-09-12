@@ -1,3 +1,4 @@
+#![feature(box_patterns)]
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -5,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::rc::Rc;
 
 pub struct Judgements {
-   pub lines: Vec<Type>
+   pub lines: Vec<Box<Type>>
 }
 impl Judgements {
    pub fn hash(&self) -> u64 {
@@ -28,7 +29,7 @@ impl Judgements {
          let mut ascripts: HashMap<String,Box<Type>> = HashMap::new();
          for l in self.lines.iter() {
             match l {
-               Type::Ascript(v,vt) => {
+               box Type::Ascript(v,vt) => {
                   ascripts.insert(v.to_string(), vt.clone());
                }, _ => {}
             }
@@ -37,9 +38,9 @@ impl Judgements {
          //substitute type ascriptions over variables
          for (li,l) in self.lines.iter().enumerate() {
             match l {
-               Type::Var(v) => {
+               box Type::Var(v) => {
                   if let Some(vt) = ascripts.get(v) {
-                     ts[li] = Type::Sub(v.to_string(),vt.clone());
+                     ts[li] = Box::new(Type::Sub(v.to_string(),vt.clone()));
                   }
                }, _ => {}
             }
@@ -68,8 +69,8 @@ impl Hash for Typefun {
 pub enum Type {
    True,
    False,
-   Ground(String),
-   Param(String,Vec<Box<Type>>),
+   Ground(&'static str),
+   Param(&'static str,Vec<Box<Type>>),
    Var(String),
    Arrow(Box<Type>,Box<Type>),
    Or(Vec<Box<Type>>),
@@ -105,85 +106,85 @@ impl std::fmt::Display for Type {
       }
    }
 }
-pub fn ttrue() -> Type {
-   Type::True
+pub fn ttrue() -> Box<Type> {
+   Box::new(Type::True)
 }
-pub fn tfalse() -> Type {
-   Type::False
+pub fn tfalse() -> Box<Type> {
+   Box::new(Type::False)
 }
-pub fn ground(s: &str) -> Type {
-   Type::Ground(s.to_string())
+pub fn ground(s: &'static str) -> Box<Type> {
+   Box::new(Type::Ground(s))
 }
-pub fn param<I>(g: &str, gs: I) -> Type
+pub fn param<I>(g: &'static str, gs: I) -> Box<Type>
 where
-    I: IntoIterator<Item = Type>,
+    I: IntoIterator<Item = Box<Type>>,
 {
-    Type::Param(g.to_string(), gs.into_iter().map(|s| Box::new(s)).collect::<Vec<Box<Type>>>())
+    Box::new(Type::Param(g, gs.into_iter().collect::<Vec<Box<Type>>>()))
 }
-pub fn or<I>(os: I) -> Type
+pub fn or<I>(os: I) -> Box<Type>
 where
-    I: IntoIterator<Item = Type>,
+    I: IntoIterator<Item = Box<Type>>,
 {
-    Type::Or(os.into_iter().map(|s| Box::new(s)).collect::<Vec<Box<Type>>>())
+    Box::new(Type::Or(os.into_iter().collect::<Vec<Box<Type>>>()))
 }
-pub fn var(s: &str) -> Type {
-   Type::Var(s.to_string())
+pub fn var(s: &str) -> Box<Type> {
+   Box::new(Type::Var(s.to_string()))
 }
 //create a unique number
 pub fn unique_ordinal() -> usize {
    static COUNTER: AtomicUsize = AtomicUsize::new(0);
    COUNTER.fetch_add(1, Ordering::Relaxed)
 }
-pub fn uvar() -> Type {
-   Type::Var(format!("uvar_{}", unique_ordinal()))
+pub fn uvar() -> Box<Type> {
+   Box::new(Type::Var(format!("uvar_{}", unique_ordinal())))
 }
-pub fn arrow(l: Type, r: Type) -> Type {
-   Type::Arrow(Box::new(l),Box::new(r))
+pub fn arrow(l: Box<Type>, r: Box<Type>) -> Box<Type> {
+   Box::new(Type::Arrow(l,r))
 }
-pub fn ascript(l: &str, r: Type) -> Type {
-   Type::Ascript(l.to_string(),Box::new(r))
+pub fn ascript(l: &str, r: Box<Type>) -> Box<Type> {
+   Box::new(Type::Ascript(l.to_string(),r))
 }
-pub fn forall<I,S>(scope: &mut usize, vs: I, tt: Type) -> Type
+pub fn forall<I,S>(scope: &mut usize, vs: I, tt: Box<Type>) -> Box<Type>
 where
     S: Into<String>,
     I: IntoIterator<Item = S>,
 {
    *scope = unique_ordinal();
-   Type::ForAll(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>(), Box::new(tt))
+   Box::new(Type::ForAll(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>(), tt))
 }
-pub fn exists<I,S>(scope: &mut usize, vs: I, tt: Type) -> Type
+pub fn exists<I,S>(scope: &mut usize, vs: I, tt: Box<Type>) -> Box<Type>
 where
     S: Into<String>,
     I: IntoIterator<Item = S>,
 {
    *scope = unique_ordinal();
-   Type::Exists(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>(), Box::new(tt))
+   Box::new(Type::Exists(*scope, vs.into_iter().map(|s| s.into()).collect::<Vec<String>>(), tt))
 }
-pub fn typecall<A>(f: &str, vs: A) -> Type
+pub fn typecall<A>(f: &str, vs: A) -> Box<Type>
 where
-    A: IntoIterator<Item = Type>,
+    A: IntoIterator<Item = Box<Type>>,
 {
-   Type::Typecall(f.to_string(), vs.into_iter().map(|t| Box::new(t)).collect::<Vec<Box<Type>>>())
+   Box::new(Type::Typecall(f.to_string(), vs.into_iter().collect::<Vec<Box<Type>>>()))
 }
-pub fn end(scope: usize) -> Type {
-   Type::End(scope)
+pub fn end(scope: usize) -> Box<Type> {
+   Box::new(Type::End(scope))
 }
-pub fn typedef(n: &str, t: Type) -> Type {
-   Type::Typedef(n.to_string(), Box::new(t))
+pub fn typedef(n: &str, t: Box<Type>) -> Box<Type> {
+   Box::new(Type::Typedef(n.to_string(), t))
 }
-pub fn typefun<F>(n: &str, f: F) -> Type
+pub fn typefun<F>(n: &str, f: F) -> Box<Type>
 where
     F: 'static + Fn(Vec<Box<Type>>) -> Box<Type>
 {
-   Type::Typefun(n.to_string(), Typefun { f:Rc::new(f) })
+   Box::new(Type::Typefun(n.to_string(), Typefun { f:Rc::new(f) }))
 }
-pub fn eq(l: Type, r: Type) -> Type {
-   Type::Eq(Box::new(l), Box::new(r))
+pub fn eq(l: Box<Type>, r: Box<Type>) -> Box<Type> {
+   Box::new(Type::Eq(l, r))
 }
 
 pub fn declare<I>(ds: I) -> Judgements
 where
-    I: IntoIterator<Item = Type>,
+    I: IntoIterator<Item = Box<Type>>,
 {
    let mut ts = Vec::new();
    for d in ds.into_iter() {
