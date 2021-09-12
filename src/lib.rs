@@ -56,35 +56,60 @@ impl Judgements {
 #[derive(Hash,Clone)]
 pub enum Type {
    True,
+   False,
    Ground(String),
+   Param(String,Vec<Box<Type>>),
    Var(String),
    Arrow(Box<Type>,Box<Type>),
+   Or(Vec<Box<Type>>),
    Ascript(String,Box<Type>),
    Sub(String,Box<Type>),
    ForAll(usize,Vec<String>,Box<Type>),
    Exists(usize,Vec<String>,Box<Type>),
    End(usize),
+   Typedef(String,Box<Type>),
+   Eq(Box<Type>,Box<Type>),
 }
 impl std::fmt::Display for Type {
    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
       match self {
          Type::True => write!(f, "T"),
+         Type::False => write!(f, "F"),
          Type::Ground(g) => write!(f, "{}", g),
+         Type::Param(g,gs) => write!(f, "{}<{}>", g, gs.iter().map(|s| s.to_string()).collect::<Vec<String>>().join(",") ),
          Type::Var(v) => write!(f, "'{}", v),
          Type::Arrow(l,r) => write!(f, "{} -> {}", l, r), //TODO disambiguate nesting of arrows
+         Type::Or(os) => write!(f, "{}", os.iter().map(|o| o.to_string()).collect::<Vec<String>>().join(" | ")),
          Type::Ascript(l,r) => write!(f, "{}:{}", l, r),
          Type::Sub(_v,s) => write!(f, "{}", s),
          Type::ForAll(_,vs,tt) => write!(f, "forall {}. {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(","), tt),
          Type::Exists(_,vs,tt) => write!(f, "exists {}. {}", vs.iter().map(|v| format!("'{}",v)).collect::<Vec<String>>().join(","), tt),
          Type::End(t) => write!(f, "end {}", t),
+         Type::Typedef(t,b) => write!(f, "{} = {}", t, b),
+         Type::Eq(l,r) => write!(f, "{} == {}", l, r),
       }
    }
 }
 pub fn ttrue() -> Type {
    Type::True
 }
+pub fn tfalse() -> Type {
+   Type::False
+}
 pub fn ground(s: &str) -> Type {
    Type::Ground(s.to_string())
+}
+pub fn param<I>(g: &str, gs: I) -> Type
+where
+    I: IntoIterator<Item = Type>,
+{
+    Type::Param(g.to_string(), gs.into_iter().map(|s| Box::new(s)).collect::<Vec<Box<Type>>>())
+}
+pub fn or<I>(os: I) -> Type
+where
+    I: IntoIterator<Item = Type>,
+{
+    Type::Or(os.into_iter().map(|s| Box::new(s)).collect::<Vec<Box<Type>>>())
 }
 pub fn var(s: &str) -> Type {
    Type::Var(s.to_string())
@@ -121,6 +146,12 @@ where
 }
 pub fn end(scope: usize) -> Type {
    Type::End(scope)
+}
+pub fn typedef(n: &str, t: Type) -> Type {
+   Type::Typedef(n.to_string(), Box::new(t))
+}
+pub fn eq(l: Type, r: Type) -> Type {
+   Type::Eq(Box::new(l), Box::new(r))
 }
 
 pub fn declare<I>(ds: I) -> Judgements
