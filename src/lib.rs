@@ -5,6 +5,8 @@ use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::rc::Rc;
 
+pub mod rust;
+
 pub struct Judgements {
    pub lines: Vec<Box<Type>>
 }
