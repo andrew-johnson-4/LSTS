@@ -11,5 +11,9 @@ documentation = "https://docs.rs/lsts/"
 keywords = ["type","logic","automated","theorem","proof"]
 
 [dependencies.syn]
+optional = true
 version = "1.0"
 features = ["full"]
+
+[features]
+rust = ["syn"]

@@ -5,6 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::rc::Rc;
 
+#[cfg(feature = "rust")]
 pub mod rust;
 
 pub struct Judgements {
