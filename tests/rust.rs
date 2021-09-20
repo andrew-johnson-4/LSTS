@@ -8,5 +8,19 @@ fn rustly_typed() {
 #[test]
 fn rustly_blamed() {
    assert!(lsts::rust::typecheck_file("tests/rust/blame/move1.rs").is_err());
+   //fn main() {
+   //   let x = 5;
+   //   let y = x;
+   //   let z = x;
+   //}
+   //
+   //YIELDS something like
+   //
+   //main: () -> ()
+   //main:x: integer
+   //main:y: x
+   //close main:x
+   //main:z: z
+   //close main:x
 }
 
