@@ -89,6 +89,8 @@ pub enum Type {
    Typefun(String,Typefun),
    Typecall(String,Vec<Box<Type>>),
    Eq(Box<Type>,Box<Type>),
+   Open(String),
+   Close(String),
 }
 impl std::fmt::Display for Type {
    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -108,6 +110,8 @@ impl std::fmt::Display for Type {
          Type::Typefun(n,_) => write!(f, "\\{}", n),
          Type::Typecall(n,ps) => write!(f, "\\{}({})", n, ps.iter().map(|p| p.to_string()).collect::<Vec<String>>().join(",")),
          Type::Eq(l,r) => write!(f, "{} == {}", l, r),
+         Type::Open(v) => write!(f, "open {}", v),
+         Type::Close(v) => write!(f, "close {}", v),
       }
    }
 }
