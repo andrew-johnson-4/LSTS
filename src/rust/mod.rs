@@ -1,15 +1,28 @@
 use std::fs::File;
 use std::io::prelude::*;
-use crate::Judgements;
+use crate::{Judgements,Type};
 
 pub struct RustError;
 
+pub fn judge_typeof(tt: &syn::Type) -> Type {
+   Type::Ground("")
+}
 pub fn judge_item(j: &mut Judgements, syntax: &syn::Item) {
    match syntax {
       syn::Item::Fn(f) => {
          //main: () -> ()
          let fname = f.sig.ident.to_string();
-         println!("judge fn: {:?}", f.sig);
+         let fargs = Type::Param("()", f.sig.inputs.iter().map(
+            |tt| match tt {
+               syn::FnArg::Receiver(_) => panic!("Self type not implemented for fnargs"),
+               syn::FnArg::Typed(pt) => panic!("Pattern type not implemented for fnargs"),
+            }
+         ).collect::<Vec<Box<Type>>>());
+         let rtype = match &f.sig.output {
+            syn::ReturnType::Default => Type::Param("()",vec![]),
+            syn::ReturnType::Type(_,box tt) => judge_typeof(&tt),
+         };
+         println!("{}: () -> {}", fname, rtype);
       },
       _ => {}
    }

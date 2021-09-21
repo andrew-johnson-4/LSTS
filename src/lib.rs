@@ -98,7 +98,13 @@ impl std::fmt::Display for Type {
          Type::True => write!(f, "T"),
          Type::False => write!(f, "F"),
          Type::Ground(g) => write!(f, "{}", g),
-         Type::Param(g,gs) => write!(f, "{}<{}>", g, gs.iter().map(|s| s.to_string()).collect::<Vec<String>>().join(",") ),
+         Type::Param(g,gs) => {
+            if gs.len()==0 {
+               write!(f, "{}", g)
+            } else {
+               write!(f, "{}<{}>", g, gs.iter().map(|s| s.to_string()).collect::<Vec<String>>().join(",") )
+            }
+         },
          Type::Var(v) => write!(f, "'{}", v),
          Type::Arrow(l,r) => write!(f, "{} -> {}", l, r), //TODO disambiguate nesting of arrows
          Type::Or(os) => write!(f, "{}", os.iter().map(|o| o.to_string()).collect::<Vec<String>>().join(" | ")),
