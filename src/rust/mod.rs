@@ -10,7 +10,20 @@ pub fn judge_typeof(tt: &syn::Type) -> Type {
 pub fn judge_stmt(j: &mut Judgements, syntax: &syn::Stmt) {
    match syntax {
       syn::Stmt::Local(l) => {
-         println!("stmt local {:?}", l)
+         match &l.pat {
+            syn::Pat::Ident(i) => {
+               let iref = i.by_ref.is_some();
+               let imut = i.mutability.is_some();
+               let ident = i.ident.to_string();
+               match &l.init {
+                  Some((_,e)) => {
+                     println!("ident local {}{}{:?} = {:?};", if iref {"ref "} else {""}, if imut {"mut "} else {""}, ident, e)
+                  },
+                  None => println!("ident local {}{}{:?};", if iref {"ref "} else {""}, if imut {"mut "} else {""}, ident)
+               }
+            },
+            p => println!("stmt local {:?}", l)
+         }
       },
       s => println!("unknown stmt {:?}", s)
    }
