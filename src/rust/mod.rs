@@ -7,6 +7,14 @@ pub struct RustError;
 pub fn judge_typeof(tt: &syn::Type) -> Type {
    Type::Ground("")
 }
+pub fn judge_stmt(j: &mut Judgements, syntax: &syn::Stmt) {
+   match syntax {
+      syn::Stmt::Local(l) => {
+         println!("stmt local {:?}", l)
+      },
+      s => println!("unknown stmt {:?}", s)
+   }
+}
 pub fn judge_item(j: &mut Judgements, syntax: &syn::Item) {
    match syntax {
       syn::Item::Fn(f) => {
@@ -23,6 +31,9 @@ pub fn judge_item(j: &mut Judgements, syntax: &syn::Item) {
             syn::ReturnType::Type(_,box tt) => judge_typeof(&tt),
          };
          println!("{}: () -> {}", fname, rtype);
+         for s in f.block.stmts.iter() {
+            judge_stmt(j, s)
+         }
       },
       _ => {}
    }
