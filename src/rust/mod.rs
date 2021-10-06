@@ -27,7 +27,9 @@ pub fn judge_stmt(j: &mut Judgements, syntax: &syn::Stmt) {
                let ident = i.ident.to_string();
                match &l.init {
                   Some((_,box syn::Expr::Lit(l))) => {
-                     println!("ident local literal {}{}{:?} = {};", if iref {"ref "} else {""}, if imut {"mut "} else {""}, ident, judge_typeof_lit(l))
+                     println!("ident local literal {}{}{:?} = {};", if iref {"ref "} else {""}, if imut {"mut "} else {""}, ident, judge_typeof_lit(l));
+                     //v: vtype
+                     j.push(Box::new(Type::Ascript(ident.clone(), Box::new(judge_typeof_lit(l)))))
                   }, Some((_,e)) => {
                      println!("ident local {}{}{:?} = {:?};", if iref {"ref "} else {""}, if imut {"mut "} else {""}, ident, e)
                   },
@@ -81,5 +83,7 @@ pub fn typecheck_file(path: &str) -> Result<(),RustError>
    judge_file(&mut j, &syntax);
 
    //TODO: load Rust prelude and typecheck file
+
+   println!("typecheck file {}: {}", path, j);
    Ok(())
 }

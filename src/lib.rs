@@ -11,6 +11,16 @@ pub mod rust;
 pub struct Judgements {
    pub lines: Vec<Box<Type>>
 }
+impl std::fmt::Display for Judgements {
+   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+       write!(f, "Judgements [\n")?;
+       for l in self.lines.iter() {
+          write!(f, "   {}\n", l)?;
+       }
+       write!(f, "]\n")?;
+       Ok(())
+   }
+}
 impl Judgements {
    pub fn hash(&self) -> u64 {
       let mut hasher = DefaultHasher::new();
@@ -21,6 +31,9 @@ impl Judgements {
       Judgements {
          lines: Vec::new()
       }
+   }
+   pub fn push(&mut self, tt: Box<Type>) {
+      self.lines.push(tt);
    }
    pub fn normalize(mut self) -> Judgements {
       let mut fresh = true;
