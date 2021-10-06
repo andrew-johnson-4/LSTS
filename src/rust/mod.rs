@@ -28,13 +28,16 @@ pub fn judge_stmt(j: &mut Judgements, syntax: &syn::Stmt) {
                match &l.init {
                   Some((_,box syn::Expr::Lit(l))) => {
                      //v: vtype
-                     j.push(Box::new(Type::Ascript(ident.clone(), Box::new(judge_typeof_lit(l)))))
+                     j.push(Box::new(Type::Ascript(ident.clone(), Box::new(judge_typeof_lit(l)))));
+                     j.push(Box::new(Type::Open(ident.clone())));
                   }, Some((_,box syn::Expr::Path(p))) => {
                      let v = format!("{}{}", if p.path.leading_colon.is_some() {"::"} else {""}, p.path.segments.iter().map(|ps| ps.ident.to_string()).collect::<Vec<String>>().join("::") );
                      //v: vvar
-                     j.push(Box::new(Type::Ascript(ident.clone(), Box::new(Type::Var(v)))))
+                     j.push(Box::new(Type::Ascript(ident.clone(), Box::new(Type::Var(v.clone())))));
+                     j.push(Box::new(Type::Open(ident.clone())));
+                     j.push(Box::new(Type::Close(v.clone())));
                   }, Some((_,e)) => {
-                     println!("ident local {}{}{:?} = {:?};", if iref {"ref "} else {""}, if imut {"mut "} else {""}, ident, e)
+                     println!("ident local {}{}{:?} = {:?};", if iref {"ref "} else {""}, if imut {"mut "} else {""}, ident, e);
                   },
                   None => println!("ident local {}{}{:?};", if iref {"ref "} else {""}, if imut {"mut "} else {""}, ident)
                }
