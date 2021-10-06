@@ -26,7 +26,6 @@ pub fn judge_stmt(j: &mut Judgements, syntax: &syn::Stmt) {
                let imut = i.mutability.is_some();
                let ident = i.ident.to_string();
                match &l.init {
-//ident local "x" = Lit(ExprLit { attrs: [], lit: Int(LitInt { token: 5 }) });
                   Some((_,box syn::Expr::Lit(l))) => {
                      println!("ident local literal {}{}{:?} = {};", if iref {"ref "} else {""}, if imut {"mut "} else {""}, ident, judge_typeof_lit(l))
                   }, Some((_,e)) => {
