@@ -3,7 +3,7 @@ fn test_ground1(){
    let ts = lsts::declare([
       lsts::var("a"),
       lsts::ascript("a",lsts::ground("int"))
-   ]).normalize();
+   ]).normalize().unwrap();
 
    assert_eq!(
       ts.lines[0].to_string(),
@@ -16,7 +16,7 @@ fn test_arrow1(){
    let ts = lsts::declare([
       lsts::var("a"),
       lsts::ascript("a", lsts::arrow(lsts::ground("int"), lsts::ground("bool")))
-   ]).normalize();
+   ]).normalize().unwrap();
 
    assert_eq!(
       ts.lines[0].to_string(),

@@ -35,7 +35,7 @@ impl Judgements {
    pub fn push(&mut self, tt: Box<Type>) {
       self.lines.push(tt);
    }
-   pub fn normalize(mut self) -> Judgements {
+   pub fn normalize(mut self) -> Result<Judgements,TypeError> {
       let mut fresh = true;
       while fresh {
          fresh = false;
@@ -44,12 +44,25 @@ impl Judgements {
          //gather type functions to be applied
          let mut ascripts: HashMap<String,Box<Type>> = HashMap::new();
          let mut typefuns: HashMap<String,Typefun> = HashMap::new();
+         let mut linears: HashMap<String,bool> = HashMap::new();
          for l in self.lines.iter() {
             match l {
                box Type::Ascript(v,vt) => {
                   ascripts.insert(v.to_string(), vt.clone());
                }, box Type::Typefun(v,vt) => {
                   typefuns.insert(v.to_string(), vt.clone());
+               }, box Type::Open(v) => {
+                  linears.insert(v.to_string(), true);
+               }, box Type::Close(v) => {
+                  if let Some(vt) = linears.get(v) {
+                     if *vt {
+                        linears.insert(v.to_string(), false);
+                     } else {
+                        return Err(TypeError::DoubleClose(v.to_string()))
+                     }
+                  } else {
+                     return Err(TypeError::CloseBeforeOpen(v.to_string()))
+                  }
                }, _ => {}
             }
          }
@@ -65,7 +78,7 @@ impl Judgements {
             }
          }
       }
-      self
+      Ok(self)
    }
 }
 
@@ -84,6 +97,20 @@ impl PartialEq for Typefun {
     }
 }
 impl Eq for Typefun {}
+
+#[derive(PartialEq,Eq,Hash,Clone,Debug)]
+pub enum TypeError {
+   DoubleClose(String),
+   CloseBeforeOpen(String),
+}
+impl std::fmt::Display for TypeError {
+   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+      match self {
+         TypeError::DoubleClose(v) => write!(f, "linear variable {} closed twice", v),
+         TypeError::CloseBeforeOpen(v) => write!(f, "linear variable {} closed before being opened", v),
+      }
+   }
+}
 
 #[derive(PartialEq,Eq,Hash,Clone)]
 pub enum Type {

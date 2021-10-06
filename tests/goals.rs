@@ -42,7 +42,7 @@ fn test_arith1(){
 	    ])
          ])
       )
-   ]).normalize();
+   ]).normalize().unwrap();
 
    assert_eq!(
       ts.lines[2].to_string(),

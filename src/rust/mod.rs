@@ -2,7 +2,9 @@ use std::fs::File;
 use std::io::prelude::*;
 use crate::{Judgements,Type};
 
-pub struct RustError;
+pub struct RustError {
+   message: String
+}
 
 pub fn judge_typeof_lit(l: &syn::ExprLit) -> Type {
    match l.lit {
@@ -88,8 +90,12 @@ pub fn typecheck_file(path: &str) -> Result<(),RustError>
    let mut j = Judgements::zero();
    judge_file(&mut j, &syntax);
 
-   //TODO: load Rust prelude and typecheck file
+   if let Err(e) = j.normalize() {
+      println!("{}", e);
+      return Err(RustError {
+         message: format!("{}", e)
+      })
+   }   
 
-   println!("typecheck file {}: {}", path, j);
    Ok(())
 }

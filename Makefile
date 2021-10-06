@@ -1,2 +1,2 @@
 test:
-	cargo test --features rust
+	cargo test --features rust -- --nocapture

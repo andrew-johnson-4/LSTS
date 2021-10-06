@@ -3,7 +3,7 @@ fn test_uvar1(){
    let ts = lsts::declare([
       lsts::uvar(),
       lsts::uvar(),
-   ]).normalize();
+   ]).normalize().unwrap();
 
    assert_eq!(
       ts.lines[0].to_string()[..6],
@@ -20,7 +20,7 @@ fn test_uvar1(){
 fn test_ground1(){
    let ts = lsts::declare([
       lsts::ground("int")
-   ]).normalize();
+   ]).normalize().unwrap();
 
    assert_eq!(
       ts.lines[0].to_string(),
@@ -32,7 +32,7 @@ fn test_ground1(){
 fn test_arrow1(){
    let ts = lsts::declare([
       lsts::arrow(lsts::ground("int"), lsts::ground("bool"))
-   ]).normalize();
+   ]).normalize().unwrap();
 
    assert_eq!(
       ts.lines[0].to_string(),
@@ -47,7 +47,7 @@ fn test_forall1(){
       lsts::forall(&mut f1token, ["a"], lsts::ttrue()),
       lsts::arrow(lsts::var("a"), lsts::ground("bool")),
       lsts::end(f1token),
-   ]).normalize();
+   ]).normalize().unwrap();
 
    assert_eq!(
       ts.lines[0].to_string(),
@@ -70,7 +70,7 @@ fn test_exists1(){
       lsts::exists(&mut e1token, ["a"], lsts::ttrue()),
       lsts::arrow(lsts::var("a"), lsts::ground("bool")),
       lsts::end(e1token),
-   ]).normalize();
+   ]).normalize().unwrap();
 
    assert_eq!(
       ts.lines[0].to_string(),
