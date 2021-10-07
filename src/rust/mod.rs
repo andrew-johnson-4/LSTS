@@ -55,12 +55,13 @@ pub fn judge_item(j: &mut Judgements, syntax: &syn::Item) {
       syn::Item::Fn(f) => {
          //main: () -> ()
          let fname = f.sig.ident.to_string();
-         let fargs = Type::Param("()", f.sig.inputs.iter().map(
+         /* let fargs = Type::Param("()", f.sig.inputs.iter().map(
             |tt| match tt {
-               syn::FnArg::Receiver(_) => panic!("Self type not implemented for fnargs"),
-               syn::FnArg::Typed(pt) => panic!("Pattern type not implemented for fnargs"),
+               syn::FnArg::Receiver(_) => { panic!("Self type not implemented for fnargs") },
+               syn::FnArg::Typed(pt) => { panic!("Pattern type not implemented for fnargs") },
+               _ => Type::False,
             }
-         ).collect::<Vec<Box<Type>>>());
+         ).collect::<Vec<Box<Type>>>()); */
          let rtype = match &f.sig.output {
             syn::ReturnType::Default => Type::Param("()",vec![]),
             syn::ReturnType::Type(_,box tt) => judge_typeof(&tt),
