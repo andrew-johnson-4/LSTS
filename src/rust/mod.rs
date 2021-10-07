@@ -85,7 +85,12 @@ pub fn typecheck_file(path: &str) -> Result<(),RustError>
    let mut src = String::new();
    file.read_to_string(&mut src).expect(&format!("Unable to read file: {}", path));
 
-   let syntax = syn::parse_file(&src).expect(&format!("Unable to parse file: {}", path));
+   let syntax = match syn::parse_file(&src) {
+      Ok(s) => s,
+      Err(pe) => { return Err(RustError {
+         message: format!("Rust parse error: {}", path)
+      }) },
+   };
 
    let mut j = Judgements::zero();
    judge_file(&mut j, &syntax);
