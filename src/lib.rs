@@ -118,6 +118,7 @@ pub enum Type {
    False,
    Ground(&'static str),
    Param(&'static str,Vec<Box<Type>>),
+   Assoc(Box<Type>,Vec<Box<Type>>),
    Var(String),
    Arrow(Box<Type>,Box<Type>),
    Or(Vec<Box<Type>>),
@@ -145,6 +146,7 @@ impl std::fmt::Display for Type {
                write!(f, "{}<{}>", g, gs.iter().map(|s| s.to_string()).collect::<Vec<String>>().join(",") )
             }
          },
+         Type::Assoc(t,ts) => write!(f, "{}", t),
          Type::Var(v) => write!(f, "'{}", v),
          Type::Arrow(l,r) => write!(f, "{} -> {}", l, r), //TODO disambiguate nesting of arrows
          Type::Or(os) => write!(f, "{}", os.iter().map(|o| o.to_string()).collect::<Vec<String>>().join(" | ")),
@@ -197,6 +199,17 @@ impl Type {
               (false, false, tt.clone())
             }
          },
+         box Type::Assoc(t,ts) => {
+            let mut td = Vec::new();
+            let (mut normalized, mut changed, t) = Type::normalize(t, ascripts, typefuns);
+            for p in ts.iter() {
+               let (n,c,tt) = Type::normalize(p, ascripts, typefuns);
+               normalized &= n;
+               changed |= c;
+               td.push(tt);
+            }
+            (normalized, changed, assoc(t, td))
+         }
          box Type::Typecall(f,ps) => {
             if let Some(vt) = typefuns.get(f) {
                let mut pd = Vec::new();
@@ -239,6 +252,9 @@ pub fn tfalse() -> Box<Type> {
 }
 pub fn ground(s: &'static str) -> Box<Type> {
    Box::new(Type::Ground(s))
+}
+pub fn assoc(t: Box<Type>, ts: Vec<Box<Type>>) -> Box<Type> {
+   Box::new(Type::Assoc(t, ts))
 }
 pub fn param<I>(g: &'static str, gs: I) -> Box<Type>
 where
