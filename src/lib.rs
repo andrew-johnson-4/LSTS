@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 #[cfg(feature = "rust")]
 pub mod rust;
+pub mod syntax;
 
 pub struct Judgements {
    pub lines: Vec<Box<Type>>

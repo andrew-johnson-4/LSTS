@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::prelude::*;
 
+/*
 #[test]
 fn rustly_testbed() {
    for p in std::fs::read_dir("../rust/src/test/ui").unwrap() {
@@ -26,3 +27,4 @@ fn rustly_testbed() {
       }
    }
 }
+*/
