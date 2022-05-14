@@ -15,4 +15,7 @@ fn rust_simplytyped() {
    assert!(TLC::parse("let t: A->B").is_ok());
    assert!(TLC::parse("let t: (A)->B").is_ok());
    assert!(TLC::parse("let t: (A,B)->B").is_ok());
+   assert!(TLC::parse("let t: A|B").is_ok());
+   assert!(TLC::parse("let a: A; let a: B").is_ok());
+   assert!(TLC::parse("let a: A; let b: A").is_ok());
 }
