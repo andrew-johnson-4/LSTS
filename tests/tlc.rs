@@ -1,6 +1,8 @@
 use lsts::syntax::TLC;
 
-fn rust_simplytyped() {
+
+#[test]
+fn parse_simplytyped() {
    assert!(TLC::parse("let t: T").is_ok());
    assert!(TLC::parse("let t: 1").is_ok());
    assert!(TLC::parse("a()").is_ok());

@@ -5,6 +5,10 @@ use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::rc::Rc;
 
+extern crate pest;
+#[macro_use]
+extern crate pest_derive;
+
 #[cfg(feature = "rust")]
 pub mod rust;
 pub mod syntax;
