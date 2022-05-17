@@ -1,23 +1,23 @@
-use lsts::syntax::TLC;
-
+use lsts::syntax::tlc::{TlcError,TlcExpr,TLC};
 
 #[test]
 fn parse_simplytyped() {
-   assert!(TLC::parse("let t: T").is_ok());
-   assert!(TLC::parse("let t: 1").is_ok());
-   assert!(TLC::parse("a()").is_ok());
-   assert!(TLC::parse("a(b)").is_ok());
-   assert!(TLC::parse("a(b,c)").is_ok());
-   assert!(TLC::parse("let t: ()").is_ok());
-   assert!(TLC::parse("let t: (A)").is_ok());
-   assert!(TLC::parse("let t: (A,B)").is_ok());
-   assert!(TLC::parse("let t: T<1,2>").is_ok());
-   assert!(TLC::parse("let t: [1]").is_ok());
-   assert!(TLC::parse("let t: ()->A").is_ok());
-   assert!(TLC::parse("let t: A->B").is_ok());
-   assert!(TLC::parse("let t: (A)->B").is_ok());
-   assert!(TLC::parse("let t: (A,B)->B").is_ok());
-   assert!(TLC::parse("let t: A|B").is_ok());
-   assert!(TLC::parse("let a: A; let a: B").is_ok());
-   assert!(TLC::parse("let a: A; let b: A").is_ok());
+   TLC::check("let t: T");
+   TLC::check("let t: 1");
+   TLC::check("a");
+   TLC::check("a()");
+   TLC::check("a(b)");
+   TLC::check("a(b,c)");
+   TLC::check("let t: ()");
+   TLC::check("let t: (A)");
+   TLC::check("let t: (A,B)");
+   TLC::check("let t: T<1,2>");
+   TLC::check("let t: [1]");
+   TLC::check("let t: ()->A");
+   TLC::check("let t: A->B");
+   TLC::check("let t: (A)->B");
+   TLC::check("let t: (A,B)->C");
+   TLC::check("let t: A|B");
+   TLC::check("let a: A; let a: B");
+   TLC::check("let a: A; let b: A");
 }
