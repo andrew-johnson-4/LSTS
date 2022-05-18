@@ -27,7 +27,7 @@ pub enum TlcExpr {
 
 impl TLC {
    pub fn check(src:&str) -> Result<(),TlcError> {
-      TLC::parse(src).map(|e|{})
+      TLC::parse(src).map(|_|{})
    }
    pub fn parse(src:&str) -> Result<TlcExpr,TlcError> {
       let pr = TlcParser::parse(Rule::file, src);

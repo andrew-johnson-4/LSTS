@@ -5,6 +5,27 @@ alpha = { 'a'..'z' | 'A'..'Z' }
 digit = { '0'..'9' }
 
 ident = { (alpha | digit)+ }
-stmt = { ident }
 
-file = _{ SOI ~ stmt+ ~ EOI }
+ident_term = { ident }	
+tuple_term = { paren_atom }
+
+paren_atom = { "(" ~ (term ~ ("," ~ term)*)? ~ ")" }
+term_atom = _{ (ident_term | tuple_term) ~ (paren_atom)* }
+
+term = { term_atom }
+
+ident_typ = { ident }
+paren_typ = { "(" ~ (typ ~ ("," ~ typ)*)? ~ ")" }
+angle_typ = { "<" ~ (typ ~ ("," ~ typ)*)? ~ ">" }
+brack_typ = { "[" ~ (typ ~ ("," ~ typ)*)? ~ "]" }
+atom_typ  = { paren_typ | ident_typ }
+suffix_typ = { atom_typ? ~ (brack_typ | angle_typ)* }
+arrow_typ = { suffix_typ ~ ("->" ~ suffix_typ)* }
+and_typ    = { arrow_typ ~ ("+" ~ arrow_typ)* }
+or_typ    = { and_typ ~ ("|" ~ and_typ)* }
+typ       = { or_typ }
+
+let_stmt = { "let" ~ ident ~ ("=" ~ term)? ~ (":" ~ typ)? }
+stmt = _{ let_stmt | term } 
+
+file = _{ SOI ~ stmt? ~ (";" ~ stmt)* ~ EOI }
