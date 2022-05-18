@@ -21,3 +21,9 @@ fn parse_simplytyped() {
    TLC::check("let a: A; let a: B").unwrap();
    TLC::check("let a: A; let b: A").unwrap();
 }
+
+#[test]
+fn check_simplytyped() {
+   TLC::check("(a: A->B)(b: A)").unwrap();
+   TLC::check("(a: A->B)(b: B)").unwrap_err();
+}
