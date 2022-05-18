@@ -1,6 +1,10 @@
+WHITESPACE = _{ " " }
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
 alpha = { 'a'..'z' | 'A'..'Z' }
 digit = { '0'..'9' }
 
 ident = { (alpha | digit)+ }
+stmt = { ident }
 
-ident_list = _{ !digit ~ ident ~ (" " ~ ident)+ }
+file = _{ SOI ~ stmt+ ~ EOI }

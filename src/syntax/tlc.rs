@@ -17,7 +17,7 @@ pub struct TlcError {
 }
 impl std::fmt::Debug for TlcError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} expected {} in {} --> {},{}{}", self.error_type, self.rule, self.filename,
+        write!(f, "{}, expected {}, in {} --> {},{}{}", self.error_type, self.rule, self.filename,
                self.start.0, self.start.1, self.snippet)
     }
 }
@@ -26,14 +26,11 @@ pub enum TlcExpr {
 }
 
 impl TLC {
-   pub fn check(src:&str) {
-      if let Err(r) = TLC::parse(src) {
-         //returning Results to rust tests causes nasty error message formatting
-         panic!("{:?}", r)
-      }
+   pub fn check(src:&str) -> Result<(),TlcError> {
+      TLC::parse(src).map(|e|{})
    }
    pub fn parse(src:&str) -> Result<TlcExpr,TlcError> {
-      let pr = TlcParser::parse(Rule::ident_list, src);
+      let pr = TlcParser::parse(Rule::file, src);
       match pr {
         Ok(_) => Ok(TlcExpr::Empty),
         Err(pe) => {
@@ -59,7 +56,7 @@ impl TLC {
              filename:"[string]".to_string(),
              start:start, end:end,
              snippet: if iend>istart { format!("\n{}", &src[istart..iend]) }
-                      else {format!("")}
+                      else { format!(" {:?}", &src[istart..std::cmp::min(src.len(),istart+1)])}
           })
         }
       } 
