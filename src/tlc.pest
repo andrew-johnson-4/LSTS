@@ -16,11 +16,12 @@ term_atom = { (ident_term | tuple_term) ~ (paren_atom)* }
 term = { ascript_term }
 
 ident_typ = { ident }
+any_typ = { "?" }
 paren_typ = { "(" ~ (typ ~ ("," ~ typ)*)? ~ ")" }
 angle_typ = { "<" ~ (typ ~ ("," ~ typ)*)? ~ ">" }
 brack_typ = { "[" ~ (typ ~ ("," ~ typ)*)? ~ "]" }
-atom_typ  = { paren_typ | ident_typ }
-suffix_typ = { atom_typ? ~ (brack_typ | angle_typ)* }
+atom_typ  = { any_typ | paren_typ | ident_typ }
+suffix_typ = { atom_typ ~ (brack_typ | angle_typ)* }
 arrow_typ = { suffix_typ ~ ("->" ~ suffix_typ)* }
 and_typ    = { arrow_typ ~ ("+" ~ arrow_typ)* }
 or_typ    = { and_typ ~ ("|" ~ and_typ)* }

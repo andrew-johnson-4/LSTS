@@ -32,26 +32,22 @@ pub enum TlcExpr {
    Tuple(Vec<TlcExpr>),
    Block(Vec<TlcExpr>),
    Ascript(Box<TlcExpr>,Box<TlcExpr>),
+   TypNil,
+   TypAny,
+   TypIdent(String),
+   TypOr(Vec<TlcExpr>),
+   TypAnd(Vec<TlcExpr>),
+   TypArrow(Box<TlcExpr>,Box<TlcExpr>),
+   TypCompound(Box<TlcExpr>,Vec<TlcExpr>),
+   TypTuple(Vec<TlcExpr>),
+   TypAngle(Vec<TlcExpr>),
+   TypBrack(Vec<TlcExpr>),
 }
 
 impl TLC {
    pub fn normalize_file(ps: Pairs<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
       TLC::normalize_ast(ps.peek().unwrap())
    }
-/*
-ident_typ = { ident }
-paren_typ = { "(" ~ (typ ~ ("," ~ typ)*)? ~ ")" }
-angle_typ = { "<" ~ (typ ~ ("," ~ typ)*)? ~ ">" }
-brack_typ = { "[" ~ (typ ~ ("," ~ typ)*)? ~ "]" }
-atom_typ  = { paren_typ | ident_typ }
-suffix_typ = { atom_typ? ~ (brack_typ | angle_typ)* }
-arrow_typ = { suffix_typ ~ ("->" ~ suffix_typ)* }
-and_typ    = { arrow_typ ~ ("+" ~ arrow_typ)* }
-or_typ    = { and_typ ~ ("|" ~ and_typ)* }
-typ       = { or_typ }
-
-let_stmt = { "let" ~ ident ~ ("=" ~ term)? ~ (":" ~ typ)? }
-*/
    pub fn normalize_ast(p: Pair<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
       match p.as_rule() {
          //entry point rule
@@ -69,13 +65,18 @@ let_stmt = { "let" ~ ident ~ ("=" ~ term)? ~ (":" ~ typ)? }
          },
 
          //passthrough rules
-         Rule::stmt => TLC::normalize_ast(p.into_inner().peek().unwrap()),
-         Rule::term => TLC::normalize_ast(p.into_inner().peek().unwrap()),
-         Rule::ident_term => TLC::normalize_ast(p.into_inner().peek().unwrap()),
-         Rule::tuple_term => TLC::normalize_ast(p.into_inner().peek().unwrap()),
+         Rule::stmt => TLC::normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [stmt]")),
+         Rule::term => TLC::normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [term]")),
+         Rule::ident_term => TLC::normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [ident_term]")),
+         Rule::tuple_term => TLC::normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [tuple_term]")),
+         Rule::ident_typ => TLC::normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [ident_typ]")),
+         Rule::atom_typ => TLC::normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
+         Rule::typ => TLC::normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
 
          //literal value rules
          Rule::ident => Ok(TlcExpr::Ident(p.into_inner().concat())),
+         Rule::ident_typ => Ok(TlcExpr::TypIdent(p.into_inner().concat())),
+         Rule::any_typ => Ok(TlcExpr::TypAny),
 
          //complex rules
          Rule::let_stmt => {
@@ -130,6 +131,70 @@ let_stmt = { "let" ~ ident ~ ("=" ~ term)? ~ (":" ~ typ)? }
             } else {
                Ok(TlcExpr::Tuple(es))
             }
+         },
+         Rule::paren_typ => {
+            let ts = p.into_inner().map(|e|TLC::normalize_ast(e).expect("TLC Grammar Error in rule [paren_typ]"))
+                      .collect::<Vec<TlcExpr>>();
+            if ts.len()==0 {
+               Ok(TlcExpr::Nil)
+            } else if ts.len()==1 {
+               Ok(ts[0].clone())
+            } else {
+               Ok(TlcExpr::TypTuple(ts))
+            }
+         },
+         Rule::arrow_typ => {
+            let mut ts = p.into_inner();
+            let mut t = TLC::normalize_ast(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
+            for tr in ts {
+               t = TlcExpr::TypArrow(
+                  Box::new(t),
+                  Box::new(TLC::normalize_ast(tr)?)
+               );
+            }
+            Ok(t)
+         },
+         Rule::suffix_typ => {
+            let mut ts = p.into_inner();
+            let mut t = TLC::normalize_ast(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
+            let ts = ts.map(|e|TLC::normalize_ast(e).expect("TLC Grammar Error in rule [suffix_typ]"))
+                       .collect::<Vec<TlcExpr>>();
+            if ts.len()==0 {
+               Ok(t)
+            } else {
+               Ok(TlcExpr::TypCompound(
+                  Box::new(t),
+                  ts
+               ))
+            }
+         },
+         Rule::or_typ => {
+            let ts = p.into_inner().map(|e|TLC::normalize_ast(e).expect("TLC Grammar Error in rule [or_typ]"))
+                      .collect::<Vec<TlcExpr>>();
+            if ts.len()==1 {
+               Ok(ts[0].clone())
+            } else {
+               Ok(TlcExpr::TypOr(ts))
+            }
+         },
+         Rule::and_typ => {
+            let ts = p.into_inner().map(|e|TLC::normalize_ast(e).expect("TLC Grammar Error in rule [and_typ]"))
+                      .collect::<Vec<TlcExpr>>();
+            if ts.len()==1 {
+               Ok(ts[0].clone())
+            } else {
+               Ok(TlcExpr::TypAnd(ts))
+            }
+         },
+         Rule::angle_typ => {
+            let ts = p.into_inner().map(|e|TLC::normalize_ast(e).expect("TLC Grammar Error in rule [angle_typ]"))
+                      .collect::<Vec<TlcExpr>>();
+            Ok(TlcExpr::TypAngle(ts))
+         },
+         Rule::brack_typ => {
+            let ts = p.into_inner().map(|e|TLC::normalize_ast(e).expect("TLC Grammar Error in rule [brack_typ]"))
+                      .collect::<Vec<TlcExpr>>();
+            Ok(TlcExpr::TypBrack(ts))
          },
 
          rule => panic!("unexpected rule: {:?}", rule)
