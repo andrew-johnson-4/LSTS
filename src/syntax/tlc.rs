@@ -1,4 +1,5 @@
 use pest::Parser;
+use pest::iterators::{Pair,Pairs};
 use pest::error::{ErrorVariant,InputLocation,LineColLocation};
 
 #[derive(Parser)]
@@ -22,17 +23,35 @@ impl std::fmt::Debug for TlcError {
     }
 }
 pub enum TlcExpr {
-   Empty,
+   Nil,
+   Ident(String),
 }
 
 impl TLC {
+   pub fn normalize_ast(ps: Pairs<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
+      let p = ps.peek().unwrap();
+      match p.as_rule() {
+         Rule::term => TLC::normalize_ast(p.into_inner()),
+         Rule::ident => Ok(TlcExpr::Ident(Pairs::single(p).concat())),
+         Rule::paren_atom => TLC::normalize_ast(p.into_inner()),
+         Rule::term_atom => TLC::normalize_ast(p.into_inner()),
+         Rule::ident_term => TLC::normalize_ast(p.into_inner()),
+         Rule::tuple_term => TLC::normalize_ast(p.into_inner()),
+         Rule::ascript_term => TLC::normalize_ast(p.into_inner()),
+         _ => panic!("unexpected rule: {:?}", p.as_rule())
+      }
+   }
+   pub fn typecheck(e: TlcExpr) -> Result<(),TlcError> {
+      Ok(())
+   }
    pub fn check(src:&str) -> Result<(),TlcError> {
-      TLC::parse(src).map(|_|{})
+      let ast = TLC::parse(src)?;
+      TLC::typecheck(ast)
    }
    pub fn parse(src:&str) -> Result<TlcExpr,TlcError> {
-      let pr = TlcParser::parse(Rule::file, src);
-      match pr {
-        Ok(_) => Ok(TlcExpr::Empty),
+      let parse_result = TlcParser::parse(Rule::file, src);
+      match parse_result {
+        Ok(parse_ast) => TLC::normalize_ast(parse_ast),
         Err(pe) => {
           let (start,end) = match pe.line_col {
              LineColLocation::Pos(s) => (s,s),

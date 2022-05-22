@@ -11,7 +11,7 @@ tuple_term = { paren_atom }
 ascript_term = { term_atom ~ (":" ~ typ)? }
 
 paren_atom = { "(" ~ (term ~ ("," ~ term)*)? ~ ")" }
-term_atom = _{ (ident_term | tuple_term) ~ (paren_atom)* }
+term_atom = { (ident_term | tuple_term) ~ (paren_atom)* }
 
 term = { ascript_term }
 
