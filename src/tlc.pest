@@ -27,6 +27,6 @@ or_typ    = { and_typ ~ ("|" ~ and_typ)* }
 typ       = { or_typ }
 
 let_stmt = { "let" ~ ident ~ ("=" ~ term)? ~ (":" ~ typ)? }
-stmt = _{ let_stmt | term } 
+stmt = { let_stmt | term } 
 
-file = _{ SOI ~ stmt? ~ (";" ~ stmt)* ~ EOI }
+file = { SOI ~ stmt? ~ (";" ~ stmt)* ~ EOI }
