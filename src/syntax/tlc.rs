@@ -27,6 +27,9 @@ impl std::fmt::Debug for TlcError {
 pub enum TlcExpr {
    Nil,
    Ident(String),
+   App(Box<TlcExpr>,Box<TlcExpr>),
+   Let(String,Option<Box<TlcExpr>>,Option<Box<TlcExpr>>),
+   Tuple(Vec<TlcExpr>),
    Block(Vec<TlcExpr>),
    Ascript(Box<TlcExpr>,Box<TlcExpr>),
 }
@@ -36,13 +39,6 @@ impl TLC {
       TLC::normalize_ast(ps.peek().unwrap())
    }
 /*
-ident_term = { ident }
-tuple_term = { paren_atom }
-ascript_term = { term_atom ~ (":" ~ typ)? }
-
-paren_atom = { "(" ~ (term ~ ("," ~ term)*)? ~ ")" }
-term_atom = { (ident_term | tuple_term) ~ (paren_atom)* }
-
 ident_typ = { ident }
 paren_typ = { "(" ~ (typ ~ ("," ~ typ)*)? ~ ")" }
 angle_typ = { "<" ~ (typ ~ ("," ~ typ)*)? ~ ">" }
@@ -60,8 +56,11 @@ let_stmt = { "let" ~ ident ~ ("=" ~ term)? ~ (":" ~ typ)? }
       match p.as_rule() {
          //entry point rule
          Rule::file => {
-            let es = p.into_inner().map(|e|TLC::normalize_ast(e).expect("TLC Grammar Error in rule [file]"))
-                      .collect::<Vec<TlcExpr>>();
+            let mut es = Vec::new();
+            for e in p.into_inner() { match e.as_rule() {
+               Rule::EOI => (),
+               _ => es.push(TLC::normalize_ast(e).expect("TLC Grammar Error in rule [file]"))
+            }}
             if es.len()==1 {
                Ok(es[0].clone())
             } else {
@@ -72,6 +71,8 @@ let_stmt = { "let" ~ ident ~ ("=" ~ term)? ~ (":" ~ typ)? }
          //passthrough rules
          Rule::stmt => TLC::normalize_ast(p.into_inner().peek().unwrap()),
          Rule::term => TLC::normalize_ast(p.into_inner().peek().unwrap()),
+         Rule::ident_term => TLC::normalize_ast(p.into_inner().peek().unwrap()),
+         Rule::tuple_term => TLC::normalize_ast(p.into_inner().peek().unwrap()),
 
          //literal value rules
          Rule::ident => Ok(TlcExpr::Ident(p.into_inner().concat())),
@@ -79,21 +80,38 @@ let_stmt = { "let" ~ ident ~ ("=" ~ term)? ~ (":" ~ typ)? }
          //complex rules
          Rule::ascript_term => {
             let mut es = p.into_inner();
-            match (es.next(),es.next()) {
-               (Some(e),None) => TLC::normalize_ast(e),
-               (Some(e),Some(tt)) => Ok(TlcExpr::Ascript(
+            let e = es.next().expect("TLC Grammar Error in rule [ascript_term]");
+            match es.next() {
+               None => TLC::normalize_ast(e),
+               Some(tt) => Ok(TlcExpr::Ascript(
                   Box::new(TLC::normalize_ast(e)?), //term
                   Box::new(TLC::normalize_ast(tt)?) //type
                )),
-               _ => panic!("TLC Grammar Error in rule [ascript_term]")
             }
-         }
+         },
+         Rule::term_atom => {
+            let mut es = p.into_inner();
+            let mut e = TLC::normalize_ast(es.next().expect("TLC Grammar Error in rule [term_atom]"))?;
+            for args in es {
+               e = TlcExpr::App(
+                  Box::new(e),
+                  Box::new(TLC::normalize_ast(args)?)
+               );
+            }
+            Ok(e)
+         },
+         Rule::paren_atom => {
+            let es = p.into_inner().map(|e|TLC::normalize_ast(e).expect("TLC Grammar Error in rule [paren_atom]"))
+                      .collect::<Vec<TlcExpr>>();
+            if es.len()==0 {
+               Ok(TlcExpr::Nil)
+            } else if es.len()==1 {
+               Ok(es[0].clone())
+            } else {
+               Ok(TlcExpr::Tuple(es))
+            }
+         },
 
-         //Rule::paren_atom => TLC::normalize_ast(p.into_inner()),
-         //Rule::term_atom => TLC::normalize_ast(p.into_inner()),
-         //Rule::ident_term => TLC::normalize_ast(p.into_inner()),
-         //Rule::tuple_term => TLC::normalize_ast(p.into_inner()),
-         //Rule::ascript_term => TLC::normalize_ast(p.into_inner()),
          rule => panic!("unexpected rule: {:?}", rule)
       }
    }
