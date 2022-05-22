@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use pest::Parser;
 use pest::iterators::{Pair,Pairs};
 use pest::error::{ErrorVariant,InputLocation,LineColLocation};
@@ -8,6 +9,7 @@ struct TlcParser;
 
 pub struct TLC {
    uuid: usize,
+   types: HashMap<usize,TlcExpr>,
 }
 
 pub struct TlcError {
@@ -48,7 +50,7 @@ pub enum TlcExpr {
 
 impl TLC {
    pub fn new() -> TLC {
-      TLC { uuid: 0 }
+      TLC { uuid: 0, types: HashMap::new() }
    }
    pub fn uuid(&mut self) -> usize {
       let n = self.uuid;
