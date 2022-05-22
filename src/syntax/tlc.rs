@@ -28,7 +28,7 @@ pub enum TlcExpr {
    Nil,
    Ident(String),
    App(Box<TlcExpr>,Box<TlcExpr>),
-   Let(String,Option<Box<TlcExpr>>,Option<Box<TlcExpr>>),
+   Let(Box<TlcExpr>,Box<TlcExpr>,Box<TlcExpr>),
    Tuple(Vec<TlcExpr>),
    Block(Vec<TlcExpr>),
    Ascript(Box<TlcExpr>,Box<TlcExpr>),
@@ -78,6 +78,26 @@ let_stmt = { "let" ~ ident ~ ("=" ~ term)? ~ (":" ~ typ)? }
          Rule::ident => Ok(TlcExpr::Ident(p.into_inner().concat())),
 
          //complex rules
+         Rule::let_stmt => {
+            let mut es = p.into_inner();
+            Ok(TlcExpr::Let(
+               Box::new(TLC::normalize_ast(es.next().expect("TLC Grammar Error in rule [let_stmt]"))?),
+               Box::new(TLC::normalize_ast(es.next().expect("TLC Grammar Error in rule [let_stmt]"))?),
+               Box::new(TLC::normalize_ast(es.next().expect("TLC Grammar Error in rule [let_stmt]"))?),
+            ))
+         },
+         Rule::let_stmt_val => {
+            match p.into_inner().next() {
+               None => Ok(TlcExpr::Nil),
+               Some(e) => TLC::normalize_ast(e)
+            }
+         },
+         Rule::let_stmt_typ => {
+            match p.into_inner().next() {
+               None => Ok(TlcExpr::Nil),
+               Some(e) => TLC::normalize_ast(e)
+            }
+         },
          Rule::ascript_term => {
             let mut es = p.into_inner();
             let e = es.next().expect("TLC Grammar Error in rule [ascript_term]");
