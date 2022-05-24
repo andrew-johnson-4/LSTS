@@ -2,7 +2,7 @@
 //bootstrap Type System
 
 //: ascript implies
-forall D,M: Metric. M => D
+forall M: Metric. M => Metric
 
 //: ascripted type equation
 forall X:Integer,D:Dimension. (Dimension,Integer)
