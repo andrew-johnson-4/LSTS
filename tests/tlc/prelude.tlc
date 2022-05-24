@@ -4,17 +4,16 @@
 //: ascript implies
 forall M: Metric. M => Metric
 
-//: ascripted type equation
+//: conditional type equation
 forall X:Integer,D:Dimension. (Dimension,Integer)
 
 //: fully-quantified type equation
-forall 1D,2D. (1D,2D)
+forall A,B. (A,B)
 
 //: Implication Reduction is Strongly Normalizing
 
 //: All types that strongly normalize have kinds
 //: All kinds that have types yield values
-
 //: All finite-length strings are finite-length
 forall AB1. (A,B,1) => (A,B) yields { 1 A B }
 forall AB12. (A,B,1,2) => (A,B,1) yields { 1 2 A B }
