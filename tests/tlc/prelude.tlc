@@ -1,14 +1,11 @@
 
 //bootstrap Type System
 
-//: Three Introduction Rules
+//: Two Introduction Rules
 //: I1. ascription proves implication
-forall M: Metric. M => Metric
+forall A: B. A => B
 
-//: I2. ascription proves conditional type equation
-forall X:Integer,D:Dimension. (Dimension,Integer)
-
-//: I3. quantification proves relational type equation
+//: I2. quantification proves relational type equation
 forall A,B. (A,B)
 
 //: Implication Reduction is Strongly Normalizing
