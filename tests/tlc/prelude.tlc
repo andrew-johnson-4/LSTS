@@ -18,14 +18,14 @@ forall A,B. (A,B)
 //: 3) All finite-length strings are finite-length
 
 //: Three Elimination Rules
-//: E1. 3 implies 2
-forall AB1. (A,B,1) => (A,B) yields { 1 A B }
+//: E1. 3D implies 2D
+forall A,B,1. (A,B,1) => (A,B) yields { 1 A B }
 
-//: E2. 4 implies 3
-forall AB12. (A,B,1,2) => (A,B,1) yields { 1 2 A B }
+//: E2. 4D implies 3D
+forall A,B,1,2. (A,B,1,2) => (A,B,1) yields { 1 2 A B }
 
-//: E3 5 implies 4 if (x,0)
-forall AB12x. (A,B,1,2,x) => (A,B,1,2) yields { 0 1 2 A B }
+//: E3 5D implies 4D if (x,0)
+forall A,B,1,2,x. (A,B,1,2,x) => (A,B,1,2) yields { 0 1 2 A B }
 
-//: goal, prove all statements assuming (x,0)
+//: goal, prove all statements assuming (x,0):2D
 
