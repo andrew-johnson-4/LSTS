@@ -1,13 +1,13 @@
 
 //bootstrap Type System
 
-//: ascript implies
+//: ascription proves implication
 forall M: Metric. M => Metric
 
-//: conditional type equation
+//: conditional type equation proves ascription
 forall X:Integer,D:Dimension. (Dimension,Integer)
 
-//: fully-quantified type equation
+//: fully-quantified type equation proves relation
 forall A,B. (A,B)
 
 //: Implication Reduction is Strongly Normalizing
