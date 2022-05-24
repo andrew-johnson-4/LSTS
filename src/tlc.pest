@@ -1,4 +1,4 @@
-WHITESPACE = _{ " " }
+WHITESPACE = _{ " " | "\n" }
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 
 alpha = { 'a'..'z' | 'A'..'Z' }
