@@ -27,6 +27,7 @@ fn parse_simplytyped() {
 #[test]
 fn check_simplytyped() {
    let mut tlc = TLC::new();
+   tlc.load_file("tests/tlc/prelude.tlc").unwrap();
    tlc.check("(a: A->B)(b: A)").unwrap();
    tlc.check("(a: A->B)(b: B)").unwrap_err();
 }

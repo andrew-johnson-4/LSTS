@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::collections::HashMap;
 use pest::Parser;
 use pest::iterators::{Pair,Pairs};
@@ -56,6 +57,11 @@ impl TLC {
       let n = self.uuid;
       self.uuid += 1;
       n
+   }
+   pub fn load_file(&mut self, filename: &str) -> Result<(),TlcError> {
+      self.parse_file(filename)?;
+      panic!("TODO load_file: interpret file");
+      Ok(())
    }
    pub fn normalize_file(&mut self, ps: Pairs<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
       self.normalize_ast(ps.peek().unwrap())
@@ -225,6 +231,17 @@ impl TLC {
       self.typecheck(ast)
    }
    pub fn parse(&mut self, src:&str) -> Result<TlcExpr,TlcError> {
+      self.parse_doc("[string]", src)
+   }
+   pub fn parse_file(&mut self, filename:&str) -> Result<TlcExpr,TlcError> {
+      if !Path::new(filename).exists() {
+         panic!("parse_file could not find file: '{}'", filename)
+      }
+      let src = std::fs::read_to_string(filename)
+                   .expect("parse_file: Something went wrong reading the file");
+      self.parse_doc(filename,&src)
+   }
+   pub fn parse_doc(&mut self, docname:&str, src:&str) -> Result<TlcExpr,TlcError> {
       let parse_result = TlcParser::parse(Rule::file, src);
       match parse_result {
         Ok(parse_ast) => self.normalize_file(parse_ast),
@@ -248,7 +265,7 @@ impl TLC {
           Err(TlcError { 
              error_type: "Parse Error".to_string(),
              rule: rule,
-             filename:"[string]".to_string(),
+             filename:docname.to_string(),
              start:start, end:end,
              snippet: if iend>istart { format!("\n{}", &src[istart..iend]) }
                       else { format!(" {:?}", &src[istart..std::cmp::min(src.len(),istart+1)])}
