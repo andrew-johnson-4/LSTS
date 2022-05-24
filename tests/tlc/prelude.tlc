@@ -4,10 +4,10 @@
 //: ascription proves implication
 forall M: Metric. M => Metric
 
-//: conditional type equation proves ascription
+//: ascription proves conditional type equation
 forall X:Integer,D:Dimension. (Dimension,Integer)
 
-//: fully-quantified type equation proves relation
+//: quantification proves relational type equation
 forall A,B. (A,B)
 
 //: Implication Reduction is Strongly Normalizing
