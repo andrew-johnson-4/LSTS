@@ -1,6 +1,7 @@
 
-//bootrap Type System
-//: type ascription
+//bootstrap Type System
+
+//: ascript implies
 forall D,M: Metric. M => D
 
 //: ascripted type equation
@@ -9,7 +10,7 @@ forall X:Integer,D:Dimension. (Dimension,Integer)
 //: fully-quantified type equation
 forall 1D,2D. (1D,2D)
 
-//:
+//: TODO
 	(1D x 1D) -> 2D	(Dim1,Dim2) => Dim3	S X
 	(1D x 1D) -> 2D	(Dim1,Dim2) => Dim3	S B
 	(1D x 1D) -> 2D	(Dim1,Dim2) => Dim3	S E
