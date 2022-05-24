@@ -10,7 +10,7 @@ forall X:Integer,D:Dimension. (Dimension,Integer)
 //: fully-quantified type equation
 forall 1D,2D. (1D,2D)
 
-//: TODO
+//: TODO, implication reduction is strongly normalizing
 	(1D x 1D) -> 2D	(Dim1,Dim2) => Dim3	S X
 	(1D x 1D) -> 2D	(Dim1,Dim2) => Dim3	S B
 	(1D x 1D) -> 2D	(Dim1,Dim2) => Dim3	S E
