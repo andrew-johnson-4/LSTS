@@ -1,0 +1,21 @@
+
+//bootrap Type System
+//: type ascription
+forall D,M: Metric. M => D
+
+//: ascripted type equation
+forall X:Integer,D:Dimension. (Dimension,Integer)
+
+//: fully-quantified type equation
+forall 1D,2D. (1D,2D)
+
+//:
+	(1D x 1D) -> 2D	(Dim1,Dim2) => Dim3	S X
+	(1D x 1D) -> 2D	(Dim1,Dim2) => Dim3	S B
+	(1D x 1D) -> 2D	(Dim1,Dim2) => Dim3	S E
+	2D -> (1D x 1D)	Dim1 => (Dim2,Dim3)	X S
+	2D -> (1D x 1D)	Dim1 => (Dim2,Dim3)	X B
+	2D -> (1D x 1D)	Dim1 => (Dim2,Dim3)	X E
+	3D	(Dim1,Dim2,Dim3)	B S X
+	4D	(Dim1,Dim2,Dim3,Dim4)	B D E S
+	5D	(Dim1,Dim2,Dim3,Dim4,Dim5)	B D E S X
