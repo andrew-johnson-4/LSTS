@@ -14,7 +14,7 @@ forall 1D,2D. (1D,2D)
 
 //: All types that strongly normalize have kinds
 //: All kinds that have types yield values
-forall AB1, (A,1) -> B. (A1,B2) => C3 yields { A B 1 }
+forall AB1, (A,1) => B. forall A1,B2,C3. (A1,B2) -> C3 yields { A B 1 }
 
 //: All finite-length strings are finite-length
 //: coincidentally this is exactly the definition of a transistor
