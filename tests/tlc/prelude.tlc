@@ -1,22 +1,30 @@
 
 //bootstrap Type System
 
-//: ascription proves implication
+//: Three Introduction Rules
+//: I1. ascription proves implication
 forall M: Metric. M => Metric
 
-//: ascription proves conditional type equation
+//: I2. ascription proves conditional type equation
 forall X:Integer,D:Dimension. (Dimension,Integer)
 
-//: quantification proves relational type equation
+//: I3. quantification proves relational type equation
 forall A,B. (A,B)
 
 //: Implication Reduction is Strongly Normalizing
+//:
+//: 1) All types that strongly normalize have kinds
+//: 2) All kinds that have types yield values
+//: 3) All finite-length strings are finite-length
 
-//: All types that strongly normalize have kinds
-//: All kinds that have types yield values
-//: All finite-length strings are finite-length
+//: Three Elimination Rules
+//: E1. 3 implies 2
 forall AB1. (A,B,1) => (A,B) yields { 1 A B }
+
+//: E2. 4 implies 3
 forall AB12. (A,B,1,2) => (A,B,1) yields { 1 2 A B }
+
+//: E3 5 implies 4 if (x,0)
 forall AB12x. (A,B,1,2,x) => (A,B,1,2) yields { 0 1 2 A B }
 
 //: goal, prove all statements assuming (x,0)
