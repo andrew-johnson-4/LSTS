@@ -14,7 +14,6 @@ forall 1D,2D. (1D,2D)
 
 //: All types that strongly normalize have kinds
 //: All kinds that have types yield values
-forall AB1, (A,1) => B. forall A1,B2,C3. (A1,B2) -> C3 yields { 1 A B }
 
 //: All finite-length strings are finite-length
 forall AB1. (A,B,1) => (A,B) yields { 1 A B }
