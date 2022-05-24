@@ -13,6 +13,7 @@ forall A,B. (A,B)
 //: 1) All types that strongly normalize have kinds
 //: 2) All kinds that have types yield values
 //: 3) All finite-length strings are finite-length
+//: therefore all strongly normalizing type systems yield finite-length proof objects
 
 //: Three Elimination Rules
 //: E1. 3D implies 2D
