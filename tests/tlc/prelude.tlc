@@ -17,6 +17,7 @@ forall 1D,2D. (1D,2D)
 forall AB1, (A,1) -> B. (A1,B2) => C3 yields { A B 1 }
 
 //: All finite-length strings are finite-length
+//: coincidentally this is exactly the definition of a transistor
 forall AB1. (A,B,1) yields 1 A B
 forall AB12. (A,B,1,2) yields 1 2 A B
 forall AB12x. (A,B,1,2,x) yields 1 2 A B 0
