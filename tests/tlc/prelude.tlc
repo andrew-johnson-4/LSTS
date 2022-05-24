@@ -18,3 +18,5 @@ forall A,B. (A,B)
 forall AB1. (A,B,1) => (A,B) yields { 1 A B }
 forall AB12. (A,B,1,2) => (A,B,1) yields { 1 2 A B }
 forall AB12x. (A,B,1,2,x) => (A,B,1,2) yields { 0 1 2 A B }
+
+//: goal, prove all statements assuming x
