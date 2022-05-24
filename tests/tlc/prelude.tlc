@@ -27,11 +27,11 @@ forall A,B,1,2. (A,B,1,2) => (A,B,1) yields { 1 2 A B }
 //: E3. 5D implies 4D if (x,0):2D
 //: this rule introduces arbitrary computation into type reduction
 //: 0 is the "normalizer function" and hopefully does not diverge
-//: evaluating 0 1 2 A B must yield x to satisfy the first assumption
+//: evaluating 0 1 2 A B must yield x to reach the ground theorem
 forall A,B,1,2,x. (A,B,1,2,x) => (A,B,1,2) yields { 0 1 2 A B }
 
 //: goal, prove all statements assuming (x,0):2D
 //: x is a proposition that returns true iff given itself as argument
-//: 0 is the normalizer function, it is a lambda-calculus expression
-//: 2D is the ground theorem
+//: 0 is the normalizer function, it is a typed-lambda-calculus expression
+//: 2D is the ground theorem i.e. the empty judgement
 
