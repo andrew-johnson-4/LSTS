@@ -10,7 +10,7 @@ forall X:Integer,D:Dimension. (Dimension,Integer)
 //: fully-quantified type equation
 forall 1D,2D. (1D,2D)
 
-//: TODO, implication reduction is strongly normalizing
+//: Implication Reduction is Strongly Normalizing
 
 //: All types that strongly normalize have kinds
 //: All kinds that have types yield values
