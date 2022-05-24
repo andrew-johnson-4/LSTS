@@ -24,7 +24,7 @@ forall A,B,1. (A,B,1) => (A,B) yields { 1 A B }
 //: E2. 4D implies 3D
 forall A,B,1,2. (A,B,1,2) => (A,B,1) yields { 1 2 A B }
 
-//: E3 5D implies 4D if (x,0):2D
+//: E3. 5D implies 4D if (x,0):2D
 //: this rule introduces arbitrary computation into type reduction
 //: 0 is the "normalizer function" and hopefully does not diverge
 //: evaluating 0 1 2 A B must yield x to satisfy the first assumption
