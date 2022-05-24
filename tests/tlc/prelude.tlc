@@ -31,7 +31,7 @@ forall A,B,1,2. (A,B,1,2) => (A,B,1) yields { 1 2 A B }
 forall A,B,1,2,x. (A,B,1,2,x) => (A,B,1,2) yields { 0 1 2 A B }
 
 //: goal, prove all statements assuming (x,0):2D
-//: x is a proposition that returns true iff given 0 as argument
+//: x is a proposition that returns true iff given itself as argument
 //: 0 is the normalizer function, it is a lambda-calculus expression
 //: 2D is the ground theorem
 
