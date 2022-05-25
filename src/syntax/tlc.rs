@@ -62,7 +62,12 @@ pub enum TlcExpr {
 
 impl TLC {
    pub fn new() -> TLC {
-      TLC { uuid: 0, types: HashMap::new() }
+      TLC {
+         uuid: 0,
+         exprs: HashMap::new(),
+         types: HashMap::new(),
+         kinds: HashMap::new(),
+      }
    }
    pub fn uuid(&mut self) -> usize {
       let n = self.uuid;
