@@ -10,6 +10,7 @@ struct TlcParser;
 
 pub struct TLC {
    uuid: usize,
+   exprs: HashMap<usize,TlcExpr>,
    types: HashMap<usize,TlcTyp>,
    kinds: HashMap<usize,TlcKind>,
 }
