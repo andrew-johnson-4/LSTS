@@ -5,7 +5,8 @@ COMMENT = _{ ("/*" ~ (!"*/" ~ ANY)* ~ "*/") |
 alpha = { 'a'..'z' | 'A'..'Z' }
 digit = { '0'..'9' }
 
-ident = { (alpha | digit)+ }
+ident = { !("forall") ~ (alpha | digit)+ }
+ascript_ident = { ident ~ (":" ~ typ)? }
 
 ident_term = { ident }	
 tuple_term = { paren_atom }
@@ -26,12 +27,19 @@ suffix_typ = { atom_typ ~ (brack_typ | angle_typ)* }
 arrow_typ = { suffix_typ ~ ("->" ~ suffix_typ)* }
 and_typ    = { arrow_typ ~ ("+" ~ arrow_typ)* }
 or_typ    = { and_typ ~ ("|" ~ and_typ)* }
-typ       = { or_typ }
+alias_typ = { or_typ ~ ("=>" ~ or_typ)* }
+typ       = { alias_typ }
+
+kind      = { ident ~ ("<" ~ kind_pars ~ ">")? }
+kind_pars = { kind ~ ("," ~ kind)* }
 
 let_stmt = { "let" ~ ident ~ let_stmt_val ~ let_stmt_typ }
 let_stmt_val = { ("=" ~ term)? }
 let_stmt_typ = { (":" ~ typ)? }
 
-stmt = { let_stmt | term } 
+forall_stmt = { "forall" ~ forall_stmt_q ~ "." ~ typ ~ ("::" ~ kind)?}
+forall_stmt_q = { ascript_ident? ~ ("," ~ ascript_ident)* }
 
-file = { SOI ~ stmt? ~ (";" ~ stmt)* ~ EOI }
+stmt = { forall_stmt | let_stmt | term } 
+
+file = { SOI ~ stmt? ~ (";" ~ stmt?)* ~ EOI }

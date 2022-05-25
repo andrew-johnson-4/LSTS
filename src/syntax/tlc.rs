@@ -43,6 +43,7 @@ pub enum TlcTyp {
    Or(usize,Vec<TlcTyp>),
    And(usize,Vec<TlcTyp>),
    Arrow(usize,Box<TlcTyp>,Box<TlcTyp>),
+   Alias(usize,Box<TlcTyp>,Box<TlcTyp>),
    Compound(usize,Box<TlcTyp>,Vec<TlcTyp>),
    Tuple(usize,Vec<TlcTyp>),
    Angle(usize,Vec<TlcTyp>),
@@ -106,6 +107,18 @@ impl TLC {
             let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
             for tr in ts {
                t = TlcTyp::Arrow(
+                  self.uuid(),
+                  Box::new(t),
+                  Box::new(self.normalize_ast_typ(tr)?)
+               );
+            }
+            Ok(t)
+         },
+         Rule::alias_typ => {
+            let mut ts = p.into_inner();
+            let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
+            for tr in ts {
+               t = TlcTyp::Alias(
                   self.uuid(),
                   Box::new(t),
                   Box::new(self.normalize_ast_typ(tr)?)
