@@ -12,6 +12,7 @@ pub struct TLC {
    uuid: usize,
    exprs: HashMap<usize,TlcExpr>,
    types: HashMap<usize,TlcTyp>,
+   traits: HashMap<usize,TlcTyp>, //Traits unify and work just like types but are associated, optional, and plural
    kinds: HashMap<usize,TlcKind>,
 }
 
@@ -67,6 +68,7 @@ impl TLC {
          uuid: 0,
          exprs: HashMap::new(),
          types: HashMap::new(),
+         traits: HashMap::new(),
          kinds: HashMap::new(),
       }
    }
