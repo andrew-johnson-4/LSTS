@@ -78,10 +78,19 @@ impl TLC {
       self.uuid += 1;
       n
    }
+   pub fn interpret(&mut self, x: TlcExpr) -> Result<(),TlcError> {
+      match x {
+        TlcExpr::Block(id,es) => {
+           //blocks can have multiple bindings of the same symbol
+           panic!("TODO interpret: interpret blocks");
+        },
+           //non-block bindings shadow each other
+        _ => panic!("TODO interpret expression")
+      }
+   }
    pub fn load_file(&mut self, filename: &str) -> Result<(),TlcError> {
-      self.parse_file(filename)?;
-      panic!("TODO load_file: interpret file");
-      Ok(())
+      let stmts = self.parse_file(filename)?;
+      self.interpret(stmts)
    }
    pub fn normalize_file(&mut self, ps: Pairs<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
       self.normalize_ast(ps.peek().unwrap())
