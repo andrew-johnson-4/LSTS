@@ -11,6 +11,7 @@ struct TlcParser;
 pub struct TLC {
    uuid: usize,
    types: HashMap<usize,TlcTyp>,
+   kinds: HashMap<usize,TlcKind>,
 }
 
 pub struct TlcError {
