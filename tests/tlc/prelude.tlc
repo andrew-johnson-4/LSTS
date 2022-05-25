@@ -16,7 +16,6 @@ forall A,B. (A,B)
 //: therefore all strongly normalizing type systems yield finite-length proof objects
 
 //: One Goal, prove all statements assuming X
-//: assume X
 //: X is the ground theorem i.e. the empty judgement
 //: X is the root assumption
 //: all proof objects will unwind to X as the terminal object of the proof
