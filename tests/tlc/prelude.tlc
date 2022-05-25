@@ -1,11 +1,11 @@
 
 //bootstrap Type System
 
-//: One Goal, prove all statements assuming X
-//: X is the ground theorem i.e. the empty judgement
-//: X is the root assumption
-//: all proof objects will unwind to X as the terminal object of the proof
-assume X
+//: One Goal, prove all statements assuming 0
+//: 0 is the ground theorem i.e. the empty judgement
+//: 0 is the root assumption
+//: all proof objects will unwind to 0 as the terminal object of the proof
+assume 0
 
 //: Two Introduction Rules
 //: I1. ascription proves implication
