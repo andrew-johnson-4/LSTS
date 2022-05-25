@@ -3,7 +3,7 @@
 //: Two Introduction Rules
 //: I1. ascription proves implication
 forall A: B,B. A => B
-//: I2. quantification proves existence of relational type equation
+//: I2. quantification proves existence of relational type equations
 forall A,B. (A,B)
 forall A,B,1. (A,B,1)
 forall A,B,1,2. (A,B,1,2)
