@@ -5,7 +5,7 @@
 //: I1. ascription proves implication
 forall A: B. A => B
 
-//: I2. quantification proves relational type equation
+//: I2. quantification proves existence of relational type equation
 forall A,B. (A,B)
 
 //: Implication Reduction is Strongly Normalizing
