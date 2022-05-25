@@ -21,12 +21,12 @@ forall A,B. (A,B)
 
 //: Four Elimination Rules, proving up to 5-way quantified relations
 //: E1. 2D implies 1D and yields a proof object categorized by the remainder
-forall A: B => B,B. (A,B) => B yields { A(B) }
+forall A: B => B,B. (A,B) => B yields A<B>
 //: E2. 3D implies 2D and yields a proof object categorized by the remainder
-forall A: (B,1) => (B,1),B,1. (A,B,1) => (B,1) yields { A(B,1) }
+forall A: (B,1) => (B,1),B,1. (A,B,1) => (B,1) yields A<B,1>
 //: E3. 4D implies 3D and yields a proof object categorized by the remainder
-forall A: (B,1,2) => (B,1,2),B,1,2. (A,B,1,2) => (B,1,2) yields { A(B,1,2) }
+forall A: (B,1,2) => (B,1,2),B,1,2. (A,B,1,2) => (B,1,2) yields A<B,1,2>
 //: E4. 5D implies 4D and yields a proof object categorized by the remainder
-forall A: (B,1,2,x) => (B,1,2,x),B,1,2,x. (A,B,1,2,x) => (B,1,2,x) yields { A(B,1,2,x) }
+forall A: (B,1,2,x) => (B,1,2,x),B,1,2,x. (A,B,1,2,x) => (B,1,2,x) yields A<B,1,2,x>
 
 
