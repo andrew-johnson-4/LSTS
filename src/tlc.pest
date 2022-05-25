@@ -30,15 +30,13 @@ or_typ    = { and_typ ~ ("|" ~ and_typ)* }
 alias_typ = { or_typ ~ ("=>" ~ or_typ)* }
 typ       = { alias_typ }
 
-kind      = { ident ~ ("<" ~ kind_pars ~ ">")? }
-kind_pars = { kind ~ ("," ~ kind)* }
+kind      = { ident ~ ("<" ~ kind? ~ ("," ~ kind)* ~ ">")? }
 
 let_stmt = { "let" ~ ident ~ let_stmt_val ~ let_stmt_typ }
 let_stmt_val = { ("=" ~ term)? }
 let_stmt_typ = { (":" ~ typ)? }
 
-forall_stmt = { "forall" ~ forall_stmt_q ~ "." ~ typ ~ ("::" ~ kind)?}
-forall_stmt_q = { ascript_ident? ~ ("," ~ ascript_ident)* }
+forall_stmt = { "forall" ~ ascript_ident? ~ ("," ~ ascript_ident)* ~ "." ~ typ ~ ("::" ~ kind)?}
 
 stmt = { forall_stmt | let_stmt | term } 
 
