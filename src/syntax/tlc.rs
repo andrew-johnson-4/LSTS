@@ -29,6 +29,11 @@ impl std::fmt::Debug for TlcError {
 }
 
 #[derive(Clone)]
+pub enum TlcKind {
+   Simple(String,Vec<TlcKind>),
+}
+
+#[derive(Clone)]
 pub enum TlcTyp {
    Nil(usize),
    Any(usize),
