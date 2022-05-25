@@ -9,7 +9,7 @@ assume 0
 
 //: Two Introduction Rules
 //: I1. ascription proves implication
-forall A: B. A => B
+forall A: B,B. A => B
 //: I2. quantification proves existence of relational type equation
 forall A,B. (A,B)
 
