@@ -10,6 +10,7 @@ struct TlcParser;
 
 pub struct TLC {
    uuid: usize,
+   locations: HashMap<usize,(String,(usize,usize),(usize,usize))>,
    typeof_exprs: HashMap<usize,TlcTyp>,
    types: HashMap<String,TlcTypedef>, //Canonical type names are n-ary like Tuple#2 or Tuple#9
    traits: HashMap<String,TlcTypedef>, //Traits unify and work just like types but are associated, optional, and plural
@@ -106,6 +107,7 @@ impl TLC {
    pub fn new() -> TLC {
       TLC {
          uuid: 0,
+         locations: HashMap::new(),
          typeof_exprs: HashMap::new(),
          types: HashMap::new(),
          traits: HashMap::new(),
@@ -411,16 +413,24 @@ impl TLC {
          None => TlcTyp::Any(tid)
       }
    }
+   pub fn locof(&mut self, tid: usize) -> (String,(usize,usize),(usize,usize)) {
+      if let Some(loc) = self.locations.get(&tid) {
+         loc.clone()
+      } else {
+         ("unknown file".to_string(), (0,0), (0,0))
+      }
+   }
    pub fn unify(&mut self, lt: TlcTyp, rt: TlcTyp) -> Result<TlcTyp,TlcError> {
       Ok(lt)
    }
    pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),TlcError> {
+      let (filename,start,end) = self.locof(tid);
       Err(TlcError {
          error_type: "Type Error".to_string(),
          rule: "type is not concrete".to_string(),
-         filename: "unknown file".to_string(),
-         start: (0,0),
-         end: (0,0),
+         filename: filename,
+         start: start,
+         end: end,
          snippet: format!("typeof(expr#{})={:?}",tid,self.typof(tid)),
       })
    }
