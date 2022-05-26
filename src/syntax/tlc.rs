@@ -8,12 +8,18 @@ use pest::error::{ErrorVariant,InputLocation,LineColLocation};
 #[grammar = "tlc.pest"]
 struct TlcParser;
 
+pub struct TlcScope {
+   parent: Option<usize>,
+   children: HashMap<String,Vec<TlcExpr>>,
+}
+
 pub struct TLC {
    uuid: usize,
    exprs: HashMap<usize,TlcExpr>,
    types: HashMap<usize,TlcTyp>,
    traits: HashMap<usize,TlcTyp>, //Traits unify and work just like types but are associated, optional, and plural
    kinds: HashMap<usize,TlcKind>,
+   scopes: HashMap<usize,TlcScope>,
 }
 
 pub struct TlcError {
@@ -71,6 +77,7 @@ impl TLC {
          types: HashMap::new(),
          traits: HashMap::new(),
          kinds: HashMap::new(),
+         scopes: HashMap::new(),
       }
    }
    pub fn uuid(&mut self) -> usize {
@@ -78,7 +85,7 @@ impl TLC {
       self.uuid += 1;
       n
    }
-   pub fn interpret(&mut self, x: TlcExpr) -> Result<(),TlcError> {
+   pub fn interpret(&mut self, scope: Option<usize>, x: TlcExpr) -> Result<(),TlcError> {
       match x {
         TlcExpr::Block(id,es) => {
            //blocks can have multiple bindings of the same symbol
@@ -90,7 +97,7 @@ impl TLC {
    }
    pub fn load_file(&mut self, filename: &str) -> Result<(),TlcError> {
       let stmts = self.parse_file(filename)?;
-      self.interpret(stmts)
+      self.interpret(None,stmts)
    }
    pub fn normalize_file(&mut self, ps: Pairs<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
       self.normalize_ast(ps.peek().unwrap())
