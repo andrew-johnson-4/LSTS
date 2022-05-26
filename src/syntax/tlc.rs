@@ -92,6 +92,15 @@ pub enum TlcExpr {
    Forall(usize,Vec<(String,Option<TlcTyp>)>,Box<Option<TlcTyp>>,Box<Option<TlcKind>>),
    Typedef(usize,String,Vec<(String,Option<TlcTyp>)>),
 }
+impl std::fmt::Debug for TlcExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+           TlcExpr::Nil(_) => write!(f, "()"),
+           TlcExpr::Ident(_,x) => write!(f, "{}", x),
+           _ => write!(f, "??"),
+	}
+    }
+}
 
 impl TLC {
    pub fn new() -> TLC {
