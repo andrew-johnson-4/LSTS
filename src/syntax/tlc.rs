@@ -10,9 +10,10 @@ struct TlcParser;
 
 pub struct TLC {
    uuid: usize,
-   types: HashMap<usize,TlcTyp>,
-   traits: HashMap<usize,TlcTyp>, //Traits unify and work just like types but are associated, optional, and plural
-   kinds: HashMap<usize,TlcKind>,
+   typeof_exprs: HashMap<usize,TlcTyp>,
+   types: HashMap<String,TlcTypedef>, //Canonical type names are n-ary like Tuple#2 or Tuple#9
+   traits: HashMap<String,TlcTypedef>, //Traits unify and work just like types but are associated, optional, and plural
+   kinds: HashMap<String,TlcKind>,
    scopes: HashMap<usize,TlcScope>,
 }
 
@@ -43,6 +44,11 @@ pub struct TlcScope {
 #[derive(Clone)]
 pub enum TlcKind {
    Simple(usize,String,Vec<TlcKind>),
+}
+
+#[derive(Clone)]
+pub enum TlcTypedef {
+   Assume(usize),
 }
 
 #[derive(Clone)]
@@ -77,6 +83,7 @@ impl TLC {
    pub fn new() -> TLC {
       TLC {
          uuid: 0,
+         typeof_exprs: HashMap::new(),
          types: HashMap::new(),
          traits: HashMap::new(),
          kinds: HashMap::new(),
@@ -375,9 +382,47 @@ impl TLC {
          rule => panic!("unexpected expr rule: {:?}", rule)
       }
    }
-   pub fn typecheck(&mut self, scope: Option<usize>, e: TlcExpr) -> Result<(),TlcError> {
-      //TODO typecheck
+   pub fn typof(&mut self, tid: usize) -> TlcTyp {
+      match self.typeof_exprs.get(&tid) {
+         Some(tt) => tt.clone(),
+         None => TlcTyp::Any(tid)
+      }
+   }
+   pub fn unify(&mut self, lt: TlcTyp, rt: TlcTyp) -> Result<TlcTyp,TlcError> {
+      Ok(lt)
+   }
+   pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),TlcError> {
       Ok(())
+   }
+   pub fn typecheck(&mut self, scope: Option<usize>, e: TlcExpr) -> Result<(),TlcError> {
+      match e {
+         //ignore
+         TlcExpr::Forall(_,_,_,_) => { Ok(()) },
+         TlcExpr::Typedef(_,_,_) => { Ok(()) },
+
+         //check that all expression types are concrete
+         TlcExpr::Nil(id) => { let tt = self.typof(id); self.unify(tt,TlcTyp::Nil(id))?; Ok(()) },
+         TlcExpr::Ident(id,_) => { self.typecheck_concrete(id) },
+         TlcExpr::App(id,f,x) => { self.typecheck_concrete(id) },
+         TlcExpr::Let(id,x,v,t) => { self.typecheck_concrete(id) },
+         TlcExpr::Tuple(id,es) => { self.typecheck_concrete(id) },
+         TlcExpr::Block(id,es) => { self.typecheck_concrete(id) },
+         TlcExpr::Ascript(id,e,t) => { self.typecheck_concrete(id) },
+      }
+/*
+pub enum TlcTyp {
+   Any(usize),
+   Ident(usize,String),
+   Or(usize,Vec<TlcTyp>),
+   And(usize,Vec<TlcTyp>),
+   Arrow(usize,Box<TlcTyp>,Box<TlcTyp>),
+   Alias(usize,Box<TlcTyp>,Box<TlcTyp>),
+   Compound(usize,Box<TlcTyp>,Vec<TlcTyp>),
+   Tuple(usize,Vec<TlcTyp>),
+   Angle(usize,Vec<TlcTyp>),
+   Brack(usize,Vec<TlcTyp>),
+}
+*/
    }
    pub fn check(&mut self, scope: Option<usize>, src:&str) -> Result<(),TlcError> {
       let ast = self.parse(src)?;
