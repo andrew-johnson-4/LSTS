@@ -28,6 +28,12 @@ fn parse_simplytyped() {
 fn check_simplytyped() {
    let mut tlc = TLC::new();
    let global_scope = tlc.load_file(None, "tests/tlc/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "let a: A->B; let b: A; a(b)").unwrap();
-   tlc.check(Some(global_scope), "let a: A->B; let b: B; a(b)").unwrap_err();
+
+   //type A is undefined
+   tlc.check(Some(global_scope), "let a: A").unwrap_err();
+   tlc.check(Some(global_scope), "type A; let a: A").unwrap();
+
+   //unexpected argument B to function A -> B
+   tlc.check(Some(global_scope), "type A; type B; let a: A->B; let b: B; a(b)").unwrap_err();
+   tlc.check(Some(global_scope), "type A; type B; let a: A->B; let b: A; a(b)").unwrap();
 }
