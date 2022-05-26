@@ -70,6 +70,7 @@ pub enum TlcExpr {
    Block(usize,Vec<TlcExpr>),
    Ascript(usize,Box<TlcExpr>,Box<TlcTyp>),
    Forall(usize,Vec<(String,Option<TlcTyp>)>,Box<Option<TlcTyp>>,Box<Option<TlcKind>>),
+   Typedef(usize,String,Vec<(String,Option<TlcTyp>)>),
 }
 
 impl TLC {
@@ -294,6 +295,31 @@ impl TLC {
                ps,
                Box::new(tt),
                Box::new(k),
+            ))
+         },
+         Rule::typ_stmt => {
+            let mut ps = p.into_inner();
+            let t = ps.next().expect("TLC Grammar Error in rule [typ_stmt.1]").into_inner().concat();
+            let mut ts = Vec::new();
+            for e in ps {
+               match e.as_rule() {
+                  Rule::ascript_ident => {
+                     let mut es = e.into_inner();
+                     ts.push((
+                        es.next().expect("TLC Grammar Error in rule [typ_stmt.2]").into_inner().concat(),
+                        match es.next() {
+                           Some(et) => Some(self.normalize_ast_typ(et)?),
+                           None => None
+                        }
+                     ));
+                  },
+                  rule => panic!("unexpected typ_stmt rule: {:?}", rule)
+               }
+            }
+            Ok(TlcExpr::Typedef(
+               self.uuid(),
+               t,
+               ts
             ))
          },
          Rule::let_stmt => {
