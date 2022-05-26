@@ -87,11 +87,18 @@ impl TLC {
    }
    pub fn interpret(&mut self, scope: Option<usize>, x: TlcExpr) -> Result<(),TlcError> {
       match x {
-        TlcExpr::Block(id,es) => {
+        TlcExpr::Block(id,sts) => {
            //blocks can have multiple bindings of the same symbol
-           panic!("TODO interpret: interpret blocks");
-        },
            //non-block bindings shadow each other
+           let scope = TlcScope {
+              parent: scope,
+              children: HashMap::new(),
+           };
+           for stmt in sts.iter() {
+              panic!("TODO interpret: interpret block statements");
+           }
+           Ok(())
+        },
         _ => panic!("TODO interpret expression")
       }
    }
