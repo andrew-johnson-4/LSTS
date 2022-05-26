@@ -10,7 +10,6 @@ struct TlcParser;
 
 pub struct TLC {
    uuid: usize,
-   exprs: HashMap<usize,TlcExpr>,
    types: HashMap<usize,TlcTyp>,
    traits: HashMap<usize,TlcTyp>, //Traits unify and work just like types but are associated, optional, and plural
    kinds: HashMap<usize,TlcKind>,
@@ -36,6 +35,7 @@ impl std::fmt::Debug for TlcError {
 pub struct TlcScope {
    id: usize,
    parent: Option<usize>,
+   rules: Vec<TlcExpr>,
    children: HashMap<String,Vec<TlcExpr>>,
    statements: Vec<TlcExpr>,
 }
@@ -65,7 +65,7 @@ pub enum TlcExpr {
    Nil(usize),
    Ident(usize,String),
    App(usize,Box<TlcExpr>,Box<TlcExpr>),
-   Let(usize,Box<TlcExpr>,Box<TlcExpr>,Box<TlcTyp>),
+   Let(usize,String,Box<TlcExpr>,Box<TlcTyp>),
    Tuple(usize,Vec<TlcExpr>),
    Block(usize,Vec<TlcExpr>),
    Ascript(usize,Box<TlcExpr>,Box<TlcTyp>),
@@ -76,7 +76,6 @@ impl TLC {
    pub fn new() -> TLC {
       TLC {
          uuid: 0,
-         exprs: HashMap::new(),
          types: HashMap::new(),
          traits: HashMap::new(),
          kinds: HashMap::new(),
@@ -96,16 +95,24 @@ impl TLC {
            self.scopes.insert(id, TlcScope {
               id: id,
               parent: parent_scope,
+              rules: Vec::new(),
               children: HashMap::new(),
               statements: Vec::new(),
            });
            for stmt in sts.iter() {
               match stmt {
                  TlcExpr::Forall(id,qs,typ,kind) => {
-                    //TODO desugar forall
+                    if let Some(mut sc) = self.scopes.get_mut(&id) {
+                       sc.rules.push(stmt.clone());
+                    }
                  },
                  TlcExpr::Let(id,pat,val,typ) => {
-                    //TODO desugar let
+                    if let Some(mut sc) = self.scopes.get_mut(&id) {
+                       if !sc.children.contains_key(pat) {
+                          sc.children.insert(pat.clone(), Vec::new());
+                       }
+                       sc.children.get_mut(pat).unwrap().push(stmt.clone());
+                    }
                  },
                  _ => {
                     if let Some(mut sc) = self.scopes.get_mut(&id) {
@@ -293,7 +300,7 @@ impl TLC {
             let mut es = p.into_inner();
             Ok(TlcExpr::Let(
                self.uuid(),
-               Box::new(self.normalize_ast(es.next().expect("TLC Grammar Error in rule [let_stmt.1]"))?),
+               es.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat(),
                Box::new(self.normalize_ast(es.next().expect("TLC Grammar Error in rule [let_stmt.2]"))?),
                Box::new(self.normalize_ast_typ(es.next().expect("TLC Grammar Error in rule [let_stmt.3]"))?),
             ))

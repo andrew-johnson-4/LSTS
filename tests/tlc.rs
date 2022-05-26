@@ -3,25 +3,25 @@ use lsts::syntax::tlc::TLC;
 #[test]
 fn parse_simplytyped() {
    let mut tlc = TLC::new();
-   tlc.check(None, "a").unwrap();
-   tlc.check(None, "a()").unwrap();
-   tlc.check(None, "a(b)").unwrap();
-   tlc.check(None, "a(b,c)").unwrap();
-   tlc.check(None, "let t: ?").unwrap();
-   tlc.check(None, "let t: T").unwrap();
-   tlc.check(None, "let t: 1").unwrap();
-   tlc.check(None, "let t: ()").unwrap();
-   tlc.check(None, "let t: (A)").unwrap();
-   tlc.check(None, "let t: (A,B)").unwrap();
-   tlc.check(None, "let t: T<1,2>").unwrap();
-   tlc.check(None, "let t: ?[1]").unwrap();
-   tlc.check(None, "let t: ()->A").unwrap();
-   tlc.check(None, "let t: A->B").unwrap();
-   tlc.check(None, "let t: (A)->B").unwrap();
-   tlc.check(None, "let t: (A,B)->C").unwrap();
-   tlc.check(None, "let t: A|B").unwrap();
-   tlc.check(None, "let a: A; let a: B").unwrap();
-   tlc.check(None, "let a: A; let b: A").unwrap();
+   tlc.parse("a").unwrap();
+   tlc.parse("a()").unwrap();
+   tlc.parse("a(b)").unwrap();
+   tlc.parse("a(b,c)").unwrap();
+   tlc.parse("let t: ?").unwrap();
+   tlc.parse("let t: T").unwrap();
+   tlc.parse("let t: 1").unwrap();
+   tlc.parse("let t: ()").unwrap();
+   tlc.parse("let t: (A)").unwrap();
+   tlc.parse("let t: (A,B)").unwrap();
+   tlc.parse("let t: T<1,2>").unwrap();
+   tlc.parse("let t: ?[1]").unwrap();
+   tlc.parse("let t: ()->A").unwrap();
+   tlc.parse("let t: A->B").unwrap();
+   tlc.parse("let t: (A)->B").unwrap();
+   tlc.parse("let t: (A,B)->C").unwrap();
+   tlc.parse("let t: A|B").unwrap();
+   tlc.parse("let a: A; let a: B").unwrap();
+   tlc.parse("let a: A; let b: A").unwrap();
 }
 
 #[test]
