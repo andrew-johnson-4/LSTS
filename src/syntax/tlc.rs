@@ -93,6 +93,21 @@ pub enum TlcExpr {
    Forall(usize,Vec<(String,Option<TlcTyp>)>,Box<Option<TlcTyp>>,Box<Option<TlcKind>>),
    Typedef(usize,String,Vec<(String,Option<TlcTyp>)>),
 }
+impl TlcExpr {
+   pub fn id(&self) -> usize {
+      match self {
+         TlcExpr::Nil(id) => *id,
+         TlcExpr::Ident(id,_) => *id,
+         TlcExpr::App(id,_,_) => *id,
+         TlcExpr::Let(id,_,_,_) => *id,
+         TlcExpr::Tuple(id,_) => *id,
+         TlcExpr::Block(id,_) => *id,
+         TlcExpr::Ascript(id,_,_) => *id,
+         TlcExpr::Forall(id,_,_,_) => *id,
+         TlcExpr::Typedef(id,_,_) => *id,
+      }
+   }
+}
 impl std::fmt::Debug for TlcExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -165,8 +180,8 @@ impl TLC {
       let scope = self.desugar(parent_scope,stmts)?;
       Ok(scope)
    }
-   pub fn normalize_file(&mut self, ps: Pairs<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
-      self.normalize_ast(ps.peek().unwrap())
+   pub fn normalize_file(&mut self, fp:&str, ps: Pairs<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
+      self.normalize_ast(fp, ps.peek().unwrap())
    }
    pub fn normalize_ast_kind(&mut self, p: Pair<crate::syntax::tlc::Rule>) -> Result<TlcKind,TlcError> {
       match p.as_rule() {
@@ -275,14 +290,16 @@ impl TLC {
          rule => panic!("unexpected typ rule: {:?}", rule)
       }
    }
-   pub fn normalize_ast(&mut self, p: Pair<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
-      match p.as_rule() {
+   pub fn normalize_ast(&mut self, fp:&str, p: Pair<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
+      let start = p.as_span().start_pos().line_col();
+      let end = p.as_span().end_pos().line_col();
+      let pe = match p.as_rule() {
          //entry point rule
          Rule::file => {
             let mut es = Vec::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::EOI => (),
-               _ => es.push(self.normalize_ast(e).expect("TLC Grammar Error in rule [file]"))
+               _ => es.push(self.normalize_ast(fp,e).expect("TLC Grammar Error in rule [file]"))
             }}
             if es.len()==1 {
                Ok(es[0].clone())
@@ -292,10 +309,10 @@ impl TLC {
          },
 
          //passthrough rules
-         Rule::stmt => self.normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [stmt]")),
-         Rule::term => self.normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [term]")),
-         Rule::ident_term => self.normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [ident_term]")),
-         Rule::tuple_term => self.normalize_ast(p.into_inner().next().expect("TLC Grammar Error in rule [tuple_term]")),
+         Rule::stmt => self.normalize_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]")),
+         Rule::term => self.normalize_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [term]")),
+         Rule::ident_term => self.normalize_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [ident_term]")),
+         Rule::tuple_term => self.normalize_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [tuple_term]")),
 
          //literal value rules
          Rule::ident => Ok(TlcExpr::Ident(self.uuid(),p.into_inner().concat())),
@@ -359,42 +376,42 @@ impl TLC {
             Ok(TlcExpr::Let(
                self.uuid(),
                es.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat(),
-               Box::new(self.normalize_ast(es.next().expect("TLC Grammar Error in rule [let_stmt.2]"))?),
+               Box::new(self.normalize_ast(fp,es.next().expect("TLC Grammar Error in rule [let_stmt.2]"))?),
                Box::new(self.normalize_ast_typ(es.next().expect("TLC Grammar Error in rule [let_stmt.3]"))?),
             ))
          },
          Rule::let_stmt_val => {
             match p.into_inner().next() {
                None => Ok(TlcExpr::Nil(self.uuid())),
-               Some(e) => self.normalize_ast(e)
+               Some(e) => self.normalize_ast(fp,e)
             }
          },
          Rule::ascript_term => {
             let mut es = p.into_inner();
             let e = es.next().expect("TLC Grammar Error in rule [ascript_term]");
             match es.next() {
-               None => self.normalize_ast(e),
+               None => self.normalize_ast(fp,e),
                Some(tt) => Ok(TlcExpr::Ascript(
                   self.uuid(),
-                  Box::new(self.normalize_ast(e)?), //term
+                  Box::new(self.normalize_ast(fp,e)?), //term
                   Box::new(self.normalize_ast_typ(tt)?) //type
                )),
             }
          },
          Rule::term_atom => {
             let mut es = p.into_inner();
-            let mut e = self.normalize_ast(es.next().expect("TLC Grammar Error in rule [term_atom]"))?;
+            let mut e = self.normalize_ast(fp,es.next().expect("TLC Grammar Error in rule [term_atom]"))?;
             for args in es {
                e = TlcExpr::App(
                   self.uuid(),
                   Box::new(e),
-                  Box::new(self.normalize_ast(args)?)
+                  Box::new(self.normalize_ast(fp,args)?)
                );
             }
             Ok(e)
          },
          Rule::paren_atom => {
-            let es = p.into_inner().map(|e|self.normalize_ast(e).expect("TLC Grammar Error in rule [paren_atom]"))
+            let es = p.into_inner().map(|e|self.normalize_ast(fp,e).expect("TLC Grammar Error in rule [paren_atom]"))
                       .collect::<Vec<TlcExpr>>();
             if es.len()==0 {
                Ok(TlcExpr::Nil(self.uuid()))
@@ -405,7 +422,11 @@ impl TLC {
             }
          },
          rule => panic!("unexpected expr rule: {:?}", rule)
-      }
+      };
+      if let Ok(ref pe) = pe {
+         self.locations.insert(pe.id(), (fp.to_string(),start,end));
+      };
+      pe
    }
    pub fn typof(&mut self, tid: usize) -> TlcTyp {
       match self.typeof_exprs.get(&tid) {
@@ -482,7 +503,7 @@ pub enum TlcTyp {
    pub fn parse_doc(&mut self, docname:&str, src:&str) -> Result<TlcExpr,TlcError> {
       let parse_result = TlcParser::parse(Rule::file, src);
       match parse_result {
-        Ok(parse_ast) => self.normalize_file(parse_ast),
+        Ok(parse_ast) => self.normalize_file(docname, parse_ast),
         Err(pe) => {
           let (start,end) = match pe.line_col {
              LineColLocation::Pos(s) => (s,s),
