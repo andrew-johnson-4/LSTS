@@ -8,11 +8,6 @@ use pest::error::{ErrorVariant,InputLocation,LineColLocation};
 #[grammar = "tlc.pest"]
 struct TlcParser;
 
-pub struct TlcScope {
-   parent: Option<usize>,
-   children: HashMap<String,Vec<TlcExpr>>,
-}
-
 pub struct TLC {
    uuid: usize,
    exprs: HashMap<usize,TlcExpr>,
@@ -35,6 +30,14 @@ impl std::fmt::Debug for TlcError {
         write!(f, "{}, expected {}, in {} --> {},{}{}", self.error_type, self.rule, self.filename,
                self.start.0, self.start.1, self.snippet)
     }
+}
+
+//does not implement Clone because scopes are uniquely identified by their id
+pub struct TlcScope {
+   id: usize,
+   parent: Option<usize>,
+   children: HashMap<String,Vec<TlcExpr>>,
+   statements: Vec<TlcExpr>,
 }
 
 #[derive(Clone)]
@@ -85,26 +88,42 @@ impl TLC {
       self.uuid += 1;
       n
    }
-   pub fn interpret(&mut self, scope: Option<usize>, x: TlcExpr) -> Result<(),TlcError> {
+   pub fn desugar(&mut self, parent_scope: Option<usize>, x: TlcExpr) -> Result<usize,TlcError> {
       match x {
         TlcExpr::Block(id,sts) => {
            //blocks can have multiple bindings of the same symbol
            //non-block bindings shadow each other
-           let scope = TlcScope {
-              parent: scope,
+           self.scopes.insert(id, TlcScope {
+              id: id,
+              parent: parent_scope,
               children: HashMap::new(),
-           };
+              statements: Vec::new(),
+           });
            for stmt in sts.iter() {
-              panic!("TODO interpret: interpret block statements");
+              match stmt {
+                 TlcExpr::Forall(id,qs,typ,kind) => {
+                    //TODO desugar forall
+                 },
+                 TlcExpr::Let(id,pat,val,typ) => {
+                    //TODO desugar let
+                 },
+                 _ => {
+                    if let Some(mut sc) = self.scopes.get_mut(&id) {
+                       sc.statements.push(stmt.clone());
+                    }
+                 }
+              }
            }
-           Ok(())
+           Ok(id)
         },
-        _ => panic!("TODO interpret expression")
+        _ => panic!("TLC::desugar: expected block")
       }
    }
-   pub fn load_file(&mut self, filename: &str) -> Result<(),TlcError> {
+   pub fn load_file(&mut self, parent_scope: Option<usize>, filename: &str) -> Result<usize,TlcError> {
+      //symbol import/export rules are marginally beyond the scope of this project
       let stmts = self.parse_file(filename)?;
-      self.interpret(None,stmts)
+      let scope = self.desugar(parent_scope,stmts)?;
+      Ok(scope)
    }
    pub fn normalize_file(&mut self, ps: Pairs<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
       self.normalize_ast(ps.peek().unwrap())
@@ -323,12 +342,13 @@ impl TLC {
          rule => panic!("unexpected expr rule: {:?}", rule)
       }
    }
-   pub fn typecheck(&mut self, e: TlcExpr) -> Result<(),TlcError> {
+   pub fn typecheck(&mut self, scope: Option<usize>, e: TlcExpr) -> Result<(),TlcError> {
+      //TODO typecheck
       Ok(())
    }
-   pub fn check(&mut self, src:&str) -> Result<(),TlcError> {
+   pub fn check(&mut self, scope: Option<usize>, src:&str) -> Result<(),TlcError> {
       let ast = self.parse(src)?;
-      self.typecheck(ast)
+      self.typecheck(scope, ast)
    }
    pub fn parse(&mut self, src:&str) -> Result<TlcExpr,TlcError> {
       self.parse_doc("[string]", src)
