@@ -27,7 +27,7 @@ pub struct TlcError {
 }
 impl std::fmt::Debug for TlcError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}, expected {}, in {} --> {},{}{}", self.error_type, self.rule, self.filename,
+        write!(f, "\n{}, expected {}, in {} --> {},{}\n{}\n", self.error_type, self.rule, self.filename,
                self.start.0, self.start.1, self.snippet)
     }
 }
@@ -64,6 +64,20 @@ pub enum TlcTyp {
    Tuple(usize,Vec<TlcTyp>),
    Angle(usize,Vec<TlcTyp>),
    Brack(usize,Vec<TlcTyp>),
+}
+impl std::fmt::Debug for TlcTyp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+           TlcTyp::Nil(_) => write!(f, "()"),
+           TlcTyp::Any(_) => write!(f, "?"),
+           TlcTyp::Ident(_,x) => write!(f, "{}", x),
+           TlcTyp::Or(_,_) => write!(f, "||"),
+           TlcTyp::And(_,_) => write!(f, "&&"),
+           TlcTyp::Arrow(_,p,b) => write!(f, "({:?})=>({:?})", p, b),
+           TlcTyp::Tuple(_,xs) => write!(f, "(#?#)"),
+           _ => write!(f, "??"),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -392,7 +406,14 @@ impl TLC {
       Ok(lt)
    }
    pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),TlcError> {
-      Ok(())
+      Err(TlcError {
+         error_type: "Type Error".to_string(),
+         rule: "type is not concrete".to_string(),
+         filename: "unknown file".to_string(),
+         start: (0,0),
+         end: (0,0),
+         snippet: format!("typeof(expr#{})={:?}",tid,self.typof(tid)),
+      })
    }
    pub fn typecheck(&mut self, scope: Option<usize>, e: TlcExpr) -> Result<(),TlcError> {
       match e {
