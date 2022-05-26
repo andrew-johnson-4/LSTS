@@ -5,7 +5,7 @@ COMMENT = _{ ("/*" ~ (!"*/" ~ ANY)* ~ "*/") |
 alpha = { 'a'..'z' | 'A'..'Z' }
 digit = { '0'..'9' }
 
-ident = { !("forall") ~ (alpha | digit)+ }
+ident = { !("let" | "forall" | "type") ~ (alpha | digit)+ }
 ascript_ident = { ident ~ (":" ~ typ)? }
 
 ident_term = { ident }	
@@ -36,8 +36,10 @@ let_stmt = { "let" ~ ident ~ let_stmt_val ~ let_stmt_typ }
 let_stmt_val = { ("=" ~ term)? }
 let_stmt_typ = { (":" ~ typ)? }
 
+typ_stmt = { "type" ~ ident ~ ("<" ~ ascript_ident ~ ("," ~ ascript_ident)* ~ ">")? }
+
 forall_stmt = { "forall" ~ ascript_ident? ~ ("," ~ ascript_ident)* ~ "." ~ typ ~ ("::" ~ kind)?}
 
-stmt = { forall_stmt | let_stmt | term } 
+stmt = { typ_stmt | forall_stmt | let_stmt | term } 
 
 file = { SOI ~ stmt? ~ (";" ~ stmt?)* ~ EOI }

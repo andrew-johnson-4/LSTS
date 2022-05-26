@@ -30,10 +30,10 @@ fn check_simplytyped() {
    let global_scope = tlc.load_file(None, "tests/tlc/prelude.tlc").unwrap();
 
    //type A is undefined
-   tlc.check(Some(global_scope), "let a: A").unwrap_err();
    tlc.check(Some(global_scope), "type A; let a: A").unwrap();
+   tlc.check(Some(global_scope), "let a: A").unwrap_err();
 
    //unexpected argument B to function A -> B
-   tlc.check(Some(global_scope), "type A; type B; let a: A->B; let b: B; a(b)").unwrap_err();
    tlc.check(Some(global_scope), "type A; type B; let a: A->B; let b: A; a(b)").unwrap();
+   tlc.check(Some(global_scope), "type A; type B; let a: A->B; let b: B; a(b)").unwrap_err();
 }
