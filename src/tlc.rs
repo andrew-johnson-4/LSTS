@@ -85,6 +85,7 @@ impl std::fmt::Debug for TlcTyp {
 
 #[derive(Clone)]
 pub enum TlcExpr {
+   Assume(usize), //used to introduce sentinel values
    Nil(usize),
    Ident(usize,String),
    App(usize,Box<TlcExpr>,Box<TlcExpr>),
@@ -98,6 +99,7 @@ pub enum TlcExpr {
 impl TlcExpr {
    pub fn id(&self) -> usize {
       match self {
+         TlcExpr::Assume(id) => *id,
          TlcExpr::Nil(id) => *id,
          TlcExpr::Ident(id,_) => *id,
          TlcExpr::App(id,_,_) => *id,
@@ -113,6 +115,7 @@ impl TlcExpr {
 impl std::fmt::Debug for TlcExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+           TlcExpr::Assume(_) => write!(f, "$"),
            TlcExpr::Nil(_) => write!(f, "()"),
            TlcExpr::Ident(_,x) => write!(f, "{}", x),
            TlcExpr::App(_,g,x) => write!(f, "{:?}({:?})", g, x),
@@ -404,7 +407,7 @@ impl TLC {
          },
          Rule::let_stmt_val => {
             match p.into_inner().next() {
-               None => Ok(TlcExpr::Nil(self.uuid())),
+               None => Ok(TlcExpr::Assume(self.uuid())),
                Some(e) => self.normalize_ast(fp,e)
             }
          },
@@ -560,16 +563,14 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<usize>, e: &TlcExpr) -> Result<(),TlcError> {
-      eprintln!("typecheck {:?}::expr", e);
       match e {
+         TlcExpr::Assume(_) => { Ok(()) },
          TlcExpr::Forall(_,_,_,_) => { Ok(()) },
          TlcExpr::Typedef(_,_,_) => { Ok(()) },
          TlcExpr::Nil(id) => { self.typeof_exprs.insert(*id, TlcTyp::Nil(*id)); Ok(()) },
          TlcExpr::Ident(id,v) => {
             let vt = self.typof_var(scope, v, *id);
-            eprintln!("typecheck.1 ident {}:{:?}", v, vt);
             self.typecheck_concrete_rec(*id, &vt)?;
-            eprintln!("typecheck.2 ident {}", v);
             self.typeof_exprs.insert(*id, vt);
             Ok(())
          },
@@ -626,6 +627,7 @@ impl TLC {
          TlcExpr::Typedef(_,_,_) => { Ok(()) },
 
          //check that all expression types are concrete
+         TlcExpr::Assume(id) => { Ok(()) },
          TlcExpr::Nil(id) => { let tt = self.typof(*id); self.unify(*id,&tt,&TlcTyp::Nil(*id))?; Ok(()) },
          TlcExpr::Block(id,cs) => {
             for c in cs.iter() {
@@ -637,8 +639,6 @@ impl TLC {
             self.typecheck_concrete(*id)?;
             self.typecheck_concrete_rec(*id, t)?;
             self.sanitycheck(scope, v)?;
-            let tt = self.typof(*id);
-            self.unify(*id, &tt, &TlcTyp::Nil(*id))?;
             Ok(())
          },
          TlcExpr::Ident(id,_) => { self.typecheck_concrete(*id) },
