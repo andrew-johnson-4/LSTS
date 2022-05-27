@@ -476,17 +476,15 @@ impl TLC {
          },
          TlcExpr::Tuple(id,es) => { panic!("TODO typecheck.4") },
          TlcExpr::Block(id,cs) => {
-            self.scopes.insert(*id, TlcScope {
-               id: *id,
-               parent: scope,
-               rules: Vec::new(),
-               children: HashMap::new(),
-               statements: Vec::new(),
-            });
-            for c in cs.iter() {
-               self.typecheck(Some(*id), c)?
+            let stmts = if let Some(sc) = self.scopes.get(id) {
+               sc.statements.clone()
+            } else { Vec::new() };
+            let mut last_stmt_typ = TlcTyp::Nil(*id);
+            for stmt in stmts.iter() {
+               self.typecheck(Some(*id), stmt)?;
+               last_stmt_typ = self.typeof_exprs.get(&stmt.id()).expect("typecheck Block.1").clone();
             }
-            self.typeof_exprs.insert(*id, TlcTyp::Nil(*id));
+            self.typeof_exprs.insert(*id, last_stmt_typ);
             Ok(())
          },
          TlcExpr::Ascript(id,e,t) => { panic!("TODO typecheck.6") },
