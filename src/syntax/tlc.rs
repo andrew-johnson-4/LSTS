@@ -452,7 +452,32 @@ impl TLC {
    }
    pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),TlcError> {
       let tt = self.typof(tid);
+      self.typecheck_concrete_rec(tid, &tt)
+   }
+   pub fn typecheck_concrete_rec(&mut self, tid: usize, tt: &TlcTyp) -> Result<(),TlcError> {
       match tt {
+         TlcTyp::Nil(_) => Ok(()),
+         TlcTyp::Or(_,_) => {
+            let (filename,start,end) = self.locof(tid);
+            Err(TlcError {
+               error_type: "Type Error".to_string(),
+               rule: "type is ambigious".to_string(),
+               filename: filename,
+               start: start,
+               end: end,
+               snippet: format!("{:?}",tt),
+            })
+         },
+         TlcTyp::And(_,ts) => {
+            for tc in ts.iter() {
+               self.typecheck_concrete_rec(tid, tc)?;
+            }
+            Ok(())
+         },
+         TlcTyp::Arrow(_,tp,tb) => {
+            self.typecheck_concrete_rec(tid, tp)?;
+            self.typecheck_concrete_rec(tid, tb)
+         },
          TlcTyp::Any(_) => {
             let (filename,start,end) = self.locof(tid);
             Err(TlcError {
@@ -474,7 +499,6 @@ impl TLC {
                end: end,
                snippet: format!("{}#0",tname),
             })
-
          }, _ => Ok(())
       }
    }
