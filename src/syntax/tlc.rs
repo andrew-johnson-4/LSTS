@@ -445,15 +445,21 @@ impl TLC {
       Ok(lt)
    }
    pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),TlcError> {
-      let (filename,start,end) = self.locof(tid);
-      Err(TlcError {
-         error_type: "Type Error".to_string(),
-         rule: "type is not concrete".to_string(),
-         filename: filename,
-         start: start,
-         end: end,
-         snippet: format!("typeof(expr#{})={:?}",tid,self.typof(tid)),
-      })
+      let tt = self.typof(tid);
+      match tt {
+         TlcTyp::Any(_) => {
+            let (filename,start,end) = self.locof(tid);
+            Err(TlcError {
+               error_type: "Type Error".to_string(),
+               rule: "type is not concrete".to_string(),
+               filename: filename,
+               start: start,
+               end: end,
+               snippet: format!("typeof(expr#{})={:?}",tid,tt),
+            })
+
+         }, _ => Ok(())
+      }
    }
    pub fn typecheck(&mut self, scope: Option<usize>, e: &TlcExpr) -> Result<(),TlcError> {
       match e {
