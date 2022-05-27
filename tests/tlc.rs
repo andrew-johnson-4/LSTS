@@ -1,4 +1,4 @@
-use lsts::syntax::tlc::TLC;
+use lsts::tlc::TLC;
 
 #[test]
 fn parse_simplytyped() {

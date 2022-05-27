@@ -196,10 +196,10 @@ impl TLC {
       let scope = self.desugar(parent_scope,&stmts)?;
       Ok(scope)
    }
-   pub fn normalize_file(&mut self, fp:&str, ps: Pairs<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
+   pub fn normalize_file(&mut self, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<TlcExpr,TlcError> {
       self.normalize_ast(fp, ps.peek().unwrap())
    }
-   pub fn normalize_ast_kind(&mut self, p: Pair<crate::syntax::tlc::Rule>) -> Result<TlcKind,TlcError> {
+   pub fn normalize_ast_kind(&mut self, p: Pair<crate::tlc::Rule>) -> Result<TlcKind,TlcError> {
       match p.as_rule() {
          Rule::kind => {
             let mut ps = p.into_inner();
@@ -211,7 +211,7 @@ impl TLC {
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
    }
-   pub fn normalize_ast_typ(&mut self, p: Pair<crate::syntax::tlc::Rule>) -> Result<TlcTyp,TlcError> {
+   pub fn normalize_ast_typ(&mut self, p: Pair<crate::tlc::Rule>) -> Result<TlcTyp,TlcError> {
       match p.as_rule() {
          Rule::ident => Ok(TlcTyp::Ident(self.uuid(),p.into_inner().concat())),
          Rule::typ => self.normalize_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
@@ -306,7 +306,7 @@ impl TLC {
          rule => panic!("unexpected typ rule: {:?}", rule)
       }
    }
-   pub fn normalize_ast(&mut self, fp:&str, p: Pair<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
+   pub fn normalize_ast(&mut self, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<TlcExpr,TlcError> {
       let start = p.as_span().start_pos().line_col();
       let end = p.as_span().end_pos().line_col();
       let pe = match p.as_rule() {
