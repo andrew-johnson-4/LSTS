@@ -558,7 +558,12 @@ impl TLC {
          },
          TlcExpr::App(id,f,x) => {
             self.typecheck(scope,f)?;
-            self.typecheck(scope,x)
+            self.typecheck(scope,x)?;
+            let ft = self.typof(f.id());
+            let xt = self.typof(x.id());
+            let rt = self.unify(*id, &TlcTyp::Arrow(*id,Box::new(xt),Box::new(TlcTyp::Any(*id))), &ft)?;
+            self.typeof_exprs.insert(*id, rt);
+            Ok(())
          },
          TlcExpr::Let(id,x,v,t) => {
             //variable has already been added to scope by desugar method
