@@ -494,6 +494,12 @@ impl TLC {
          (TlcTyp::Any(_),r) => Ok(r.clone()),
          (l,TlcTyp::Any(_)) => Ok(l.clone()),
          (TlcTyp::Nil(_),TlcTyp::Nil(_)) => Ok(lt.clone()),
+         (TlcTyp::Ident(lid,lv),TlcTyp::Ident(_,rv)) if lv==rv => Ok(lt.clone()),
+         (TlcTyp::Arrow(lid,pl,bl),TlcTyp::Arrow(_,pr,br)) => {
+            let pt = self.unify(tid,pl,pr)?;
+            let bt = self.unify(tid,bl,br)?;
+            Ok(TlcTyp::Arrow(*lid,Box::new(pt),Box::new(bt)))
+         },
          (l,r) => {
             let (filename,start,end) = self.locof(tid);
             Err(TlcError {
