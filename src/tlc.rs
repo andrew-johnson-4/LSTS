@@ -133,7 +133,7 @@ impl std::fmt::Debug for TlcExpr {
 impl TLC {
    pub fn new() -> TLC {
       TLC {
-         uuid: 0,
+         uuid: 1, //0 is NULL-ary
          debug: true, //debug is always on for now until this stabilizes more
          debug_symbols: HashMap::new(),
          locations: HashMap::new(),
@@ -151,47 +151,53 @@ impl TLC {
    }
    pub fn desugar(&mut self, parent_scope: Option<usize>, x: &TlcExpr) -> Result<usize,TlcError> {
       match x {
-        TlcExpr::Block(id,sts) => {
-           //blocks can have multiple bindings of the same symbol
-           //non-block bindings shadow each other
-           self.scopes.insert(*id, TlcScope {
-              id: *id,
-              parent: parent_scope,
-              rules: Vec::new(),
-              children: HashMap::new(),
-              statements: Vec::new(),
-           });
-           for stmt in sts.iter() {
-              match stmt {
-                 TlcExpr::Forall(id,qs,typ,kind) => {
-                    if let Some(mut sc) = self.scopes.get_mut(&id) {
-                       sc.rules.push(stmt.clone());
-                    }
-                 },
-                 TlcExpr::Let(id,pat,val,typ) => {
-                    if let Some(mut sc) = self.scopes.get_mut(&id) {
-                       if !sc.children.contains_key(pat) {
-                          sc.children.insert(pat.clone(), Vec::new());
-                       }
-                       sc.children.get_mut(pat).unwrap().push(stmt.clone());
-                    }
-                 },
-                 TlcExpr::Typedef(id,tname,tpars) => {
-                    self.types.insert(
-                       format!("{}#{}", tname, tpars.len()),
-                       TlcTypedef::Assume(*id)
-                    );
-                 },
-                 _ => {
-                    if let Some(mut sc) = self.scopes.get_mut(&id) {
-                       sc.statements.push(stmt.clone());
-                    }
-                 }
-              }
-           }
-           Ok(*id)
-        },
-        e => panic!("TLC::desugar: expected block, got {:?}", e)
+         TlcExpr::Block(scid,sts) => {
+            //blocks can have multiple bindings of the same symbol
+            //non-block bindings shadow each other
+            self.scopes.insert(*scid, TlcScope {
+               id: *scid,
+               parent: parent_scope,
+               rules: Vec::new(),
+               children: HashMap::new(),
+               statements: Vec::new(),
+            });
+            for stmt in sts.iter() {
+               self.desugar(Some(*scid), stmt);
+            }
+            Ok(*scid)
+         },
+         TlcExpr::Forall(fid,qs,typ,kind) => {
+            let scid = parent_scope.unwrap_or(0);
+            if let Some(mut sc) = self.scopes.get_mut(&scid) {
+               sc.rules.push(x.clone());
+            }
+            Ok(scid)
+         },
+         TlcExpr::Let(lid,pat,val,typ) => {
+            let scid = parent_scope.unwrap_or(0);
+            if let Some(mut sc) = self.scopes.get_mut(&scid) {
+               if !sc.children.contains_key(pat) {
+                  sc.children.insert(pat.clone(), Vec::new());
+               }
+               sc.children.get_mut(pat).unwrap().push(x.clone());
+            }
+            Ok(scid)
+         },
+         TlcExpr::Typedef(tid,tname,tpars) => {
+            let scid = parent_scope.unwrap_or(0);
+            self.types.insert(
+               format!("{}#{}", tname, tpars.len()),
+               TlcTypedef::Assume(*tid)
+            );
+            Ok(scid)
+         },
+         _ => {
+            let scid = parent_scope.unwrap_or(0);
+            if let Some(mut sc) = self.scopes.get_mut(&scid) {
+               sc.statements.push(x.clone());
+            }
+            Ok(scid)
+         }
       }
    }
    pub fn load_file(&mut self, parent_scope: Option<usize>, filename: &str) -> Result<usize,TlcError> {
@@ -507,7 +513,7 @@ impl TLC {
                filename: filename,
                start: start,
                end: end,
-               snippet: format!("typeof({})={:?}",self.estring(tid),tt),
+               snippet: format!("typeof({}#{})={:?}",self.estring(tid),tid,tt),
             })
          }, TlcTyp::Ident(id,tname) => {
             if self.types.contains_key(&format!("{}#0", tname)) { return Ok(()) }
@@ -538,15 +544,24 @@ impl TLC {
          },
          TlcExpr::Tuple(id,es) => { panic!("TODO typecheck.4 {:?}", e) },
          TlcExpr::Block(id,cs) => {
-            let stmts = if let Some(sc) = self.scopes.get(id) {
-               sc.statements.clone()
-            } else { Vec::new() };
+            let (stmts,children) = if let Some(sc) = self.scopes.get(id) {(
+               sc.statements.clone(),
+               sc.children.clone(),
+            )} else { panic!("typecheck could not find block#{}", id) };
+
             let mut last_stmt_typ = TlcTyp::Nil(*id);
             for stmt in stmts.iter() {
                self.typecheck(Some(*id), stmt)?;
                last_stmt_typ = self.typeof_exprs.get(&stmt.id()).expect("typecheck Block.1").clone();
             }
             self.typeof_exprs.insert(*id, last_stmt_typ);
+
+            for (cn,cs) in children.iter() {
+               for ch in cs.iter() {
+                  self.typecheck(Some(*id), ch)?;
+               }
+            }
+
             Ok(())
          },
          TlcExpr::Ascript(id,e,t) => { panic!("TODO typecheck.6 {:?}", e) },
