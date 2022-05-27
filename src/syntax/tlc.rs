@@ -462,9 +462,27 @@ impl TLC {
          TlcExpr::Nil(id) => { self.typeof_exprs.insert(*id, TlcTyp::Nil(*id)); Ok(()) },
          TlcExpr::Ident(id,_) => { panic!("TODO typecheck.1") },
          TlcExpr::App(id,f,x) => { panic!("TODO typecheck.2") },
-         TlcExpr::Let(id,x,v,t) => { panic!("TODO typecheck.3") },
+         TlcExpr::Let(id,x,v,t) => {
+            //variable has already been added to scope by desugar method
+            self.typeof_exprs.insert(*id, *t.clone());
+            self.typeof_exprs.insert(v.id(), *t.clone());
+            self.typecheck(scope, v)
+         },
          TlcExpr::Tuple(id,es) => { panic!("TODO typecheck.4") },
-         TlcExpr::Block(id,es) => { panic!("TODO typecheck.5") },
+         TlcExpr::Block(id,cs) => {
+            self.scopes.insert(*id, TlcScope {
+               id: *id,
+               parent: scope,
+               rules: Vec::new(),
+               children: HashMap::new(),
+               statements: Vec::new(),
+            });
+            for c in cs.iter() {
+               self.typecheck(Some(*id), c)?
+            }
+            self.typeof_exprs.insert(*id, TlcTyp::Nil(*id));
+            Ok(())
+         },
          TlcExpr::Ascript(id,e,t) => { panic!("TODO typecheck.6") },
       }
    }
