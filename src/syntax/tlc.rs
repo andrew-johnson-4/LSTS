@@ -162,6 +162,12 @@ impl TLC {
                        sc.children.get_mut(pat).unwrap().push(stmt.clone());
                     }
                  },
+                 TlcExpr::Typedef(id,tname,tpars) => {
+                    self.types.insert(
+                       format!("{}#{}", tname, tpars.len()),
+                       TlcTypedef::Assume(*id)
+                    );
+                 },
                  _ => {
                     if let Some(mut sc) = self.scopes.get_mut(&id) {
                        sc.statements.push(stmt.clone());
@@ -456,6 +462,17 @@ impl TLC {
                start: start,
                end: end,
                snippet: format!("typeof(expr#{})={:?}",tid,tt),
+            })
+         }, TlcTyp::Ident(id,tname) => {
+            if self.types.contains_key(&format!("{}#0", tname)) { return Ok(()) }
+            let (filename,start,end) = self.locof(tid);
+            Err(TlcError {
+               error_type: "Type Error".to_string(),
+               rule: "type is not defined".to_string(),
+               filename: filename,
+               start: start,
+               end: end,
+               snippet: format!("{}#0",tname),
             })
 
          }, _ => Ok(())
