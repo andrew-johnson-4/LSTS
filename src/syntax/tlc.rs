@@ -187,7 +187,7 @@ impl TLC {
            }
            Ok(*id)
         },
-        _ => panic!("TLC::desugar: expected block")
+        e => panic!("TLC::desugar: expected block, got {:?}", e)
       }
    }
    pub fn load_file(&mut self, parent_scope: Option<usize>, filename: &str) -> Result<usize,TlcError> {
@@ -317,11 +317,7 @@ impl TLC {
                Rule::EOI => (),
                _ => es.push(self.normalize_ast(fp,e).expect("TLC Grammar Error in rule [file]"))
             }}
-            if es.len()==1 {
-               Ok(es[0].clone())
-            } else {
-               Ok(TlcExpr::Block(self.uuid(),es))
-            }
+            Ok(TlcExpr::Block(self.uuid(),es))
          },
 
          //passthrough rules
