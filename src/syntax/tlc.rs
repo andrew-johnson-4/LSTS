@@ -453,9 +453,13 @@ impl TLC {
          ("unknown file".to_string(), (0,0), (0,0))
       }
    }
-   pub fn unify(&mut self, tid: usize, lt: TlcTyp, rt: TlcTyp) -> Result<TlcTyp,TlcError> {
-      //TODO unify types or yield type error
-      Ok(lt)
+   pub fn unify(&mut self, tid: usize, lt: &TlcTyp, rt: &TlcTyp) -> Result<TlcTyp,TlcError> {
+      match (lt,rt) {
+         (TlcTyp::Any(_),r) => Ok(r.clone()),
+         (l,TlcTyp::Any(_)) => Ok(l.clone()),
+         (TlcTyp::Nil(_),TlcTyp::Nil(_)) => Ok(lt.clone()),
+         (l,r) => panic!("TODO: unify {:?} x {:?}", l, r)
+      }
    }
    pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),TlcError> {
       let tt = self.typof(tid);
@@ -518,7 +522,7 @@ impl TLC {
          TlcExpr::App(id,f,x) => { panic!("TODO typecheck.2 {:?}", e) },
          TlcExpr::Let(id,x,v,t) => {
             //variable has already been added to scope by desugar method
-            self.typeof_exprs.insert(*id, *t.clone());
+            self.typeof_exprs.insert(*id, TlcTyp::Nil(*id));
             self.typeof_exprs.insert(v.id(), *t.clone());
             self.typecheck(scope, v)
          },
@@ -539,23 +543,33 @@ impl TLC {
       }
    }
    pub fn sanitycheck(&mut self, scope: Option<usize>, e: &TlcExpr) -> Result<(),TlcError> {
-      //TODO sanitycheck recursively
       match e {
          //ignore
          TlcExpr::Forall(_,_,_,_) => { Ok(()) },
          TlcExpr::Typedef(_,_,_) => { Ok(()) },
 
          //check that all expression types are concrete
-         TlcExpr::Nil(id) => { let tt = self.typof(*id); self.unify(*id,tt,TlcTyp::Nil(*id))?; Ok(()) },
-         TlcExpr::Ident(id,_) => { self.typecheck_concrete(*id) },
-         TlcExpr::App(id,f,x) => { self.typecheck_concrete(*id) },
+         TlcExpr::Nil(id) => { let tt = self.typof(*id); self.unify(*id,&tt,&TlcTyp::Nil(*id))?; Ok(()) },
+         TlcExpr::Block(id,cs) => {
+            for c in cs.iter() {
+               self.sanitycheck(scope, c)?;
+            }
+            self.typecheck_concrete(*id)
+         },
          TlcExpr::Let(id,x,v,t) => {
             self.typecheck_concrete(*id)?;
-            self.sanitycheck(scope, v)
+            self.sanitycheck(scope, v)?;
+            let tt = self.typof(*id);
+            self.unify(*id, &tt, &TlcTyp::Nil(*id))?;
+            Ok(())
          },
+         _ => panic!("TODO sanitycheck {:?}", e)
+         /*
+         TlcExpr::Ident(id,_) => { self.typecheck_concrete(*id) },
+         TlcExpr::App(id,f,x) => { self.typecheck_concrete(*id) },
          TlcExpr::Tuple(id,es) => { self.typecheck_concrete(*id) },
-         TlcExpr::Block(id,es) => { self.typecheck_concrete(*id) },
          TlcExpr::Ascript(id,e,t) => { self.typecheck_concrete(*id) },
+         */
       }
    }
    pub fn check(&mut self, globals: Option<usize>, src:&str) -> Result<(),TlcError> {
