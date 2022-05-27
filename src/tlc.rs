@@ -583,6 +583,7 @@ impl TLC {
          },
          TlcExpr::Let(id,x,v,t) => {
             self.typecheck_concrete(*id)?;
+            self.typecheck_concrete_rec(*id, t)?;
             self.sanitycheck(scope, v)?;
             let tt = self.typof(*id);
             self.unify(*id, &tt, &TlcTyp::Nil(*id))?;
