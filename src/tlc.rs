@@ -453,7 +453,24 @@ impl TLC {
       };
       pe
    }
-   pub fn typof(&mut self, tid: usize) -> TlcTyp {
+   pub fn typof_var(&self, scope: Option<usize>, v: &str, vid: usize) -> TlcTyp {
+      if let Some(sc) = self.scopes.get(&scope.unwrap_or(0)) {
+         if let Some(cs) = sc.children.get(v) {
+            let mut ts = Vec::new();
+            for c in cs.iter() {
+               ts.push(self.typof(c.id()));
+            }
+            if ts.len()==0 { TlcTyp::Nil(vid) }
+            else if ts.len()==1 { ts[0].clone() }
+            else { TlcTyp::Or(vid,ts) }
+         } else {
+            panic!("could not find variable {} in scope#{}", v, scope.unwrap_or(0))
+         }
+      } else {
+         panic!("could not find scope#{}", scope.unwrap_or(0))
+      }
+   }
+   pub fn typof(&self, tid: usize) -> TlcTyp {
       match self.typeof_exprs.get(&tid) {
          Some(tt) => tt.clone(),
          None => TlcTyp::Any(tid)
@@ -534,8 +551,15 @@ impl TLC {
          TlcExpr::Forall(_,_,_,_) => { Ok(()) },
          TlcExpr::Typedef(_,_,_) => { Ok(()) },
          TlcExpr::Nil(id) => { self.typeof_exprs.insert(*id, TlcTyp::Nil(*id)); Ok(()) },
-         TlcExpr::Ident(id,_) => { panic!("TODO typecheck.1 {:?}", e) },
-         TlcExpr::App(id,f,x) => { panic!("TODO typecheck.2 {:?}", e) },
+         TlcExpr::Ident(id,v) => {
+            let vt = self.typof_var(scope, v, *id);
+            self.typeof_exprs.insert(*id, vt);
+            Ok(())
+         },
+         TlcExpr::App(id,f,x) => {
+            self.typecheck(scope,f)?;
+            self.typecheck(scope,x)
+         },
          TlcExpr::Let(id,x,v,t) => {
             //variable has already been added to scope by desugar method
             self.typeof_exprs.insert(*id, TlcTyp::Nil(*id));
