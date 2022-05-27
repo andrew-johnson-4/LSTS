@@ -76,7 +76,7 @@ impl std::fmt::Debug for TlcTyp {
            TlcTyp::And(_,_) => write!(f, "&&"),
            TlcTyp::Arrow(_,p,b) => write!(f, "({:?})=>({:?})", p, b),
            TlcTyp::Tuple(_,xs) => write!(f, "(#?#)"),
-           _ => write!(f, "??"),
+           _ => write!(f, "??::type"),
         }
     }
 }
@@ -113,7 +113,17 @@ impl std::fmt::Debug for TlcExpr {
         match self {
            TlcExpr::Nil(_) => write!(f, "()"),
            TlcExpr::Ident(_,x) => write!(f, "{}", x),
-           _ => write!(f, "??"),
+           TlcExpr::App(_,g,x) => write!(f, "{:?}({:?})", g, x),
+           TlcExpr::Let(id,v,x,t) => write!(f, "let {}: {:?} = {:?}", v, t, x),
+           TlcExpr::Typedef(_,t,ps) => write!(f, "type {}", t),
+           TlcExpr::Block(_,es) => {
+              write!(f, "{{")?;
+              for e in es.iter() {
+                 write!(f, "{:?};", e)?;
+              }
+              write!(f, "}}")
+           }
+           _ => write!(f, "??::expr"),
 	}
     }
 }
@@ -135,13 +145,13 @@ impl TLC {
       self.uuid += 1;
       n
    }
-   pub fn desugar(&mut self, parent_scope: Option<usize>, x: TlcExpr) -> Result<usize,TlcError> {
+   pub fn desugar(&mut self, parent_scope: Option<usize>, x: &TlcExpr) -> Result<usize,TlcError> {
       match x {
         TlcExpr::Block(id,sts) => {
            //blocks can have multiple bindings of the same symbol
            //non-block bindings shadow each other
-           self.scopes.insert(id, TlcScope {
-              id: id,
+           self.scopes.insert(*id, TlcScope {
+              id: *id,
               parent: parent_scope,
               rules: Vec::new(),
               children: HashMap::new(),
@@ -175,7 +185,7 @@ impl TLC {
                  }
               }
            }
-           Ok(id)
+           Ok(*id)
         },
         _ => panic!("TLC::desugar: expected block")
       }
@@ -183,7 +193,7 @@ impl TLC {
    pub fn load_file(&mut self, parent_scope: Option<usize>, filename: &str) -> Result<usize,TlcError> {
       //symbol import/export rules are marginally beyond the scope of this project
       let stmts = self.parse_file(filename)?;
-      let scope = self.desugar(parent_scope,stmts)?;
+      let scope = self.desugar(parent_scope,&stmts)?;
       Ok(scope)
    }
    pub fn normalize_file(&mut self, fp:&str, ps: Pairs<crate::syntax::tlc::Rule>) -> Result<TlcExpr,TlcError> {
@@ -507,15 +517,15 @@ impl TLC {
          TlcExpr::Forall(_,_,_,_) => { Ok(()) },
          TlcExpr::Typedef(_,_,_) => { Ok(()) },
          TlcExpr::Nil(id) => { self.typeof_exprs.insert(*id, TlcTyp::Nil(*id)); Ok(()) },
-         TlcExpr::Ident(id,_) => { panic!("TODO typecheck.1") },
-         TlcExpr::App(id,f,x) => { panic!("TODO typecheck.2") },
+         TlcExpr::Ident(id,_) => { panic!("TODO typecheck.1 {:?}", e) },
+         TlcExpr::App(id,f,x) => { panic!("TODO typecheck.2 {:?}", e) },
          TlcExpr::Let(id,x,v,t) => {
             //variable has already been added to scope by desugar method
             self.typeof_exprs.insert(*id, *t.clone());
             self.typeof_exprs.insert(v.id(), *t.clone());
             self.typecheck(scope, v)
          },
-         TlcExpr::Tuple(id,es) => { panic!("TODO typecheck.4") },
+         TlcExpr::Tuple(id,es) => { panic!("TODO typecheck.4 {:?}", e) },
          TlcExpr::Block(id,cs) => {
             let stmts = if let Some(sc) = self.scopes.get(id) {
                sc.statements.clone()
@@ -528,7 +538,7 @@ impl TLC {
             self.typeof_exprs.insert(*id, last_stmt_typ);
             Ok(())
          },
-         TlcExpr::Ascript(id,e,t) => { panic!("TODO typecheck.6") },
+         TlcExpr::Ascript(id,e,t) => { panic!("TODO typecheck.6 {:?}", e) },
       }
    }
    pub fn sanitycheck(&mut self, scope: Option<usize>, e: &TlcExpr) -> Result<(),TlcError> {
@@ -547,10 +557,11 @@ impl TLC {
          TlcExpr::Ascript(id,e,t) => { self.typecheck_concrete(*id) },
       }
    }
-   pub fn check(&mut self, scope: Option<usize>, src:&str) -> Result<(),TlcError> {
+   pub fn check(&mut self, globals: Option<usize>, src:&str) -> Result<(),TlcError> {
       let ast = self.parse(src)?;
-      self.typecheck(scope, &ast)?;
-      self.sanitycheck(scope, &ast)
+      let locals = self.desugar(globals, &ast)?;
+      self.typecheck(Some(locals), &ast)?;
+      self.sanitycheck(Some(locals), &ast)
    }
    pub fn parse(&mut self, src:&str) -> Result<TlcExpr,TlcError> {
       self.parse_doc("[string]", src)
