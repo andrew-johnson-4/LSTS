@@ -473,7 +473,10 @@ impl TLC {
    pub fn typof(&self, tid: usize) -> TlcTyp {
       match self.typeof_exprs.get(&tid) {
          Some(tt) => tt.clone(),
-         None => TlcTyp::Any(tid)
+         None => {
+            if self.debug { panic!("Could not find typeof expressions {}#{}", self.estring(tid), tid) }
+            else { panic!("Could not find typeof expression #{}", tid) }
+         }
       }
    }
    pub fn locof(&mut self, tid: usize) -> (String,(usize,usize),(usize,usize)) {
@@ -547,12 +550,16 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<usize>, e: &TlcExpr) -> Result<(),TlcError> {
+      eprintln!("typecheck {:?}::expr", e);
       match e {
          TlcExpr::Forall(_,_,_,_) => { Ok(()) },
          TlcExpr::Typedef(_,_,_) => { Ok(()) },
          TlcExpr::Nil(id) => { self.typeof_exprs.insert(*id, TlcTyp::Nil(*id)); Ok(()) },
          TlcExpr::Ident(id,v) => {
             let vt = self.typof_var(scope, v, *id);
+            eprintln!("typecheck.1 ident {}:{:?}", v, vt);
+            self.typecheck_concrete_rec(*id, &vt)?;
+            eprintln!("typecheck.2 ident {}", v);
             self.typeof_exprs.insert(*id, vt);
             Ok(())
          },
