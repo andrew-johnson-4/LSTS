@@ -576,7 +576,11 @@ impl TLC {
             let mut last_stmt_typ = TlcTyp::Nil(*id);
             for stmt in stmts.iter() {
                self.typecheck(Some(*id), stmt)?;
-               last_stmt_typ = self.typeof_exprs.get(&stmt.id()).expect("typecheck Block.1").clone();
+               if let Some(stmt_typ) = self.typeof_exprs.get(&stmt.id()) {
+                  last_stmt_typ = stmt_typ.clone(); 
+               } else {
+                  panic!("typecheck did not set a type for {:?}::expr", stmt);
+               }
             }
             self.typeof_exprs.insert(*id, last_stmt_typ);
 
