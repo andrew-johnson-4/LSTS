@@ -455,39 +455,39 @@ impl TLC {
          snippet: format!("typeof(expr#{})={:?}",tid,self.typof(tid)),
       })
    }
-   pub fn typecheck(&mut self, scope: Option<usize>, e: TlcExpr) -> Result<(),TlcError> {
+   pub fn typecheck(&mut self, scope: Option<usize>, e: &TlcExpr) -> Result<(),TlcError> {
+      match e {
+         TlcExpr::Forall(_,_,_,_) => { Ok(()) },
+         TlcExpr::Typedef(_,_,_) => { Ok(()) },
+         TlcExpr::Nil(id) => { self.typeof_exprs.insert(*id, TlcTyp::Nil(*id)); Ok(()) },
+         TlcExpr::Ident(id,_) => { panic!("TODO typecheck.1") },
+         TlcExpr::App(id,f,x) => { panic!("TODO typecheck.2") },
+         TlcExpr::Let(id,x,v,t) => { panic!("TODO typecheck.3") },
+         TlcExpr::Tuple(id,es) => { panic!("TODO typecheck.4") },
+         TlcExpr::Block(id,es) => { panic!("TODO typecheck.5") },
+         TlcExpr::Ascript(id,e,t) => { panic!("TODO typecheck.6") },
+      }
+   }
+   pub fn sanitycheck(&mut self, scope: Option<usize>, e: &TlcExpr) -> Result<(),TlcError> {
       match e {
          //ignore
          TlcExpr::Forall(_,_,_,_) => { Ok(()) },
          TlcExpr::Typedef(_,_,_) => { Ok(()) },
 
          //check that all expression types are concrete
-         TlcExpr::Nil(id) => { let tt = self.typof(id); self.unify(tt,TlcTyp::Nil(id))?; Ok(()) },
-         TlcExpr::Ident(id,_) => { self.typecheck_concrete(id) },
-         TlcExpr::App(id,f,x) => { self.typecheck_concrete(id) },
-         TlcExpr::Let(id,x,v,t) => { self.typecheck_concrete(id) },
-         TlcExpr::Tuple(id,es) => { self.typecheck_concrete(id) },
-         TlcExpr::Block(id,es) => { self.typecheck_concrete(id) },
-         TlcExpr::Ascript(id,e,t) => { self.typecheck_concrete(id) },
+         TlcExpr::Nil(id) => { let tt = self.typof(*id); self.unify(tt,TlcTyp::Nil(*id))?; Ok(()) },
+         TlcExpr::Ident(id,_) => { self.typecheck_concrete(*id) },
+         TlcExpr::App(id,f,x) => { self.typecheck_concrete(*id) },
+         TlcExpr::Let(id,x,v,t) => { self.typecheck_concrete(*id) },
+         TlcExpr::Tuple(id,es) => { self.typecheck_concrete(*id) },
+         TlcExpr::Block(id,es) => { self.typecheck_concrete(*id) },
+         TlcExpr::Ascript(id,e,t) => { self.typecheck_concrete(*id) },
       }
-/*
-pub enum TlcTyp {
-   Any(usize),
-   Ident(usize,String),
-   Or(usize,Vec<TlcTyp>),
-   And(usize,Vec<TlcTyp>),
-   Arrow(usize,Box<TlcTyp>,Box<TlcTyp>),
-   Alias(usize,Box<TlcTyp>,Box<TlcTyp>),
-   Compound(usize,Box<TlcTyp>,Vec<TlcTyp>),
-   Tuple(usize,Vec<TlcTyp>),
-   Angle(usize,Vec<TlcTyp>),
-   Brack(usize,Vec<TlcTyp>),
-}
-*/
    }
    pub fn check(&mut self, scope: Option<usize>, src:&str) -> Result<(),TlcError> {
       let ast = self.parse(src)?;
-      self.typecheck(scope, ast)
+      self.typecheck(scope, &ast)?;
+      self.sanitycheck(scope, &ast)
    }
    pub fn parse(&mut self, src:&str) -> Result<TlcExpr,TlcError> {
       self.parse_doc("[string]", src)
