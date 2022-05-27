@@ -622,10 +622,14 @@ impl TLC {
             self.unify(*id, &tt, &TlcTyp::Nil(*id))?;
             Ok(())
          },
+         TlcExpr::Ident(id,_) => { self.typecheck_concrete(*id) },
+         TlcExpr::App(id,f,x) => {
+            self.typecheck_concrete(f.id())?;
+            self.typecheck_concrete(x.id())?;
+            self.typecheck_concrete(*id)
+         },
          _ => panic!("TODO sanitycheck {:?}", e)
          /*
-         TlcExpr::Ident(id,_) => { self.typecheck_concrete(*id) },
-         TlcExpr::App(id,f,x) => { self.typecheck_concrete(*id) },
          TlcExpr::Tuple(id,es) => { self.typecheck_concrete(*id) },
          TlcExpr::Ascript(id,e,t) => { self.typecheck_concrete(*id) },
          */
