@@ -10,6 +10,8 @@ struct TlcParser;
 
 pub struct TLC {
    uuid: usize,
+   debug: bool,
+   debug_symbols: HashMap<usize,String>,
    locations: HashMap<usize,(String,(usize,usize),(usize,usize))>,
    typeof_exprs: HashMap<usize,TlcTyp>,
    types: HashMap<String,TlcTypedef>, //Canonical type names are n-ary like Tuple#2 or Tuple#9
@@ -132,6 +134,8 @@ impl TLC {
    pub fn new() -> TLC {
       TLC {
          uuid: 0,
+         debug: true, //debug is always on for now until this stabilizes more
+         debug_symbols: HashMap::new(),
          locations: HashMap::new(),
          typeof_exprs: HashMap::new(),
          types: HashMap::new(),
@@ -437,6 +441,9 @@ impl TLC {
       };
       if let Ok(ref pe) = pe {
          self.locations.insert(pe.id(), (fp.to_string(),start,end));
+         if self.debug {
+            self.debug_symbols.insert(pe.id(), format!("{:?}",pe));
+         }
       };
       pe
    }
@@ -464,6 +471,9 @@ impl TLC {
    pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),TlcError> {
       let tt = self.typof(tid);
       self.typecheck_concrete_rec(tid, &tt)
+   }
+   pub fn estring(&self, tid: usize) -> String {
+      self.debug_symbols.get(&tid).unwrap_or(&format!("??#{}::expr", tid)).to_string()
    }
    pub fn typecheck_concrete_rec(&mut self, tid: usize, tt: &TlcTyp) -> Result<(),TlcError> {
       match tt {
@@ -497,7 +507,7 @@ impl TLC {
                filename: filename,
                start: start,
                end: end,
-               snippet: format!("typeof(expr#{})={:?}",tid,tt),
+               snippet: format!("typeof({})={:?}",self.estring(tid),tt),
             })
          }, TlcTyp::Ident(id,tname) => {
             if self.types.contains_key(&format!("{}#0", tname)) { return Ok(()) }
