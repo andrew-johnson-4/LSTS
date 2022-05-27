@@ -491,7 +491,17 @@ impl TLC {
          (TlcTyp::Any(_),r) => Ok(r.clone()),
          (l,TlcTyp::Any(_)) => Ok(l.clone()),
          (TlcTyp::Nil(_),TlcTyp::Nil(_)) => Ok(lt.clone()),
-         (l,r) => panic!("TODO: unify {:?} x {:?}", l, r)
+         (l,r) => {
+            let (filename,start,end) = self.locof(tid);
+            Err(TlcError {
+               error_type: "Type Error".to_string(),
+               rule: "failed unification".to_string(),
+               filename: filename,
+               start: start,
+               end: end,
+               snippet: format!("{:?} (x) {:?}",l,r),
+            })
+         }
       }
    }
    pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),TlcError> {
