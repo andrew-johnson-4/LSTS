@@ -574,7 +574,7 @@ impl TLC {
          },
          TlcExpr::Let(id,x,v,t) => {
             //variable has already been added to scope by desugar method
-            self.typeof_exprs.insert(*id, TlcTyp::Nil(*id));
+            self.typeof_exprs.insert(*id, *t.clone());
             self.typeof_exprs.insert(v.id(), *t.clone());
             self.typecheck(scope, v)
          },
@@ -585,6 +585,14 @@ impl TLC {
                sc.children.clone(),
             )} else { panic!("typecheck could not find block#{}", id) };
 
+            //step 1, typecheck variable declarations
+            for (cn,cs) in children.iter() {
+               for ch in cs.iter() {
+                  self.typecheck(Some(*id), ch)?;
+               }
+            }
+
+            //step 2, typecheck block statements
             let mut last_stmt_typ = TlcTyp::Nil(*id);
             for stmt in stmts.iter() {
                self.typecheck(Some(*id), stmt)?;
@@ -595,12 +603,6 @@ impl TLC {
                }
             }
             self.typeof_exprs.insert(*id, last_stmt_typ);
-
-            for (cn,cs) in children.iter() {
-               for ch in cs.iter() {
-                  self.typecheck(Some(*id), ch)?;
-               }
-            }
 
             Ok(())
          },
