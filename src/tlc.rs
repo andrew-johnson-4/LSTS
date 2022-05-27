@@ -5,7 +5,7 @@ use pest::iterators::{Pair,Pairs};
 use pest::error::{ErrorVariant,InputLocation,LineColLocation};
 
 #[derive(Parser)]
-#[grammar = "tlc.pest"]
+#[grammar = "grammar_tlc.pest"]
 struct TlcParser;
 
 pub struct TLC {
