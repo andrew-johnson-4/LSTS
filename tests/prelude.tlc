@@ -31,14 +31,14 @@ forall A,B,1,2,x. (A,B,1,2,x) => (A,B,1,x) :: 2<A,B,1,x>;
 forall A,B,1,2,x. (A,B,1,2,x) => (A,B,1,2) :: x<A,B,1,2>;
 
 //: Two Lexical Sorting Elimination Rules
-//: E1. Tuple types are lexically sorted
-forall A,B. (A,B) = (sort(A,B)) :: Sort2Tuple
-forall A,B,C. (A,B,C) = (sort(A,B,C)) :: Sort3Tuple
-forall A,B,C,D. (A,B,C,D) = (sort(A,B,C,D)) :: Sort4Tuple
-forall A,B,C,D,E. (A,B,C,D,E) = (sort(A,B,C,D,E)) :: Sort5Tuple
-//: E1. Parameter types are lexically sorted
-forall A,B,C. A<B,C> = A<sort<B,C>> :: Sort2Param
-forall A,B,C,D. A<B,C,D> = A<sort<B,C,D>> :: Sort3Param
-forall A,B,C,D,E. A<B,C,D,E> = A<sort<B,C,D,E>> :: Sort4Param
-forall A,B,C,D,E,F. A<B,C,D,E,F> = A<sort<B,C,D,E,F>> :: Sort5Param
+//: E1. Tuple types are lexically sorted into kinds
+forall A,B. (A,B) :: sort(A,B)
+forall A,B,C. (A,B,C) :: sort(A,B,C)
+forall A,B,C,D. (A,B,C,D) :: sort(A,B,C,D)
+forall A,B,C,D,E. (A,B,C,D,E) :: sort(A,B,C,D,E)
+//: E1. Parameter types are lexically sorted into kinds
+forall A,B,C. A<B,C> :: A<..sort(B,C)>
+forall A,B,C,D. A<B,C,D> :: A<..sort(B,C,D)>
+forall A,B,C,D,E. A<B,C,D,E> :: A<..sort(B,C,D,E)>
+forall A,B,C,D,E,F. A<B,C,D,E,F> :: A<..sort(B,C,D,E)>
 
