@@ -9,7 +9,7 @@ forall A,B,1. (A,B,1);
 forall A,B,1,2. (A,B,1,2);
 forall A,B,1,2,x. (A,B,1,2,x);
 
-//: Four Elimination Rules, proving up to 5-way quantified relations
+//: Four Downtyping Elimination Rules, proving up to 5-way quantified relations
 //: Kinds double as proof objects as well as guarantors of soundness and strong normalization
 //: E1. 2D implies 1D and yields a proof object categorized by the remainder
 forall A,B. (A,B) => B :: A<B>;
@@ -30,5 +30,15 @@ forall A,B,1,2,x. (A,B,1,2,x) => (A,B,2,x) :: 1<A,B,2,x>;
 forall A,B,1,2,x. (A,B,1,2,x) => (A,B,1,x) :: 2<A,B,1,x>;
 forall A,B,1,2,x. (A,B,1,2,x) => (A,B,1,2) :: x<A,B,1,2>;
 
-//: Planned Elimination Rules: lexical ordering of intra-tuple, intra-parameter types
-//: This should be programmable, but how-so is not clear yet
+//: Two Lexical Sorting Elimination Rules
+//: E1. Tuple types are lexically sorted
+forall A,B. (A,B) => (A<,B) :: Sort2Tuple
+forall A,B,C. (A,B,C) => (A<,B<,C) :: Sort3Tuple
+forall A,B,C,D. (A,B,C,D) => (A<,B<,C<,D) :: Sort4Tuple
+forall A,B,C,D,E. (A,B,C,D,E) => (A<,B<,C<,D<,E) :: Sort5Tuple
+//: E1. Parameter types are lexically sorted
+forall A,B,C. A<B,C> => A<B<,C> :: Sort2Param
+forall A,B,C,D. A<B,C,D> => A<B<,C<,D> :: Sort3Param
+forall A,B,C,D,E. A<B,C,D,E> => A<B<,C<,D<,E> :: Sort4Param
+forall A,B,C,D,E,F. A<B,C,D,E,F> => A<B<,C<,D<,E<,F> :: Sort5Param
+
