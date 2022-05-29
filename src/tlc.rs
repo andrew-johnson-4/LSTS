@@ -65,7 +65,8 @@ pub enum TlcTyp {
    Alias(usize,Box<TlcTyp>,Box<TlcTyp>),
    Bound(usize,String,Box<TlcTyp>), //x: X
    Kinded(usize,Box<TlcTyp>,TlcKind), //X :: Y
-   Tuple(usize,Vec<TlcTyp>),
+   Tuple(usize,Vec<TlcTyp>),   //Tuple is order-sensitive
+   Product(usize,Vec<TlcTyp>), //Product is order-insensitive
 }
 impl std::fmt::Debug for TlcTyp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
