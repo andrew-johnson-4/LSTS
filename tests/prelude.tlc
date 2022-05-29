@@ -42,6 +42,7 @@ forall A,B,C,D. A<B,C,D> :: A<..sort(B,C,D)>
 forall A,B,C,D,E. A<B,C,D,E> :: A<..sort(B,C,D,E)>
 forall A,B,C,D,E,F. A<B,C,D,E,F> :: A<..sort(B,C,D,E)>
 
+//: Definition of prelude types and kinds
 type Real :: Number;
 type Integer :: Number;
 type Boolean;
@@ -53,3 +54,26 @@ type Ampere :: Unit;
 type Kelvin :: Unit;
 type Mole :: Unit;
 type Candela :: Unit;
+
+type Yotta<Unit>;
+type Zetta<Unit>;
+type Exa<Unit>;
+type Peta<Unit>;
+type Tera<Unit>;
+type Giga<Unit>;
+type Mega<Unit>;
+type Kilo<Unit>;
+type Hecto<Unit>;
+type Deca<Unit>;
+
+type Deci<Unit>;
+type Centi<Unit>;
+type Milli<Unit>;
+type Micro<Unit>;
+type Nano<Unit>;
+type Pico<Unit>;
+type Femto<Unit>;
+type Atto<Unit>;
+type Zepto<Unit>;
+type Yocto<Unit>;
+
