@@ -55,6 +55,7 @@ type Kelvin :: Unit;
 type Mole :: Unit;
 type Candela :: Unit;
 
+//: TODO inline define unit prefix conversions?
 type Yotta<Unit>;
 type Zetta<Unit>;
 type Exa<Unit>;
