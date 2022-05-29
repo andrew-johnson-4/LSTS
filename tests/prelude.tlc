@@ -45,8 +45,9 @@ forall A,B,C,D,E,F. A<B,C,D,E,F> :: A<..sort(B,C,D,E)>
 //: Definition of prelude types and kinds
 type Real :: Number;
 type Integer :: Number;
-type Boolean;
+type Boolean = True | False;
 
+//: SI Units
 type Second :: Unit;
 type Metre :: Unit;
 type Gram :: Unit;
@@ -55,26 +56,26 @@ type Kelvin :: Unit;
 type Mole :: Unit;
 type Candela :: Unit;
 
-//: TODO inline define unit prefix conversions?
-type Yotta<Unit>;
-type Zetta<Unit>;
-type Exa<Unit>;
-type Peta<Unit>;
-type Tera<Unit>;
-type Giga<Unit>;
-type Mega<Unit>;
-type Kilo<Unit>;
-type Hecto<Unit>;
-type Deca<Unit>;
+//: SI Metric Prefixes
+type Yotta<u:U::Unit> => 1000000000000000000000000 * u : Unit;
+type Zetta<u:U::Unit> => 1000000000000000000000 * u : Unit;
+type Exa<u:U::Unit>   => 1000000000000000000 * u : Unit;
+type Peta<u:U::Unit>  => 1000000000000000 * u : Unit;
+type Tera<u:U::Unit>  => 1000000000000 * u : Unit;
+type Giga<u:U::Unit>  => 1000000000 * u : Unit;
+type Mega<u:U::Unit>  => 1000000 * u : Unit;
+type Kilo<u:U::Unit>  => 1000 * u : Unit;
+type Hecto<u:U::Unit> => 100 * u : Unit;
+type Deca<u:U::Unit>  => 10 * u : Unit;
 
-type Deci<Unit>;
-type Centi<Unit>;
-type Milli<Unit>;
-type Micro<Unit>;
-type Nano<Unit>;
-type Pico<Unit>;
-type Femto<Unit>;
-type Atto<Unit>;
-type Zepto<Unit>;
-type Yocto<Unit>;
+type Deci<u:U::Unit>  => 0.1 * u : Unit;
+type Centi<u:U::Unit> => 0.01 * u : Unit;
+type Milli<u:U::Unit> => 0.001 * u : Unit;
+type Micro<u:U::Unit> => 0.000001 * u : Unit;
+type Nano<u:U::Unit>  => 0.000000001 * u : Unit;
+type Pico<u:U::Unit>  => 0.000000000001 * u : Unit;
+type Femto<u:U::Unit> => 0.000000000000001 * u : Unit;
+type Atto<u:U::Unit>  => 0.000000000000000001 * u : Unit;
+type Zepto<u:U::Unit> => 0.000000000000000000001 * u : Unit;
+type Yocto<u:U::Unit> => 0.000000000000000000000001 * u : Unit;
 
