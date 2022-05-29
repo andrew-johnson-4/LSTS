@@ -270,9 +270,7 @@ impl TLC {
          Rule::suffix_typ => {
             let mut ts = p.into_inner();
             let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
-            let ts = ts.map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [suffix_typ]"))
-                       .collect::<Vec<TlcTyp>>();
-            for t in ts.iter() {
+            for t in ts {
               //TODO parameterized types and bracketed types
             }
             Ok(t)
