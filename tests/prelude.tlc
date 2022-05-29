@@ -58,16 +58,16 @@ type Mole :: Unit;
 type Candela :: Unit;
 
 //: SI Metric Prefixes
-type Yotta<U::Unit>::Unit;
-type Zetta<U::Unit>::Unit;
-type Exa<U::Unit>::Unit;
-type Peta<U::Unit>::Unit;
-type Tera<U::Unit>::Unit;
-type Giga<U::Unit>::Unit;
-type Mega<U::Unit>::Unit;
-type Kilo<U::Unit>::Unit;
-type Hecto<U::Unit>::Unit;
-type Deca<U::Unit>::Unit;
+type Yotta<U::Unit> :: Unit;
+type Zetta<U::Unit> :: Unit;
+type Exa<U::Unit> :: Unit;
+type Peta<U::Unit> :: Unit;
+type Tera<U::Unit> :: Unit;
+type Giga<U::Unit> :: Unit;
+type Mega<U::Unit> :: Unit;
+type Kilo<U::Unit> :: Unit;
+type Hecto<U::Unit> :: Unit;
+type Deca<U::Unit> :: Unit;
 
 //: SI Metric Prefixes, boxing
 forall u:U,Yotta<U>. U => Yotta<U> = 1000000000000000000000000 * u;
