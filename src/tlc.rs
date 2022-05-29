@@ -63,10 +63,9 @@ pub enum TlcTyp {
    And(usize,Vec<TlcTyp>),
    Arrow(usize,Box<TlcTyp>,Box<TlcTyp>),
    Alias(usize,Box<TlcTyp>,Box<TlcTyp>),
-   Compound(usize,Box<TlcTyp>,Vec<TlcTyp>),
+   Bound(usize,String,Box<TlcTyp>), //x: X
+   Kinded(usize,Box<TlcTyp>,TlcKind), //X :: Y
    Tuple(usize,Vec<TlcTyp>),
-   Angle(usize,Vec<TlcTyp>),
-   Brack(usize,Vec<TlcTyp>),
 }
 impl std::fmt::Debug for TlcTyp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -272,15 +271,10 @@ impl TLC {
             let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
             let ts = ts.map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [suffix_typ]"))
                        .collect::<Vec<TlcTyp>>();
-            if ts.len()==0 {
-               Ok(t)
-            } else {
-               Ok(TlcTyp::Compound(
-                  self.uuid(),
-                  Box::new(t),
-                  ts
-               ))
+            for t in ts.iter() {
+              //TODO parameterized types and bracketed types
             }
+            Ok(t)
          },
          Rule::or_typ => {
             let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [or_typ]"))
@@ -299,16 +293,6 @@ impl TLC {
             } else {
                Ok(TlcTyp::And(self.uuid(),ts))
             }
-         },
-         Rule::angle_typ => {
-            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [angle_typ]"))
-                      .collect::<Vec<TlcTyp>>();
-            Ok(TlcTyp::Angle(self.uuid(),ts))
-         },
-         Rule::brack_typ => {
-            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [brack_typ]"))
-                      .collect::<Vec<TlcTyp>>();
-            Ok(TlcTyp::Brack(self.uuid(),ts))
          },
          Rule::let_stmt_typ => {
             match p.into_inner().next() {
