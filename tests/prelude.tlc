@@ -68,14 +68,14 @@ type Kilo<u:U::Unit>::Unit  = 1000 * u;
 type Hecto<u:U::Unit>::Unit = 100 * u;
 type Deca<u:U::Unit>::Unit  = 10 * u;
 
-type Deci<u:U::Unit>::Unit  = 0.1 * u;
-type Centi<u:U::Unit>::Unit = 0.01 * u;
-type Milli<u:U::Unit>::Unit = 0.001 * u;
-type Micro<u:U::Unit>::Unit = 0.000001 * u;
-type Nano<u:U::Unit>::Unit  = 0.000000001 * u;
-type Pico<u:U::Unit>::Unit  = 0.000000000001 * u;
-type Femto<u:U::Unit>::Unit = 0.000000000000001 * u;
-type Atto<u:U::Unit>::Unit  = 0.000000000000000001 * u;
-type Zepto<u:U::Unit>::Unit = 0.000000000000000000001 * u;
-type Yocto<u:U::Unit>::Unit = 0.000000000000000000000001 * u;
+type Deci<u:U::Unit>::Unit  = u / 10;
+type Centi<u:U::Unit>::Unit = u / 100;
+type Milli<u:U::Unit>::Unit = u / 1000;
+type Micro<u:U::Unit>::Unit = u / 1000000;
+type Nano<u:U::Unit>::Unit  = u / 1000000000;
+type Pico<u:U::Unit>::Unit  = u / 1000000000000;
+type Femto<u:U::Unit>::Unit = u / 1000000000000000;
+type Atto<u:U::Unit>::Unit  = u / 1000000000000000000;
+type Zepto<u:U::Unit>::Unit = u / 1000000000000000000000;
+type Yocto<u:U::Unit>::Unit = u / 1000000000000000000000000;
 
