@@ -43,10 +43,10 @@ forall A,B,C,D,E. A<B,C,D,E> :: A<..sort(B,C,D,E)>
 forall A,B,C,D,E,F. A<B,C,D,E,F> :: A<..sort(B,C,D,E)>
 
 //: Definition of prelude types and kinds
-type Real :: Number;
-type Integer :: Number;
-type Imaginary :: Number;
 type Boolean = True | False;
+type Integer :: Number;
+type Real :: Number;
+type Imaginary :: Number;
 
 //: SI Units
 type Second :: Unit;
