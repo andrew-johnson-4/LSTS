@@ -56,7 +56,7 @@ type Kelvin :: Unit;
 type Mole :: Unit;
 type Candela :: Unit;
 
-//: SI Metric Prefixes
+//: SI Metric Prefixes, into
 type Yotta<u:U::Unit>::Unit = 1000000000000000000000000 * u;
 type Zetta<u:U::Unit>::Unit = 1000000000000000000000 * u;
 type Exa<u:U::Unit>::Unit   = 1000000000000000000 * u;
@@ -79,3 +79,25 @@ type Atto<u:U::Unit>::Unit  = u / 1000000000000000000;
 type Zepto<u:U::Unit>::Unit = u / 1000000000000000000000;
 type Yocto<u:U::Unit>::Unit = u / 1000000000000000000000000;
 
+//: SI Metric Prefixes, out of
+type Yotta<u:U::Unit>::Unit => U = u / 1000000000000000000000000;
+type Zetta<u:U::Unit>::Unit => U = u / 1000000000000000000000;
+type Exa<u:U::Unit>::Unit => U   = u / 1000000000000000000;
+type Peta<u:U::Unit>::Unit => U  = u / 1000000000000000;
+type Tera<u:U::Unit>::Unit => U  = u / 1000000000000;
+type Giga<u:U::Unit>::Unit => U  = u / 1000000000;
+type Mega<u:U::Unit>::Unit => U  = u / 1000000;
+type Kilo<u:U::Unit>::Unit => U  = u / 1000;
+type Hecto<u:U::Unit>::Unit => U = u / 100;
+type Deca<u:U::Unit>::Unit => U  = u / 10;
+
+type Deci<u:U::Unit>::Unit => U  = 10 * u;
+type Centi<u:U::Unit>::Unit => U = 100 * u;
+type Milli<u:U::Unit>::Unit => U = 1000 * u;
+type Micro<u:U::Unit>::Unit => U = 1000000 * u;
+type Nano<u:U::Unit>::Unit => U  = 1000000000 * u;
+type Pico<u:U::Unit>::Unit => U  = 1000000000000 * u;
+type Femto<u:U::Unit>::Unit => U = 1000000000000000 * u;
+type Atto<u:U::Unit>::Unit => U  = 1000000000000000000 * u;
+type Zepto<u:U::Unit>::Unit => U = 1000000000000000000000 * u;
+type Yocto<u:U::Unit>::Unit => U = 1000000000000000000000000 * u;
