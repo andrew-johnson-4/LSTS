@@ -56,7 +56,7 @@ type Kelvin :: Unit;
 type Mole :: Unit;
 type Candela :: Unit;
 
-//: SI Metric Prefixes, into
+//: SI Metric Prefixes, boxing
 type Yotta<u:U::Unit>::Unit = 1000000000000000000000000 * u;
 type Zetta<u:U::Unit>::Unit = 1000000000000000000000 * u;
 type Exa<u:U::Unit>::Unit   = 1000000000000000000 * u;
@@ -79,7 +79,7 @@ type Atto<u:U::Unit>::Unit  = u / 1000000000000000000;
 type Zepto<u:U::Unit>::Unit = u / 1000000000000000000000;
 type Yocto<u:U::Unit>::Unit = u / 1000000000000000000000000;
 
-//: SI Metric Prefixes, out of
+//: SI Metric Prefixes, unboxing
 type Yotta<u:U::Unit>::Unit => U = u / 1000000000000000000000000;
 type Zetta<u:U::Unit>::Unit => U = u / 1000000000000000000000;
 type Exa<u:U::Unit>::Unit => U   = u / 1000000000000000000;
