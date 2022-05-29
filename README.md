@@ -11,6 +11,6 @@ LSTS implements [a categorical view of typed lambda calculus with flexible sound
 
 # Examples
 
-    let v: Real + Meter/Second = 123.456;
+    let v: Real + Kilo<Meter>/Second = 123.456;
     let s: Real + Second = 78.9;
-    let d: Real + Meter = v * s;
+    let d: Real + Meter = v * s as Meter;
