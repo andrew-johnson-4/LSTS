@@ -67,6 +67,7 @@ pub enum TlcTyp {
    Kinded(usize,Box<TlcTyp>,TlcKind), //X :: Y
    Tuple(usize,Vec<TlcTyp>),   //Tuple is order-sensitive
    Product(usize,Vec<TlcTyp>), //Product is order-insensitive
+   Ratio(usize,Box<TlcTyp>,Box<TlcTyp>),
 }
 impl std::fmt::Debug for TlcTyp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
