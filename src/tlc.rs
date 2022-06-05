@@ -10,6 +10,7 @@ struct TlcParser;
 pub struct TLC {
    rows: Vec<Row>,
    rules: Vec<TypeRule>,
+   scopes: Vec<Scope>,
 }
 
 pub struct Row {
@@ -46,6 +47,10 @@ impl std::fmt::Debug for Error {
     }
 }
 
+#[derive(Clone)]
+pub struct ScopeId {
+   id: usize,
+}
 //does not implement Clone because scopes are uniquely identified by their id
 pub struct Scope {
    id: usize,
@@ -95,20 +100,14 @@ pub enum TypeRule {
 
    //forall A,B,1,2. (A,B,1,2) => (B,1,2) :: A<B,1,2>;
    //forall U,u:Milli<U>. Milli<U> => U = 1000 * u;
-   Forall(Vec<(String,Typ,Kind)>, Typ, Option<Typ>, Option<Term>, Option<Kind>),
+   Forall(Vec<(String,Typ,Kind)>, Typ, Option<Typ>, Option<TermId>, Option<Kind>),
 }
 
 #[derive(Clone)]
 pub struct TermId {
    id: usize,
 }
-impl std::fmt::Debug for TermId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.id)
-    }
-}
-
-#[derive(Clone)]
+//does not implement Clone because terms are uniquely identified by their id
 pub enum Term {
    Assume, //used to introduce sentinel values
    Nil,
@@ -125,20 +124,20 @@ impl std::fmt::Debug for Term {
            Term::Assume => write!(f, "$"),
            Term::Nil => write!(f, "()"),
            Term::Ident(x) => write!(f, "{}", x),
-           Term::App(g,x) => write!(f, "{:?}({:?})", g, x),
-           Term::Let(v,x,t) => write!(f, "let {}: {:?} = {:?}", v, t, x),
-           Term::Ascript(t,tt) => write!(f, "{:?}:{:?}", t, tt),
+           Term::App(g,x) => write!(f, "{:?}({:?})", g.id, x.id),
+           Term::Let(v,x,t) => write!(f, "let {}: {:?} = {:?}", v, t, x.id),
+           Term::Ascript(t,tt) => write!(f, "{:?}:{:?}", t.id, tt),
            Term::Tuple(es) => {
               write!(f, "(")?;
               for e in es.iter() {
-                 write!(f, "{:?},", e)?;
+                 write!(f, "{:?},", e.id)?;
               }
               write!(f, ")")
            },
            Term::Block(es) => {
               write!(f, "{{")?;
               for e in es.iter() {
-                 write!(f, "{:?};", e)?;
+                 write!(f, "{:?};", e.id)?;
               }
               write!(f, "}}")
            },
@@ -163,6 +162,7 @@ impl TLC {
             },
          }],
          rules: Vec::new(),
+         scopes: Vec::new(),
       }
    }
 
@@ -226,6 +226,11 @@ impl TLC {
          span: span.clone(),
       });
       TermId { id: index }
+   }
+   pub fn push_scope(&mut self, scope: Scope, span: &Span) -> ScopeId {
+      let index = self.scopes.len();
+      self.scopes.push(scope);
+      ScopeId { id: index }
    }
    pub fn unparse_ast(&mut self, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<TermId,Error> {
       let span = Span {
@@ -414,7 +419,7 @@ impl TLC {
          _ => Ok(Kind::Nil),
       }
    }
-   pub fn check(&mut self, globals: Option<usize>, src:&str) -> Result<(),Error> {
+   pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
       let ast = self.parse(src)?;
       Ok(())
    }
