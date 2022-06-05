@@ -414,6 +414,10 @@ impl TLC {
          _ => Ok(Kind::Nil),
       }
    }
+   pub fn check(&mut self, globals: Option<usize>, src:&str) -> Result<(),Error> {
+      let ast = self.parse(src)?;
+      Ok(())
+   }
 }
 
 /*
@@ -687,12 +691,6 @@ impl TLC {
          Term::Tuple(id,es) => { self.typecheck_concrete(*id) },
          Term::Ascript(id,e,t) => { self.typecheck_concrete(*id) },
       }
-   }
-   pub fn check(&mut self, globals: Option<usize>, src:&str) -> Result<(),Error> {
-      let ast = self.parse(src)?;
-      let locals = self.desugar(globals, &ast)?;
-      self.typecheck(Some(locals), &ast)?;
-      self.sanitycheck(Some(locals), &ast)
    }
 }
 */

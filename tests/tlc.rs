@@ -28,28 +28,24 @@ fn parse_simplytyped() {
    tlc.parse("forall A,B:C::D. (A,B) => C :: R").unwrap();
 }
 
-/*
 #[test]
 fn check_simplytyped() {
    //type A is undefined
    let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "type A; let a: A").unwrap();
+   tlc.check(None, "type A; let a: A").unwrap();
 
    let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "let a: A").unwrap_err();
+   tlc.check(None, "let a: A").unwrap_err();
 
    //unexpected argument B to function A -> B
    let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "type A; type B; let a: A->B; let b: A; a(b)").unwrap();
+   tlc.check(None, "type A; type B; let a: A->B; let b: A; a(b)").unwrap();
 
    let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "type A; type B; let a: A->B; let b: B; a(b)").unwrap_err();
+   tlc.check(None, "type A; type B; let a: A->B; let b: B; a(b)").unwrap_err();
 }
 
+/*
 #[test]
 fn check_traitstyped() {
    //(Meter/Second) * Second = Meter
