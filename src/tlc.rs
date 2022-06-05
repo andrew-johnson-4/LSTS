@@ -56,6 +56,7 @@ pub struct Scope {
 
 #[derive(Clone)]
 pub enum Kind {
+   Nil,
    Simple(String,Vec<Kind>),
 }
 
@@ -90,7 +91,7 @@ impl std::fmt::Debug for Typ {
 #[derive(Clone)]
 pub enum TypeRule {
    //type Deca<U::Unit> :: Unit;
-   Typedef(String,Vec<(Typ,Kind)>,Option<Kind>),
+   Typedef(String,Vec<(String,Option<Typ>,Option<Kind>)>,Option<Kind>),
 
    //forall A,B,1,2. (A,B,1,2) => (B,1,2) :: A<B,1,2>;
    //forall U,u:Milli<U>. Milli<U> => U = 1000 * u;
@@ -148,7 +149,19 @@ impl std::fmt::Debug for Term {
 impl TLC {
    pub fn new() -> TLC {
       TLC {
-         rows: Vec::new(),
+         //the first row, index 0, is nullary
+         rows: vec![Row {
+            term: Term::Nil,
+            typ: Typ::Nil,
+            kind: Kind::Nil,
+            span: Span {
+               filename:"".to_string(),
+               offset_start: 0,
+               offset_end: 0,
+               linecol_start: (0,0),
+               linecol_end: (0,0),
+            },
+         }],
          rules: Vec::new(),
       }
    }
@@ -291,7 +304,40 @@ impl TLC {
             }
          },
 
-         /* inference rules 
+         //inference rules
+         /*
+         Rule::typ_stmt => {
+            let mut ps = p.into_inner();
+            let t = ps.next().expect("TLC Grammar Error in rule [typ_stmt.1]").into_inner().concat();
+            let mut ts = Vec::new();
+            for e in ps {
+               match e.as_rule() {
+                  Rule::ascript_ident => {
+                     let mut es = e.into_inner();
+                     ts.push((
+                        es.next().expect("TLC Grammar Error in rule [typ_stmt.2]").into_inner().concat(),
+                        match es.next() {
+                           Some(et) => Some(self.unparse_ast_typ(et)?),
+                           None => None
+                        }
+                        match es.next() {
+                           Some(et) => Some(self.unparse_ast_kind(et)?),
+                           None => None
+                        }
+                     ));
+                  },
+                  rule => panic!("unexpected typ_stmt rule: {:?}", rule)
+               }
+            }
+            self.push_rule(TypeRule::Typedef(
+               t,
+               ts
+            ), &span);
+            Ok(TermId { id:0 })
+         },
+         */
+
+         /*
          Rule::forall_stmt => {
             let mut ps = Vec::new();
             let mut tt = None;
@@ -318,31 +364,6 @@ impl TLC {
                ps,
                Box::new(tt),
                Box::new(k),
-            ))
-         },
-         Rule::typ_stmt => {
-            let mut ps = p.into_inner();
-            let t = ps.next().expect("TLC Grammar Error in rule [typ_stmt.1]").into_inner().concat();
-            let mut ts = Vec::new();
-            for e in ps {
-               match e.as_rule() {
-                  Rule::ascript_ident => {
-                     let mut es = e.into_inner();
-                     ts.push((
-                        es.next().expect("TLC Grammar Error in rule [typ_stmt.2]").into_inner().concat(),
-                        match es.next() {
-                           Some(et) => Some(self.unparse_ast_typ(et)?),
-                           None => None
-                        }
-                     ));
-                  },
-                  rule => panic!("unexpected typ_stmt rule: {:?}", rule)
-               }
-            }
-            Ok(Term::Typedef(
-               self.uuid(),
-               t,
-               ts
             ))
          },
          */

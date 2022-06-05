@@ -6,7 +6,7 @@ alpha = { 'a'..'z' | 'A'..'Z' }
 digit = { '0'..'9' }
 
 ident = { !("let" | "forall" | "type") ~ (alpha | digit)+ }
-ascript_ident = { ident ~ (":" ~ typ)? }
+ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
 ident_term = { ident }	
 tuple_term = { paren_atom }
@@ -35,9 +35,9 @@ let_stmt = { "let" ~ ident ~ let_stmt_val ~ let_stmt_typ }
 let_stmt_val = { ("=" ~ term)? }
 let_stmt_typ = { (":" ~ typ)? }
 
-typ_stmt = { "type" ~ ident ~ ("<" ~ ascript_ident ~ ("," ~ ascript_ident)* ~ ">")? }
+typ_stmt = { "type" ~ ident ~ ("<" ~ ident_typ_kind ~ ("," ~ ident_typ_kind)* ~ ">")? ~ ("::" ~ kind)? }
 
-forall_stmt = { "forall" ~ ascript_ident? ~ ("," ~ ascript_ident)* ~ "." ~ typ ~ ("::" ~ kind)?}
+forall_stmt = { "forall" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ typ ~ ("::" ~ kind)?}
 
 stmt = { typ_stmt | forall_stmt | let_stmt | term } 
 
