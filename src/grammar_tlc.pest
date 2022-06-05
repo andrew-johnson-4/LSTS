@@ -27,8 +27,7 @@ suffix_typ = { atom_typ ~ (brack_typ | angle_typ)* }
 arrow_typ = { suffix_typ ~ ("->" ~ suffix_typ)* }
 and_typ    = { arrow_typ ~ ("+" ~ arrow_typ)* }
 or_typ    = { and_typ ~ ("|" ~ and_typ)* }
-alias_typ = { or_typ ~ ("=>" ~ or_typ)* }
-typ       = { alias_typ }
+typ       = { or_typ }
 
 kind      = { ident ~ ("<" ~ kind? ~ ("," ~ kind)* ~ ">")? }
 
