@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::collections::HashMap;
 use pest::Parser;
 use pest::iterators::{Pair,Pairs};
 use pest::error::{ErrorVariant,InputLocation,LineColLocation};
@@ -9,127 +8,139 @@ use pest::error::{ErrorVariant,InputLocation,LineColLocation};
 struct TlcParser;
 
 pub struct TLC {
-   uuid: usize,
-   debug: bool,
-   debug_symbols: HashMap<usize,String>,
-   locations: HashMap<usize,(String,(usize,usize),(usize,usize))>,
-   typeof_exprs: HashMap<usize,TlcTyp>,
-   types: HashMap<String,TlcTypedef>, //Canonical type names are n-ary like Tuple#2 or Tuple#9
-   traits: HashMap<String,TlcTypedef>, //Traits unify and work just like types but are associated, optional, and plural
-   kinds: HashMap<String,TlcKind>,
-   scopes: HashMap<usize,TlcScope>,
+   rows: Vec<Row>,
+   rules: Vec<TypeRule>,
 }
 
-pub struct TlcError {
-   error_type: String,
-   rule: String,
-   filename: String,
-   start: (usize,usize),
-   end: (usize,usize),
-   snippet: String
+pub struct Row {
+   term: Term,
+   typ: Typ,
+   kind: Kind,
+   span: Span,
 }
-impl std::fmt::Debug for TlcError {
+
+pub struct Span {
+   filename: String,
+   offset_start: usize,
+   offset_end: usize,
+   linecol_start: (usize,usize),
+   linecol_end: (usize,usize),
+}
+
+pub struct Error {
+   kind: String,
+   rule: String,
+   span: Span,
+   snippet: String,
+}
+impl Span {
+   pub fn snippet(&self) -> String {
+      format!("")
+   }
+}
+impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\n{}, expected {}, in {} --> {},{}\n{}\n", self.error_type, self.rule, self.filename,
-               self.start.0, self.start.1, self.snippet)
+        write!(f, "\n{}, expected {}, in {} --> {},{}\n{}\n", self.kind, self.rule, self.span.filename,
+               self.span.linecol_start.0, self.span.linecol_start.1, self.span.snippet())
     }
 }
 
 //does not implement Clone because scopes are uniquely identified by their id
-pub struct TlcScope {
+pub struct Scope {
    id: usize,
    parent: Option<usize>,
-   rules: Vec<TlcExpr>,
-   children: HashMap<String,Vec<TlcExpr>>,
-   statements: Vec<TlcExpr>,
+   rules: Vec<Rule>,
+   children: Vec<(String,Term)>,
+   statements: Vec<Term>,
 }
 
 #[derive(Clone)]
-pub enum TlcKind {
-   Simple(usize,String,Vec<TlcKind>),
+pub enum Kind {
+   Simple(String,Vec<Kind>),
 }
 
 #[derive(Clone)]
-pub enum TlcTypedef {
-   Assume(usize),
+pub enum Typ {
+   Nil,
+   Any,
+   Ident(String),
+   Or(Vec<Typ>),
+   And(Vec<Typ>),
+   Arrow(Box<Typ>,Box<Typ>),
+   Tuple(Vec<Typ>),   //Tuple is order-sensitive
+   Product(Vec<Typ>), //Product is order-insensitive
+   Ratio(Box<Typ>,Box<Typ>),
 }
-
-#[derive(Clone)]
-pub enum TlcTyp {
-   Nil(usize),
-   Any(usize),
-   Ident(usize,String),
-   Or(usize,Vec<TlcTyp>),
-   And(usize,Vec<TlcTyp>),
-   Arrow(usize,Box<TlcTyp>,Box<TlcTyp>),
-   Alias(usize,Box<TlcTyp>,Box<TlcTyp>),
-   Bound(usize,String,Box<TlcTyp>), //x: X
-   Kinded(usize,Box<TlcTyp>,TlcKind), //X :: Y
-   Tuple(usize,Vec<TlcTyp>),   //Tuple is order-sensitive
-   Product(usize,Vec<TlcTyp>), //Product is order-insensitive
-   Ratio(usize,Box<TlcTyp>,Box<TlcTyp>),
-}
-impl std::fmt::Debug for TlcTyp {
+impl std::fmt::Debug for Typ {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           TlcTyp::Nil(_) => write!(f, "()"),
-           TlcTyp::Any(_) => write!(f, "?"),
-           TlcTyp::Ident(_,x) => write!(f, "{}", x),
-           TlcTyp::Or(_,_) => write!(f, "||"),
-           TlcTyp::And(_,_) => write!(f, "&&"),
-           TlcTyp::Arrow(_,p,b) => write!(f, "({:?})=>({:?})", p, b),
-           TlcTyp::Tuple(_,xs) => write!(f, "(#?#)"),
-           _ => write!(f, "??::type"),
+           Typ::Nil => write!(f, "()"),
+           Typ::Any => write!(f, "?"),
+           Typ::Ident(x) => write!(f, "{}", x),
+           Typ::Or(_) => write!(f, "||"),
+           Typ::And(_) => write!(f, "&&"),
+           Typ::Arrow(p,b) => write!(f, "({:?})=>({:?})", p, b),
+           Typ::Tuple(xs) => write!(f, "(?,?)"),
+           Typ::Product(xs) => write!(f, "(?*?)"),
+           Typ::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
         }
     }
 }
 
 #[derive(Clone)]
-pub enum TlcExpr {
-   Assume(usize), //used to introduce sentinel values
-   Nil(usize),
-   Ident(usize,String),
-   App(usize,Box<TlcExpr>,Box<TlcExpr>),
-   Let(usize,String,Box<TlcExpr>,Box<TlcTyp>),
-   Tuple(usize,Vec<TlcExpr>),
-   Block(usize,Vec<TlcExpr>),
-   Ascript(usize,Box<TlcExpr>,Box<TlcTyp>),
-   Forall(usize,Vec<(String,Option<TlcTyp>)>,Box<Option<TlcTyp>>,Box<Option<TlcKind>>),
-   Typedef(usize,String,Vec<(String,Option<TlcTyp>)>),
+pub enum TypeRule {
+   //type Deca<U::Unit> :: Unit;
+   Typedef(String,Vec<(Typ,Kind)>,Option<Kind>),
+
+   //forall A,B,1,2. (A,B,1,2) => (B,1,2) :: A<B,1,2>;
+   //forall U,u:Milli<U>. Milli<U> => U = 1000 * u;
+   Forall(Vec<(String,Typ,Kind)>, Typ, Option<Typ>, Option<Term>),
 }
-impl TlcExpr {
-   pub fn id(&self) -> usize {
-      match self {
-         TlcExpr::Assume(id) => *id,
-         TlcExpr::Nil(id) => *id,
-         TlcExpr::Ident(id,_) => *id,
-         TlcExpr::App(id,_,_) => *id,
-         TlcExpr::Let(id,_,_,_) => *id,
-         TlcExpr::Tuple(id,_) => *id,
-         TlcExpr::Block(id,_) => *id,
-         TlcExpr::Ascript(id,_,_) => *id,
-         TlcExpr::Forall(id,_,_,_) => *id,
-         TlcExpr::Typedef(id,_,_) => *id,
-      }
-   }
+
+#[derive(Clone)]
+pub struct TermId {
+   id: usize,
 }
-impl std::fmt::Debug for TlcExpr {
+impl std::fmt::Debug for TermId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.id)
+    }
+}
+
+#[derive(Clone)]
+pub enum Term {
+   Assume, //used to introduce sentinel values
+   Nil,
+   Ident(String),
+   App(TermId,TermId),
+   Let(String,TermId,Typ),
+   Tuple(Vec<TermId>),
+   Block(Vec<TermId>),
+   Ascript(TermId,Typ),
+}
+impl std::fmt::Debug for Term {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           TlcExpr::Assume(_) => write!(f, "$"),
-           TlcExpr::Nil(_) => write!(f, "()"),
-           TlcExpr::Ident(_,x) => write!(f, "{}", x),
-           TlcExpr::App(_,g,x) => write!(f, "{:?}({:?})", g, x),
-           TlcExpr::Let(id,v,x,t) => write!(f, "let {}: {:?} = {:?}", v, t, x),
-           TlcExpr::Typedef(_,t,ps) => write!(f, "type {}", t),
-           TlcExpr::Block(_,es) => {
+           Term::Assume => write!(f, "$"),
+           Term::Nil => write!(f, "()"),
+           Term::Ident(x) => write!(f, "{}", x),
+           Term::App(g,x) => write!(f, "{:?}({:?})", g, x),
+           Term::Let(v,x,t) => write!(f, "let {}: {:?} = {:?}", v, t, x),
+           Term::Ascript(t,tt) => write!(f, "{:?}:{:?}", t, tt),
+           Term::Tuple(es) => {
+              write!(f, "(")?;
+              for e in es.iter() {
+                 write!(f, "{:?},", e)?;
+              }
+              write!(f, ")")
+           },
+           Term::Block(es) => {
               write!(f, "{{")?;
               for e in es.iter() {
                  write!(f, "{:?};", e)?;
               }
               write!(f, "}}")
-           }
-           _ => write!(f, "??::expr"),
+           },
 	}
     }
 }
@@ -137,173 +148,68 @@ impl std::fmt::Debug for TlcExpr {
 impl TLC {
    pub fn new() -> TLC {
       TLC {
-         uuid: 1, //0 is NULL-ary
-         debug: true, //debug is always on for now until this stabilizes more
-         debug_symbols: HashMap::new(),
-         locations: HashMap::new(),
-         typeof_exprs: HashMap::new(),
-         types: HashMap::new(),
-         traits: HashMap::new(),
-         kinds: HashMap::new(),
-         scopes: HashMap::new(),
+         rows: Vec::new(),
+         rules: Vec::new(),
       }
    }
-   pub fn uuid(&mut self) -> usize {
-      let n = self.uuid;
-      self.uuid += 1;
-      n
+
+   pub fn parse(&mut self, src:&str) -> Result<Term,Error> {
+      self.parse_doc("[string]", src)
    }
-   pub fn desugar(&mut self, parent_scope: Option<usize>, x: &TlcExpr) -> Result<usize,TlcError> {
-      match x {
-         TlcExpr::Block(scid,sts) => {
-            //blocks can have multiple bindings of the same symbol
-            //non-block bindings shadow each other
-            self.scopes.insert(*scid, TlcScope {
-               id: *scid,
-               parent: parent_scope,
-               rules: Vec::new(),
-               children: HashMap::new(),
-               statements: Vec::new(),
-            });
-            for stmt in sts.iter() {
-               self.desugar(Some(*scid), stmt);
-            }
-            Ok(*scid)
-         },
-         TlcExpr::Forall(fid,qs,typ,kind) => {
-            let scid = parent_scope.unwrap_or(0);
-            if let Some(mut sc) = self.scopes.get_mut(&scid) {
-               sc.rules.push(x.clone());
-            }
-            Ok(scid)
-         },
-         TlcExpr::Let(lid,pat,val,typ) => {
-            let scid = parent_scope.unwrap_or(0);
-            if let Some(mut sc) = self.scopes.get_mut(&scid) {
-               if !sc.children.contains_key(pat) {
-                  sc.children.insert(pat.clone(), Vec::new());
-               }
-               sc.children.get_mut(pat).unwrap().push(x.clone());
-            }
-            Ok(scid)
-         },
-         TlcExpr::Typedef(tid,tname,tpars) => {
-            let scid = parent_scope.unwrap_or(0);
-            self.types.insert(
-               format!("{}#{}", tname, tpars.len()),
-               TlcTypedef::Assume(*tid)
-            );
-            Ok(scid)
-         },
-         _ => {
-            let scid = parent_scope.unwrap_or(0);
-            if let Some(mut sc) = self.scopes.get_mut(&scid) {
-               sc.statements.push(x.clone());
-            }
-            Ok(scid)
-         }
+   pub fn parse_file(&mut self, filename:&str) -> Result<Term,Error> {
+      if !Path::new(filename).exists() {
+         panic!("parse_file could not find file: '{}'", filename)
       }
+      let src = std::fs::read_to_string(filename)
+                   .expect("parse_file: Something went wrong reading the file");
+      self.parse_doc(filename,&src)
    }
-   pub fn load_file(&mut self, parent_scope: Option<usize>, filename: &str) -> Result<usize,TlcError> {
-      //symbol import/export rules are marginally beyond the scope of this project
-      let stmts = self.parse_file(filename)?;
-      let scope = self.desugar(parent_scope,&stmts)?;
-      Ok(scope)
+   pub fn parse_doc(&mut self, docname:&str, src:&str) -> Result<Term,Error> {
+      let parse_result = TlcParser::parse(Rule::file, src);
+      match parse_result {
+        Ok(parse_ast) => self.normalize_file(docname, parse_ast),
+        Err(pe) => {
+          let (start,end) = match pe.line_col {
+             LineColLocation::Pos(s) => (s,s),
+             LineColLocation::Span(s,e) => (s,e),
+          };
+          let (istart,iend) = match pe.location {
+             InputLocation::Pos(s) => (s,s),
+             InputLocation::Span((s,e)) => (s,e),
+          };
+          let rule = match pe.variant {
+             ErrorVariant::ParsingError {
+                positives:p,
+                negatives:n
+             } => {
+                p.iter().map(|r|{format!("{:?}",r)}).collect::<Vec<String>>().join(" or ")
+             }, _ => {format!("")}
+          };
+          Err(Error { 
+             kind: "Parse Error".to_string(),
+             rule: rule,
+             span: Span {
+                filename:docname.to_string(),
+                offset_start: istart,
+                offset_end: iend,
+                linecol_start: start,
+                linecol_end: end,
+             },
+             snippet: if iend>istart { format!("\n{}", &src[istart..iend]) }
+                      else { format!(" {:?}", &src[istart..std::cmp::min(src.len(),istart+1)])}
+          })
+        }
+      } 
    }
-   pub fn normalize_file(&mut self, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<TlcExpr,TlcError> {
+   pub fn normalize_file(&mut self, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<Term,Error> {
       self.normalize_ast(fp, ps.peek().unwrap())
    }
-   pub fn normalize_ast_kind(&mut self, p: Pair<crate::tlc::Rule>) -> Result<TlcKind,TlcError> {
-      match p.as_rule() {
-         Rule::kind => {
-            let mut ps = p.into_inner();
-            let kg = ps.next().expect("TLC Grammar Error in rule [kind]").into_inner().concat();
-            let ks = ps.map(|k|self.normalize_ast_kind(k).expect("TLC Grammar Error in rule [kind.2]"))
-                       .collect::<Vec<TlcKind>>();
-            Ok(TlcKind::Simple(self.uuid(),kg,ks))
-         }
-         rule => panic!("unexpected kind rule: {:?}", rule)
-      }
+   pub fn normalize_ast(&mut self, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<Term,Error> {
+      Ok(Term::Assume)
    }
-   pub fn normalize_ast_typ(&mut self, p: Pair<crate::tlc::Rule>) -> Result<TlcTyp,TlcError> {
-      match p.as_rule() {
-         Rule::ident => Ok(TlcTyp::Ident(self.uuid(),p.into_inner().concat())),
-         Rule::typ => self.normalize_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
-         Rule::ident_typ => self.normalize_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [ident_typ]")),
-         Rule::atom_typ => self.normalize_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
-         Rule::ident_typ => Ok(TlcTyp::Ident(self.uuid(),p.into_inner().concat())),
-         Rule::any_typ => Ok(TlcTyp::Any(self.uuid())),
-         Rule::paren_typ => {
-            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [paren_typ]"))
-                      .collect::<Vec<TlcTyp>>();
-            if ts.len()==0 {
-               Ok(TlcTyp::Nil(self.uuid()))
-            } else if ts.len()==1 {
-               Ok(ts[0].clone())
-            } else {
-               Ok(TlcTyp::Tuple(self.uuid(),ts))
-            }
-         },
-         Rule::arrow_typ => {
-            let mut ts = p.into_inner();
-            let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
-            for tr in ts {
-               t = TlcTyp::Arrow(
-                  self.uuid(),
-                  Box::new(t),
-                  Box::new(self.normalize_ast_typ(tr)?)
-               );
-            }
-            Ok(t)
-         },
-         Rule::alias_typ => {
-            let mut ts = p.into_inner();
-            let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
-            for tr in ts {
-               t = TlcTyp::Alias(
-                  self.uuid(),
-                  Box::new(t),
-                  Box::new(self.normalize_ast_typ(tr)?)
-               );
-            }
-            Ok(t)
-         },
-         Rule::suffix_typ => {
-            let mut ts = p.into_inner();
-            let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
-            for t in ts {
-              //TODO parameterized types and bracketed types
-            }
-            Ok(t)
-         },
-         Rule::or_typ => {
-            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [or_typ]"))
-                      .collect::<Vec<TlcTyp>>();
-            if ts.len()==1 {
-               Ok(ts[0].clone())
-            } else {
-               Ok(TlcTyp::Or(self.uuid(),ts))
-            }
-         },
-         Rule::and_typ => {
-            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [and_typ]"))
-                      .collect::<Vec<TlcTyp>>();
-            if ts.len()==1 {
-               Ok(ts[0].clone())
-            } else {
-               Ok(TlcTyp::And(self.uuid(),ts))
-            }
-         },
-         Rule::let_stmt_typ => {
-            match p.into_inner().next() {
-               None => Ok(TlcTyp::Nil(self.uuid())),
-               Some(e) => self.normalize_ast_typ(e)
-            }
-         },
-         rule => panic!("unexpected typ rule: {:?}", rule)
-      }
-   }
-   pub fn normalize_ast(&mut self, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<TlcExpr,TlcError> {
+
+   /*
+   pub fn normalize_ast(&mut self, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<Term,Error> {
       let start = p.as_span().start_pos().line_col();
       let end = p.as_span().end_pos().line_col();
       let pe = match p.as_rule() {
@@ -314,7 +220,7 @@ impl TLC {
                Rule::EOI => (),
                _ => es.push(self.normalize_ast(fp,e).expect("TLC Grammar Error in rule [file]"))
             }}
-            Ok(TlcExpr::Block(self.uuid(),es))
+            Ok(Term::Block(self.uuid(),es))
          },
 
          //passthrough rules
@@ -324,7 +230,7 @@ impl TLC {
          Rule::tuple_term => self.normalize_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [tuple_term]")),
 
          //literal value rules
-         Rule::ident => Ok(TlcExpr::Ident(self.uuid(),p.into_inner().concat())),
+         Rule::ident => Ok(Term::Ident(self.uuid(),p.into_inner().concat())),
 
          //complex rules
          Rule::forall_stmt => {
@@ -348,7 +254,7 @@ impl TLC {
                   rule => panic!("unexpected forall_stmt rule: {:?}", rule)
                }
             }
-            Ok(TlcExpr::Forall(
+            Ok(Term::Forall(
                self.uuid(),
                ps,
                Box::new(tt),
@@ -374,7 +280,7 @@ impl TLC {
                   rule => panic!("unexpected typ_stmt rule: {:?}", rule)
                }
             }
-            Ok(TlcExpr::Typedef(
+            Ok(Term::Typedef(
                self.uuid(),
                t,
                ts
@@ -382,7 +288,7 @@ impl TLC {
          },
          Rule::let_stmt => {
             let mut es = p.into_inner();
-            Ok(TlcExpr::Let(
+            Ok(Term::Let(
                self.uuid(),
                es.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat(),
                Box::new(self.normalize_ast(fp,es.next().expect("TLC Grammar Error in rule [let_stmt.2]"))?),
@@ -391,7 +297,7 @@ impl TLC {
          },
          Rule::let_stmt_val => {
             match p.into_inner().next() {
-               None => Ok(TlcExpr::Assume(self.uuid())),
+               None => Ok(Term::Assume(self.uuid())),
                Some(e) => self.normalize_ast(fp,e)
             }
          },
@@ -400,7 +306,7 @@ impl TLC {
             let e = es.next().expect("TLC Grammar Error in rule [ascript_term]");
             match es.next() {
                None => self.normalize_ast(fp,e),
-               Some(tt) => Ok(TlcExpr::Ascript(
+               Some(tt) => Ok(Term::Ascript(
                   self.uuid(),
                   Box::new(self.normalize_ast(fp,e)?), //term
                   Box::new(self.normalize_ast_typ(tt)?) //type
@@ -411,7 +317,7 @@ impl TLC {
             let mut es = p.into_inner();
             let mut e = self.normalize_ast(fp,es.next().expect("TLC Grammar Error in rule [term_atom]"))?;
             for args in es {
-               e = TlcExpr::App(
+               e = Term::App(
                   self.uuid(),
                   Box::new(e),
                   Box::new(self.normalize_ast(fp,args)?)
@@ -421,13 +327,13 @@ impl TLC {
          },
          Rule::paren_atom => {
             let es = p.into_inner().map(|e|self.normalize_ast(fp,e).expect("TLC Grammar Error in rule [paren_atom]"))
-                      .collect::<Vec<TlcExpr>>();
+                      .collect::<Vec<Term>>();
             if es.len()==0 {
-               Ok(TlcExpr::Nil(self.uuid()))
+               Ok(Term::Nil(self.uuid()))
             } else if es.len()==1 {
                Ok(es[0].clone())
             } else {
-               Ok(TlcExpr::Tuple(self.uuid(),es))
+               Ok(Term::Tuple(self.uuid(),es))
             }
          },
          rule => panic!("unexpected expr rule: {:?}", rule)
@@ -440,16 +346,168 @@ impl TLC {
       };
       pe
    }
-   pub fn typof_var(&self, scope: Option<usize>, v: &str, vid: usize) -> TlcTyp {
+   */
+
+}
+
+/*
+   pub fn desugar(&mut self, parent_scope: Option<usize>, x: &Term) -> Result<usize,Error> {
+      match x {
+         Term::Block(scid,sts) => {
+            //blocks can have multiple bindings of the same symbol
+            //non-block bindings shadow each other
+            self.scopes.insert(*scid, TlcScope {
+               id: *scid,
+               parent: parent_scope,
+               rules: Vec::new(),
+               children: HashMap::new(),
+               statements: Vec::new(),
+            });
+            for stmt in sts.iter() {
+               self.desugar(Some(*scid), stmt);
+            }
+            Ok(*scid)
+         },
+         Term::Forall(fid,qs,typ,kind) => {
+            let scid = parent_scope.unwrap_or(0);
+            if let Some(mut sc) = self.scopes.get_mut(&scid) {
+               sc.rules.push(x.clone());
+            }
+            Ok(scid)
+         },
+         Term::Let(lid,pat,val,typ) => {
+            let scid = parent_scope.unwrap_or(0);
+            if let Some(mut sc) = self.scopes.get_mut(&scid) {
+               if !sc.children.contains_key(pat) {
+                  sc.children.insert(pat.clone(), Vec::new());
+               }
+               sc.children.get_mut(pat).unwrap().push(x.clone());
+            }
+            Ok(scid)
+         },
+         Term::Typedef(tid,tname,tpars) => {
+            let scid = parent_scope.unwrap_or(0);
+            self.types.insert(
+               format!("{}#{}", tname, tpars.len()),
+               Typedef::Assume(*tid)
+            );
+            Ok(scid)
+         },
+         _ => {
+            let scid = parent_scope.unwrap_or(0);
+            if let Some(mut sc) = self.scopes.get_mut(&scid) {
+               sc.statements.push(x.clone());
+            }
+            Ok(scid)
+         }
+      }
+   }
+   pub fn load_file(&mut self, parent_scope: Option<usize>, filename: &str) -> Result<usize,Error> {
+      //symbol import/export rules are marginally beyond the scope of this project
+      let stmts = self.parse_file(filename)?;
+      let scope = self.desugar(parent_scope,&stmts)?;
+      Ok(scope)
+   }
+   pub fn normalize_ast_kind(&mut self, p: Pair<crate::tlc::Rule>) -> Result<TlcKind,Error> {
+      match p.as_rule() {
+         Rule::kind => {
+            let mut ps = p.into_inner();
+            let kg = ps.next().expect("TLC Grammar Error in rule [kind]").into_inner().concat();
+            let ks = ps.map(|k|self.normalize_ast_kind(k).expect("TLC Grammar Error in rule [kind.2]"))
+                       .collect::<Vec<TlcKind>>();
+            Ok(TlcKind::Simple(self.uuid(),kg,ks))
+         }
+         rule => panic!("unexpected kind rule: {:?}", rule)
+      }
+   }
+   pub fn normalize_ast_typ(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Typ,Error> {
+      match p.as_rule() {
+         Rule::ident => Ok(Typ::Ident(self.uuid(),p.into_inner().concat())),
+         Rule::typ => self.normalize_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
+         Rule::ident_typ => self.normalize_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [ident_typ]")),
+         Rule::atom_typ => self.normalize_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
+         Rule::ident_typ => Ok(Typ::Ident(self.uuid(),p.into_inner().concat())),
+         Rule::any_typ => Ok(Typ::Any(self.uuid())),
+         Rule::paren_typ => {
+            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [paren_typ]"))
+                      .collect::<Vec<Typ>>();
+            if ts.len()==0 {
+               Ok(Typ::Nil(self.uuid()))
+            } else if ts.len()==1 {
+               Ok(ts[0].clone())
+            } else {
+               Ok(Typ::Tuple(self.uuid(),ts))
+            }
+         },
+         Rule::arrow_typ => {
+            let mut ts = p.into_inner();
+            let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
+            for tr in ts {
+               t = Typ::Arrow(
+                  self.uuid(),
+                  Box::new(t),
+                  Box::new(self.normalize_ast_typ(tr)?)
+               );
+            }
+            Ok(t)
+         },
+         Rule::alias_typ => {
+            let mut ts = p.into_inner();
+            let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
+            for tr in ts {
+               t = Typ::Alias(
+                  self.uuid(),
+                  Box::new(t),
+                  Box::new(self.normalize_ast_typ(tr)?)
+               );
+            }
+            Ok(t)
+         },
+         Rule::suffix_typ => {
+            let mut ts = p.into_inner();
+            let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
+            for t in ts {
+              //TODO parameterized types and bracketed types
+            }
+            Ok(t)
+         },
+         Rule::or_typ => {
+            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [or_typ]"))
+                      .collect::<Vec<Typ>>();
+            if ts.len()==1 {
+               Ok(ts[0].clone())
+            } else {
+               Ok(Typ::Or(self.uuid(),ts))
+            }
+         },
+         Rule::and_typ => {
+            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [and_typ]"))
+                      .collect::<Vec<Typ>>();
+            if ts.len()==1 {
+               Ok(ts[0].clone())
+            } else {
+               Ok(Typ::And(self.uuid(),ts))
+            }
+         },
+         Rule::let_stmt_typ => {
+            match p.into_inner().next() {
+               None => Ok(Typ::Nil(self.uuid())),
+               Some(e) => self.normalize_ast_typ(e)
+            }
+         },
+         rule => panic!("unexpected typ rule: {:?}", rule)
+      }
+   }
+   pub fn typof_var(&self, scope: Option<usize>, v: &str, vid: usize) -> Typ {
       if let Some(sc) = self.scopes.get(&scope.unwrap_or(0)) {
          if let Some(cs) = sc.children.get(v) {
             let mut ts = Vec::new();
             for c in cs.iter() {
                ts.push(self.typof(c.id()));
             }
-            if ts.len()==0 { TlcTyp::Nil(vid) }
+            if ts.len()==0 { Typ::Nil(vid) }
             else if ts.len()==1 { ts[0].clone() }
-            else { TlcTyp::Or(vid,ts) }
+            else { Typ::Or(vid,ts) }
          } else {
             panic!("could not find variable {} in scope#{}", v, scope.unwrap_or(0))
          }
@@ -457,7 +515,7 @@ impl TLC {
          panic!("could not find scope#{}", scope.unwrap_or(0))
       }
    }
-   pub fn typof(&self, tid: usize) -> TlcTyp {
+   pub fn typof(&self, tid: usize) -> Typ {
       match self.typeof_exprs.get(&tid) {
          Some(tt) => tt.clone(),
          None => {
@@ -473,20 +531,20 @@ impl TLC {
          ("unknown file".to_string(), (0,0), (0,0))
       }
    }
-   pub fn unify(&mut self, tid: usize, lt: &TlcTyp, rt: &TlcTyp) -> Result<TlcTyp,TlcError> {
+   pub fn unify(&mut self, tid: usize, lt: &Typ, rt: &Typ) -> Result<Typ,Error> {
       match (lt,rt) {
-         (TlcTyp::Any(_),r) => Ok(r.clone()),
-         (l,TlcTyp::Any(_)) => Ok(l.clone()),
-         (TlcTyp::Nil(_),TlcTyp::Nil(_)) => Ok(lt.clone()),
-         (TlcTyp::Ident(lid,lv),TlcTyp::Ident(_,rv)) if lv==rv => Ok(lt.clone()),
-         (TlcTyp::Arrow(lid,pl,bl),TlcTyp::Arrow(_,pr,br)) => {
+         (Typ::Any(_),r) => Ok(r.clone()),
+         (l,Typ::Any(_)) => Ok(l.clone()),
+         (Typ::Nil(_),Typ::Nil(_)) => Ok(lt.clone()),
+         (Typ::Ident(lid,lv),Typ::Ident(_,rv)) if lv==rv => Ok(lt.clone()),
+         (Typ::Arrow(lid,pl,bl),Typ::Arrow(_,pr,br)) => {
             let pt = self.unify(tid,pl,pr)?;
             let bt = self.unify(tid,bl,br)?;
-            Ok(TlcTyp::Arrow(*lid,Box::new(pt),Box::new(bt)))
+            Ok(Typ::Arrow(*lid,Box::new(pt),Box::new(bt)))
          },
          (l,r) => {
             let (filename,start,end) = self.locof(tid);
-            Err(TlcError {
+            Err(Error {
                error_type: "Type Error".to_string(),
                rule: "failed unification".to_string(),
                filename: filename,
@@ -497,19 +555,19 @@ impl TLC {
          }
       }
    }
-   pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),TlcError> {
+   pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),Error> {
       let tt = self.typof(tid);
       self.typecheck_concrete_rec(tid, &tt)
    }
    pub fn estring(&self, tid: usize) -> String {
       self.debug_symbols.get(&tid).unwrap_or(&format!("??#{}::expr", tid)).to_string()
    }
-   pub fn typecheck_concrete_rec(&mut self, tid: usize, tt: &TlcTyp) -> Result<(),TlcError> {
+   pub fn typecheck_concrete_rec(&mut self, tid: usize, tt: &Typ) -> Result<(),Error> {
       match tt {
-         TlcTyp::Nil(_) => Ok(()),
-         TlcTyp::Or(_,_) => {
+         Typ::Nil(_) => Ok(()),
+         Typ::Or(_,_) => {
             let (filename,start,end) = self.locof(tid);
-            Err(TlcError {
+            Err(Error {
                error_type: "Type Error".to_string(),
                rule: "type is ambigious".to_string(),
                filename: filename,
@@ -518,19 +576,19 @@ impl TLC {
                snippet: format!("{:?}",tt),
             })
          },
-         TlcTyp::And(_,ts) => {
+         Typ::And(_,ts) => {
             for tc in ts.iter() {
                self.typecheck_concrete_rec(tid, tc)?;
             }
             Ok(())
          },
-         TlcTyp::Arrow(_,tp,tb) => {
+         Typ::Arrow(_,tp,tb) => {
             self.typecheck_concrete_rec(tid, tp)?;
             self.typecheck_concrete_rec(tid, tb)
          },
-         TlcTyp::Any(_) => {
+         Typ::Any(_) => {
             let (filename,start,end) = self.locof(tid);
-            Err(TlcError {
+            Err(Error {
                error_type: "Type Error".to_string(),
                rule: "type is not concrete".to_string(),
                filename: filename,
@@ -538,10 +596,10 @@ impl TLC {
                end: end,
                snippet: format!("typeof({}#{})={:?}",self.estring(tid),tid,tt),
             })
-         }, TlcTyp::Ident(id,tname) => {
+         }, Typ::Ident(id,tname) => {
             if self.types.contains_key(&format!("{}#0", tname)) { return Ok(()) }
             let (filename,start,end) = self.locof(tid);
-            Err(TlcError {
+            Err(Error {
                error_type: "Type Error".to_string(),
                rule: "type is not defined".to_string(),
                filename: filename,
@@ -552,35 +610,35 @@ impl TLC {
          }, _ => Ok(())
       }
    }
-   pub fn typecheck(&mut self, scope: Option<usize>, e: &TlcExpr) -> Result<(),TlcError> {
+   pub fn typecheck(&mut self, scope: Option<usize>, e: &Term) -> Result<(),Error> {
       match e {
-         TlcExpr::Assume(_) => { Ok(()) },
-         TlcExpr::Forall(_,_,_,_) => { Ok(()) },
-         TlcExpr::Typedef(_,_,_) => { Ok(()) },
-         TlcExpr::Nil(id) => { self.typeof_exprs.insert(*id, TlcTyp::Nil(*id)); Ok(()) },
-         TlcExpr::Ident(id,v) => {
+         Term::Assume(_) => { Ok(()) },
+         Term::Forall(_,_,_,_) => { Ok(()) },
+         Term::Typedef(_,_,_) => { Ok(()) },
+         Term::Nil(id) => { self.typeof_exprs.insert(*id, Typ::Nil(*id)); Ok(()) },
+         Term::Ident(id,v) => {
             let vt = self.typof_var(scope, v, *id);
             self.typecheck_concrete_rec(*id, &vt)?;
             self.typeof_exprs.insert(*id, vt);
             Ok(())
          },
-         TlcExpr::App(id,f,x) => {
+         Term::App(id,f,x) => {
             self.typecheck(scope,f)?;
             self.typecheck(scope,x)?;
             let ft = self.typof(f.id());
             let xt = self.typof(x.id());
-            let rt = self.unify(*id, &TlcTyp::Arrow(*id,Box::new(xt),Box::new(TlcTyp::Any(*id))), &ft)?;
+            let rt = self.unify(*id, &Typ::Arrow(*id,Box::new(xt),Box::new(Typ::Any(*id))), &ft)?;
             self.typeof_exprs.insert(*id, rt);
             Ok(())
          },
-         TlcExpr::Let(id,x,v,t) => {
+         Term::Let(id,x,v,t) => {
             //variable has already been added to scope by desugar method
             self.typeof_exprs.insert(*id, *t.clone());
             self.typeof_exprs.insert(v.id(), *t.clone());
             self.typecheck(scope, v)
          },
-         TlcExpr::Tuple(id,es) => { panic!("TODO typecheck.4 {:?}", e) },
-         TlcExpr::Block(id,cs) => {
+         Term::Tuple(id,es) => { panic!("TODO typecheck.4 {:?}", e) },
+         Term::Block(id,cs) => {
             let (stmts,children) = if let Some(sc) = self.scopes.get(id) {(
                sc.statements.clone(),
                sc.children.clone(),
@@ -594,7 +652,7 @@ impl TLC {
             }
 
             //step 2, typecheck block statements
-            let mut last_stmt_typ = TlcTyp::Nil(*id);
+            let mut last_stmt_typ = Typ::Nil(*id);
             for stmt in stmts.iter() {
                self.typecheck(Some(*id), stmt)?;
                if let Some(stmt_typ) = self.typeof_exprs.get(&stmt.id()) {
@@ -607,90 +665,46 @@ impl TLC {
 
             Ok(())
          },
-         TlcExpr::Ascript(id,e,t) => { panic!("TODO typecheck.6 {:?}", e) },
+         Term::Ascript(id,e,t) => { panic!("TODO typecheck.6 {:?}", e) },
       }
    }
-   pub fn sanitycheck(&mut self, scope: Option<usize>, e: &TlcExpr) -> Result<(),TlcError> {
+   pub fn sanitycheck(&mut self, scope: Option<usize>, e: &Term) -> Result<(),Error> {
       match e {
          //ignore
-         TlcExpr::Forall(_,_,_,_) => { Ok(()) },
-         TlcExpr::Typedef(_,_,_) => { Ok(()) },
+         Term::Forall(_,_,_,_) => { Ok(()) },
+         Term::Typedef(_,_,_) => { Ok(()) },
 
          //check that all expression types are concrete
-         TlcExpr::Assume(id) => { Ok(()) },
-         TlcExpr::Nil(id) => { let tt = self.typof(*id); self.unify(*id,&tt,&TlcTyp::Nil(*id))?; Ok(()) },
-         TlcExpr::Block(id,cs) => {
+         Term::Assume(id) => { Ok(()) },
+         Term::Nil(id) => { let tt = self.typof(*id); self.unify(*id,&tt,&Typ::Nil(*id))?; Ok(()) },
+         Term::Block(id,cs) => {
             for c in cs.iter() {
                self.sanitycheck(scope, c)?;
             }
             self.typecheck_concrete(*id)
          },
-         TlcExpr::Let(id,x,v,t) => {
+         Term::Let(id,x,v,t) => {
             self.typecheck_concrete(*id)?;
             self.typecheck_concrete_rec(*id, t)?;
             self.sanitycheck(scope, v)?;
             Ok(())
          },
-         TlcExpr::Ident(id,_) => { self.typecheck_concrete(*id) },
-         TlcExpr::App(id,f,x) => {
+         Term::Ident(id,_) => { self.typecheck_concrete(*id) },
+         Term::App(id,f,x) => {
             self.typecheck_concrete(f.id())?;
             self.typecheck_concrete(x.id())?;
             self.typecheck_concrete(*id)
          },
          _ => panic!("TODO sanitycheck {:?}", e)
-         /*
-         TlcExpr::Tuple(id,es) => { self.typecheck_concrete(*id) },
-         TlcExpr::Ascript(id,e,t) => { self.typecheck_concrete(*id) },
-         */
+         Term::Tuple(id,es) => { self.typecheck_concrete(*id) },
+         Term::Ascript(id,e,t) => { self.typecheck_concrete(*id) },
       }
    }
-   pub fn check(&mut self, globals: Option<usize>, src:&str) -> Result<(),TlcError> {
+   pub fn check(&mut self, globals: Option<usize>, src:&str) -> Result<(),Error> {
       let ast = self.parse(src)?;
       let locals = self.desugar(globals, &ast)?;
       self.typecheck(Some(locals), &ast)?;
       self.sanitycheck(Some(locals), &ast)
    }
-   pub fn parse(&mut self, src:&str) -> Result<TlcExpr,TlcError> {
-      self.parse_doc("[string]", src)
-   }
-   pub fn parse_file(&mut self, filename:&str) -> Result<TlcExpr,TlcError> {
-      if !Path::new(filename).exists() {
-         panic!("parse_file could not find file: '{}'", filename)
-      }
-      let src = std::fs::read_to_string(filename)
-                   .expect("parse_file: Something went wrong reading the file");
-      self.parse_doc(filename,&src)
-   }
-   pub fn parse_doc(&mut self, docname:&str, src:&str) -> Result<TlcExpr,TlcError> {
-      let parse_result = TlcParser::parse(Rule::file, src);
-      match parse_result {
-        Ok(parse_ast) => self.normalize_file(docname, parse_ast),
-        Err(pe) => {
-          let (start,end) = match pe.line_col {
-             LineColLocation::Pos(s) => (s,s),
-             LineColLocation::Span(s,e) => (s,e),
-          };
-          let (istart,iend) = match pe.location {
-             InputLocation::Pos(s) => (s,s),
-             InputLocation::Span((s,e)) => (s,e),
-          };
-          let rule = match pe.variant {
-             ErrorVariant::ParsingError {
-                positives:p,
-                negatives:n
-             } => {
-                p.iter().map(|r|{format!("{:?}",r)}).collect::<Vec<String>>().join(" or ")
-             }, _ => {format!("")}
-          };
-          Err(TlcError { 
-             error_type: "Parse Error".to_string(),
-             rule: rule,
-             filename:docname.to_string(),
-             start:start, end:end,
-             snippet: if iend>istart { format!("\n{}", &src[istart..iend]) }
-                      else { format!(" {:?}", &src[istart..std::cmp::min(src.len(),istart+1)])}
-          })
-        }
-      } 
-   }
 }
+*/
