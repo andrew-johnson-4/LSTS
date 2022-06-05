@@ -53,8 +53,7 @@ pub struct ScopeId {
 }
 //does not implement Clone because scopes are uniquely identified by their id
 pub struct Scope {
-   id: usize,
-   parent: Option<usize>,
+   parent: Option<ScopeId>,
    children: Vec<(String,Term)>,
    statements: Vec<Term>,
 }
