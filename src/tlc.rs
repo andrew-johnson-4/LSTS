@@ -94,7 +94,7 @@ pub enum TypeRule {
 
    //forall A,B,1,2. (A,B,1,2) => (B,1,2) :: A<B,1,2>;
    //forall U,u:Milli<U>. Milli<U> => U = 1000 * u;
-   Forall(Vec<(String,Typ,Kind)>, Typ, Option<Typ>, Option<Term>),
+   Forall(Vec<(String,Typ,Kind)>, Typ, Option<Typ>, Option<Term>, Option<Kind>),
 }
 
 #[derive(Clone)]
