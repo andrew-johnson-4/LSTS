@@ -19,6 +19,7 @@ pub struct Row {
    span: Span,
 }
 
+#[derive(Clone)]
 pub struct Span {
    filename: String,
    offset_start: usize,
@@ -49,7 +50,6 @@ impl std::fmt::Debug for Error {
 pub struct Scope {
    id: usize,
    parent: Option<usize>,
-   rules: Vec<Rule>,
    children: Vec<(String,Term)>,
    statements: Vec<Term>,
 }
@@ -153,10 +153,10 @@ impl TLC {
       }
    }
 
-   pub fn parse(&mut self, src:&str) -> Result<Term,Error> {
+   pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
       self.parse_doc("[string]", src)
    }
-   pub fn parse_file(&mut self, filename:&str) -> Result<Term,Error> {
+   pub fn parse_file(&mut self, filename:&str) -> Result<TermId,Error> {
       if !Path::new(filename).exists() {
          panic!("parse_file could not find file: '{}'", filename)
       }
@@ -164,10 +164,10 @@ impl TLC {
                    .expect("parse_file: Something went wrong reading the file");
       self.parse_doc(filename,&src)
    }
-   pub fn parse_doc(&mut self, docname:&str, src:&str) -> Result<Term,Error> {
+   pub fn parse_doc(&mut self, docname:&str, src:&str) -> Result<TermId,Error> {
       let parse_result = TlcParser::parse(Rule::file, src);
       match parse_result {
-        Ok(parse_ast) => self.normalize_file(docname, parse_ast),
+        Ok(parse_ast) => self.unparse_file(docname, parse_ast),
         Err(pe) => {
           let (start,end) = match pe.line_col {
              LineColLocation::Pos(s) => (s,s),
@@ -201,36 +201,54 @@ impl TLC {
         }
       } 
    }
-   pub fn normalize_file(&mut self, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<Term,Error> {
-      self.normalize_ast(fp, ps.peek().unwrap())
+   pub fn unparse_file(&mut self, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<TermId,Error> {
+      self.unparse_ast(fp, ps.peek().unwrap())
    }
-   pub fn normalize_ast(&mut self, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<Term,Error> {
-      Ok(Term::Assume)
+   pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
+      let index = self.rows.len();
+      self.rows.push(Row {
+         term: term,
+         typ: Typ::Any,
+         kind: Kind::Simple("Term".to_string(),Vec::new()),
+         span: span.clone(),
+      });
+      TermId { id: index }
    }
-
-   /*
-   pub fn normalize_ast(&mut self, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<Term,Error> {
-      let start = p.as_span().start_pos().line_col();
-      let end = p.as_span().end_pos().line_col();
-      let pe = match p.as_rule() {
+   pub fn unparse_ast(&mut self, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<TermId,Error> {
+      let span = Span {
+         filename: fp.to_string(),
+         linecol_start: p.as_span().start_pos().line_col(),
+         linecol_end: p.as_span().end_pos().line_col(),
+         offset_start: p.as_span().start(),
+         offset_end: p.as_span().end(),
+      };
+      match p.as_rule() {
          //entry point rule
          Rule::file => {
             let mut es = Vec::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::EOI => (),
-               _ => es.push(self.normalize_ast(fp,e).expect("TLC Grammar Error in rule [file]"))
+               _ => es.push(self.unparse_ast(fp,e).expect("TLC Grammar Error in rule [file]"))
             }}
-            Ok(Term::Block(self.uuid(),es))
+            Ok(self.push_term(Term::Block(es), &span))
          },
 
          //passthrough rules
-         Rule::stmt => self.normalize_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]")),
-         Rule::term => self.normalize_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [term]")),
-         Rule::ident_term => self.normalize_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [ident_term]")),
-         Rule::tuple_term => self.normalize_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [tuple_term]")),
+         Rule::stmt => self.unparse_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]")),
+         Rule::term => self.unparse_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [term]")),
+         Rule::ident_term => self.unparse_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [ident_term]")),
+         Rule::tuple_term => self.unparse_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [tuple_term]")),
 
          //literal value rules
-         Rule::ident => Ok(Term::Ident(self.uuid(),p.into_inner().concat())),
+         Rule::ident => Ok(self.push_term(Term::Ident(p.into_inner().concat()), &span)),
+
+         rule => panic!("unexpected expr rule: {:?}", rule)
+      }
+   }
+
+   /*
+   pub fn unparse_ast(&mut self, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<Term,Error> {
+
 
          //complex rules
          Rule::forall_stmt => {
@@ -244,13 +262,13 @@ impl TLC {
                      ps.push((
                         es.next().expect("TLC Grammar Error in rule [forall_stmt]").into_inner().concat(),
                         match es.next() {
-                           Some(et) => Some(self.normalize_ast_typ(et)?),
+                           Some(et) => Some(self.unparse_ast_typ(et)?),
                            None => None
                         }
                      ));
                   },
-                  Rule::typ => tt = Some(self.normalize_ast_typ(e)?),
-                  Rule::kind => k = Some(self.normalize_ast_kind(e)?),
+                  Rule::typ => tt = Some(self.unparse_ast_typ(e)?),
+                  Rule::kind => k = Some(self.unparse_ast_kind(e)?),
                   rule => panic!("unexpected forall_stmt rule: {:?}", rule)
                }
             }
@@ -272,7 +290,7 @@ impl TLC {
                      ts.push((
                         es.next().expect("TLC Grammar Error in rule [typ_stmt.2]").into_inner().concat(),
                         match es.next() {
-                           Some(et) => Some(self.normalize_ast_typ(et)?),
+                           Some(et) => Some(self.unparse_ast_typ(et)?),
                            None => None
                         }
                      ));
@@ -291,42 +309,42 @@ impl TLC {
             Ok(Term::Let(
                self.uuid(),
                es.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat(),
-               Box::new(self.normalize_ast(fp,es.next().expect("TLC Grammar Error in rule [let_stmt.2]"))?),
-               Box::new(self.normalize_ast_typ(es.next().expect("TLC Grammar Error in rule [let_stmt.3]"))?),
+               Box::new(self.unparse_ast(fp,es.next().expect("TLC Grammar Error in rule [let_stmt.2]"))?),
+               Box::new(self.unparse_ast_typ(es.next().expect("TLC Grammar Error in rule [let_stmt.3]"))?),
             ))
          },
          Rule::let_stmt_val => {
             match p.into_inner().next() {
                None => Ok(Term::Assume(self.uuid())),
-               Some(e) => self.normalize_ast(fp,e)
+               Some(e) => self.unparse_ast(fp,e)
             }
          },
          Rule::ascript_term => {
             let mut es = p.into_inner();
             let e = es.next().expect("TLC Grammar Error in rule [ascript_term]");
             match es.next() {
-               None => self.normalize_ast(fp,e),
+               None => self.unparse_ast(fp,e),
                Some(tt) => Ok(Term::Ascript(
                   self.uuid(),
-                  Box::new(self.normalize_ast(fp,e)?), //term
-                  Box::new(self.normalize_ast_typ(tt)?) //type
+                  Box::new(self.unparse_ast(fp,e)?), //term
+                  Box::new(self.unparse_ast_typ(tt)?) //type
                )),
             }
          },
          Rule::term_atom => {
             let mut es = p.into_inner();
-            let mut e = self.normalize_ast(fp,es.next().expect("TLC Grammar Error in rule [term_atom]"))?;
+            let mut e = self.unparse_ast(fp,es.next().expect("TLC Grammar Error in rule [term_atom]"))?;
             for args in es {
                e = Term::App(
                   self.uuid(),
                   Box::new(e),
-                  Box::new(self.normalize_ast(fp,args)?)
+                  Box::new(self.unparse_ast(fp,args)?)
                );
             }
             Ok(e)
          },
          Rule::paren_atom => {
-            let es = p.into_inner().map(|e|self.normalize_ast(fp,e).expect("TLC Grammar Error in rule [paren_atom]"))
+            let es = p.into_inner().map(|e|self.unparse_ast(fp,e).expect("TLC Grammar Error in rule [paren_atom]"))
                       .collect::<Vec<Term>>();
             if es.len()==0 {
                Ok(Term::Nil(self.uuid()))
@@ -336,15 +354,7 @@ impl TLC {
                Ok(Term::Tuple(self.uuid(),es))
             }
          },
-         rule => panic!("unexpected expr rule: {:?}", rule)
       };
-      if let Ok(ref pe) = pe {
-         self.locations.insert(pe.id(), (fp.to_string(),start,end));
-         if self.debug {
-            self.debug_symbols.insert(pe.id(), format!("{:?}",pe));
-         }
-      };
-      pe
    }
    */
 
@@ -408,28 +418,28 @@ impl TLC {
       let scope = self.desugar(parent_scope,&stmts)?;
       Ok(scope)
    }
-   pub fn normalize_ast_kind(&mut self, p: Pair<crate::tlc::Rule>) -> Result<TlcKind,Error> {
+   pub fn unparse_ast_kind(&mut self, p: Pair<crate::tlc::Rule>) -> Result<TlcKind,Error> {
       match p.as_rule() {
          Rule::kind => {
             let mut ps = p.into_inner();
             let kg = ps.next().expect("TLC Grammar Error in rule [kind]").into_inner().concat();
-            let ks = ps.map(|k|self.normalize_ast_kind(k).expect("TLC Grammar Error in rule [kind.2]"))
+            let ks = ps.map(|k|self.unparse_ast_kind(k).expect("TLC Grammar Error in rule [kind.2]"))
                        .collect::<Vec<TlcKind>>();
             Ok(TlcKind::Simple(self.uuid(),kg,ks))
          }
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
    }
-   pub fn normalize_ast_typ(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Typ,Error> {
+   pub fn unparse_ast_typ(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Typ,Error> {
       match p.as_rule() {
          Rule::ident => Ok(Typ::Ident(self.uuid(),p.into_inner().concat())),
-         Rule::typ => self.normalize_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
-         Rule::ident_typ => self.normalize_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [ident_typ]")),
-         Rule::atom_typ => self.normalize_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
+         Rule::typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
+         Rule::ident_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [ident_typ]")),
+         Rule::atom_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
          Rule::ident_typ => Ok(Typ::Ident(self.uuid(),p.into_inner().concat())),
          Rule::any_typ => Ok(Typ::Any(self.uuid())),
          Rule::paren_typ => {
-            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [paren_typ]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [paren_typ]"))
                       .collect::<Vec<Typ>>();
             if ts.len()==0 {
                Ok(Typ::Nil(self.uuid()))
@@ -441,38 +451,38 @@ impl TLC {
          },
          Rule::arrow_typ => {
             let mut ts = p.into_inner();
-            let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
+            let mut t = self.unparse_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
             for tr in ts {
                t = Typ::Arrow(
                   self.uuid(),
                   Box::new(t),
-                  Box::new(self.normalize_ast_typ(tr)?)
+                  Box::new(self.unparse_ast_typ(tr)?)
                );
             }
             Ok(t)
          },
          Rule::alias_typ => {
             let mut ts = p.into_inner();
-            let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
+            let mut t = self.unparse_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
             for tr in ts {
                t = Typ::Alias(
                   self.uuid(),
                   Box::new(t),
-                  Box::new(self.normalize_ast_typ(tr)?)
+                  Box::new(self.unparse_ast_typ(tr)?)
                );
             }
             Ok(t)
          },
          Rule::suffix_typ => {
             let mut ts = p.into_inner();
-            let mut t = self.normalize_ast_typ(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
+            let mut t = self.unparse_ast_typ(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
             for t in ts {
               //TODO parameterized types and bracketed types
             }
             Ok(t)
          },
          Rule::or_typ => {
-            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [or_typ]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [or_typ]"))
                       .collect::<Vec<Typ>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
@@ -481,7 +491,7 @@ impl TLC {
             }
          },
          Rule::and_typ => {
-            let ts = p.into_inner().map(|e|self.normalize_ast_typ(e).expect("TLC Grammar Error in rule [and_typ]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [and_typ]"))
                       .collect::<Vec<Typ>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
@@ -492,7 +502,7 @@ impl TLC {
          Rule::let_stmt_typ => {
             match p.into_inner().next() {
                None => Ok(Typ::Nil(self.uuid())),
-               Some(e) => self.normalize_ast_typ(e)
+               Some(e) => self.unparse_ast_typ(e)
             }
          },
          rule => panic!("unexpected typ rule: {:?}", rule)
