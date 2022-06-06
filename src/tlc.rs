@@ -28,6 +28,9 @@ pub struct Span {
    linecol_start: (usize,usize),
    linecol_end: (usize,usize),
 }
+pub fn snippet(span: &Span) -> String {
+   format!("")
+}
 
 pub struct Error {
    kind: String,
@@ -38,7 +41,7 @@ pub struct Error {
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "\n{}, expected {}, in {} --> {},{}\n{}\n", self.kind, self.rule, self.span.filename,
-               self.span.linecol_start.0, self.span.linecol_start.1, self.span.snippet)
+               self.span.linecol_start.0, self.span.linecol_start.1, snippet(&self.span))
     }
 }
 
