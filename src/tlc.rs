@@ -35,11 +35,6 @@ pub struct Error {
    span: Span,
    snippet: String,
 }
-impl Span {
-   pub fn snippet(&self) -> String {
-      format!("")
-   }
-}
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "\n{}, expected {}, in {} --> {},{}\n{}\n", self.kind, self.rule, self.span.filename,
