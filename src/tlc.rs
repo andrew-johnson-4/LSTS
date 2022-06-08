@@ -171,21 +171,32 @@ impl TLC {
       }
    }
 
-   pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
-      self.parse_doc("[string]", src)
+   pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
+      self.compile_doc(globals, "[string]", src)
    }
-   pub fn parse_file(&mut self, filename:&str) -> Result<TermId,Error> {
+   pub fn compile_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {
       if !Path::new(filename).exists() {
          panic!("parse_file could not find file: '{}'", filename)
       }
       let src = std::fs::read_to_string(filename)
                    .expect("parse_file: Something went wrong reading the file");
-      self.parse_doc(filename,&src)
+      self.compile_doc(globals, filename,&src)
+   }
+   pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
+      let ast = self.parse_doc(docname, src)?;
+      self.compile_rules(docname)?;
+      Ok(ast)
+   }
+   pub fn compile_rules(&mut self, docname:&str) -> Result<(),Error> {
+      Ok(())
+   }
+   pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
+      self.parse_doc("[string]", src)
    }
    pub fn parse_doc(&mut self, docname:&str, src:&str) -> Result<TermId,Error> {
       let parse_result = TlcParser::parse(Rule::file, src);
       match parse_result {
-        Ok(parse_ast) => self.unparse_file(docname, parse_ast),
+        Ok(parse_ast) => { self.unparse_file(docname, parse_ast) }
         Err(pe) => {
           let (start,end) = match pe.line_col {
              LineColLocation::Pos(s) => (s,s),
@@ -464,7 +475,7 @@ impl TLC {
       }
    }
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
-      let ast = self.parse(src)?;
+      let ast = self.compile_str(globals, src)?;
       Ok(())
    }
 }
