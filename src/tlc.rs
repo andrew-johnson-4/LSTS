@@ -58,10 +58,18 @@ pub struct Scope {
    statements: Vec<Term>,
 }
 
-#[derive(Clone)]
+#[derive(Clone,Eq,PartialEq)]
 pub enum Kind {
    Nil,
    Simple(String,Vec<Kind>),
+}
+impl std::fmt::Debug for Kind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+           Kind::Nil => write!(f, "()"),
+           Kind::Simple(k,ps) => write!(f, "{}<{:?}>", k, ps.iter().map(|p|format!("{:?}",p)).collect::<Vec<String>>().join(",")),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -96,6 +104,14 @@ impl std::fmt::Debug for Typ {
 pub enum Inference {
    Typ(Typ),
    Imply(Typ,Typ),
+}
+impl Inference {
+   pub fn types(&self) -> Vec<Typ> {
+      match self {
+         Inference::Typ(t) => vec![t.clone()],
+         Inference::Imply(a,b) => vec![a.clone(),b.clone()],
+      }
+   }
 }
 
 #[derive(Clone)]
@@ -187,7 +203,54 @@ impl TLC {
       self.compile_rules(docname)?;
       Ok(ast)
    }
+   pub fn kind_of(&self, t: &Typ) -> Kind {
+      for rule in self.rules.iter() { match rule {
+         TypeRule::Typedef(tt,tps,k) => {
+            return k.clone().unwrap_or(Kind::Nil);
+         },
+         _ => ()
+      }}
+      Kind::Nil //undefined types have Nil kind
+   }
    pub fn compile_rules(&mut self, docname:&str) -> Result<(),Error> {
+
+      //check logical consistency of foralls
+      for rule in self.rules.iter() { match rule {
+         TypeRule::Forall(qs,inf,t,k) => {
+            //check that all variables share a domain
+            let mut domains: Vec<(Typ,Kind)> = Vec::new();
+            for (i,t,k) in qs.iter() {
+               if let Some(tt) = t {
+                  domains.push((tt.clone(),self.kind_of(tt)));
+               } else {
+	          domains.push((Typ::Nil,Kind::Nil));
+               }
+            }
+            for t in inf.types().iter() {
+               domains.push((t.clone(),self.kind_of(t)));
+            }
+            let kind = domains.iter().fold(Kind::Nil,|l,(_,r)| if l==*r {l} else {Kind::Nil});
+            if kind==Kind::Nil {
+               return Err(Error { 
+                  kind: "Type Error".to_string(),
+                  rule: format!("({}) do not share a domain ({})", 
+                     domains.iter().map(|(t,k)|format!("{:?}",t)).collect::<Vec<String>>().join(","),
+                     domains.iter().map(|(t,k)|format!("{:?}",k)).collect::<Vec<String>>().join(",")
+                  ),
+                  span: Span {
+                     filename:docname.to_string(),
+                     offset_start: 0,
+                     offset_end: 0,
+                     linecol_start: (0,0),
+                     linecol_end: (0,0),
+                  },
+                  snippet: "".to_string()
+               })
+            }
+         },
+         _ => ()
+      }}
+
       Ok(())
    }
    pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
