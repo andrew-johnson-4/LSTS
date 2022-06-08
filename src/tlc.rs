@@ -105,7 +105,7 @@ pub enum TypeRule {
 
    //forall A,B,1,2. (A,B,1,2) => (B,1,2) :: A<B,1,2>;
    //forall U,u:Milli<U>. Milli<U> => U = 1000 * u;
-   Forall(Vec<(String,Typ,Kind)>, Typ, Option<Typ>, Option<TermId>, Option<Kind>),
+   Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>),
 }
 
 #[derive(Clone)]
@@ -347,6 +347,7 @@ impl TLC {
             let mut ps = p.into_inner();
             let mut quants = Vec::new();
             let mut inference  = None;
+            let mut term = None;
             let mut kind = None;
             for e in ps { match e.as_rule() {
                Rule::ident_typ_kind => {
@@ -355,17 +356,24 @@ impl TLC {
                   let mut kind = None;
                   for itk in e.into_inner() { match itk.as_rule() {
                      Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                     Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)); },
-                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(itk)); },
+                     Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)?); },
+                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(itk)?); },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                   quants.push((ident, typ, kind));
                },
-               Rule::kind => { kind = Some(self.unparse_ast_kind(e)); }
-               Rule::inference => { inference = Some(self.unparse_ast_inference(e)); }
+               Rule::inference => { inference = Some(self.unparse_ast_inference(e)?); }
+               Rule::term => { term = Some(self.unparse_ast(fp,e)?); }
+               Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); }
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
-            panic!("TODO construct Forall term")
+            self.rules.push(TypeRule::Forall(
+               quants,
+               inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
+               term,
+               kind
+            ));
+            Ok(TermId { id:0 })
          },
 
          rule => panic!("unexpected expr rule: {:?}", rule)

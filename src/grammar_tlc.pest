@@ -38,7 +38,7 @@ let_stmt_typ = { (":" ~ typ)? }
 typ_stmt = { "type" ~ ident ~ ("<" ~ ident_typ_kind ~ ("," ~ ident_typ_kind)* ~ ">")? ~ ("::" ~ kind)? }
 
 inference = { typ ~ ("=>" ~ typ)? }
-forall_stmt = { "forall" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ inference ~ ("::" ~ kind)?}
+forall_stmt = { "forall" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ inference ~ ("=" ~ term)? ~ ("::" ~ kind)?}
 
 stmt = { typ_stmt | forall_stmt | let_stmt | term } 
 
