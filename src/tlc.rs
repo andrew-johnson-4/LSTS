@@ -58,7 +58,7 @@ pub struct Scope {
    statements: Vec<Term>,
 }
 
-#[derive(Clone,Eq,PartialEq)]
+#[derive(Clone,Eq,PartialEq,Ord,PartialOrd)]
 pub enum Kind {
    Nil,
    Simple(String,Vec<Kind>),
@@ -66,17 +66,20 @@ pub enum Kind {
 impl std::fmt::Debug for Kind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           Kind::Nil => write!(f, "()"),
-           Kind::Simple(k,ps) => write!(f, "{}<{:?}>", k, ps.iter().map(|p|format!("{:?}",p)).collect::<Vec<String>>().join(",")),
+           Kind::Nil => write!(f, "Nil"),
+           Kind::Simple(k,ps) => {
+              if ps.len()==0 { write!(f, "{}", k) }
+              else { write!(f, "{}<{:?}>", k, ps.iter().map(|p|format!("{:?}",p)).collect::<Vec<String>>().join(",")) }
+           }
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone,Eq,PartialEq,Ord,PartialOrd)]
 pub enum Typ {
    Nil,
    Any,
-   Ident(String),
+   Ident(String,Vec<Typ>),
    Or(Vec<Typ>),
    And(Vec<Typ>),
    Arrow(Box<Typ>,Box<Typ>),
@@ -89,7 +92,7 @@ impl std::fmt::Debug for Typ {
         match self {
            Typ::Nil => write!(f, "()"),
            Typ::Any => write!(f, "?"),
-           Typ::Ident(x) => write!(f, "{}", x),
+           Typ::Ident(x,ps) => write!(f, "{}", x),
            Typ::Or(_) => write!(f, "||"),
            Typ::And(_) => write!(f, "&&"),
            Typ::Arrow(p,b) => write!(f, "({:?})=>({:?})", p, b),
@@ -205,9 +208,9 @@ impl TLC {
    }
    pub fn kind_of(&self, t: &Typ) -> Kind {
       for rule in self.rules.iter() { match rule {
-         TypeRule::Typedef(tt,tps,k) => {
-            return k.clone().unwrap_or(Kind::Nil);
-         },
+         TypeRule::Typedef(tt,tps,k) => { if &format!("{:?}",t)==tt {
+            return k.clone().unwrap_or(Kind::Simple("Term".to_string(),Vec::new()));
+         }},
          _ => ()
       }}
       Kind::Nil //undefined types have Nil kind
@@ -229,6 +232,8 @@ impl TLC {
             for t in inf.types().iter() {
                domains.push((t.clone(),self.kind_of(t)));
             }
+            domains.sort();
+            domains.dedup();
             let kind = domains.iter().fold(Kind::Nil,|l,(_,r)| if l==*r {l} else {Kind::Nil});
             if kind==Kind::Nil {
                return Err(Error { 
@@ -469,11 +474,11 @@ impl TLC {
    }
    pub fn unparse_ast_typ(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Typ,Error> {
       match p.as_rule() {
-         Rule::ident => Ok(Typ::Ident(p.into_inner().concat())),
+         Rule::ident => Ok(Typ::Ident(p.into_inner().concat(),Vec::new())),
          Rule::typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
          Rule::ident_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [ident_typ]")),
          Rule::atom_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
-         Rule::ident_typ => Ok(Typ::Ident(p.into_inner().concat())),
+         Rule::ident_typ => Ok(Typ::Ident(p.into_inner().concat(),Vec::new())),
          Rule::any_typ => Ok(Typ::Any),
          Rule::paren_typ => {
             let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [paren_typ]"))
