@@ -14,3 +14,15 @@ LSTS implements [a categorical view of typed lambda calculus with flexible sound
     let v: Real + Kilo<Meter>/Second = 123.456;
     let s: Real + Minute = 78.9;
     let d: Real + Mile = v * s;
+
+# Capabilities
+
+LSTS does not ensure against all forms of logical errors, however it does complain about some famous ones. 
+
+    /* Curry's Paradox */
+    
+    type A; forall :B. A => B
+    //reject: (A,B) do not share a domain (Term,Nil)
+
+    type A; forall :B::Term. A => B
+    //accept: (A,B) share a domain (Term,Term)
