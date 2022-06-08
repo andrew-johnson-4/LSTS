@@ -223,18 +223,21 @@ impl TLC {
             //check that all variables share a domain
             let mut domains: Vec<(Typ,Kind)> = Vec::new();
             for (i,t,k) in qs.iter() {
-               if let Some(tt) = t {
-                  domains.push((tt.clone(),self.kind_of(tt)));
-               } else {
-	          domains.push((Typ::Nil,Kind::Nil));
+               match (t,k) {
+                  (Some(tt),Some(kk)) => domains.push((tt.clone(),kk.clone())),
+                  (Some(tt),None) => domains.push((tt.clone(),self.kind_of(tt))),
+                  _ => domains.push((Typ::Nil,Kind::Nil))
                }
             }
-            for t in inf.types().iter() {
-               domains.push((t.clone(),self.kind_of(t)));
+            for it in inf.types().iter() {
+               if !qs.iter().any(|(i,t,k)| &Some(it.clone())==t) {
+                  domains.push((it.clone(),self.kind_of(it)));
+               }
             }
             domains.sort();
             domains.dedup();
-            let kind = domains.iter().fold(Kind::Nil,|l,(_,r)| if l==*r {l} else {Kind::Nil});
+            let firstkind = if domains.len()==0 { Kind::Nil } else { domains[0].1.clone() };
+            let kind = domains.iter().fold(firstkind,|l,(_,r)| if l==*r {l} else {Kind::Nil});
             if kind==Kind::Nil {
                return Err(Error { 
                   kind: "Type Error".to_string(),
@@ -539,7 +542,17 @@ impl TLC {
    }
    pub fn unparse_ast_kind(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Kind,Error> {
       match p.as_rule() {
-         _ => Ok(Kind::Nil),
+         Rule::kind => {
+            let mut ident = "_".to_string();
+            let mut kinds = Vec::new();
+            for e in p.into_inner() { match e.as_rule() {
+               Rule::ident => { ident = e.into_inner().concat(); },
+               Rule::kind  => { kinds.push(self.unparse_ast_kind(e)?); },
+               rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
+            }}
+            Ok(Kind::Simple(ident, kinds))
+         },
+         rule => panic!("unexpected kind rule: {:?}", rule)
       }
    }
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
