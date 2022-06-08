@@ -365,8 +365,7 @@ impl TLC {
                Rule::inference => { inference = Some(self.unparse_ast_inference(e)); }
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
-            //TODO construct Forall term
-            Ok(TermId { id:0 })
+            panic!("TODO construct Forall term")
          },
 
          rule => panic!("unexpected expr rule: {:?}", rule)
