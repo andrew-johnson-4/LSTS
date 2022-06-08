@@ -93,6 +93,12 @@ impl std::fmt::Debug for Typ {
 }
 
 #[derive(Clone)]
+pub enum Inference {
+   Typ(Typ),
+   Imply(Typ,Typ),
+}
+
+#[derive(Clone)]
 pub enum TypeRule {
    //type Deca<U::Unit> :: Unit;
    Typedef(String,Vec<(String,Option<Typ>,Option<Kind>)>,Option<Kind>),
@@ -336,17 +342,49 @@ impl TLC {
             Ok(TermId { id:0 })
          },
 
-         //forall_stmt = { "forall" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ typ ~ ("=>" ~ typ) ~ ("::" ~ kind)?}
+         
          Rule::forall_stmt => {
-            //let mut quants = Vec::new();
-            //let mut typ = None;
-            //let mut imply_typ  = None;
-            //let mut kind = None;
+            let mut ps = p.into_inner();
+            let mut quants = Vec::new();
+            let mut inference  = None;
+            let mut kind = None;
+            for e in ps { match e.as_rule() {
+               Rule::ident_typ_kind => {
+                  let mut ident = None;
+                  let mut typ = None;
+                  let mut kind = None;
+                  for itk in e.into_inner() { match itk.as_rule() {
+                     Rule::ident => { ident = Some(itk.into_inner().concat()); },
+                     Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)); },
+                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(itk)); },
+                     rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
+                  }}
+                  quants.push((ident, typ, kind));
+               },
+               Rule::kind => { kind = Some(self.unparse_ast_kind(e)); }
+               Rule::inference => { inference = Some(self.unparse_ast_inference(e)); }
+               rule => panic!("unexpected typ_stmt rule: {:?}", rule)
+            }}
+            //TODO construct Forall term
             Ok(TermId { id:0 })
          },
 
          rule => panic!("unexpected expr rule: {:?}", rule)
       }
+   }
+   pub fn unparse_ast_inference(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Inference,Error> {
+      let mut a = None;
+      let mut b = None;
+      for e in p.into_inner() { match e.as_rule() {
+         Rule::typ => {
+            if a.is_none() { a = Some(self.unparse_ast_typ(e)?); }
+            else { b = Some(self.unparse_ast_typ(e)?); }
+         },
+         rule => panic!("unexpected inference rule: {:?}", rule)
+      }}
+      if a.is_none() { panic!("TLC Grammar Error in rule [inference]") }
+      else if b.is_none() { Ok(Inference::Typ(a.unwrap())) }
+      else { Ok(Inference::Imply(a.unwrap(), b.unwrap())) }
    }
    pub fn unparse_ast_typ(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Typ,Error> {
       match p.as_rule() {
