@@ -16,14 +16,13 @@ type Mole :: Unit;
 type Candela :: Unit;
 
 //: Dimensionless Units
-type Radian :: Unit;
-forall u:U. U => U*Radian = u;
-forall u:U*Radian. U*Radian => U = u;
+type Angle :: Unit; //marker trait for Angles
+type Degree: Angle;
+type Radian: Angle;
+//TODO unit conversion between Angles
 
-type Steradian :: Unit;
-forall u:U. U => U*Steradian = u;
-forall u:U*Steradian. U*Steradian => U = u;
-
+type SolidAngle :: Unit; //marker trait for SolidAngles
+type Steradian: SolidAngle;
 
 //: SI Derived Units
 type Coulomb: Ampere*Second; //The constant value of a Coulomb is no longer exactly 1 Ampere Second but the Unit remains unchanged
