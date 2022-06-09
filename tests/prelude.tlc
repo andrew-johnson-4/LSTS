@@ -6,7 +6,7 @@ type Real;      forall :X::Real.      X => Number;
 type Imaginary; forall :X::Imaginary. X => Number;
 
 //: SI Units
-type Second :: Unit;  forall :X::Second.  X => Number;
+type Second :: Unit;  forall :X::Second.  X => Number; //Units are cousins of numerical types, sharing the Number trait marker.
 type Metre :: Unit;   forall :X::Metre.   X => Number;
 type Gram :: Unit;    forall :X::Gram.    X => Number;
 type Ampere :: Unit;  forall :X::Ampere.  X => Number;
