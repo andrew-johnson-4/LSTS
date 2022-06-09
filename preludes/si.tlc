@@ -21,6 +21,7 @@ type Speed: Metre/Second;
 type Acceleration: Metre/(Second*Second);
 type Jerk: Metre/(Second*Second*Second);
 type Joule: Kilo<Gram>*Metre*Metre/(Second*Second);
+type Watt: Kilo<Gram>*Metre*Metre/(Second*Second*Second);
 
 //: SI Metric Prefixes
 type Yotta<U::Unit> :: Unit;
