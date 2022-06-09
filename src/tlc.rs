@@ -126,6 +126,14 @@ pub enum TypeRule {
    //forall U,u:Milli<U>. Milli<U> => U = 1000 * u;
    Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>),
 }
+impl std::fmt::Debug for TypeRule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+           TypeRule::Typedef(tn,itks,tk) => write!(f, "{}", tn),
+           TypeRule::Forall(itks,inf,t,tk) => write!(f, "forall . :: {:?}", tk.clone().unwrap_or(Kind::Nil)),
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct TermId {
@@ -220,7 +228,10 @@ impl TLC {
       //check logical consistency of foralls
       for rule in self.rules.iter() { match rule {
          TypeRule::Forall(qs,inf,t,k) => {
-            //check that all variables share a domain
+            //check if domain is explicit
+            if k.clone().unwrap_or(Kind::Nil) != Kind::Nil { continue; }
+
+            //otherwise check that all variables share a domain
             let mut domains: Vec<(Typ,Kind)> = Vec::new();
             for (i,t,k) in qs.iter() {
                match (t,k) {
