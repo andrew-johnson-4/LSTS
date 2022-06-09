@@ -40,6 +40,7 @@ typ_stmt = { "type" ~ ident ~ ("<" ~ ident_typ_kind ~ ("," ~ ident_typ_kind)* ~ 
 inference = { typ ~ ("=>" ~ typ)? }
 forall_stmt = { "forall" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ inference ~ ("=" ~ term)? ~ ("::" ~ kind)?}
 
-stmt = { typ_stmt | forall_stmt | let_stmt | term } 
+stmt = { block | typ_stmt | forall_stmt | let_stmt | term } 
 
+block = { "{" ~ stmt? ~ (";" ~ stmt?)* ~ "}" }
 file = { SOI ~ stmt? ~ (";" ~ stmt?)* ~ EOI }

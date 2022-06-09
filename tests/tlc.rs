@@ -26,6 +26,7 @@ fn parse_simplytyped() {
    tlc.parse("forall A,B:C::D. (A,B)").unwrap();
    tlc.parse("forall A,B:C::D. (A,B) :: R").unwrap();
    tlc.parse("forall A,B:C::D. (A,B) => C :: R").unwrap();
+   tlc.parse("{a; b}").unwrap();
 }
 
 #[test]

@@ -47,7 +47,7 @@ impl std::fmt::Debug for Error {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone,Copy)]
 pub struct ScopeId {
    id: usize,
 }
@@ -139,7 +139,7 @@ pub enum Term {
    App(TermId,TermId),
    Let(String,TermId,Typ),
    Tuple(Vec<TermId>),
-   Block(Vec<TermId>),
+   Block(ScopeId,Vec<TermId>),
    Ascript(TermId,Typ),
 }
 impl std::fmt::Debug for Term {
@@ -158,7 +158,7 @@ impl std::fmt::Debug for Term {
               }
               write!(f, ")")
            },
-           Term::Block(es) => {
+           Term::Block(_,es) => {
               write!(f, "{{")?;
               for e in es.iter() {
                  write!(f, "{:?};", e.id)?;
@@ -302,7 +302,7 @@ impl TLC {
       } 
    }
    pub fn unparse_file(&mut self, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<TermId,Error> {
-      self.unparse_ast(fp, ps.peek().unwrap())
+      self.unparse_ast(&None, fp, ps.peek().unwrap())
    }
    pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
       let index = self.rows.len();
@@ -319,7 +319,7 @@ impl TLC {
       self.scopes.push(scope);
       ScopeId { id: index }
    }
-   pub fn unparse_ast(&mut self, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<TermId,Error> {
+   pub fn unparse_ast(&mut self, scope:&Option<ScopeId>, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<TermId,Error> {
       let span = Span {
          filename: fp.to_string(),
          linecol_start: p.as_span().start_pos().line_col(),
@@ -330,19 +330,38 @@ impl TLC {
       match p.as_rule() {
          //entry point rule
          Rule::file => {
+            let sid = self.push_scope(Scope {
+               parent: scope.clone(),
+               children: Vec::new(),
+               statements: Vec::new(),
+            }, &span);
             let mut es = Vec::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::EOI => (),
-               _ => es.push(self.unparse_ast(fp,e).expect("TLC Grammar Error in rule [file]"))
+               _ => es.push(self.unparse_ast(&Some(sid),fp,e).expect("TLC Grammar Error in rule [file]"))
             }}
-            Ok(self.push_term(Term::Block(es), &span))
+            Ok(self.push_term(Term::Block(sid,es), &span))
+         },
+
+         //block statement rule
+         Rule::block => {
+            let sid = self.push_scope(Scope {
+               parent: scope.clone(),
+               children: Vec::new(),
+               statements: Vec::new(),
+            }, &span);
+            let mut es = Vec::new();
+            for e in p.into_inner() { match e.as_rule() {
+               _ => es.push(self.unparse_ast(&Some(sid),fp,e).expect("TLC Grammar Error in rule [file]"))
+            }}
+            Ok(self.push_term(Term::Block(sid, es), &span))
          },
 
          //passthrough rules
-         Rule::stmt => self.unparse_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]")),
-         Rule::term => self.unparse_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [term]")),
-         Rule::ident_term => self.unparse_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [ident_term]")),
-         Rule::tuple_term => self.unparse_ast(fp,p.into_inner().next().expect("TLC Grammar Error in rule [tuple_term]")),
+         Rule::stmt => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]")),
+         Rule::term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [term]")),
+         Rule::ident_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [ident_term]")),
+         Rule::tuple_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [tuple_term]")),
 
          //literal value rules
          Rule::ident => Ok(self.push_term(Term::Ident(p.into_inner().concat()), &span)),
@@ -352,40 +371,40 @@ impl TLC {
             let mut es = p.into_inner();
             Ok({let t = Term::Let(
                es.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat(),
-               self.unparse_ast(fp,es.next().expect("TLC Grammar Error in rule [let_stmt.2]"))?,
+               self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [let_stmt.2]"))?,
                self.unparse_ast_typ(es.next().expect("TLC Grammar Error in rule [let_stmt.3]"))?,
             ); self.push_term(t, &span)})
          },
          Rule::let_stmt_val => {
             match p.into_inner().next() {
                None => Ok(self.push_term(Term::Assume, &span)),
-               Some(e) => self.unparse_ast(fp,e)
+               Some(e) => self.unparse_ast(scope,fp,e)
             }
          },
          Rule::ascript_term => {
             let mut es = p.into_inner();
             let e = es.next().expect("TLC Grammar Error in rule [ascript_term]");
             match es.next() {
-               None => self.unparse_ast(fp,e),
+               None => self.unparse_ast(scope,fp,e),
                Some(tt) => Ok({let t = Term::Ascript(
-                  self.unparse_ast(fp,e)?, //term
+                  self.unparse_ast(scope,fp,e)?, //term
                   self.unparse_ast_typ(tt)? //type
                ); self.push_term(t, &span)}),
             }
          },
          Rule::term_atom => {
             let mut es = p.into_inner();
-            let mut e = self.unparse_ast(fp,es.next().expect("TLC Grammar Error in rule [term_atom]"))?;
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [term_atom]"))?;
             for args in es {
                e = {let t = Term::App(
                   e,
-                  self.unparse_ast(fp,args)?
+                  self.unparse_ast(scope,fp,args)?
                ); self.push_term(t,&span)};
             }
             Ok(e)
          },
          Rule::paren_atom => {
-            let es = p.into_inner().map(|e|self.unparse_ast(fp,e).expect("TLC Grammar Error in rule [paren_atom]"))
+            let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e).expect("TLC Grammar Error in rule [paren_atom]"))
                       .collect::<Vec<TermId>>();
             if es.len()==0 {
                Ok(self.push_term(Term::Nil, &span))
@@ -445,7 +464,7 @@ impl TLC {
                   quants.push((ident, typ, kind));
                },
                Rule::inference => { inference = Some(self.unparse_ast_inference(e)?); }
-               Rule::term => { term = Some(self.unparse_ast(fp,e)?); }
+               Rule::term => { term = Some(self.unparse_ast(scope,fp,e)?); }
                Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); }
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
@@ -579,6 +598,7 @@ impl TLC {
             }
             Ok(*scid)
          },
+
          Term::Forall(fid,qs,typ,kind) => {
             let scid = parent_scope.unwrap_or(0);
             if let Some(mut sc) = self.scopes.get_mut(&scid) {
