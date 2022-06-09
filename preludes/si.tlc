@@ -16,6 +16,7 @@ type Mole :: Unit;
 type Candela :: Unit;
 
 //: SI Derived Units
+type Coulomb: Ampere*Second; //The constant value of a Coulomb is no longer exactly 1 Ampere Second but the Unit remains unchanged
 type Hertz: ()/Second;
 type Speed: Metre/Second;
 type Acceleration: Metre/(Second*Second);
