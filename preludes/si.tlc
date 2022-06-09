@@ -15,6 +15,16 @@ type Kelvin :: Unit;
 type Mole :: Unit;
 type Candela :: Unit;
 
+//: Dimensionless Units
+type Radian :: Unit;
+forall u:U. U => U*Radian = u;
+forall u:U*Radian. U*Radian => U = u;
+
+type Steradian :: Unit;
+forall u:U. U => U*Steradian = u;
+forall u:U*Steradian. U*Steradian => U = u;
+
+
 //: SI Derived Units
 type Coulomb: Ampere*Second; //The constant value of a Coulomb is no longer exactly 1 Ampere Second but the Unit remains unchanged
 type Hertz: ()/Second;
