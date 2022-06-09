@@ -47,7 +47,7 @@ impl std::fmt::Debug for Error {
     }
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 pub struct ScopeId {
    id: usize,
 }
@@ -127,7 +127,7 @@ pub enum TypeRule {
    Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct TermId {
    id: usize,
 }
