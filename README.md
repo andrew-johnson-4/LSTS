@@ -14,6 +14,9 @@ LSTS implements [a categorical view of typed lambda calculus with flexible sound
     let v: Kilo<Meter>/Second = 123.456;
     let s: Minute = 78.9;
     let d: Mile = v * s;
+    //It is directly allowed to cast numbers without units to any unit.
+    //It is not allowed to cast numbers with units into other units.
+    //These rules are programmable on a kind by kind basis.
 
 # Capabilities
 
