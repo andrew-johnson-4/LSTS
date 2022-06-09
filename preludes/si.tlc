@@ -72,3 +72,6 @@ forall U,u:Femto<U>. Femto<U> => U = 1000000000000000 * u;
 forall U,u:Atto<U>.  Atto<U>  => U = 1000000000000000000 * u;
 forall U,u:Zepto<U>. Zepto<U> => U = 1000000000000000000000 * u;
 forall U,u:Yocto<U>. Yocto<U> => U = 1000000000000000000000000 * u;
+
+//: SI Constants
+let c: Metre/Second = 299_792_458;
