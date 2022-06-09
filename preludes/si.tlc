@@ -15,6 +15,12 @@ type Kelvin :: Unit;
 type Mole :: Unit;
 type Candela :: Unit;
 
+//: SI Derived Units
+type Hertz: ()/Second;
+type Speed: Metre/Second;
+type Acceleration: Metre/(Second*Second);
+type Jerk: Metre/(Second*Second*Second);
+
 //: SI Metric Prefixes
 type Yotta<U::Unit> :: Unit;
 type Zetta<U::Unit> :: Unit;
