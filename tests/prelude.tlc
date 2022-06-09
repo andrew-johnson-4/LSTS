@@ -1,5 +1,6 @@
 //: Definition of prelude types and kinds
 type Boolean = True | False;
+type Number;    //Marker trait for numbers. Require declaration to prevent accidental shadowing.
 type Integer;   forall :X::Integer.   X => Number;
 type Real;      forall :X::Real.      X => Number;
 type Imaginary; forall :X::Imaginary. X => Number;
