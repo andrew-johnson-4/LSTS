@@ -24,8 +24,11 @@ LSTS does not ensure against all forms of logical errors, however it does compla
 
     /* Curry's Paradox */
     
-    type A: B; forall :B. A => B
+    type A; forall :B. A => B
     //reject: (A,B) do not share a domain (Term,Nil)
 
-    type A: B; forall :B::Term. A => B
+    type A; forall :B::Term. A => B
+    //accept: (A,B) share a domain (Term,Term)
+    
+    type A; forall :B. A => B :: Term
     //accept: (A,B) share a domain (Term,Term)
