@@ -6,7 +6,7 @@ type Real      : Number;
 type Imaginary : Number;
 
 //: SI Units
-forall :X::Unit. X => Number :: Term; //Units terms of some numerical type, implying the Number trait marker.
+forall :X::Unit. X => Number :: Term; //Units are terms of some numerical type, implying the Number trait marker.
 type Second :: Unit;
 type Metre :: Unit;
 type Gram :: Unit;
