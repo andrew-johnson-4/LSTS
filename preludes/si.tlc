@@ -1,18 +1,19 @@
 //: Definition of prelude types and kinds
 type Boolean = True | False;
 type Number;    //Marker trait for numbers. Require declaration to prevent accidental shadowing.
-type Integer;   forall :X::Integer.   X => Number; //this is how subtyping relations are defined
-type Real;      forall :X::Real.      X => Number;
-type Imaginary; forall :X::Imaginary. X => Number;
+type Integer   : Number; //This is how subtyping relations are defined.
+type Real      : Number;
+type Imaginary : Number;
 
 //: SI Units
-type Second :: Unit;  forall :X::Second.  X => Number; //Units are cousins of numerical types, sharing the Number trait marker.
-type Metre :: Unit;   forall :X::Metre.   X => Number;
-type Gram :: Unit;    forall :X::Gram.    X => Number;
-type Ampere :: Unit;  forall :X::Ampere.  X => Number;
-type Kelvin :: Unit;  forall :X::Kelvin.  X => Number;
-type Mole :: Unit;    forall :X::Mole.    X => Number;
-type Candela :: Unit; forall :X::Candela. X => Number;
+forall X::Unit. X => Number; //Units are of some numerical type, implying the Number trait marker.
+type Second :: Unit;
+type Metre :: Unit;
+type Gram :: Unit;
+type Ampere :: Unit;
+type Kelvin :: Unit;
+type Mole :: Unit;
+type Candela :: Unit;
 
 //: SI Metric Prefixes
 type Yotta<U::Unit> :: Unit;
