@@ -331,7 +331,7 @@ impl TLC {
          //entry point rule
          Rule::file => {
             let sid = self.push_scope(Scope {
-               parent: scope.clone(),
+               parent: *scope,
                children: Vec::new(),
                statements: Vec::new(),
             }, &span);
@@ -346,7 +346,7 @@ impl TLC {
          //block statement rule
          Rule::block => {
             let sid = self.push_scope(Scope {
-               parent: scope.clone(),
+               parent: *scope,
                children: Vec::new(),
                statements: Vec::new(),
             }, &span);
