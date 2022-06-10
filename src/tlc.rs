@@ -8,25 +8,25 @@ use pest::error::{ErrorVariant,InputLocation,LineColLocation};
 struct TlcParser;
 
 pub struct TLC {
-   rows: Vec<Row>,
-   rules: Vec<TypeRule>,
-   scopes: Vec<Scope>,
+   pub rows: Vec<Row>,
+   pub rules: Vec<TypeRule>,
+   pub scopes: Vec<Scope>,
 }
 
 pub struct Row {
-   term: Term,
-   typ: Typ,
-   kind: Kind,
-   span: Span,
+   pub term: Term,
+   pub typ: Typ,
+   pub kind: Kind,
+   pub span: Span,
 }
 
 #[derive(Clone)]
 pub struct Span {
-   filename: String,
-   offset_start: usize,
-   offset_end: usize,
-   linecol_start: (usize,usize),
-   linecol_end: (usize,usize),
+   pub filename: String,
+   pub offset_start: usize,
+   pub offset_end: usize,
+   pub linecol_start: (usize,usize),
+   pub linecol_end: (usize,usize),
 }
 impl Span {
    pub fn snippet(&self) -> String {
@@ -35,10 +35,10 @@ impl Span {
 }
 
 pub struct Error {
-   kind: String,
-   rule: String,
-   span: Span,
-   snippet: String,
+   pub kind: String,
+   pub rule: String,
+   pub span: Span,
+   pub snippet: String,
 }
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -49,13 +49,13 @@ impl std::fmt::Debug for Error {
 
 #[derive(Clone, Copy)]
 pub struct ScopeId {
-   id: usize,
+   pub id: usize,
 }
 //does not implement Clone because scopes are uniquely identified by their id
 pub struct Scope {
-   parent: Option<ScopeId>,
-   children: Vec<(String,Term)>,
-   statements: Vec<Term>,
+   pub parent: Option<ScopeId>,
+   pub children: Vec<(String,Term)>,
+   pub statements: Vec<Term>,
 }
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd)]
@@ -166,7 +166,7 @@ impl std::fmt::Debug for TypeRule {
 
 #[derive(Clone, Copy)]
 pub struct TermId {
-   id: usize,
+   pub id: usize,
 }
 //does not implement Clone because terms are uniquely identified by their id
 pub enum Term {
@@ -236,7 +236,7 @@ impl TLC {
       }
       let src = std::fs::read_to_string(filename)
                    .expect("parse_file: Something went wrong reading the file");
-      self.compile_doc(globals, filename,&src);
+      self.compile_doc(globals, filename,&src)?;
       Ok(ScopeId {id:0})
    }
    pub fn compile_doc(&mut self, _globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
@@ -321,7 +321,7 @@ impl TLC {
           let rule = match pe.variant {
              ErrorVariant::ParsingError {
                 positives:p,
-                negatives:n
+                negatives:_
              } => {
                 p.iter().map(|r|{format!("{:?}",r)}).collect::<Vec<String>>().join(" or ")
              }, _ => {format!("")}
@@ -355,7 +355,7 @@ impl TLC {
       });
       TermId { id: index }
    }
-   pub fn push_scope(&mut self, scope: Scope, span: &Span) -> ScopeId {
+   pub fn push_scope(&mut self, scope: Scope, _span: &Span) -> ScopeId {
       let index = self.scopes.len();
       self.scopes.push(scope);
       ScopeId { id: index }
@@ -454,17 +454,17 @@ impl TLC {
          Rule::typ_stmt => {
             let mut ps = p.into_inner();
             let t = ps.next().expect("TLC Grammar Error in rule [typ_stmt.1]").into_inner().concat();
-            let mut ts = Vec::new();
-            let mut kind = None;
+            let ts = Vec::new();
+            let kind = None;
             for e in ps { match e.as_rule() {
                Rule::ident_typ_kind => {
-                  let mut ident = None;
-                  let mut typ = None;
-                  let mut kind = None;
+                  let mut _ident = None;
+                  let mut _typ = None;
+                  let mut _kind = None;
                   for itk in e.into_inner() { match itk.as_rule() {
-                     Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                     Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)); },
-                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(itk)); },
+                     Rule::ident => { _ident = Some(itk.into_inner().concat()); },
+                     Rule::typ   => { _typ   = Some(self.unparse_ast_typ(itk)); },
+                     Rule::kind   => { _kind   = Some(self.unparse_ast_kind(itk)); },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                },
@@ -480,12 +480,11 @@ impl TLC {
 
          
          Rule::forall_stmt => {
-            let mut ps = p.into_inner();
             let mut quants = Vec::new();
             let mut inference  = None;
             let mut term = None;
             let mut kind = None;
-            for e in ps { match e.as_rule() {
+            for e in p.into_inner() { match e.as_rule() {
                Rule::ident_typ_kind => {
                   let mut ident = None;
                   let mut typ = None;
@@ -560,10 +559,10 @@ impl TLC {
          },
          Rule::suffix_typ => {
             let mut ts = p.into_inner();
-            let mut t = self.unparse_ast_typ(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
-            for t in ts {
-              //TODO parameterized types and bracketed types
-            }
+            let t = self.unparse_ast_typ(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
+            //for t in ts {
+               //TODO parameterized types and bracketed types
+            //}
             Ok(t)
          },
          Rule::or_typ => {
@@ -603,7 +602,7 @@ impl TLC {
       }
    }
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
-      let ast = self.compile_str(globals, src)?;
+      let _ast = self.compile_str(globals, src)?;
       Ok(())
    }
 }

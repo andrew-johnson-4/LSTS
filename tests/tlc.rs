@@ -24,6 +24,7 @@ fn parse_simplytyped() {
    tlc.parse("let a: A; let b: A").unwrap();
    tlc.parse("let f()").unwrap();
    tlc.parse("let f(a)").unwrap();
+   tlc.parse("let f(a,b)").unwrap();
    tlc.parse("let f(a: A)").unwrap();
    tlc.parse("let f(a: A::Term)").unwrap();
    tlc.parse("let f():A").unwrap();
