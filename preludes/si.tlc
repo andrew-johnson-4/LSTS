@@ -43,22 +43,18 @@ type Weber: Kilo<Gram>*Metre*Metre/Ampere*Second*Second;
 type Henry: Kilo<Gram>*Metre*Metre/Ampere*Ampere*Second*Second;
 type Lumen: Candela*Steradian;
 type Lux: Candela*Steradian/Metre*Metre;
-
+type Becquerel: ()/Second;
+type Gray: Metre*Metre/Second*Second;
+type Sievert: Metre*Metre/Second*Second;
 type Speed: Metre/Second;
 type Acceleration: Metre/Second*Second;
 type Jerk: Metre/Second*Second*Second;
+type Wavenumber: ()/Metre;
+type Density: Kilo<Gram>/Metre*Metre*Metre;
+type SurfaceDensity: Kilo<Gram>/Metre*Metre;
 
 
 /* 
-radioactive activity	becquerel	bq	s-1
-absorbed dose of radiation	gray	Gy	J kg-1 = m2 s-2
-dose equivalent of radiation	sievert	Sv	J kg-1 = m2 s-2
-
-speed, velocity	metre per second	v	m/s
-acceleration	metre per second squared	a	m/s2
-wavenumber	reciprocal metre	σ	m–1
-density, mass density	kilogram per cubic metre	ρ	kg/m3
-surface density	kilogram per square metre	ρA	kg/m2
 specific volume	cubic metre per kilogram	v	m3/kg
 current density	ampere per square metre	j	A/m2
 magnetic field strength	ampere per metre	H	A/m
