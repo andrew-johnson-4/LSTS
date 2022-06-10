@@ -16,12 +16,12 @@ type Candela :: Unit;
 
 //: Units are terms of some numerical type, implying the Number trait marker.
 //: All-Caps types are type variables.
-forall :X::Unit. X => Number :: Term;
+forall :X::Unit. X => Number :: Term;  //Units are Numbers.
 
 //: Units can be combined to form other Units
-forall :X::Unit. ()/X :: Unit;         //The inverse of any Unit is also a Unit
-forall :X::Unit,:Y::Unit. X*Y :: Unit; //The product of Units X and Y is also a Unit
-forall :X::Unit,:Y::Unit. X/Y :: Unit; //The ratio of Units X and Y is also a Unit
+forall :X::Unit. ()/X :: Unit;         //The inverse of any Unit is also a Unit.
+forall :X::Unit,:Y::Unit. X*Y :: Unit; //The product of Units X and Y is also a Unit.
+forall :X::Unit,:Y::Unit. X/Y :: Unit; //The ratio of Units X and Y is also a Unit.
 
 //: Dimensionless Units
 type Angle         :: Unit; //marker trait for Angles
