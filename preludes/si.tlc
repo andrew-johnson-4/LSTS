@@ -5,10 +5,6 @@ type Integer   : Number; //This is how subtyping relations are defined.
 type Real      : Number;
 type Complex   : Number;
 
-//: Units are terms of some numerical type, implying the Number trait marker.
-//: All-Caps types are type variables.
-forall :X::Unit. X => Number :: Term; 
-
 //: SI Units
 type Second  :: Unit;
 type Metre   :: Unit;
@@ -17,6 +13,15 @@ type Ampere  :: Unit;
 type Kelvin  :: Unit;
 type Mole    :: Unit;
 type Candela :: Unit;
+
+//: Units are terms of some numerical type, implying the Number trait marker.
+//: All-Caps types are type variables.
+forall :X::Unit. X => Number :: Term;
+
+//: Units can be combined to form other Units
+forall :X::Unit. ()/X :: Unit;
+forall :X::Unit,:Y::Unit. X*Y :: Unit;
+forall :X::Unit,:Y::Unit. X/Y :: Unit;
 
 //: Dimensionless Units
 type Angle         :: Unit; //marker trait for Angles
@@ -74,50 +79,50 @@ type Hecto<U::Unit> :: Unit;
 type Deca<U::Unit> :: Unit;
 
 //: SI Metric Prefixes, boxing
-forall u:U,Yotta<U>. U => Yotta<U> = 1000000000000000000000000 * u;
-forall u:U,Zetta<U>. U => Zetta<U> = 1000000000000000000000 * u;
-forall u:U,Exa<U>.   U => Exa<U>   = 1000000000000000000 * u;
-forall u:U,Peta<U>.  U => Peta<U>  = 1000000000000000 * u;
-forall u:U,Tera<U>.  U => Tera<U>  = 1000000000000 * u;
-forall u:U,Giga<U>.  U => Giga<U>  = 1000000000 * u;
-forall u:U,Mega<U>.  U => Mega<U>  = 1000000 * u;
-forall u:U,Kilo<U>.  U => Kilo<U>  = 1000 * u;
-forall u:U,Hecto<U>. U => Hecto<U> = 100 * u;
-forall u:U,Deca<U>.  U => Deca<U>  = 10 * u;
+forall u:U::Unit. U => Yotta<U> = 1000000000000000000000000 * u;
+forall u:U::Unit. U => Zetta<U> = 1000000000000000000000 * u;
+forall u:U::Unit. U => Exa<U>   = 1000000000000000000 * u;
+forall u:U::Unit. U => Peta<U>  = 1000000000000000 * u;
+forall u:U::Unit. U => Tera<U>  = 1000000000000 * u;
+forall u:U::Unit. U => Giga<U>  = 1000000000 * u;
+forall u:U::Unit. U => Mega<U>  = 1000000 * u;
+forall u:U::Unit. U => Kilo<U>  = 1000 * u;
+forall u:U::Unit. U => Hecto<U> = 100 * u;
+forall u:U::Unit. U => Deca<U>  = 10 * u;
 
-forall u:U,Deci<U>.  U => Deci<U>  = u / 10;
-forall u:U,Centi<U>. U => Centi<U> = u / 100;
-forall u:U,Milli<U>. U => Milli<U> = u / 1000;
-forall u:U,Micro<U>. U => Micro<U> = u / 1000000;
-forall u:U,Nano<U>.  U => Nano<U>  = u / 1000000000;
-forall u:U,Pico<U>.  U => Pico<U>  = u / 1000000000000;
-forall u:U,Femto<U>. U => Femto<U> = u / 1000000000000000;
-forall u:U,Atto<U>.  U => Atto<U>  = u / 1000000000000000000;
-forall u:U,Zepto<U>. U => Zepto<U> = u / 1000000000000000000000;
-forall u:U,Yocto<U>. U => Yocto<U> = u / 1000000000000000000000000;
+forall u:U::Unit. U => Deci<U>  = u / 10;
+forall u:U::Unit. U => Centi<U> = u / 100;
+forall u:U::Unit. U => Milli<U> = u / 1000;
+forall u:U::Unit. U => Micro<U> = u / 1000000;
+forall u:U::Unit. U => Nano<U>  = u / 1000000000;
+forall u:U::Unit. U => Pico<U>  = u / 1000000000000;
+forall u:U::Unit. U => Femto<U> = u / 1000000000000000;
+forall u:U::Unit. U => Atto<U>  = u / 1000000000000000000;
+forall u:U::Unit. U => Zepto<U> = u / 1000000000000000000000;
+forall u:U::Unit. U => Yocto<U> = u / 1000000000000000000000000;
 
 //: SI Metric Prefixes, unboxing
-forall U,u:Yotta<U>. Yotta<U> => U = u / 1000000000000000000000000;
-forall U,u:Zetta<U>. Zetta<U> => U = u / 1000000000000000000000;
-forall U,u:Exa<U>.   Exa<U>   => U = u / 1000000000000000000;
-forall U,u:Peta<U>.  Peta<U>  => U = u / 1000000000000000;
-forall U,u:Tera<U>.  Tera<U>  => U = u / 1000000000000;
-forall U,u:Giga<U>.  Giga<U>  => U = u / 1000000000;
-forall U,u:Mega<U>.  Mega<U>  => U = u / 1000000;
-forall U,u:Kilo<U>.  Kilo<U>  => U = u / 1000;
-forall U,u:Hecto<U>. Hecto<U> => U = u / 100;
-forall U,u:Deca<U>.  Deca<U>  => U = u / 10;
+forall u:Yotta<U>::Unit. Yotta<U> => U = u / 1000000000000000000000000;
+forall u:Zetta<U>::Unit. Zetta<U> => U = u / 1000000000000000000000;
+forall u:Exa<U>::Unit.   Exa<U>   => U = u / 1000000000000000000;
+forall u:Peta<U>::Unit.  Peta<U>  => U = u / 1000000000000000;
+forall u:Tera<U>::Unit.  Tera<U>  => U = u / 1000000000000;
+forall u:Giga<U>::Unit.  Giga<U>  => U = u / 1000000000;
+forall u:Mega<U>::Unit.  Mega<U>  => U = u / 1000000;
+forall u:Kilo<U>::Unit.  Kilo<U>  => U = u / 1000;
+forall u:Hecto<U>::Unit. Hecto<U> => U = u / 100;
+forall u:Deca<U>::Unit.  Deca<U>  => U = u / 10;
 
-forall U,u:Deci<U>.  Deci<U>  => U = 10 * u;
-forall U,u:Centi<U>. Centi<U> => U = 100 * u;
-forall U,u:Milli<U>. Milli<U> => U = 1000 * u;
-forall U,u:Micro<U>. Micro<U> => U = 1000000 * u;
-forall U,u:Nano<U>.  Nano<U>  => U = 1000000000 * u;
-forall U,u:Pico<U>.  Pico<U>  => U = 1000000000000 * u;
-forall U,u:Femto<U>. Femto<U> => U = 1000000000000000 * u;
-forall U,u:Atto<U>.  Atto<U>  => U = 1000000000000000000 * u;
-forall U,u:Zepto<U>. Zepto<U> => U = 1000000000000000000000 * u;
-forall U,u:Yocto<U>. Yocto<U> => U = 1000000000000000000000000 * u;
+forall u:Deci<U>::Unit.  Deci<U>  => U = 10 * u;
+forall u:Centi<U>::Unit. Centi<U> => U = 100 * u;
+forall u:Milli<U>::Unit. Milli<U> => U = 1000 * u;
+forall u:Micro<U>::Unit. Micro<U> => U = 1000000 * u;
+forall u:Nano<U>::Unit.  Nano<U>  => U = 1000000000 * u;
+forall u:Pico<U>::Unit.  Pico<U>  => U = 1000000000000 * u;
+forall u:Femto<U>::Unit. Femto<U> => U = 1000000000000000 * u;
+forall u:Atto<U>::Unit.  Atto<U>  => U = 1000000000000000000 * u;
+forall u:Zepto<U>::Unit. Zepto<U> => U = 1000000000000000000000 * u;
+forall u:Yocto<U>::Unit. Yocto<U> => U = 1000000000000000000000000 * u;
 
 //: SI Constants
 let c: Metre/Second = 299_792_458;      //speed of light in vacuum
