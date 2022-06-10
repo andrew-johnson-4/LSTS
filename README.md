@@ -16,6 +16,7 @@ LSTS implements [a categorical view of typed lambda calculus with flexible sound
     let d: Mile = v * s;
     //accept: adding units to numbers without units.
     //reject: changing units.
+    //inference: Unit inference has its own Kind so works in a more-or-less cleanroom environment, separate from but parallel to Terms.
     //These rules are programmable on a kind by kind basis.
 
 # Capabilities
