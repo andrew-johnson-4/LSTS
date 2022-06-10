@@ -31,6 +31,10 @@ type Pascal: Kilo<Gram>/Metre*Second*Second;
 type Joule: Kilo<Gram>*Metre*Metre/Second*Second;
 type Watt: Kilo<Gram>*Metre*Metre/Second*Second*Second;
 type Coulomb: Ampere*Second; //The constant value of a Coulomb is no longer exactly 1 Ampere Second but the Unit remains unchanged
+type Volt: Kilo<Gram>*Metre*Metre/Ampere*Second*Second*Second;
+type Ohm: Kilo<Gram>*Metre*Metre/Ampere*Ampere*Second*Second*Second;
+type Siemens: Ampere*Ampere*Second*Second*Second/Kilo<Gram>*Metre*Metre;
+type Farad: Ampere*Ampere*Second*Second*Second*Second/Kilo<Gram>*Metre*Metre;
 
 type Speed: Metre/Second;
 type Acceleration: Metre/Second*Second;
@@ -38,10 +42,6 @@ type Jerk: Metre/Second*Second*Second;
 type Lumen: Candela*Steradian;
 
 /* 
-electrical potential, electromotive force	volt	V	J C-1 = m2 kg s-3 A-1
-electrical resistance	ohm	Ω	V A-1 = m2 kg s-3 A-2
-electric conductance	siemens	S	ohm-1 = m-2 kg-1 s3 A2
-electical capacitance	farad	F	C V-1 = m-2 kg-1 s4 A2
 magnetic flux density	tesla	T	V s m-2 = kg s-2 A-1
 magnetic flux	weber	Wb	V s = m2 kg s-2 A-1
 inductance	henry	H	V A-1 s = m2 kg s-2 A-2
