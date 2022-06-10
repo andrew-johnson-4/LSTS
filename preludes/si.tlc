@@ -1,31 +1,28 @@
 //: Definition of prelude types and kinds
 type Boolean = True | False;
-type Number;    //Marker trait for numbers. Require declaration to prevent accidental shadowing.
+type Number;   //Marker trait for numbers. Require declaration to prevent accidental shadowing.
 type Integer   : Number; //This is how subtyping relations are defined.
 type Real      : Number;
 type Imaginary : Number;
 
 //: SI Units
 forall :X::Unit. X => Number :: Term; //Units are terms of some numerical type, implying the Number trait marker.
-type Second :: Unit;
-type Metre :: Unit;
-type Gram :: Unit;
-type Ampere :: Unit;
-type Kelvin :: Unit;
-type Mole :: Unit;
+type Second  :: Unit;
+type Metre   :: Unit;
+type Gram    :: Unit;
+type Ampere  :: Unit;
+type Kelvin  :: Unit;
+type Mole    :: Unit;
 type Candela :: Unit;
 
 //: Dimensionless Units
-type Angle :: Unit; //marker trait for Angles
+type Angle         :: Unit; //marker trait for Angles
 type Degree: Angle :: Unit;
 type Radian: Angle :: Unit;
 //TODO unit conversion between Angles
 
-type SolidAngle :: Unit; //marker trait for SolidAngles
+type SolidAngle            :: Unit; //marker trait for SolidAngles
 type Steradian: SolidAngle :: Unit;
-
-type SquareMetre: Metre*Metre :: Unit;
-type CubicMetre: Metre*Metre*Metre :: Unit;
 
 //: SI Derived Units (source: https://www.ece.utoronto.ca/canadian-metric-association/si-derived-units/)
 type Hertz: ()/Second :: Unit;
@@ -46,6 +43,8 @@ type Lux: Candela*Steradian/Metre*Metre :: Unit;
 type Becquerel: ()/Second :: Unit;
 type Gray: Metre*Metre/Second*Second :: Unit;
 type Sievert: Metre*Metre/Second*Second :: Unit;
+type SquareMetre: Metre*Metre :: Unit;
+type CubicMetre: Metre*Metre*Metre :: Unit;
 type Speed: Metre/Second :: Unit;
 type Acceleration: Metre/Second*Second :: Unit;
 type Jerk: Metre/Second*Second*Second :: Unit;
