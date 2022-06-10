@@ -111,6 +111,14 @@ pub enum Inference {
    Typ(Typ),
    Imply(Typ,Typ),
 }
+impl std::fmt::Debug for Inference {
+   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      match self {
+        Inference::Typ(t) => write!(f, "{:?}", t),
+        Inference::Imply(a,b) => write!(f, "{:?} => {:?}", a, b),
+      }
+   }
+}
 impl Inference {
    pub fn types(&self) -> Vec<Typ> {
       match self {
@@ -133,7 +141,15 @@ impl std::fmt::Debug for TypeRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
            TypeRule::Typedef(tn,itks,tk) => write!(f, "{}", tn),
-           TypeRule::Forall(itks,inf,t,tk) => write!(f, "forall . :: {:?}", tk.clone().unwrap_or(Kind::Nil)),
+           TypeRule::Forall(itks,inf,t,tk) => write!(f, "forall {}. {:?} :: {:?}", 
+              itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
+                    i.clone().unwrap_or("_".to_string()),
+                    t.clone().unwrap_or(Typ::Nil),
+                    k.clone().unwrap_or(Kind::Nil),
+              )).collect::<Vec<String>>().join(","),
+              inf,
+              tk.clone().unwrap_or(Kind::Nil),
+           ),
         }
     }
 }
