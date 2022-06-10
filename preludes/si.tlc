@@ -35,18 +35,18 @@ type Volt: Kilo<Gram>*Metre*Metre/Ampere*Second*Second*Second;
 type Ohm: Kilo<Gram>*Metre*Metre/Ampere*Ampere*Second*Second*Second;
 type Siemens: Ampere*Ampere*Second*Second*Second/Kilo<Gram>*Metre*Metre;
 type Farad: Ampere*Ampere*Second*Second*Second*Second/Kilo<Gram>*Metre*Metre;
+type Tesla: Kilo<Gram>/Ampere*Second*Second;
+type Weber: Kilo<Gram>*Metre*Metre/Ampere*Second*Second;
+type Henry: Kilo<Gram>*Metre*Metre/Ampere*Ampere*Second*Second;
+type Lumen: Candela*Steradian;
+type Lux: Candela*Steradian/Metre*Metre;
 
 type Speed: Metre/Second;
 type Acceleration: Metre/Second*Second;
 type Jerk: Metre/Second*Second*Second;
-type Lumen: Candela*Steradian;
+
 
 /* 
-magnetic flux density	tesla	T	V s m-2 = kg s-2 A-1
-magnetic flux	weber	Wb	V s = m2 kg s-2 A-1
-inductance	henry	H	V A-1 s = m2 kg s-2 A-2
-luminous flux	lumen	lm	cd sr
-illuminance	lux	lx	cd sr m-2
 radioactive activity	becquerel	bq	s-1
 absorbed dose of radiation	gray	Gy	J kg-1 = m2 s-2
 dose equivalent of radiation	sievert	Sv	J kg-1 = m2 s-2
