@@ -133,9 +133,13 @@ let N_A: ()/Mole = 6.022_140_76e23;     //Avogadro constant
 let DeltavCs: Hertz = 9_192_631_770;    //caesium hyperfine frequency
 
 //: Unit Math
-let $"+"(x:X::Unit):X::Unit;              //pos
-let $"-"(x:X::Unit):X::Unit;              //neg
-let $"+"(x:X::Unit, y:X::Unit):X::Unit;   //add
-let $"-"(x:X::Unit, y:X::Unit):X::Unit;   //sub
-let $"*"(x:X::Unit, y:Y::Unit):X*Y::Unit; //mul
-let $"/"(x:X::Unit, y:Y::Unit):X/Y::Unit; //div
+let $"+"(x:X::Unit):X::Unit;                    //pos
+let $"-"(x:X::Unit):X::Unit;                    //neg
+let $"+"(x:X::Unit, y:X::Unit):X::Unit;         //add
+let $"-"(x:X::Unit, y:X::Unit):X::Unit;         //sub
+let $"*"(x:X::Unit, y:Y::Unit):X*Y::Unit;       //mul
+let $"*"(x:Number::Term, y:Y::Unit):Y::Unit;    //mul constant
+let $"*"(x:X::Unit, y:Number::Term):X::Unit;    //mul constant
+let $"/"(x:X::Unit, y:Y::Unit):X/Y::Unit;       //div
+let $"/"(x:Number::Term, y:Y::Unit):()/Y::Unit; //div constant
+let $"/"(x:X::Unit, y:Number::Term):X::Unit;    //div constant
