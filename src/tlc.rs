@@ -379,18 +379,12 @@ impl TLC {
 
          //complex rules
          Rule::let_stmt => {
-            let mut es = p.into_inner();
-            Ok({let t = Term::Let(
-               es.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat(),
-               self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [let_stmt.2]"))?,
-               self.unparse_ast_typ(es.next().expect("TLC Grammar Error in rule [let_stmt.3]"))?,
-            ); self.push_term(t, &span)})
+            //TODO parse let stmt parameters
+            Ok(self.push_term(Term::Assume, &span))
          },
-         Rule::let_stmt_val => {
-            match p.into_inner().next() {
-               None => Ok(self.push_term(Term::Assume, &span)),
-               Some(e) => self.unparse_ast(scope,fp,e)
-            }
+         Rule::let_stmt_par => {
+            //TODO parse let stmt parameters
+            Ok(self.push_term(Term::Assume, &span))
          },
          Rule::ascript_term => {
             let mut es = p.into_inner();
@@ -559,12 +553,6 @@ impl TLC {
                Ok(ts[0].clone())
             } else {
                Ok(Typ::And(ts))
-            }
-         },
-         Rule::let_stmt_typ => {
-            match p.into_inner().next() {
-               None => Ok(Typ::Nil),
-               Some(e) => self.unparse_ast_typ(e)
             }
          },
          rule => panic!("unexpected typ rule: {:?}", rule)

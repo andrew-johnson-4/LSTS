@@ -31,9 +31,8 @@ typ       = { or_typ }
 
 kind      = { ident ~ ("<" ~ kind? ~ ("," ~ kind)* ~ ">")? }
 
-let_stmt = { "let" ~ ident ~ let_stmt_val ~ let_stmt_typ }
-let_stmt_val = { ("=" ~ term)? }
-let_stmt_typ = { (":" ~ typ)? }
+let_stmt = { "let" ~ ident ~ let_stmt_par? ~ (":" ~ typ)? ~ ("::" ~ kind)? ~ ("=" ~ term)? }
+let_stmt_par = { "(" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ ")" }
 
 typ_stmt = { "type" ~ ident ~ ("<" ~ ident_typ_kind ~ ("," ~ ident_typ_kind)* ~ ">")? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
