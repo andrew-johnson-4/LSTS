@@ -151,7 +151,7 @@ impl std::fmt::Debug for TypeRule {
               if itks.len()==0 { "" } else { ">" },
               tk
            ),
-           TypeRule::Forall(itks,inf,t,tk) => write!(f, "forall {}. {:?} :: {:?}", 
+           TypeRule::Forall(itks,inf,_t,tk) => write!(f, "forall {}. {:?} :: {:?}", 
               itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
                     i.clone().unwrap_or("_".to_string()),
                     t.clone().unwrap_or(Typ::Nil),
@@ -239,14 +239,14 @@ impl TLC {
       self.compile_doc(globals, filename,&src);
       Ok(ScopeId {id:0})
    }
-   pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
+   pub fn compile_doc(&mut self, _globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
       let ast = self.parse_doc(docname, src)?;
       self.compile_rules(docname)?;
       Ok(ast)
    }
    pub fn kind_of(&self, t: &Typ) -> Kind {
       for rule in self.rules.iter() { match rule {
-         TypeRule::Typedef(tt,tps,k) => { if &format!("{:?}",t)==tt {
+         TypeRule::Typedef(tt,_tps,k) => { if &format!("{:?}",t)==tt {
             return k.clone().unwrap_or(Kind::Simple("Term".to_string(),Vec::new()));
          }},
          _ => ()
@@ -257,13 +257,13 @@ impl TLC {
 
       //check logical consistency of foralls
       for rule in self.rules.iter() { match rule {
-         TypeRule::Forall(qs,inf,t,k) => {
+         TypeRule::Forall(qs,inf,_t,k) => {
             //check if domain is explicit
             if k.clone().unwrap_or(Kind::Nil) != Kind::Nil { continue; }
 
             //otherwise check that all variables share a domain
             let mut domains: Vec<(Typ,Kind)> = Vec::new();
-            for (i,t,k) in qs.iter() {
+            for (_i,t,k) in qs.iter() {
                match (t,k) {
                   (Some(tt),Some(kk)) => domains.push((tt.clone(),kk.clone())),
                   (Some(tt),None) => domains.push((tt.clone(),self.kind_of(tt))),
@@ -271,7 +271,7 @@ impl TLC {
                }
             }
             for it in inf.types().iter() {
-               if !qs.iter().any(|(i,t,k)| &Some(it.clone())==t) {
+               if !qs.iter().any(|(_i,t,_k)| &Some(it.clone())==t) {
                   domains.push((it.clone(),self.kind_of(it)));
                }
             }
@@ -283,8 +283,8 @@ impl TLC {
                return Err(Error { 
                   kind: "Type Error".to_string(),
                   rule: format!("({}) do not share a domain ({})", 
-                     domains.iter().map(|(t,k)|format!("{:?}",t)).collect::<Vec<String>>().join(","),
-                     domains.iter().map(|(t,k)|format!("{:?}",k)).collect::<Vec<String>>().join(",")
+                     domains.iter().map(|(t,_k)|format!("{:?}",t)).collect::<Vec<String>>().join(","),
+                     domains.iter().map(|(_t,k)|format!("{:?}",k)).collect::<Vec<String>>().join(",")
                   ),
                   span: Span {
                      filename:docname.to_string(),
