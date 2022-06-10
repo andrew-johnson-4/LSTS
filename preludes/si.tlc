@@ -17,9 +17,7 @@ type Candela :: Unit;
 
 //: Dimensionless Units
 type Angle         :: Unit; //marker trait for Angles
-type Degree: Angle :: Unit;
 type Radian: Angle :: Unit;
-//TODO unit conversion between Angles
 
 type SolidAngle            :: Unit; //marker trait for SolidAngles
 type Steradian: SolidAngle :: Unit;
