@@ -24,15 +24,49 @@ type Radian: Angle;
 type SolidAngle :: Unit; //marker trait for SolidAngles
 type Steradian: SolidAngle;
 
-//: SI Derived Units
-type Coulomb: Ampere*Second; //The constant value of a Coulomb is no longer exactly 1 Ampere Second but the Unit remains unchanged
+//: SI Derived Units (source: https://www.ece.utoronto.ca/canadian-metric-association/si-derived-units/)
 type Hertz: ()/Second;
+type Newton: Metre*Kilo<Gram>/Second*Second;
+type Pascal: Kilo<Gram>/Metre*Second*Second;
+type Joule: Kilo<Gram>*Metre*Metre/Second*Second;
+type Watt: Kilo<Gram>*Metre*Metre/Second*Second*Second;
+type Coulomb: Ampere*Second; //The constant value of a Coulomb is no longer exactly 1 Ampere Second but the Unit remains unchanged
+
 type Speed: Metre/Second;
-type Acceleration: Metre/(Second*Second);
-type Jerk: Metre/(Second*Second*Second);
-type Joule: Kilo<Gram>*Metre*Metre/(Second*Second);
-type Watt: Kilo<Gram>*Metre*Metre/(Second*Second*Second);
+type Acceleration: Metre/Second*Second;
+type Jerk: Metre/Second*Second*Second;
 type Lumen: Candela*Steradian;
+
+/* 
+electrical potential, electromotive force	volt	V	J C-1 = m2 kg s-3 A-1
+electrical resistance	ohm	Ω	V A-1 = m2 kg s-3 A-2
+electric conductance	siemens	S	ohm-1 = m-2 kg-1 s3 A2
+electical capacitance	farad	F	C V-1 = m-2 kg-1 s4 A2
+magnetic flux density	tesla	T	V s m-2 = kg s-2 A-1
+magnetic flux	weber	Wb	V s = m2 kg s-2 A-1
+inductance	henry	H	V A-1 s = m2 kg s-2 A-2
+luminous flux	lumen	lm	cd sr
+illuminance	lux	lx	cd sr m-2
+radioactive activity	becquerel	bq	s-1
+absorbed dose of radiation	gray	Gy	J kg-1 = m2 s-2
+dose equivalent of radiation	sievert	Sv	J kg-1 = m2 s-2
+plane angle	radian	rad	1 m m-1
+solid angle	steradian	sr	1 m2 m-2
+area	square metre	A	m2
+volume	cubic metre	V	m3
+speed, velocity	metre per second	v	m/s
+acceleration	metre per second squared	a	m/s2
+wavenumber	reciprocal metre	σ	m–1
+density, mass density	kilogram per cubic metre	ρ	kg/m3
+surface density	kilogram per square metre	ρA	kg/m2
+specific volume	cubic metre per kilogram	v	m3/kg
+current density	ampere per square metre	j	A/m2
+magnetic field strength	ampere per metre	H	A/m
+concentration	mole per cubic metre	c	mol/m3
+mass concentration	kilogram per cubic metre	ρ, γ	kg/m3
+luminance	candela per square metre	Lv	cd/m2
+refractive index	one	n	1
+relative permeability	one	µr	1
 
 //: SI Metric Prefixes
 type Yotta<U::Unit> :: Unit;
