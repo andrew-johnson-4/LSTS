@@ -92,12 +92,15 @@ impl std::fmt::Debug for Typ {
         match self {
            Typ::Nil => write!(f, "()"),
            Typ::Any => write!(f, "?"),
-           Typ::Ident(x,ps) => write!(f, "{}", x),
-           Typ::Or(_) => write!(f, "||"),
-           Typ::And(_) => write!(f, "&&"),
+           Typ::Ident(t,ts) => {
+              if ts.len()==0 { write!(f, "{}", t) }
+              else { write!(f, "{}<{}>", t, ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ) }
+           }
+           Typ::Or(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("|") ),
+           Typ::And(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("+") ),
+           Typ::Tuple(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ),
+           Typ::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
            Typ::Arrow(p,b) => write!(f, "({:?})=>({:?})", p, b),
-           Typ::Tuple(xs) => write!(f, "(?,?)"),
-           Typ::Product(xs) => write!(f, "(?*?)"),
            Typ::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
         }
     }
@@ -506,7 +509,6 @@ impl TLC {
          Rule::typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
          Rule::ident_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [ident_typ]")),
          Rule::atom_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
-         Rule::ident_typ => Ok(Typ::Ident(p.into_inner().concat(),Vec::new())),
          Rule::any_typ => Ok(Typ::Any),
          Rule::paren_typ => {
             let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [paren_typ]"))
