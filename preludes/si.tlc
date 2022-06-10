@@ -14,9 +14,8 @@ type Kelvin  :: Unit;
 type Mole    :: Unit;
 type Candela :: Unit;
 
-//: Units are terms of some numerical type, implying the Number trait marker.
-//: All-Caps types are type variables.
-forall :X::Unit. X => Number :: Term;  //Units are Numbers.
+//: Units are Numbers
+forall :X::Unit. X => Number :: Term;  //: All-Caps types are type variables.
 
 //: Units can be combined to form other Units
 forall :X::Unit. ()/X :: Unit;         //The inverse of any Unit is also a Unit.
