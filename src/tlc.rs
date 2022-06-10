@@ -201,13 +201,14 @@ impl TLC {
    pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
       self.compile_doc(globals, "[string]", src)
    }
-   pub fn compile_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {
+   pub fn compile_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
       if !Path::new(filename).exists() {
          panic!("parse_file could not find file: '{}'", filename)
       }
       let src = std::fs::read_to_string(filename)
                    .expect("parse_file: Something went wrong reading the file");
-      self.compile_doc(globals, filename,&src)
+      self.compile_doc(globals, filename,&src);
+      Ok(ScopeId {id:0})
    }
    pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
       let ast = self.parse_doc(docname, src)?;
