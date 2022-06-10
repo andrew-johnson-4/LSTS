@@ -589,14 +589,15 @@ impl TLC {
    pub fn unparse_ast_kind(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Kind,Error> {
       match p.as_rule() {
          Rule::kind => {
-            let mut ident = "_".to_string();
+            let mut ident = "Nil".to_string();
             let mut kinds = Vec::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::ident => { ident = e.into_inner().concat(); },
                Rule::kind  => { kinds.push(self.unparse_ast_kind(e)?); },
                rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
             }}
-            Ok(Kind::Simple(ident, kinds))
+            if ident=="Nil" { Ok(Kind::Nil) }
+            else { Ok(Kind::Simple(ident, kinds)) }
          },
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
