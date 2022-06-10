@@ -6,8 +6,8 @@ type Real      : Number;
 type Complex   : Number;
 
 //: SI Units
-type Second  :: Unit;
-type Metre   :: Unit;
+type Second  :: Unit; //Unit is the Kind of SI Unit types.
+type Metre   :: Unit; //Kinds do not need to be declared before use.
 type Gram    :: Unit;
 type Ampere  :: Unit;
 type Kelvin  :: Unit;
