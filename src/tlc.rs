@@ -131,7 +131,7 @@ impl Inference {
 #[derive(Clone)]
 pub enum TypeRule {
    //type Deca<U::Unit> :: Unit;
-   Typedef(String,Vec<(String,Option<Typ>,Option<Kind>)>,Option<Kind>),
+   Typedef(String,Vec<(Option<String>,Option<Typ>,Option<Kind>)>,Option<Kind>),
 
    //forall A,B,1,2. (A,B,1,2) => (B,1,2) :: A<B,1,2>;
    //forall U,u:Milli<U>. Milli<U> => U = 1000 * u;
@@ -140,7 +140,17 @@ pub enum TypeRule {
 impl std::fmt::Debug for TypeRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           TypeRule::Typedef(tn,itks,tk) => write!(f, "{}", tn),
+           TypeRule::Typedef(tn,itks,tk) => write!(f, "{}{}{}{}::{:?}",
+              tn,
+              if itks.len()==0 { "" } else { "<" },
+              itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
+                    i.clone().unwrap_or("_".to_string()),
+                    t.clone().unwrap_or(Typ::Nil),
+                    k.clone().unwrap_or(Kind::Nil),
+              )).collect::<Vec<String>>().join(","),
+              if itks.len()==0 { "" } else { ">" },
+              tk
+           ),
            TypeRule::Forall(itks,inf,t,tk) => write!(f, "forall {}. {:?} :: {:?}", 
               itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
                     i.clone().unwrap_or("_".to_string()),
