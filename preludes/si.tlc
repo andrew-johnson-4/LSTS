@@ -3,7 +3,7 @@ type Boolean = True | False;
 type Number;   //Marker trait for numbers. Require declaration to prevent accidental shadowing.
 type Integer   : Number; //This is how subtyping relations are defined.
 type Real      : Number;
-type Imaginary : Number;
+type Complex   : Number;
 
 //: SI Units
 forall :X::Unit. X => Number :: Term; //Units are terms of some numerical type, implying the Number trait marker.
