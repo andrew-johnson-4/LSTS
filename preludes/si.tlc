@@ -17,52 +17,49 @@ type Candela :: Unit;
 
 //: Dimensionless Units
 type Angle :: Unit; //marker trait for Angles
-type Degree: Angle;
-type Radian: Angle;
+type Degree: Angle :: Unit;
+type Radian: Angle :: Unit;
 //TODO unit conversion between Angles
 
 type SolidAngle :: Unit; //marker trait for SolidAngles
-type Steradian: SolidAngle;
+type Steradian: SolidAngle :: Unit;
 
-type SquareMetre: Metre*Metre;
-type CubicMetre: Metre*Metre*Metre;
+type SquareMetre: Metre*Metre :: Unit;
+type CubicMetre: Metre*Metre*Metre :: Unit;
 
 //: SI Derived Units (source: https://www.ece.utoronto.ca/canadian-metric-association/si-derived-units/)
-type Hertz: ()/Second;
-type Newton: Metre*Kilo<Gram>/Second*Second;
-type Pascal: Kilo<Gram>/Metre*Second*Second;
-type Joule: Kilo<Gram>*Metre*Metre/Second*Second;
-type Watt: Kilo<Gram>*Metre*Metre/Second*Second*Second;
-type Coulomb: Ampere*Second; //The constant value of a Coulomb is no longer exactly 1 Ampere Second but the Unit remains unchanged
-type Volt: Kilo<Gram>*Metre*Metre/Ampere*Second*Second*Second;
-type Ohm: Kilo<Gram>*Metre*Metre/Ampere*Ampere*Second*Second*Second;
-type Siemens: Ampere*Ampere*Second*Second*Second/Kilo<Gram>*Metre*Metre;
-type Farad: Ampere*Ampere*Second*Second*Second*Second/Kilo<Gram>*Metre*Metre;
-type Tesla: Kilo<Gram>/Ampere*Second*Second;
-type Weber: Kilo<Gram>*Metre*Metre/Ampere*Second*Second;
-type Henry: Kilo<Gram>*Metre*Metre/Ampere*Ampere*Second*Second;
-type Lumen: Candela*Steradian;
-type Lux: Candela*Steradian/Metre*Metre;
-type Becquerel: ()/Second;
-type Gray: Metre*Metre/Second*Second;
-type Sievert: Metre*Metre/Second*Second;
-type Speed: Metre/Second;
-type Acceleration: Metre/Second*Second;
-type Jerk: Metre/Second*Second*Second;
-type Wavenumber: ()/Metre;
-type Density: Kilo<Gram>/Metre*Metre*Metre;
-type SurfaceDensity: Kilo<Gram>/Metre*Metre;
-
-
-/* 
-specific volume	cubic metre per kilogram	v	m3/kg
-current density	ampere per square metre	j	A/m2
-magnetic field strength	ampere per metre	H	A/m
-concentration	mole per cubic metre	c	mol/m3
-mass concentration	kilogram per cubic metre	ρ, γ	kg/m3
-luminance	candela per square metre	Lv	cd/m2
-refractive index	one	n	1
-relative permeability	one	µr	1
+type Hertz: ()/Second :: Unit;
+type Newton: Metre*Kilo<Gram>/Second*Second :: Unit;
+type Pascal: Kilo<Gram>/Metre*Second*Second :: Unit;
+type Joule: Kilo<Gram>*Metre*Metre/Second*Second :: Unit;
+type Watt: Kilo<Gram>*Metre*Metre/Second*Second*Second :: Unit;
+type Coulomb: Ampere*Second :: Unit; //The constant value of a Coulomb is no longer exactly 1 Ampere Second but the Unit remains unchanged
+type Volt: Kilo<Gram>*Metre*Metre/Ampere*Second*Second*Second :: Unit;
+type Ohm: Kilo<Gram>*Metre*Metre/Ampere*Ampere*Second*Second*Second :: Unit;
+type Siemens: Ampere*Ampere*Second*Second*Second/Kilo<Gram>*Metre*Metre :: Unit;
+type Farad: Ampere*Ampere*Second*Second*Second*Second/Kilo<Gram>*Metre*Metre :: Unit;
+type Tesla: Kilo<Gram>/Ampere*Second*Second :: Unit;
+type Weber: Kilo<Gram>*Metre*Metre/Ampere*Second*Second :: Unit;
+type Henry: Kilo<Gram>*Metre*Metre/Ampere*Ampere*Second*Second :: Unit;
+type Lumen: Candela*Steradian :: Unit;
+type Lux: Candela*Steradian/Metre*Metre :: Unit;
+type Becquerel: ()/Second :: Unit;
+type Gray: Metre*Metre/Second*Second :: Unit;
+type Sievert: Metre*Metre/Second*Second :: Unit;
+type Speed: Metre/Second :: Unit;
+type Acceleration: Metre/Second*Second :: Unit;
+type Jerk: Metre/Second*Second*Second :: Unit;
+type Wavenumber: ()/Metre :: Unit;
+type Density: Kilo<Gram>/Metre*Metre*Metre :: Unit;
+type SurfaceDensity: Kilo<Gram>/Metre*Metre :: Unit;
+type SpecificVolume: Metre*Metre*Metre/Kilo<Gram> :: Unit;
+type CurrentDensity: Ampere/Metre*Metre :: Unit;
+type MagneticFieldStrength: Ampere/Metre :: Unit;
+type Concentration: Mole/Metre*Metre*Metre :: Unit;
+type MassConcentration: Kilo<Gram>/Metre*Metre*Metre :: Unit;
+type Luminance: Candela/Metre*Metre :: Unit;
+type RefractiveIndex :: Unit;
+type RelativePermeability :: Unit;
 
 //: SI Metric Prefixes
 type Yotta<U::Unit> :: Unit;
