@@ -1,5 +1,6 @@
-# LSTS
-Large Scale Type Systems
+# LSTS: Large Scale Type Systems
+
+[![Build](https://github.com/andrew-johnson-4/rdxl/workflows/Build/badge.svg)](https://github.com/andrew-johnson-4/rdxl)
 
 Pronounced "Loss-Toss"
 
