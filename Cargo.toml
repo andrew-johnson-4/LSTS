@@ -13,3 +13,4 @@ keywords = ["type","logic","automated","theorem","proof"]
 [dependencies]
 pest = { version = "2.1.3" }
 pest_derive = { version = "2.1.0" }
+regex = { version = "1" }

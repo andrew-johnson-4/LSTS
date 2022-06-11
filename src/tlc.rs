@@ -2,6 +2,7 @@ use std::path::Path;
 use pest::Parser;
 use pest::iterators::{Pair,Pairs};
 use pest::error::{ErrorVariant,InputLocation,LineColLocation};
+use regex::Regex;
 
 #[derive(Parser)]
 #[grammar = "grammar_tlc.pest"]
@@ -11,6 +12,7 @@ pub struct TLC {
    pub rows: Vec<Row>,
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
+   pub regexes: Vec<(Typ,Regex)>,
 }
 
 pub struct Row {
@@ -209,6 +211,7 @@ impl TLC {
          }],
          rules: Vec::new(),
          scopes: Vec::new(),
+         regexes: Vec::new(),
       }
    }
 
