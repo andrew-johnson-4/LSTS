@@ -1,9 +1,9 @@
 //: Definition of prelude types and kinds
 type Boolean = True | False;
 type Number;   //Marker trait for numbers. Require declaration to prevent accidental shadowing.
-type Integer   : Number; //This is how subtyping relations are defined.
-type Real      : Number;
-type Complex   : Number;
+type Integer   : Number = /[0-9][_0-9]+([eE][_0-9]+)/; //This is how subtyping relations are defined.
+type Real      : Number = /[0-9][_.0-9]+([eE][-]?[_0-9]+)/;
+type Complex   : Number = /[0-9][_.0-9]+([eE][-]?[_0-9]+)([+]i[0-9][_.0-9]+([eE][-]?[_0-9]+))?/;
 forall i:Integer. Integer => Real    = i; //cast Integer to Real
 forall i:Integer. Integer => Complex = i; //cast Integer to Complex
 forall i:Real   . Real    => Complex = i; //cast Real to Complex
