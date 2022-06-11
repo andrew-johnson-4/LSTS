@@ -284,7 +284,10 @@ impl TLC {
             }
             for it in inf.types().iter() {
                if !qs.iter().any(|(_i,t,_k)| &Some(it.clone())==t) {
-                  domains.push((it.clone(),self.kind_of(it)));
+                  let tk = qs.iter().fold(None, |lk,(_i,t,tk)| {
+                     if &Some(it.clone())==t {tk.clone()} else {lk}
+                  });
+                  domains.push((it.clone(),tk.clone().unwrap_or(self.kind_of(it))));
                }
             }
             domains.sort();
