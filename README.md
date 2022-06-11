@@ -17,7 +17,7 @@ LSTS implements [a categorical view of typed lambda calculus with flexible sound
     let s: Minute = 78.9;
     let d: Mile = v * s;
 
-Adding Units to existing Numbers is always permitted. Changing Units requires an additional verification step for dimension analysis. Unit is a Kind separate from Term. Inference rules are programmable on a Kind by Kind basis.
+Unit is a Kind separate from Term. Unit typing adds a check for dimension analysis. Inference rules are programmable on a Kind by Kind basis.
 
 # Capabilities
 
