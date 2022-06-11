@@ -52,38 +52,3 @@ fn check_simplytyped() {
    let mut tlc = TLC::new();
    tlc.check(None, "type A; type B; let a: A->B; let b: B; a(b)").unwrap_err();
 }
-
-/*
-#[test]
-fn check_traitstyped() {
-   //(Meter/Second) * Second = Meter
-   //It should be noted that all units are rational.
-   let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "let x: Real + Meter/Second = 1.2; let y: Real + Second = 3.4; let z: Real + Meter = x * y;").unwrap();
-
-   let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "let x: Real + (Meter*Meter)/(Second*Second) = 1.2; let y: Real + Second = 3.4; let z: Real + Meter = x * x;").unwrap();
-
-   let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "let x: Real + Meter/Second = 1.2; let y: Real + Second = 3.4; let z: Real + Meter = x;").unwrap_err();
-
-   let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "let x: Real + Meter/Second = 1.2; let y: Real + Second = 3.4; let z: Real + Meter = y;").unwrap_err();
-
-   let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "let x: Real + Meter/Second = 1.2; let y: Real + Second = 3.4; let z: Real + Meter = x * x;").unwrap_err();
-
-   let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "let x: Real + Meter/Second = 1.2; let y: Real + Second = 3.4; let z: Real + Meter = y * y;").unwrap_err();
-
-   let mut tlc = TLC::new();
-   let global_scope = tlc.load_file(None, "tests/prelude.tlc").unwrap();
-   tlc.check(Some(global_scope), "let x: Real + Meter/Second = 1.2; let y: Real + Second = 3.4; let z: Real + Meter = x * y * x;").unwrap_err();
-}
-*/
