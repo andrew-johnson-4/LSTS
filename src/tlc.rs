@@ -250,9 +250,10 @@ impl TLC {
       self.compile_doc(globals, filename,&src)?;
       Ok(ScopeId {id:0})
    }
-   pub fn compile_doc(&mut self, _globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
+   pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
       let ast = self.parse_doc(docname, src)?;
       self.compile_rules(docname)?;
+      self.typecheck(globals, ast)?;
       Ok(ast)
    }
    pub fn kind_of(&self, t: &Typ) -> Kind {
@@ -678,116 +679,17 @@ impl TLC {
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
    }
+   pub fn typecheck(&mut self, _scope: Option<ScopeId>, _term: TermId) -> Result<(),Error> {
+      //TODO typecheck term
+      Ok(())
+   }
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
-      let _ast = self.compile_str(globals, src)?;
+      self.compile_str(globals, src)?;
       Ok(())
    }
 }
 
 /*
-   pub fn desugar(&mut self, parent_scope: Option<usize>, x: &Term) -> Result<usize,Error> {
-      match x {
-         Term::Block(scid,sts) => {
-            //blocks can have multiple bindings of the same symbol
-            //non-block bindings shadow each other
-            self.scopes.insert(*scid, TlcScope {
-               id: *scid,
-               parent: parent_scope,
-               rules: Vec::new(),
-               children: HashMap::new(),
-               statements: Vec::new(),
-            });
-            for stmt in sts.iter() {
-               self.desugar(Some(*scid), stmt);
-            }
-            Ok(*scid)
-         },
-
-         Term::Forall(fid,qs,typ,kind) => {
-            let scid = parent_scope.unwrap_or(0);
-            if let Some(mut sc) = self.scopes.get_mut(&scid) {
-               sc.rules.push(x.clone());
-            }
-            Ok(scid)
-         },
-         Term::Let(lid,pat,val,typ) => {
-            let scid = parent_scope.unwrap_or(0);
-            if let Some(mut sc) = self.scopes.get_mut(&scid) {
-               if !sc.children.contains_key(pat) {
-                  sc.children.insert(pat.clone(), Vec::new());
-               }
-               sc.children.get_mut(pat).unwrap().push(x.clone());
-            }
-            Ok(scid)
-         },
-         Term::Typedef(tid,tname,tpars) => {
-            let scid = parent_scope.unwrap_or(0);
-            self.types.insert(
-               format!("{}#{}", tname, tpars.len()),
-               Typedef::Assume(*tid)
-            );
-            Ok(scid)
-         },
-         _ => {
-            let scid = parent_scope.unwrap_or(0);
-            if let Some(mut sc) = self.scopes.get_mut(&scid) {
-               sc.statements.push(x.clone());
-            }
-            Ok(scid)
-         }
-      }
-   }
-   pub fn load_file(&mut self, parent_scope: Option<usize>, filename: &str) -> Result<usize,Error> {
-      //symbol import/export rules are marginally beyond the scope of this project
-      let stmts = self.parse_file(filename)?;
-      let scope = self.desugar(parent_scope,&stmts)?;
-      Ok(scope)
-   }
-   pub fn unparse_ast_kind(&mut self, p: Pair<crate::tlc::Rule>) -> Result<TlcKind,Error> {
-      match p.as_rule() {
-         Rule::kind => {
-            let mut ps = p.into_inner();
-            let kg = ps.next().expect("TLC Grammar Error in rule [kind]").into_inner().concat();
-            let ks = ps.map(|k|self.unparse_ast_kind(k).expect("TLC Grammar Error in rule [kind.2]"))
-                       .collect::<Vec<TlcKind>>();
-            Ok(TlcKind::Simple(self.uuid(),kg,ks))
-         }
-         rule => panic!("unexpected kind rule: {:?}", rule)
-      }
-   }
-   pub fn typof_var(&self, scope: Option<usize>, v: &str, vid: usize) -> Typ {
-      if let Some(sc) = self.scopes.get(&scope.unwrap_or(0)) {
-         if let Some(cs) = sc.children.get(v) {
-            let mut ts = Vec::new();
-            for c in cs.iter() {
-               ts.push(self.typof(c.id()));
-            }
-            if ts.len()==0 { Typ::Nil(vid) }
-            else if ts.len()==1 { ts[0].clone() }
-            else { Typ::Or(vid,ts) }
-         } else {
-            panic!("could not find variable {} in scope#{}", v, scope.unwrap_or(0))
-         }
-      } else {
-         panic!("could not find scope#{}", scope.unwrap_or(0))
-      }
-   }
-   pub fn typof(&self, tid: usize) -> Typ {
-      match self.typeof_exprs.get(&tid) {
-         Some(tt) => tt.clone(),
-         None => {
-            if self.debug { panic!("Could not find typeof expressions {}#{}", self.estring(tid), tid) }
-            else { panic!("Could not find typeof expression #{}", tid) }
-         }
-      }
-   }
-   pub fn locof(&mut self, tid: usize) -> (String,(usize,usize),(usize,usize)) {
-      if let Some(loc) = self.locations.get(&tid) {
-         loc.clone()
-      } else {
-         ("unknown file".to_string(), (0,0), (0,0))
-      }
-   }
    pub fn unify(&mut self, tid: usize, lt: &Typ, rt: &Typ) -> Result<Typ,Error> {
       match (lt,rt) {
          (Typ::Any(_),r) => Ok(r.clone()),
@@ -815,9 +717,6 @@ impl TLC {
    pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),Error> {
       let tt = self.typof(tid);
       self.typecheck_concrete_rec(tid, &tt)
-   }
-   pub fn estring(&self, tid: usize) -> String {
-      self.debug_symbols.get(&tid).unwrap_or(&format!("??#{}::expr", tid)).to_string()
    }
    pub fn typecheck_concrete_rec(&mut self, tid: usize, tt: &Typ) -> Result<(),Error> {
       match tt {
@@ -925,37 +824,4 @@ impl TLC {
          Term::Ascript(id,e,t) => { panic!("TODO typecheck.6 {:?}", e) },
       }
    }
-   pub fn sanitycheck(&mut self, scope: Option<usize>, e: &Term) -> Result<(),Error> {
-      match e {
-         //ignore
-         Term::Forall(_,_,_,_) => { Ok(()) },
-         Term::Typedef(_,_,_) => { Ok(()) },
-
-         //check that all expression types are concrete
-         Term::Assume(id) => { Ok(()) },
-         Term::Nil(id) => { let tt = self.typof(*id); self.unify(*id,&tt,&Typ::Nil(*id))?; Ok(()) },
-         Term::Block(id,cs) => {
-            for c in cs.iter() {
-               self.sanitycheck(scope, c)?;
-            }
-            self.typecheck_concrete(*id)
-         },
-         Term::Let(id,x,v,t) => {
-            self.typecheck_concrete(*id)?;
-            self.typecheck_concrete_rec(*id, t)?;
-            self.sanitycheck(scope, v)?;
-            Ok(())
-         },
-         Term::Ident(id,_) => { self.typecheck_concrete(*id) },
-         Term::App(id,f,x) => {
-            self.typecheck_concrete(f.id())?;
-            self.typecheck_concrete(x.id())?;
-            self.typecheck_concrete(*id)
-         },
-         _ => panic!("TODO sanitycheck {:?}", e)
-         Term::Tuple(id,es) => { self.typecheck_concrete(*id) },
-         Term::Ascript(id,e,t) => { self.typecheck_concrete(*id) },
-      }
-   }
-}
 */
