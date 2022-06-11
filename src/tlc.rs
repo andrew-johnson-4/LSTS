@@ -214,7 +214,6 @@ impl TLC {
          regexes: Vec::new(),
       }
    }
-
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
          Term::Assume => format!("$"),
@@ -247,7 +246,7 @@ impl TLC {
    pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
       let ast = self.parse_doc(docname, src)?;
       self.compile_rules(docname)?;
-      self.typecheck(globals, ast)?;
+      self.typecheck(globals, ast, None)?;
       Ok(ast)
    }
    pub fn kind_of(&self, t: &Typ) -> Kind {
@@ -680,9 +679,19 @@ impl TLC {
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
    }
-   pub fn typecheck(&mut self, _scope: Option<ScopeId>, tid: TermId) -> Result<(),Error> {
-      eprintln!("typecheck term: {:?}", self.print_term(tid));
-      //TODO typecheck term
+   pub fn typecheck(&mut self, _scope: Option<ScopeId>, t: TermId, _implied: Option<Typ>) -> Result<(),Error> {
+      let mut stis = Vec::new();
+      match &self.rows[t.id].term {
+         Term::Block(sid,es) => {
+            for e in es.iter() {
+               stis.push((Some(*sid), *e, None));
+            }
+         },
+         _ => panic!("TODO typecheck term: {}", self.print_term(t))
+      };
+      for (s,t,i) in stis.into_iter() {
+         self.typecheck(s, t, i)?;
+      }
       Ok(())
    }
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
@@ -766,64 +775,6 @@ impl TLC {
                snippet: format!("{}#0",tname),
             })
          }, _ => Ok(())
-      }
-   }
-   pub fn typecheck(&mut self, scope: Option<usize>, e: &Term) -> Result<(),Error> {
-      match e {
-         Term::Assume(_) => { Ok(()) },
-         Term::Forall(_,_,_,_) => { Ok(()) },
-         Term::Typedef(_,_,_) => { Ok(()) },
-         Term::Nil(id) => { self.typeof_exprs.insert(*id, Typ::Nil(*id)); Ok(()) },
-         Term::Ident(id,v) => {
-            let vt = self.typof_var(scope, v, *id);
-            self.typecheck_concrete_rec(*id, &vt)?;
-            self.typeof_exprs.insert(*id, vt);
-            Ok(())
-         },
-         Term::App(id,f,x) => {
-            self.typecheck(scope,f)?;
-            self.typecheck(scope,x)?;
-            let ft = self.typof(f.id());
-            let xt = self.typof(x.id());
-            let rt = self.unify(*id, &Typ::Arrow(*id,Box::new(xt),Box::new(Typ::Any(*id))), &ft)?;
-            self.typeof_exprs.insert(*id, rt);
-            Ok(())
-         },
-         Term::Let(id,x,v,t) => {
-            //variable has already been added to scope by desugar method
-            self.typeof_exprs.insert(*id, *t.clone());
-            self.typeof_exprs.insert(v.id(), *t.clone());
-            self.typecheck(scope, v)
-         },
-         Term::Tuple(id,es) => { panic!("TODO typecheck.4 {:?}", e) },
-         Term::Block(id,cs) => {
-            let (stmts,children) = if let Some(sc) = self.scopes.get(id) {(
-               sc.statements.clone(),
-               sc.children.clone(),
-            )} else { panic!("typecheck could not find block#{}", id) };
-
-            //step 1, typecheck variable declarations
-            for (cn,cs) in children.iter() {
-               for ch in cs.iter() {
-                  self.typecheck(Some(*id), ch)?;
-               }
-            }
-
-            //step 2, typecheck block statements
-            let mut last_stmt_typ = Typ::Nil(*id);
-            for stmt in stmts.iter() {
-               self.typecheck(Some(*id), stmt)?;
-               if let Some(stmt_typ) = self.typeof_exprs.get(&stmt.id()) {
-                  last_stmt_typ = stmt_typ.clone(); 
-               } else {
-                  panic!("typecheck did not set a type for {:?}::expr", stmt);
-               }
-            }
-            self.typeof_exprs.insert(*id, last_stmt_typ);
-
-            Ok(())
-         },
-         Term::Ascript(id,e,t) => { panic!("TODO typecheck.6 {:?}", e) },
       }
    }
 */
