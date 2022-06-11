@@ -679,12 +679,23 @@ impl TLC {
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
    }
-   pub fn typecheck(&mut self, _scope: Option<ScopeId>, t: TermId, _implied: Option<Typ>) -> Result<(),Error> {
-      let mut stis = Vec::new();
+   pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
+      let mut stis: Vec<(Option<ScopeId>,TermId,Option<Typ>)> = Vec::new();
       match &self.rows[t.id].term {
+         Term::Assume => (),
+         Term::Nil => {
+            if let Some(i) = implied { if i!=Typ::Nil {
+               panic!("typecheck expected () : {:?}", i)
+            }}
+         },
          Term::Block(sid,es) => {
             for e in es.iter() {
                stis.push((Some(*sid), *e, None));
+            }
+         },
+         Term::Let(_v,_ps,b,rt,_rk) => {
+            if let Some(b) = b {
+               stis.push((scope.clone(),*b,Some(rt.clone())));
             }
          },
          _ => panic!("TODO typecheck term: {}", self.print_term(t))
