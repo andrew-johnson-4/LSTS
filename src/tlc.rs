@@ -190,32 +190,6 @@ pub enum Term {
    Block(ScopeId,Vec<TermId>),
    Ascript(TermId,Typ),
 }
-impl std::fmt::Debug for Term {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-           Term::Assume => write!(f, "$"),
-           Term::Nil => write!(f, "()"),
-           Term::Ident(x) => write!(f, "{}", x),
-           Term::App(g,x) => write!(f, "{:?}({:?})", g.id, x.id),
-           Term::Let(v,_ps,_b,_rt,_rk) => write!(f, "let {}", v),
-           Term::Ascript(t,tt) => write!(f, "{:?}:{:?}", t.id, tt),
-           Term::Tuple(es) => {
-              write!(f, "(")?;
-              for e in es.iter() {
-                 write!(f, "{:?},", e.id)?;
-              }
-              write!(f, ")")
-           },
-           Term::Block(_,es) => {
-              write!(f, "{{")?;
-              for e in es.iter() {
-                 write!(f, "{:?};", e.id)?;
-              }
-              write!(f, "}}")
-           },
-	}
-    }
-}
 
 impl TLC {
    pub fn new() -> TLC {
@@ -235,6 +209,23 @@ impl TLC {
          }],
          rules: Vec::new(),
          scopes: Vec::new(),
+      }
+   }
+
+   pub fn print_term(&self, t: TermId) -> String {
+      match &self.rows[t.id].term {
+         Term::Assume => format!("$"),
+         Term::Nil => format!("()"),
+         Term::Ident(x) => format!("{}", x),
+         Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
+         Term::Let(v,_ps,_b,_rt,_rk) => format!("let {}", v),
+         Term::Ascript(t,tt) => format!("{}:{:?}", self.print_term(*t), tt),
+         Term::Tuple(es) => {
+            format!("({})", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(","))
+         },
+         Term::Block(_,es) => {
+            format!("{{{}}}", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(";"))
+         },
       }
    }
 
@@ -682,7 +673,8 @@ impl TLC {
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
    }
-   pub fn typecheck(&mut self, _scope: Option<ScopeId>, _term: TermId) -> Result<(),Error> {
+   pub fn typecheck(&mut self, _scope: Option<ScopeId>, tid: TermId) -> Result<(),Error> {
+      eprintln!("typecheck term: {:?}", self.print_term(tid));
       //TODO typecheck term
       Ok(())
    }
