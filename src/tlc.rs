@@ -135,14 +135,22 @@ pub enum Typedef {
 
 #[derive(Clone)]
 pub enum TypeRule {
-   Typedef(String,Vec<(Option<String>,Option<Typ>,Option<Kind>)>,Option<Typ>,Option<Typedef>,Option<Kind>),
+   Typedef(String,Vec<(Option<String>,Option<Typ>,Option<Kind>)>,Option<Typ>,Option<Typedef>,Option<Kind>,Span),
 
-   Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>),
+   Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>,Span),
+}
+impl TypeRule {
+   pub fn span(&self) -> Span {
+      match self {
+         TypeRule::Typedef(_,_,_,_,_,sp) => sp.clone(),
+         TypeRule::Forall(_,_,_,_,sp) => sp.clone(),
+      }
+   }
 }
 impl std::fmt::Debug for TypeRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           TypeRule::Typedef(tn,itks,implies,_td,tk) => write!(f, "{}{}{}{}{}::{:?}",
+           TypeRule::Typedef(tn,itks,implies,_td,tk,_) => write!(f, "{}{}{}{}{}::{:?}",
               tn,
               if itks.len()==0 { "" } else { "<" },
               itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
@@ -154,7 +162,7 @@ impl std::fmt::Debug for TypeRule {
               if let Some(ti) = implies { format!(":{:?}",ti) } else { format!("") },
               tk
            ),
-           TypeRule::Forall(itks,inf,_t,tk) => write!(f, "forall {}. {:?} :: {:?}", 
+           TypeRule::Forall(itks,inf,_t,tk,_) => write!(f, "forall {}. {:?} :: {:?}", 
               itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
                     i.clone().unwrap_or("_".to_string()),
                     t.clone().unwrap_or(Typ::Nil),
@@ -249,18 +257,18 @@ impl TLC {
    }
    pub fn kind_of(&self, t: &Typ) -> Kind {
       for rule in self.rules.iter() { match rule {
-         TypeRule::Typedef(tt,_tps,_implies,_td,k) => { if &format!("{:?}",t)==tt {
+         TypeRule::Typedef(tt,_tps,_implies,_td,k,_) => { if &format!("{:?}",t)==tt {
             return k.clone().unwrap_or(Kind::Simple("Term".to_string(),Vec::new()));
          }},
          _ => ()
       }}
       Kind::Nil //undefined types have Nil kind
    }
-   pub fn compile_rules(&mut self, docname:&str) -> Result<(),Error> {
+   pub fn compile_rules(&mut self, _docname:&str) -> Result<(),Error> {
 
       //check logical consistency of foralls
       for rule in self.rules.iter() { match rule {
-         TypeRule::Forall(qs,inf,_t,k) => {
+         TypeRule::Forall(qs,inf,_t,k,sp) => {
             //check if domain is explicit
             if k.clone().unwrap_or(Kind::Nil) != Kind::Nil { continue; }
 
@@ -289,14 +297,8 @@ impl TLC {
                      domains.iter().map(|(t,_k)|format!("{:?}",t)).collect::<Vec<String>>().join(","),
                      domains.iter().map(|(_t,k)|format!("{:?}",k)).collect::<Vec<String>>().join(",")
                   ),
-                  span: Span {
-                     filename:docname.to_string(),
-                     offset_start: 0,
-                     offset_end: 0,
-                     linecol_start: (0,0),
-                     linecol_end: (0,0),
-                  },
-                  snippet: "".to_string()
+                  span: sp.clone(),
+                  snippet: sp.snippet(),
                })
             }
          },
@@ -499,7 +501,8 @@ impl TLC {
                itks,
                implies,
                typedef,
-               kind
+               kind,
+               span
             ));
             Ok(TermId { id:0 })
          },
@@ -532,7 +535,8 @@ impl TLC {
                quants,
                inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
                term,
-               kind
+               kind,
+               span
             ));
             Ok(TermId { id:0 })
          },
