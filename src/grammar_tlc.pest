@@ -12,7 +12,9 @@ alnumop = { 'a'..'z' | 'A'..'Z' | '0'..'9' | "+" | "-" | "_" }
 
 typname  = { upper ~ alpha* }
 kindname = { upper ~ alpha* }
-ident    = { !("let" | "forall" | "type") ~ ((alphal ~ (alphal | digit)*) | ("$\"" ~ (!("\"") ~ ANY)+ ~ "\"")) }
+simplename = { alphal ~ (alphal | digit)* }
+quotedname = { "$\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
+ident    = { !("let" | "forall" | "type") ~ (simplename | quotedname) }
 constant = { digit ~ digital* ~ (("e"|"E") ~ ("+" | "-")? ~ digital+)? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 

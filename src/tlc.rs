@@ -360,6 +360,10 @@ impl TLC {
       self.scopes.push(scope);
       ScopeId { id: index }
    }
+   pub fn into_ident(&self, n: String) -> String {
+      if n.starts_with("$") { n[2..n.len()-1].to_string() }
+      else { n }
+   }
    pub fn unparse_ast(&mut self, scope:&Option<ScopeId>, fp:&str, p: Pair<crate::tlc::Rule>) -> Result<TermId,Error> {
       let span = Span {
          filename: fp.to_string(),
@@ -407,13 +411,13 @@ impl TLC {
          Rule::infix_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [infix_term]")),
 
          //literal value rules
-         Rule::ident => Ok(self.push_term(Term::Ident(p.into_inner().concat()), &span)),
+         Rule::ident => Ok(self.push_term(Term::Ident(self.into_ident(p.into_inner().concat())), &span)),
          Rule::constant => Ok(self.push_term(Term::Ident(p.into_inner().concat()), &span)),
 
          //complex rules
          Rule::let_stmt => {
             let mut ps = p.into_inner();
-            let ident  = ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat();
+            let ident  = self.into_ident(ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat());
             let mut pars: Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>> = Vec::new();
             let mut rt = Typ::Nil;
             let mut rk = Kind::Nil;
