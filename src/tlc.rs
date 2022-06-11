@@ -185,7 +185,7 @@ pub enum Term {
    Nil,
    Ident(String),
    App(TermId,TermId),
-   Let(String,TermId,Typ),
+   Let(String,Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>>,Option<TermId>,Typ,Kind),
    Tuple(Vec<TermId>),
    Block(ScopeId,Vec<TermId>),
    Ascript(TermId,Typ),
@@ -197,7 +197,7 @@ impl std::fmt::Debug for Term {
            Term::Nil => write!(f, "()"),
            Term::Ident(x) => write!(f, "{}", x),
            Term::App(g,x) => write!(f, "{:?}({:?})", g.id, x.id),
-           Term::Let(v,x,t) => write!(f, "let {}: {:?} = {:?}", v, t, x.id),
+           Term::Let(v,_ps,_b,_rt,_rk) => write!(f, "let {}", v),
            Term::Ascript(t,tt) => write!(f, "{:?}:{:?}", t.id, tt),
            Term::Tuple(es) => {
               write!(f, "(")?;
@@ -417,12 +417,35 @@ impl TLC {
 
          //complex rules
          Rule::let_stmt => {
-            //TODO parse let stmt parameters
-            Ok(self.push_term(Term::Assume, &span))
-         },
-         Rule::let_stmt_par => {
-            //TODO parse let stmt parameters
-            Ok(self.push_term(Term::Assume, &span))
+            let mut ps = p.into_inner();
+            let ident  = ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat();
+            let mut pars: Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>> = Vec::new();
+            let mut rt = Typ::Nil;
+            let mut rk = Kind::Nil;
+            let mut t  = None;
+            for e in ps { match e.as_rule() {
+               Rule::let_stmt_par => {
+                  let mut itks = Vec::new();
+                  for itkse in e.into_inner() {
+                     let mut ident = None;
+                     let mut typ   = None;
+                     let mut kind  = None;
+                     for itk in itkse.into_inner() { match itk.as_rule() {
+                        Rule::ident => { ident = Some(itk.into_inner().concat()); },
+                        Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)?); },
+                        Rule::kind   => { kind = Some(self.unparse_ast_kind(itk)?); },
+                        rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
+                     }}
+                     itks.push((ident,typ,kind));
+                  }
+                  pars.push(itks);
+               },
+               Rule::typ => { rt = self.unparse_ast_typ(e)?; },
+               Rule::kind => { rk = self.unparse_ast_kind(e)?; },
+               Rule::term => { t = Some(self.unparse_ast(scope,fp,e)?); },
+               rule => panic!("unexpected let_stmt rule: {:?}", rule),
+            }}
+            Ok(self.push_term(Term::Let(ident,pars,t,rt,rk), &span))
          },
          Rule::ascript_term => {
             let mut es = p.into_inner();
