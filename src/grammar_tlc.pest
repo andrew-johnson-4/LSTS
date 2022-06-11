@@ -9,7 +9,7 @@ digital = { '0'..'9' | "_" }
 alnumop = { 'a'..'z' | 'A'..'Z' | '0'..'9' | "+" | "-" | "_" }
 
 ident    = { !("let" | "forall" | "type") ~ ((alphal ~ (alphal | digit)*) | ("$\"" ~ (!"\"" ~ ANY) ~ "\"")) }
-constant = { !("let" | "forall" | "type") ~ digit ~ digital* ~ (("e"|"E") ~ ("+" | "-")? ~ digital+)? }
+constant = { digit ~ digital* ~ (("e"|"E") ~ ("+" | "-")? ~ digital+)? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
 divmul_op = { "/" | "*" | "%" }
