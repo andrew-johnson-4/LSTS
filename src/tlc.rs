@@ -129,9 +129,14 @@ impl Inference {
 }
 
 #[derive(Clone)]
+pub enum Typedef {
+   Nil
+}
+
+#[derive(Clone)]
 pub enum TypeRule {
    //type Deca<U::Unit> :: Unit;
-   Typedef(String,Vec<(Option<String>,Option<Typ>,Option<Kind>)>,Option<Kind>),
+   Typedef(String,Vec<(Option<String>,Option<Typ>,Option<Kind>)>,Option<Typ>,Option<Typedef>,Option<Kind>),
 
    //forall A,B,1,2. (A,B,1,2) => (B,1,2) :: A<B,1,2>;
    //forall U,u:Milli<U>. Milli<U> => U = 1000 * u;
@@ -140,7 +145,7 @@ pub enum TypeRule {
 impl std::fmt::Debug for TypeRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           TypeRule::Typedef(tn,itks,tk) => write!(f, "{}{}{}{}::{:?}",
+           TypeRule::Typedef(tn,itks,implies,_td,tk) => write!(f, "{}{}{}{}{}::{:?}",
               tn,
               if itks.len()==0 { "" } else { "<" },
               itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
@@ -149,6 +154,7 @@ impl std::fmt::Debug for TypeRule {
                     k.clone().unwrap_or(Kind::Nil),
               )).collect::<Vec<String>>().join(","),
               if itks.len()==0 { "" } else { ">" },
+              if let Some(ti) = implies { format!(":{:?}",ti) } else { format!("") },
               tk
            ),
            TypeRule::Forall(itks,inf,_t,tk) => write!(f, "forall {}. {:?} :: {:?}", 
@@ -246,7 +252,7 @@ impl TLC {
    }
    pub fn kind_of(&self, t: &Typ) -> Kind {
       for rule in self.rules.iter() { match rule {
-         TypeRule::Typedef(tt,_tps,k) => { if &format!("{:?}",t)==tt {
+         TypeRule::Typedef(tt,_tps,_implies,_td,k) => { if &format!("{:?}",t)==tt {
             return k.clone().unwrap_or(Kind::Simple("Term".to_string(),Vec::new()));
          }},
          _ => ()
@@ -453,25 +459,33 @@ impl TLC {
          Rule::typ_stmt => {
             let mut ps = p.into_inner();
             let t = ps.next().expect("TLC Grammar Error in rule [typ_stmt.1]").into_inner().concat();
-            let ts = Vec::new();
-            let kind = None;
+            let mut implies = None;
+            let mut itks = Vec::new();
+            let mut typedef = None;
+            let mut kind = None;
             for e in ps { match e.as_rule() {
                Rule::ident_typ_kind => {
-                  let mut _ident = None;
-                  let mut _typ = None;
-                  let mut _kind = None;
+                  let mut ident = None;
+                  let mut typ = None;
+                  let mut kind = None;
                   for itk in e.into_inner() { match itk.as_rule() {
-                     Rule::ident => { _ident = Some(itk.into_inner().concat()); },
-                     Rule::typ   => { _typ   = Some(self.unparse_ast_typ(itk)); },
-                     Rule::kind   => { _kind   = Some(self.unparse_ast_kind(itk)); },
+                     Rule::ident => { ident = Some(itk.into_inner().concat()); },
+                     Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)?); },
+                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(itk)?); },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
+                  itks.push((ident,typ,kind));
                },
+               Rule::typ => { implies = Some(self.unparse_ast_typ(e)?); },
+               Rule::typedef => { typedef = None; /* TODO: implement */ },
+               Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); },
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
             self.rules.push(TypeRule::Typedef(
                t,
-               ts,
+               itks,
+               implies,
+               typedef,
                kind
             ));
             Ok(TermId { id:0 })
