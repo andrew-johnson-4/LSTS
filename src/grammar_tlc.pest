@@ -8,6 +8,8 @@ digit = { '0'..'9' }
 digital = { '0'..'9' | "_" }
 alnumop = { 'a'..'z' | 'A'..'Z' | '0'..'9' | "+" | "-" | "_" }
 
+typname  = { 'A'..'Z' ~ alpha* }
+kindname = { 'A'..'Z' ~ alpha* }
 ident    = { !("let" | "forall" | "type") ~ ((alphal ~ (alphal | digit)*) | ("$\"" ~ (!"\"" ~ ANY) ~ "\"")) }
 constant = { digit ~ digital* ~ (("e"|"E") ~ ("+" | "-")? ~ digital+)? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
@@ -26,7 +28,7 @@ infix_term = { addsub_term }
 ascript_term = { infix_term ~ (":" ~ typ)? }
 term = { ascript_term }
 
-ident_typ = { ident }
+ident_typ = { typname }
 any_typ = { "?" }
 paren_typ = { "(" ~ (typ ~ ("," ~ typ)*)? ~ ")" }
 angle_typ = { "<" ~ (typ ~ ("," ~ typ)*)? ~ ">" }
@@ -40,7 +42,7 @@ and_typ    = { arrow_typ ~ ("+" ~ arrow_typ)* }
 or_typ    = { and_typ ~ ("|" ~ and_typ)* }
 typ       = { or_typ }
 
-kind      = { ident ~ ("<" ~ kind? ~ ("," ~ kind)* ~ ">")? }
+kind      = { kindname ~ ("<" ~ kind? ~ ("," ~ kind)* ~ ">")? }
 
 let_stmt = { "let" ~ ident ~ let_stmt_par? ~ (":" ~ typ)? ~ ("::" ~ kind)? ~ ("=" ~ term)? }
 let_stmt_par = { "(" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ ")" }

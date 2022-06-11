@@ -529,7 +529,7 @@ impl TLC {
    }
    pub fn unparse_ast_typ(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Typ,Error> {
       match p.as_rule() {
-         Rule::ident => Ok(Typ::Ident(p.into_inner().concat(),Vec::new())),
+         Rule::typname => Ok(Typ::Ident(p.into_inner().concat(),Vec::new())),
          Rule::typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
          Rule::ident_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [ident_typ]")),
          Rule::atom_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
@@ -608,15 +608,15 @@ impl TLC {
    pub fn unparse_ast_kind(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Kind,Error> {
       match p.as_rule() {
          Rule::kind => {
-            let mut ident = "Nil".to_string();
+            let mut name = "Nil".to_string();
             let mut kinds = Vec::new();
             for e in p.into_inner() { match e.as_rule() {
-               Rule::ident => { ident = e.into_inner().concat(); },
+               Rule::kindname => { name = e.into_inner().concat(); },
                Rule::kind  => { kinds.push(self.unparse_ast_kind(e)?); },
                rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
             }}
-            if ident=="Nil" { Ok(Kind::Nil) }
-            else { Ok(Kind::Simple(ident, kinds)) }
+            if name=="Nil" { Ok(Kind::Nil) }
+            else { Ok(Kind::Simple(name, kinds)) }
          },
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
