@@ -32,7 +32,7 @@ LSTS does not ensure against all forms of logical errors, however it does compla
     //accept: (A,B) share a domain (Term,Term)
     
     type A; forall :B. A => B :: Term
-    //accept: (A,B) share a domain (Term,Term)
+    //accept: (A,B) must share a domain (Term,Term)
     
     /* Types are polymorphic by default */
     
