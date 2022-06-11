@@ -401,8 +401,7 @@ impl TLC {
          //passthrough rules
          Rule::stmt => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]")),
          Rule::term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [term]")),
-         Rule::ident_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [ident_term]")),
-         Rule::tuple_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [tuple_term]")),
+         Rule::value_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [value_term]")),
 
          //literal value rules
          Rule::ident => Ok(self.push_term(Term::Ident(p.into_inner().concat()), &span)),
@@ -427,9 +426,9 @@ impl TLC {
                ); self.push_term(t, &span)}),
             }
          },
-         Rule::term_atom => {
+         Rule::atom_term => {
             let mut es = p.into_inner();
-            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [term_atom]"))?;
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [atom_term]"))?;
             for args in es {
                e = {let t = Term::App(
                   e,
@@ -438,8 +437,8 @@ impl TLC {
             }
             Ok(e)
          },
-         Rule::paren_atom => {
-            let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e).expect("TLC Grammar Error in rule [paren_atom]"))
+         Rule::tuple_term => {
+            let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e).expect("TLC Grammar Error in rule [tuple_term]"))
                       .collect::<Vec<TermId>>();
             if es.len()==0 {
                Ok(self.push_term(Term::Nil, &span))
@@ -564,6 +563,26 @@ impl TLC {
                //TODO parameterized types and bracketed types
             //}
             Ok(t)
+         },
+         Rule::ratio_typ => {
+            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [ratio_typ.1]"))
+                      .collect::<Vec<Typ>>();
+            if ts.len()==1 {
+               Ok(ts[0].clone())
+            } else if ts.len()==2 {
+               Ok(Typ::Ratio(Box::new(ts[0].clone()),Box::new(ts[1].clone())))
+            } else {
+               panic!("TLC Grammar Error in rule [ratio_typ.2]")
+            }
+         },
+         Rule::product_typ => {
+            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [or_typ]"))
+                      .collect::<Vec<Typ>>();
+            if ts.len()==1 {
+               Ok(ts[0].clone())
+            } else {
+               Ok(Typ::Product(ts))
+            }
          },
          Rule::or_typ => {
             let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [or_typ]"))

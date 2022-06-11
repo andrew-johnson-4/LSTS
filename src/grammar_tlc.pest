@@ -3,18 +3,27 @@ COMMENT = _{ ("/*" ~ (!"*/" ~ ANY)* ~ "*/") |
              ("//" ~ (!"\n" ~ ANY)*) }
 
 alpha = { 'a'..'z' | 'A'..'Z' }
+alphal = { 'a'..'z' | 'A'..'Z' | "_" | "." }
 digit = { '0'..'9' }
+digital = { '0'..'9' | "_" }
+alnumop = { 'a'..'z' | 'A'..'Z' | '0'..'9' | "+" | "-" | "_" }
 
-ident = { !("let" | "forall" | "type") ~ (alpha | digit)+ }
+ident    = { !("let" | "forall" | "type") ~ alphal ~ (alphal | digit)* }
+constant = { !("let" | "forall" | "type") ~ digit ~ digital* ~ (("e"|"E") ~ ("+" | "-")? ~ digital+)? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
-ident_term = { ident }	
-tuple_term = { paren_atom }
-ascript_term = { term_atom ~ (":" ~ typ)? }
+divmul_op = { "/" | "*" | "%" }
+addsub_op = { "+" | "-" }
 
-paren_atom = { "(" ~ (term ~ ("," ~ term)*)? ~ ")" }
-term_atom = { (ident_term | tuple_term) ~ (paren_atom)* }
-
+value_term = { ident | constant }
+app_term = { (tuple_term | value_term) ~ (tuple_term)* }
+tuple_term = { "(" ~ (term ~ ("," ~ term)*)? ~ ")" }
+atom_term  = { app_term }
+prefix_term = { atom_term }
+divmul_term = { prefix_term ~ (divmul_op ~ prefix_term)* }
+addsub_term = { divmul_term ~ (addsub_op ~ divmul_term)* }
+infix_term = { addsub_term }
+ascript_term = { infix_term ~ (":" ~ typ)? }
 term = { ascript_term }
 
 ident_typ = { ident }
@@ -24,7 +33,9 @@ angle_typ = { "<" ~ (typ ~ ("," ~ typ)*)? ~ ">" }
 brack_typ = { "[" ~ (typ ~ ("," ~ typ)*)? ~ "]" }
 atom_typ  = { any_typ | paren_typ | ident_typ }
 suffix_typ = { atom_typ ~ (brack_typ | angle_typ)* }
-arrow_typ = { suffix_typ ~ ("->" ~ suffix_typ)* }
+product_typ = { suffix_typ ~ ("*" ~ suffix_typ)* }
+ratio_typ = { product_typ ~ ("/" ~ product_typ)? }
+arrow_typ = { ratio_typ ~ ("->" ~ ratio_typ)* }
 and_typ    = { arrow_typ ~ ("+" ~ arrow_typ)* }
 or_typ    = { and_typ ~ ("|" ~ and_typ)* }
 typ       = { or_typ }
