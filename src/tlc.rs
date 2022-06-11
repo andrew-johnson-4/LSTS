@@ -135,11 +135,8 @@ pub enum Typedef {
 
 #[derive(Clone)]
 pub enum TypeRule {
-   //type Deca<U::Unit> :: Unit;
    Typedef(String,Vec<(Option<String>,Option<Typ>,Option<Kind>)>,Option<Typ>,Option<Typedef>,Option<Kind>),
 
-   //forall A,B,1,2. (A,B,1,2) => (B,1,2) :: A<B,1,2>;
-   //forall U,u:Milli<U>. Milli<U> => U = 1000 * u;
    Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>),
 }
 impl std::fmt::Debug for TypeRule {
@@ -559,7 +556,10 @@ impl TLC {
    }
    pub fn unparse_ast_typ(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Typ,Error> {
       match p.as_rule() {
-         Rule::typname => Ok(Typ::Ident(p.into_inner().concat(),Vec::new())),
+         Rule::typname => {
+            let name = p.into_inner().concat();
+            Ok(Typ::Ident(name,Vec::new()))
+         },
          Rule::typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
          Rule::ident_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [ident_typ]")),
          Rule::atom_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),

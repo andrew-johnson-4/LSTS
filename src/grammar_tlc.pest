@@ -2,14 +2,16 @@ WHITESPACE = _{ " " | "\n" }
 COMMENT = _{ ("/*" ~ (!"*/" ~ ANY)* ~ "*/") |
              ("//" ~ (!"\n" ~ ANY)*) }
 
+upper = { 'A'..'Z' }
+lower = { 'a'..'z' }
 alpha = { 'a'..'z' | 'A'..'Z' }
 alphal = { 'a'..'z' | 'A'..'Z' | "_" | "." }
 digit = { '0'..'9' }
 digital = { '0'..'9' | "_" | "." }
 alnumop = { 'a'..'z' | 'A'..'Z' | '0'..'9' | "+" | "-" | "_" }
 
-typname  = { 'A'..'Z' ~ alpha* }
-kindname = { 'A'..'Z' ~ alpha* }
+typname  = { upper ~ alpha* }
+kindname = { upper ~ alpha* }
 ident    = { !("let" | "forall" | "type") ~ ((alphal ~ (alphal | digit)*) | ("$\"" ~ (!"\"" ~ ANY) ~ "\"")) }
 constant = { digit ~ digital* ~ (("e"|"E") ~ ("+" | "-")? ~ digital+)? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
