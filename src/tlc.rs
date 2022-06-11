@@ -408,9 +408,13 @@ impl TLC {
          Rule::stmt => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]")),
          Rule::term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [term]")),
          Rule::value_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [value_term]")),
+         Rule::atom_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_term]")),
+         Rule::prefix_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [prefix_term]")),
+         Rule::infix_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [infix_term]")),
 
          //literal value rules
          Rule::ident => Ok(self.push_term(Term::Ident(p.into_inner().concat()), &span)),
+         Rule::constant => Ok(self.push_term(Term::Ident(p.into_inner().concat()), &span)),
 
          //complex rules
          Rule::let_stmt => {
@@ -432,7 +436,7 @@ impl TLC {
                ); self.push_term(t, &span)}),
             }
          },
-         Rule::atom_term => {
+         Rule::app_term => {
             let mut es = p.into_inner();
             let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [atom_term]"))?;
             for args in es {
@@ -441,6 +445,18 @@ impl TLC {
                   self.unparse_ast(scope,fp,args)?
                ); self.push_term(t,&span)};
             }
+            Ok(e)
+         },
+         Rule::divmul_term => {
+            let mut es = p.into_inner();
+            let e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [divmul_term]"))?;
+            //TODO: combine terms
+            Ok(e)
+         },
+         Rule::addsub_term => {
+            let mut es = p.into_inner();
+            let e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [addsub_term]"))?;
+            //TODO: combine terms
             Ok(e)
          },
          Rule::tuple_term => {
