@@ -12,7 +12,7 @@ alnumop = { 'a'..'z' | 'A'..'Z' | '0'..'9' | "+" | "-" | "_" }
 
 typname  = { upper ~ alpha* }
 kindname = { upper ~ alpha* }
-ident    = { !("let" | "forall" | "type") ~ ((alphal ~ (alphal | digit)*) | ("$\"" ~ (!"\"" ~ ANY) ~ "\"")) }
+ident    = { !("let" | "forall" | "type") ~ ((alphal ~ (alphal | digit)*) | ("$\"" ~ (!("\"") ~ ANY)+ ~ "\"")) }
 constant = { digit ~ digital* ~ (("e"|"E") ~ ("+" | "-")? ~ digital+)? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
@@ -49,8 +49,9 @@ kind      = { kindname ~ ("<" ~ kind? ~ ("," ~ kind)* ~ ">")? }
 let_stmt = { "let" ~ ident ~ let_stmt_par? ~ (":" ~ typ)? ~ ("::" ~ kind)? ~ ("=" ~ term)? }
 let_stmt_par = { "(" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ ")" }
 
-typedef_branch = { ident }
-typedef = { typedef_branch ~ ("|" ~ typedef_branch) }
+regex = { "/" ~ (!"/" ~ ANY)+ ~ "/" }
+typedef_branch = { regex | typname }
+typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
 typ_stmt = { "type" ~ ident ~ ("<" ~ ident_typ_kind ~ ("," ~ ident_typ_kind)* ~ ">")? ~ (":" ~ typ)? ~ ("=" ~ typedef)? ~ ("::" ~ kind)? }
 
 inference = { typ ~ ("=>" ~ typ)? }
