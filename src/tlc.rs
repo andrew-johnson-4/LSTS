@@ -683,26 +683,33 @@ impl TLC {
       let mut stis: Vec<(Option<ScopeId>,TermId,Option<Typ>)> = Vec::new();
       match &self.rows[t.id].term {
          Term::Assume => (),
-         Term::Nil => {
-            if let Some(i) = implied { if i!=Typ::Nil {
-               panic!("typecheck expected () : {:?}", i)
-            }}
-         },
+         Term::Nil => {},
          Term::Block(sid,es) => {
             for e in es.iter() {
                stis.push((Some(*sid), *e, None));
             }
          },
          Term::Let(_v,_ps,b,rt,_rk) => {
-            if let Some(b) = b {
+            if let Some(ref b) = b {
                stis.push((scope.clone(),*b,Some(rt.clone())));
             }
          },
+         Term::Ascript(x,tt) => {
+            stis.push((scope.clone(),*x,Some(tt.clone())));
+         },
+         Term::Ident(x) => {
+            if let Some(ref i) = implied {
+               panic!("TODO: hard cast {} into type {:?}", x, i)
+            }
+	 },
          _ => panic!("TODO typecheck term: {}", self.print_term(t))
       };
       for (s,t,i) in stis.into_iter() {
          self.typecheck(s, t, i)?;
-      }
+      };
+      if let Some(ref i) = implied {
+         panic!("TODO: soft check that current term is {:?}", i);
+      };
       Ok(())
    }
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
