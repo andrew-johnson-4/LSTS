@@ -132,7 +132,6 @@ impl Inference {
 
 #[derive(Clone)]
 pub enum Typedef {
-   Nil,
    Regex(String),
 }
 
@@ -302,14 +301,14 @@ impl TLC {
          },
          TypeRule::Typedef(tn,_itks,_implies,td,_tk,_span) => {
             if let Some(td) = td { match td {
-               Typedef::Regex(r) => {
-                  if let Ok(r) = Regex::new(r) {
+               Typedef::Regex(pat) => {
+                  if let Ok(r) = Regex::new(&pat[1..pat.len()-1]) {
+                     eprintln!("new regex typedef: type {} = {}", tn, pat);
                      self.regexes.push((Typ::Ident(tn.clone(),Vec::new()),r));
                   } else {
-                     eprintln!("typedef regex rejected: {}", r);
+                     eprintln!("typedef regex rejected: {}", pat);
                   }
                },
-               _ => ()
             }}
          },
       }}
@@ -528,7 +527,16 @@ impl TLC {
                   itks.push((ident,typ,kind));
                },
                Rule::typ => { implies = Some(self.unparse_ast_typ(e)?); },
-               Rule::typedef => { typedef = None; /* TODO: implement */ },
+               Rule::typedef => {
+                  for td in e.into_inner() {
+                     let td = td.into_inner().concat();
+                     if td.starts_with("/") {
+                        typedef = Some(Typedef::Regex(td.clone()));
+                        break;
+                     }
+                     //TODO: Enum Typedefs
+                  }
+               },
                Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); },
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
