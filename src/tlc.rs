@@ -132,7 +132,8 @@ impl Inference {
 
 #[derive(Clone)]
 pub enum Typedef {
-   Nil
+   Nil,
+   Regex(String),
 }
 
 #[derive(Clone)]
@@ -299,7 +300,18 @@ impl TLC {
                })
             }
          },
-         _ => ()
+         TypeRule::Typedef(tn,_itks,_implies,td,_tk,_span) => {
+            if let Some(td) = td { match td {
+               Typedef::Regex(r) => {
+                  if let Ok(r) = Regex::new(r) {
+                     self.regexes.push((Typ::Ident(tn.clone(),Vec::new()),r));
+                  } else {
+                     eprintln!("typedef regex rejected: {}", r);
+                  }
+               },
+               _ => ()
+            }}
+         },
       }}
 
       Ok(())
