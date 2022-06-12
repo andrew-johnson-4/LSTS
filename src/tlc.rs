@@ -107,6 +107,34 @@ impl std::fmt::Debug for Typ {
         }
     }
 }
+pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
+   match (lt,rt) {
+      (Typ::Any,r) => Ok(r.clone()),
+      (l,Typ::Any) => Ok(l.clone()),
+      (Typ::Nil,Typ::Nil) => Ok(lt.clone()),
+      (Typ::Ident(lv,lps),Typ::Ident(rv,rps))
+      if lv==rv && lps.len()==rps.len() => {
+         let mut tps = Vec::new();
+         for (lp,rp) in std::iter::zip(lps,rps) {
+            tps.push(unify(lp,rp,span)?);
+         }
+         Ok(Typ::Ident(lv.clone(),tps))
+      }
+      (Typ::Arrow(pl,bl),Typ::Arrow(pr,br)) => {
+         let pt = unify(pl,pr,span)?;
+         let bt = unify(bl,br,span)?;
+         Ok(Typ::Arrow(Box::new(pt),Box::new(bt)))
+      },
+      (l,r) => {
+         Err(Error {
+            kind: "Type Error".to_string(),
+            rule: "failed unification".to_string(),
+            span: span.clone(),
+            snippet: format!("{:?} (x) {:?}",l,r),
+         })
+      }
+   }
+}
 
 #[derive(Clone)]
 pub enum Inference {
@@ -738,7 +766,7 @@ impl TLC {
          self.typecheck(s, t, i)?;
       };
       if let Some(ref i) = implied {
-         panic!("TODO: soft check that current term is {:?}", i);
+         self.rows[t.id].typ = unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
       };
       Ok(())
    }
@@ -749,30 +777,6 @@ impl TLC {
 }
 
 /*
-   pub fn unify(&mut self, tid: usize, lt: &Typ, rt: &Typ) -> Result<Typ,Error> {
-      match (lt,rt) {
-         (Typ::Any(_),r) => Ok(r.clone()),
-         (l,Typ::Any(_)) => Ok(l.clone()),
-         (Typ::Nil(_),Typ::Nil(_)) => Ok(lt.clone()),
-         (Typ::Ident(lid,lv),Typ::Ident(_,rv)) if lv==rv => Ok(lt.clone()),
-         (Typ::Arrow(lid,pl,bl),Typ::Arrow(_,pr,br)) => {
-            let pt = self.unify(tid,pl,pr)?;
-            let bt = self.unify(tid,bl,br)?;
-            Ok(Typ::Arrow(*lid,Box::new(pt),Box::new(bt)))
-         },
-         (l,r) => {
-            let (filename,start,end) = self.locof(tid);
-            Err(Error {
-               error_type: "Type Error".to_string(),
-               rule: "failed unification".to_string(),
-               filename: filename,
-               start: start,
-               end: end,
-               snippet: format!("{:?} (x) {:?}",l,r),
-            })
-         }
-      }
-   }
    pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),Error> {
       let tt = self.typof(tid);
       self.typecheck_concrete_rec(tid, &tt)
