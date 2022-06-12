@@ -331,10 +331,9 @@ impl TLC {
             if let Some(td) = td { match td {
                Typedef::Regex(pat) => {
                   if let Ok(r) = Regex::new(&pat[1..pat.len()-1]) {
-                     eprintln!("new regex typedef: type {} = {}", tn, pat);
                      self.regexes.push((Typ::Ident(tn.clone(),Vec::new()),r));
                   } else {
-                     eprintln!("typedef regex rejected: {}", pat);
+                     panic!("typedef regex rejected: {}", pat);
                   }
                },
             }}
@@ -775,58 +774,3 @@ impl TLC {
       Ok(())
    }
 }
-
-/*
-   pub fn typecheck_concrete(&mut self, tid: usize) -> Result<(),Error> {
-      let tt = self.typof(tid);
-      self.typecheck_concrete_rec(tid, &tt)
-   }
-   pub fn typecheck_concrete_rec(&mut self, tid: usize, tt: &Typ) -> Result<(),Error> {
-      match tt {
-         Typ::Nil(_) => Ok(()),
-         Typ::Or(_,_) => {
-            let (filename,start,end) = self.locof(tid);
-            Err(Error {
-               error_type: "Type Error".to_string(),
-               rule: "type is ambigious".to_string(),
-               filename: filename,
-               start: start,
-               end: end,
-               snippet: format!("{:?}",tt),
-            })
-         },
-         Typ::And(_,ts) => {
-            for tc in ts.iter() {
-               self.typecheck_concrete_rec(tid, tc)?;
-            }
-            Ok(())
-         },
-         Typ::Arrow(_,tp,tb) => {
-            self.typecheck_concrete_rec(tid, tp)?;
-            self.typecheck_concrete_rec(tid, tb)
-         },
-         Typ::Any(_) => {
-            let (filename,start,end) = self.locof(tid);
-            Err(Error {
-               error_type: "Type Error".to_string(),
-               rule: "type is not concrete".to_string(),
-               filename: filename,
-               start: start,
-               end: end,
-               snippet: format!("typeof({}#{})={:?}",self.estring(tid),tid,tt),
-            })
-         }, Typ::Ident(id,tname) => {
-            if self.types.contains_key(&format!("{}#0", tname)) { return Ok(()) }
-            let (filename,start,end) = self.locof(tid);
-            Err(Error {
-               error_type: "Type Error".to_string(),
-               rule: "type is not defined".to_string(),
-               filename: filename,
-               start: start,
-               end: end,
-               snippet: format!("{}#0",tname),
-            })
-         }, _ => Ok(())
-      }
-   }
-*/
