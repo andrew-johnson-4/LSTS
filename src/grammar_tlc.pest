@@ -10,12 +10,13 @@ digit = { '0'..'9' }
 digital = { '0'..'9' | "_" | "." }
 alnumop = { 'a'..'z' | 'A'..'Z' | '0'..'9' | "+" | "-" | "_" }
 
-typname  = { upper ~ alpha* }
-kindname = { upper ~ alpha* }
+typname    = { upper ~ alpha* }
+kindname   = { upper ~ alpha* }
 simplename = { alphal ~ (alphal | digit)* }
 quotedname = { "$\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
-ident    = { !("let" | "forall" | "type") ~ (simplename | quotedname) }
-constant = { digit ~ digital* ~ (("e"|"E") ~ ("+" | "-")? ~ digital+)? }
+ident      = { !("let" | "forall" | "type") ~ (simplename | quotedname) }
+esign      = { ("e"|"E") ~ ("+" | "-")? }
+constant   = { digit ~ digital* ~ (esign ~ digital+)? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
 divmul_op = { "/" | "*" | "%" }
