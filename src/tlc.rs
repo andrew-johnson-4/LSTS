@@ -258,6 +258,9 @@ impl TLC {
          },
       }
    }
+   pub fn project_kinded_type(&mut self, _k: &Kind, t: &Typ) -> Typ {
+      t.clone()
+   }
 
    pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
       self.compile_doc(globals, "[string]", src)
