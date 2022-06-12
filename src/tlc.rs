@@ -699,7 +699,17 @@ impl TLC {
          },
          Term::Ident(x) => {
             if let Some(ref i) = implied {
-               panic!("TODO: hard cast {} into type {:?}", x, i)
+               let mut r = None;
+               for (pat,re) in self.regexes.iter() {
+                  if pat==i { r=Some(re); break; }
+               }
+               if let Some(re) = r {
+                  if !re.is_match(x) {
+                     panic!("type {:?} rejected the literal {}", i, x)
+                  }
+               } else {
+                  panic!("type {:?} is not literal", i)
+               }
             }
 	 },
          _ => panic!("TODO typecheck term: {}", self.print_term(t))
