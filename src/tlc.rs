@@ -752,10 +752,20 @@ impl TLC {
                }
                if let Some(re) = r {
                   if !re.is_match(x) {
-                     panic!("type {:?} rejected the literal {}", i, x)
+                     return Err(Error {
+                        kind: "Type Error".to_string(),
+                        rule: format!("type {:?} rejected the literal {}", i, x),
+                        span: self.rows[t.id].span.clone(),
+                        snippet: "".to_string()
+                     })
                   }
                } else {
-                  panic!("type {:?} is not literal", i)
+                  return Err(Error {
+                     kind: "Type Error".to_string(),
+                     rule: format!("type {:?} is not literal", i),
+                     span: self.rows[t.id].span.clone(),
+                     snippet: "".to_string()
+                  })
                }
             }
 	 },

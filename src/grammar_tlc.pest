@@ -16,7 +16,9 @@ simplename = { alphal ~ (alphal | digit)* }
 quotedname = { "$\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 ident      = { !("let" | "forall" | "type") ~ (simplename | quotedname) }
 esign      = { ("e"|"E") ~ ("+" | "-")? }
-constant   = { digit ~ digital* ~ (esign ~ digital+)? }
+numerical  = { digit ~ digital* ~ (esign ~ digital+)? }
+imaginary  = { "+" ~ numerical ~ "i" }
+constant   = { numerical ~ imaginary? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
 divmul_op = { "/" | "*" | "%" }
