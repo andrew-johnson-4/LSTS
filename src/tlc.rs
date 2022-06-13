@@ -89,6 +89,21 @@ pub enum Typ {
    Product(Vec<Typ>), //Product is order-insensitive
    Ratio(Box<Typ>,Box<Typ>),
 }
+impl Typ {
+   fn is_concrete(&self) -> bool {
+      match self {
+         Typ::Nil => true,
+         Typ::Any => false,
+         Typ::Or(_ts) => false,
+         Typ::Arrow(p,b) => p.is_concrete() && b.is_concrete(),
+         Typ::Ratio(p,b) => p.is_concrete() && b.is_concrete(),
+         Typ::Ident(_tn,ts) => ts.iter().all(|tc| tc.is_concrete()),
+         Typ::And(ts) => ts.iter().all(|tc| tc.is_concrete()),
+         Typ::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
+         Typ::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
+      }
+   }
+}
 impl std::fmt::Debug for Typ {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -314,6 +329,7 @@ impl TLC {
       let ast = self.parse_doc(docname, src)?;
       self.compile_rules(docname)?;
       self.typecheck(globals, ast, None)?;
+      self.sanitycheck()?;
       Ok(ast)
    }
    pub fn kind_of(&self, t: &Typ) -> Kind {
@@ -765,15 +781,35 @@ impl TLC {
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
    }
+   pub fn sanitycheck(&mut self) -> Result<(),Error> {
+      for (ri,r) in self.rows.iter().enumerate() {
+         if ri==0 { continue; } //first row is nullary and not sane
+         if !r.typ.is_concrete() {
+            return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("inhabited type is not concrete: {:?}", r.typ),
+               span: r.span.clone(),
+               snippet: "".to_string()
+            })
+         }
+         //TODO: check that all referenced types are defined
+      }
+      Ok(())
+   }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Assume => (),
-         Term::Nil => {},
+         Term::Nil => {
+            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &Typ::Nil, &self.rows[t.id].span)?;
+         },
          Term::Block(sid,es) => {
+            let mut last_typ = Typ::Nil;
             for e in es.iter() {
                self.typecheck(Some(sid), *e, None)?;
+               last_typ = self.rows[e.id].typ.clone();
             }
+            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?;
          },
          Term::Let(_v,_ps,b,rt,_rk) => {
             if let Some(ref b) = b {
