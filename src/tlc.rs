@@ -13,6 +13,7 @@ pub struct TLC {
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
    pub regexes: Vec<(Typ,Regex)>,
+   pub ident_regex: Regex,
 }
 
 pub struct Row {
@@ -275,6 +276,7 @@ impl TLC {
          rules: Vec::new(),
          scopes: Vec::new(),
          regexes: Vec::new(),
+         ident_regex: Regex::new("^[a-z][_0-9a-zA-Z]*$").expect("Failed to compile ident_regex in TLC initialization"),
       }
    }
    pub fn print_term(&self, t: TermId) -> String {
@@ -635,7 +637,7 @@ impl TLC {
 
          
          Rule::forall_stmt => {
-            let mut quants = Vec::new();
+            let mut quants: Vec<(Option<String>,Option<Typ>,Option<Kind>)> = Vec::new();
             let mut inference  = None;
             let mut term = None;
             let mut kind = None;
@@ -658,13 +660,23 @@ impl TLC {
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
             self.rules.push(TypeRule::Forall(
-               quants,
+               quants.clone(),
                inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
                term,
                kind,
-               span
+               span.clone(),
             ));
-            Ok(TermId { id:0 })
+            if let Some(t) = term {
+               Ok(self.push_term(Term::Let(
+                 "".to_string(),
+                 vec![quants.clone()],
+                 Some(t),
+                 Typ::Any,
+                 Kind::Simple("Term".to_string(),Vec::new()),
+               ),&span))
+            } else {
+               Ok(TermId { id:0 })
+            }
          },
 
          rule => panic!("unexpected expr rule: {:?}", rule)
@@ -822,7 +834,9 @@ impl TLC {
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[x.id].typ, &self.rows[t.id].span)?;
          },
          Term::Ident(x) => {
-            if let Some(ref i) = implied {
+            if self.ident_regex.is_match(&x) {
+               panic!("TODO: lookup type of variable in scope")
+            } else if let Some(ref i) = implied {
                let i = self.project_kinded_type(&Kind::Simple("Term".to_string(),Vec::new()), i);
                let mut r = None;
                for (pat,re) in self.regexes.iter() {
@@ -840,7 +854,7 @@ impl TLC {
                } else {
                   return Err(Error {
                      kind: "Type Error".to_string(),
-                     rule: format!("type {:?} is not literal", i),
+                     rule: format!("type {:?} is not literal: {}", i, x),
                      span: self.rows[t.id].span.clone(),
                      snippet: "".to_string()
                   })
