@@ -125,12 +125,31 @@ pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
          let bt = unify(bl,br,span)?;
          Ok(Typ::Arrow(Box::new(pt),Box::new(bt)))
       },
+      (Typ::Ratio(pl,bl),Typ::Ratio(pr,br)) => {
+         let pt = unify(pl,pr,span)?;
+         let bt = unify(bl,br,span)?;
+         Ok(Typ::Ratio(Box::new(pt),Box::new(bt)))
+      },
+      (Typ::Product(la),Typ::Product(ra)) => {
+         let mut ts = Vec::new();
+         for (lt,rt) in std::iter::zip(la,ra) {
+            ts.push(unify(lt,rt,span)?);
+         }
+         Ok(Typ::Product(ts))
+      },
+      (Typ::And(la),Typ::And(ra)) => {
+         let mut ts = Vec::new();
+         for (lt,rt) in std::iter::zip(la,ra) {
+            ts.push(unify(lt,rt,span)?);
+         }
+         Ok(Typ::And(ts))
+      },
       (l,r) => {
          Err(Error {
             kind: "Type Error".to_string(),
-            rule: "failed unification".to_string(),
+            rule: format!("failed unification {:?} (x) {:?}",l,r),
             span: span.clone(),
-            snippet: format!("{:?} (x) {:?}",l,r),
+            snippet: "".to_string(),
          })
       }
    }
@@ -259,8 +278,24 @@ impl TLC {
          },
       }
    }
-   pub fn project_kinded_type(&mut self, _k: &Kind, t: &Typ) -> Typ {
-      t.clone()
+   pub fn project_kinded_type(&mut self, k: &Kind, t: &Typ) -> Typ {
+      let ts = match t {
+         Typ::And(ts) => ts.clone(),
+         tt => vec![tt.clone()],
+      };
+      for t in ts.iter() {
+         let ts = format!("{:?}",t);
+         for tr in self.rules.iter() { match tr {
+            TypeRule::Typedef(tn,_itks,_implies,_td,tk,_) => {
+               if &ts!=tn { continue; }
+               let tk = tk.clone().unwrap_or(Kind::Simple("Term".to_string(),Vec::new()));
+               if &tk==k { return t.clone(); }
+               //TODO: kind-project parameterized types
+            },
+            _ => ()
+         }}
+      }
+      Typ::Nil
    }
 
    pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
@@ -731,7 +766,6 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
-      //eprintln!("typecheck: {} => {:?}", self.print_term(t), implied.clone().unwrap_or(Typ::Any));
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Assume => (),
@@ -753,9 +787,10 @@ impl TLC {
          },
          Term::Ident(x) => {
             if let Some(ref i) = implied {
+               let i = self.project_kinded_type(&Kind::Simple("Term".to_string(),Vec::new()), i);
                let mut r = None;
                for (pat,re) in self.regexes.iter() {
-                  if pat==i { r=Some(re); break; }
+                  if pat==&i { r=Some(re); break; }
                }
                if let Some(re) = r {
                   if !re.is_match(&x) {
@@ -779,7 +814,6 @@ impl TLC {
          _ => panic!("TODO typecheck term: {}", self.print_term(t))
       };
       if let Some(ref i) = implied {
-         //eprintln!("unify: {:?} (x) {:?}", &self.rows[t.id].typ, &i);
          self.rows[t.id].typ = unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
       };
       Ok(())

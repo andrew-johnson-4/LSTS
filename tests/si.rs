@@ -46,6 +46,7 @@ fn check_type_equality() {
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Complex=1:Complex;").unwrap();
 
+   /*
    //Ground Types unify with other Types when a viable cast rule is available
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
@@ -56,6 +57,7 @@ fn check_type_equality() {
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Complex=1:Real;").unwrap();
+   */
 
    //Ground Types do not unify if no cast rule is available
    let mut tlc = TLC::new();
