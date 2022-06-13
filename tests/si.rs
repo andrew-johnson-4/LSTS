@@ -33,68 +33,43 @@ fn check_constant_literals() {
 
 #[test]
 fn check_type_equality() {
-   //Ground Units unify with themselves
+   //Ground Types unify with themselves
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Second=1:Real; let y:Second=x;").unwrap();
+   tlc.check(Some(si), "let x:Integer=1:Integer;").unwrap();
 
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=2:Real; let y:Metre=x;").unwrap();
+   tlc.check(Some(si), "let x:Real=1:Real;").unwrap();
 
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Gram=3:Real; let y:Gram=x;").unwrap();
+   tlc.check(Some(si), "let x:Complex=1:Complex;").unwrap();
 
+   //Ground Types unify with other Types when a viable cast rule is available
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Ampere=1.2:Real; let y:Ampere=x;").unwrap();
+   tlc.check(Some(si), "let x:Real=1:Integer;").unwrap();
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   tlc.check(Some(si), "let x:Complex=1:Integer;").unwrap();
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   tlc.check(Some(si), "let x:Complex=1:Real;").unwrap();
 
+   //Ground Types do not unify if no cast rule is available
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Kelvin=2.3:Real; let y:Kelvin=x;").unwrap();
+   tlc.check(Some(si), "let x:Integer=1:Real;").unwrap_err();
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   tlc.check(Some(si), "let x:Integer=1:Complex;").unwrap_err();
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   tlc.check(Some(si), "let x:Real=1:Complex;").unwrap_err();
+}
 
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Mole=3.1:Real; let y:Mole=x;").unwrap();
-
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Candela=3.2:Real; let y:Candela=x;").unwrap();
-
-   //Ground Units unify with compatible Numbers
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=1:Integer; let y:Integer=x;").unwrap();
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=1:Integer; let y:Real=x;").unwrap();
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=1:Integer; let y:Complex=x;").unwrap();
-
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=1.2:Real; let y:Integer=x;").unwrap_err();
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=1.2:Real; let y:Real=x;").unwrap();
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=1.2:Real; let y:Complex=x;").unwrap();
-
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=1.2+3i:Complex; let y:Integer=x;").unwrap_err();
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=1.2+3i:Complex; let y:Real=x;").unwrap_err();
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=1.2+3i:Complex; let y:Complex=x;").unwrap();
-
-   //Ground Units do not unify with different Ground Units
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-   tlc.check(Some(si), "let x:Metre=2:Integer; let y:Second=x;").unwrap_err();
+#[test]
+fn check_kinded_type_equality() {
+   //TODO check Units unify and persist
 }
