@@ -210,6 +210,7 @@ pub struct TermId {
    pub id: usize,
 }
 //does not implement Clone because terms are uniquely identified by their id
+#[derive(Clone)] //clone seems to be needed to deconflict mutable borrows :(
 pub enum Term {
    Assume, //used to introduce sentinel values
    Nil,
@@ -730,22 +731,25 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
-      let mut stis: Vec<(Option<ScopeId>,TermId,Option<Typ>)> = Vec::new();
-      match &self.rows[t.id].term {
+      //eprintln!("typecheck: {} => {:?}", self.print_term(t), implied.clone().unwrap_or(Typ::Any));
+      //clone is needed to avoid double mutable borrows?
+      match self.rows[t.id].term.clone() {
          Term::Assume => (),
          Term::Nil => {},
          Term::Block(sid,es) => {
             for e in es.iter() {
-               stis.push((Some(*sid), *e, None));
+               self.typecheck(Some(sid), *e, None)?;
             }
          },
          Term::Let(_v,_ps,b,rt,_rk) => {
             if let Some(ref b) = b {
-               stis.push((scope.clone(),*b,Some(rt.clone())));
+               self.typecheck(scope.clone(), *b, Some(rt.clone()))?;
+               self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[b.id].typ, &self.rows[t.id].span)?;
             }
          },
          Term::Ascript(x,tt) => {
-            stis.push((scope.clone(),*x,Some(tt.clone())));
+            self.typecheck(scope.clone(), x, Some(tt.clone()))?;
+            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[x.id].typ, &self.rows[t.id].span)?;
          },
          Term::Ident(x) => {
             if let Some(ref i) = implied {
@@ -754,7 +758,7 @@ impl TLC {
                   if pat==i { r=Some(re); break; }
                }
                if let Some(re) = r {
-                  if !re.is_match(x) {
+                  if !re.is_match(&x) {
                      return Err(Error {
                         kind: "Type Error".to_string(),
                         rule: format!("type {:?} rejected the literal {}", i, x),
@@ -774,10 +778,8 @@ impl TLC {
 	 },
          _ => panic!("TODO typecheck term: {}", self.print_term(t))
       };
-      for (s,t,i) in stis.into_iter() {
-         self.typecheck(s, t, i)?;
-      };
       if let Some(ref i) = implied {
+         //eprintln!("unify: {:?} (x) {:?}", &self.rows[t.id].typ, &i);
          self.rows[t.id].typ = unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
       };
       Ok(())
