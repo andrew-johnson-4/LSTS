@@ -57,7 +57,7 @@ pub struct ScopeId {
 //does not implement Clone because scopes are uniquely identified by their id
 pub struct Scope {
    pub parent: Option<ScopeId>,
-   pub children: Vec<(String,Term)>,
+   pub children: Vec<(String,Typ)>,
    pub statements: Vec<Term>,
 }
 
@@ -808,6 +808,20 @@ impl TLC {
       }
       Ok(())
    }
+   pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, span: &Span) -> Result<Typ,Error> {
+      if let Some(scope) = scope {
+         let ref sc = self.scopes[scope.id];
+         for (tn,tt) in sc.children.iter() {
+            if tn==v { return Ok(tt.clone()) }
+         }
+         self.typeof_var(&sc.parent.clone(), &v, span)
+      } else { Err(Error {
+         kind: "Type Error".to_string(),
+         rule: format!("variable not found in scope: {}", v),
+         span: span.clone(),
+         snippet: "".to_string()
+      }) }
+   }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
@@ -835,7 +849,9 @@ impl TLC {
          },
          Term::Ident(x) => {
             if self.ident_regex.is_match(&x) {
-               panic!("TODO: lookup type of variable in scope")
+               let span = self.rows[t.id].span.clone();
+               let xt = self.typeof_var(&scope, &x, &span)?;
+               self.rows[t.id].typ = unify(&self.rows[t.id].typ, &xt, &self.rows[t.id].span)?;
             } else if let Some(ref i) = implied {
                let i = self.project_kinded_type(&Kind::Simple("Term".to_string(),Vec::new()), i);
                let mut r = None;
