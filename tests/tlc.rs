@@ -37,7 +37,6 @@ fn parse_simplytyped() {
 
 #[test]
 fn check_simplytyped() {
-   /*
    //type A is undefined
    let mut tlc = TLC::new();
    tlc.check(None, "type A; let a: A").unwrap();
@@ -51,5 +50,4 @@ fn check_simplytyped() {
 
    let mut tlc = TLC::new();
    tlc.check(None, "type A; type B; let a: A->B; let b: B; a(b)").unwrap_err();
-   */
 }
