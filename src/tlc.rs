@@ -251,7 +251,7 @@ pub enum Term {
    Nil,
    Ident(String),
    App(TermId,TermId),
-   Let(String,Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>>,Option<TermId>,Typ,Kind),
+   Let(ScopeId,String,Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>>,Option<TermId>,Typ,Kind),
    Tuple(Vec<TermId>),
    Block(ScopeId,Vec<TermId>),
    Ascript(TermId,Typ),
@@ -285,7 +285,7 @@ impl TLC {
          Term::Nil => format!("()"),
          Term::Ident(x) => format!("{}", x),
          Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
-         Term::Let(v,_ps,_b,_rt,_rk) => format!("let {}", v),
+         Term::Let(_sc,v,_ps,_b,_rt,_rk) => format!("let {}", v),
          Term::Ascript(t,tt) => format!("{}:{:?}", self.print_term(*t), tt),
          Term::Tuple(es) => {
             format!("({})", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(","))
@@ -541,7 +541,12 @@ impl TLC {
                Rule::term => { t = Some(self.unparse_ast(scope,fp,e)?); },
                rule => panic!("unexpected let_stmt rule: {:?}", rule),
             }}
-            Ok(self.push_term(Term::Let(ident,pars,t,rt,rk), &span))
+            let sid = self.push_scope(Scope {
+               parent: *scope,
+               children: Vec::new(),
+               statements: Vec::new(),
+            }, &span);
+            Ok(self.push_term(Term::Let(sid,ident,pars,t,rt,rk), &span))
          },
          Rule::ascript_term => {
             let mut es = p.into_inner();
@@ -667,7 +672,13 @@ impl TLC {
                span.clone(),
             ));
             if let Some(t) = term {
+               let sid = self.push_scope(Scope {
+                  parent: *scope,
+                  children: Vec::new(),
+                  statements: Vec::new(),
+               }, &span);
                Ok(self.push_term(Term::Let(
+                 sid,
                  "".to_string(),
                  vec![quants.clone()],
                  Some(t),
@@ -837,9 +848,9 @@ impl TLC {
             }
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?;
          },
-         Term::Let(_v,_ps,b,rt,_rk) => {
+         Term::Let(sid,_v,_ps,b,rt,_rk) => {
             if let Some(ref b) = b {
-               self.typecheck(scope.clone(), *b, Some(rt.clone()))?;
+               self.typecheck(Some(sid.clone()), *b, Some(rt.clone()))?;
                self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[b.id].typ, &self.rows[t.id].span)?;
             }
          },
