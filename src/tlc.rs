@@ -279,6 +279,14 @@ impl TLC {
          ident_regex: Regex::new("^[a-z][_0-9a-zA-Z]*$").expect("Failed to compile ident_regex in TLC initialization"),
       }
    }
+   pub fn print_scope(&self, s: ScopeId) -> String {
+      let mut buf:String = "{".to_string();
+      for (cn,ct) in self.scopes[s.id].children.iter() {
+         buf += &format!("{}: {:?}\n", cn, ct);
+      }
+      buf += "}\n";
+      buf
+   }
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
          Term::Assume => format!("$"),
@@ -541,9 +549,15 @@ impl TLC {
                Rule::term => { t = Some(self.unparse_ast(scope,fp,e)?); },
                rule => panic!("unexpected let_stmt rule: {:?}", rule),
             }}
+            let mut children = Vec::new();
+            for itks in pars.iter() {
+               for (i,t,_k) in itks.iter() {
+                  children.push((i.clone().unwrap_or("_".to_string()), t.clone().unwrap_or(Typ::Nil)));
+               }
+            }
             let sid = self.push_scope(Scope {
                parent: *scope,
-               children: Vec::new(),
+               children: children,
                statements: Vec::new(),
             }, &span);
             Ok(self.push_term(Term::Let(sid,ident,pars,t,rt,rk), &span))
@@ -672,9 +686,13 @@ impl TLC {
                span.clone(),
             ));
             if let Some(t) = term {
+               let mut children = Vec::new();
+               for (i,t,_k) in quants.iter() {
+                  children.push((i.clone().unwrap_or("_".to_string()), t.clone().unwrap_or(Typ::Nil)));
+               }
                let sid = self.push_scope(Scope {
                   parent: *scope,
-                  children: Vec::new(),
+                  children: children,
                   statements: Vec::new(),
                }, &span);
                Ok(self.push_term(Term::Let(
@@ -848,9 +866,9 @@ impl TLC {
             }
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?;
          },
-         Term::Let(sid,_v,_ps,b,rt,_rk) => {
+         Term::Let(s,_v,_ps,b,rt,_rk) => {
             if let Some(ref b) = b {
-               self.typecheck(Some(sid.clone()), *b, Some(rt.clone()))?;
+               self.typecheck(Some(s), *b, Some(rt.clone()))?;
                self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[b.id].typ, &self.rows[t.id].span)?;
             }
          },
