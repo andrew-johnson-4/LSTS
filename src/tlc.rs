@@ -937,9 +937,18 @@ impl TLC {
       Ok(())
    }
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
-      let tl = self.rows.len();
+      let rows_l = self.rows.len();
+      let rules_l = self.rules.len();
+      let scopes_l = self.scopes.len();
+      let regexes_l = self.regexes.len();
+
       let r = self.compile_str(globals, src);
-      self.rows.truncate(tl);
+
+      self.rows.truncate(rows_l);
+      self.rules.truncate(rules_l);
+      self.scopes.truncate(scopes_l);
+      self.regexes.truncate(regexes_l);
+
       r?; Ok(())
    }
 }

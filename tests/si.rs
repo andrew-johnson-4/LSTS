@@ -2,9 +2,10 @@ use lsts::tlc::TLC;
 
 #[test]
 fn check_constant_literals() {
-   //soft cast literals into typed values
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //soft cast literals into typed values
    tlc.check(Some(si), "1:Boolean").unwrap_err();
 
    tlc.check(Some(si), "0:Integer").unwrap();
@@ -33,41 +34,24 @@ fn check_constant_literals() {
 
 #[test]
 fn check_type_equality() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
    //Ground Types unify with themselves
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Integer=1:Integer;").unwrap();
-
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Real=1:Real;").unwrap();
-
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Complex=1:Complex;").unwrap();
 
    /*
    //Ground Types unify with other Types when a viable cast rule is available
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Real=1:Integer;").unwrap();
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Complex=1:Integer;").unwrap();
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Complex=1:Real;").unwrap();
    */
 
    //Ground Types do not unify if no cast rule is available
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Integer=1:Real;").unwrap_err();
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Integer=1:Complex;").unwrap_err();
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
    tlc.check(Some(si), "let x:Real=1:Complex;").unwrap_err();
 }
 
