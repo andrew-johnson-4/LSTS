@@ -14,6 +14,7 @@ pub struct TLC {
    pub scopes: Vec<Scope>,
    pub regexes: Vec<(Typ,Regex)>,
    pub ident_regex: Regex,
+   pub tvar_regex: Regex,
 }
 
 pub struct Row {
@@ -91,6 +92,43 @@ pub enum Typ {
    Ratio(Box<Typ>,Box<Typ>),
 }
 impl Typ {
+   fn vars(&self) -> Vec<String> {
+      match self {
+         Typ::Nil => vec![],
+         Typ::Any => vec![],
+         Typ::Or(_ts) => vec![],
+         Typ::Ident(tn,ts) => {
+            let mut nv = vec![tn.clone()];
+            for tt in ts.iter() {
+               nv.append(&mut tt.vars());
+            }
+            nv
+         }
+         Typ::Arrow(p,b) => { let mut pv=p.vars(); pv.append(&mut b.vars()); pv },
+         Typ::Ratio(p,b) => { let mut pv=p.vars(); pv.append(&mut b.vars()); pv },
+         Typ::And(ts) => {
+            let mut nv = Vec::new();
+            for tt in ts.iter() {
+               nv.append(&mut tt.vars());
+            }
+            nv
+         }
+         Typ::Tuple(ts) => {
+            let mut nv = Vec::new();
+            for tt in ts.iter() {
+               nv.append(&mut tt.vars());
+            }
+            nv
+         }
+         Typ::Product(ts) => {
+            let mut nv = Vec::new();
+            for tt in ts.iter() {
+               nv.append(&mut tt.vars());
+            }
+            nv
+         }
+      }
+   }
    fn is_concrete(&self) -> bool {
       match self {
          Typ::Nil => true,
@@ -276,6 +314,7 @@ impl TLC {
          scopes: Vec::new(),
          regexes: Vec::new(),
          ident_regex: Regex::new("^[a-z][_0-9a-zA-Z]*$").expect("Failed to compile ident_regex in TLC initialization"),
+         tvar_regex: Regex::new("^[A-Z]+$").expect("Failed to compile tvar_regex in TLC initialization"),
       }
    }
    pub fn print_scope(&self, s: ScopeId) -> String {
@@ -831,7 +870,30 @@ impl TLC {
                snippet: "".to_string()
             })
          }
-         //TODO: check that all referenced types are defined
+         let mut rvars = r.typ.vars();
+         match &r.term {
+            Term::Let(_sid,_v,_pars,_t,rt,_rk) => {
+               rvars.append(&mut rt.vars());
+               //TODO append parameters vars
+            },
+            _ => (),
+         }
+         for tvar in rvars.iter() {
+            if self.tvar_regex.is_match(tvar) { continue; } //Type variables don't need to be defined
+            let mut defined = false;
+            for rule in self.rules.iter() { match rule {
+               TypeRule::Typedef(tt,_tps,_implies,_td,_k,_) => { if tvar==tt {
+                  defined=true;
+               }},
+               _ => ()
+            }}
+            if !defined { return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("inhabited type is not defined: {}", tvar),
+               span: r.span.clone(),
+               snippet: "".to_string()
+            })}
+         }
       }
       Ok(())
    }
