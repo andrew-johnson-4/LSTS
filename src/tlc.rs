@@ -247,7 +247,6 @@ pub struct TermId {
 //does not implement Clone because terms are uniquely identified by their id
 #[derive(Clone)] //clone seems to be needed to deconflict mutable borrows :(
 pub enum Term {
-   Assume, //used to introduce sentinel values
    Nil,
    Ident(String),
    App(TermId,TermId),
@@ -289,7 +288,6 @@ impl TLC {
    }
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
-         Term::Assume => format!("$"),
          Term::Nil => format!("()"),
          Term::Ident(x) => format!("{}", x),
          Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
@@ -851,10 +849,30 @@ impl TLC {
          snippet: "".to_string()
       }) }
    }
+   pub fn untyped(&mut self, t: TermId) {
+      self.rows[t.id].typ = Typ::Nil;
+      match self.rows[t.id].term.clone() {
+         Term::Nil => (),
+         Term::Ident(_x) => (),
+         Term::Block(_sid,es) => {
+            for e in es.iter() {
+               self.untyped(*e);
+            }
+         },
+         Term::Let(_s,_v,_ps,b,_rt,_rk) => {
+            if let Some(b) = b {
+               self.untyped(b);
+            }
+         },
+         Term::Ascript(x,_tt) => {
+            self.untyped(x);
+         },
+         _ => panic!("TODO untype term: {}", self.print_term(t))
+      }
+   }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
-         Term::Assume => (),
          Term::Nil => {
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &Typ::Nil, &self.rows[t.id].span)?;
          },
@@ -866,10 +884,15 @@ impl TLC {
             }
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?;
          },
-         Term::Let(s,_v,_ps,b,rt,_rk) => {
-            if let Some(ref b) = b {
+         Term::Let(s,v,_ps,b,rt,_rk) => {
+            if v=="" {
+               //term is untyped
+               self.untyped(t);
+            } else if let Some(ref b) = b {
                self.typecheck(Some(s), *b, Some(rt.clone()))?;
-               self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[b.id].typ, &self.rows[t.id].span)?;
+               self.rows[t.id].typ = Typ::Nil;
+            } else {
+               self.rows[t.id].typ = Typ::Nil;
             }
          },
          Term::Ascript(x,tt) => {
@@ -914,7 +937,9 @@ impl TLC {
       Ok(())
    }
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
-      self.compile_str(globals, src)?;
-      Ok(())
+      let tl = self.rows.len();
+      let r = self.compile_str(globals, src);
+      self.rows.truncate(tl);
+      r?; Ok(())
    }
 }

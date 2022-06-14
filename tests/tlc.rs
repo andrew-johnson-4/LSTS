@@ -37,17 +37,13 @@ fn parse_simplytyped() {
 
 #[test]
 fn check_simplytyped() {
-   //type A is undefined
    let mut tlc = TLC::new();
-   tlc.check(None, "type A; let a: A").unwrap();
 
-   let mut tlc = TLC::new();
+   //type A is undefined
+   tlc.check(None, "type A; let a: A").unwrap();
    tlc.check(None, "let a: A").unwrap_err();
 
    //unexpected argument B to function A -> B
-   let mut tlc = TLC::new();
    tlc.check(None, "type A; type B; let a: A->B; let b: A; a(b)").unwrap();
-
-   let mut tlc = TLC::new();
    tlc.check(None, "type A; type B; let a: A->B; let b: B; a(b)").unwrap_err();
 }
