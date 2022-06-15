@@ -626,14 +626,23 @@ impl TLC {
          },
          Rule::app_term => {
             let mut es = p.into_inner();
-            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [atom_term]"),span)?;
-            for args in es {
-               e = {let t = Term::App(
-                  e,
-                  self.unparse_ast(scope,fp,args,span)?
-               ); self.push_term(t,&span)};
-            }
-            Ok(e)
+            let mut g = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [atom_term]"),span)?;
+            for x in es { match x.as_rule() {
+               Rule::tuple_term => {
+                  g = {let t = Term::App(
+                     g,
+                     self.unparse_ast(scope,fp,x,span)?
+                  ); self.push_term(t,&span)};
+               },
+               Rule::field_term => {
+                  g = {let t = Term::App(
+                     self.push_term(Term::Ident(format!(".{}", x.into_inner().concat())),&span),
+                     g,
+                  ); self.push_term(t,&span)};
+               },
+               rule => panic!("unexpected app_term rule: {:?}", rule),
+            }}
+            Ok(g)
          },
          Rule::divmul_term => {
             let mut es = p.into_inner();

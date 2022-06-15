@@ -6,7 +6,7 @@ upper = { 'A'..'Z' }
 lower = { 'a'..'z' }
 lowerl = { 'a'..'z' | "_" }
 alpha = { 'a'..'z' | 'A'..'Z' }
-alphal = { 'a'..'z' | 'A'..'Z' | "_" | "." }
+alphal = { 'a'..'z' | 'A'..'Z' | "_" }
 digit = { '0'..'9' }
 digital = { '0'..'9' | "_" | "." }
 alnum   = { 'a'..'z' | 'A'..'Z' | '0'..'9' }
@@ -32,7 +32,8 @@ key_value = { ident ~ "=" ~ term }
 constructor = { typname ~ ("{" ~ (key_value ~ ("," ~ key_value)*)? ~ "}")? }
 
 value_term = { ident | constant | constructor }
-app_term = { (tuple_term | value_term) ~ (tuple_term)* }
+app_term = { (tuple_term | value_term) ~ (field_term | tuple_term)* }
+field_term = { "." ~ ident }
 tuple_term = { "(" ~ (term ~ ("," ~ term)*)? ~ ")" }
 atom_term  = { app_term }
 prefix_term = { atom_term }
