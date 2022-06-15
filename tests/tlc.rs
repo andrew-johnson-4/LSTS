@@ -39,10 +39,11 @@ fn parse_simplytyped() {
 fn check_simplytyped() {
    let mut tlc = TLC::new();
 
+   //inhabited types must be defined
    tlc.check(None, "type Ab; let a: Ab").unwrap();
    tlc.check(None, "let a: Ab").unwrap_err();
 
-   //TODO: unexpected argument B to function A -> B
-   //tlc.check(None, "type A; type B; let a: A->B; let b: A; a(b)").unwrap();
-   //tlc.check(None, "type A; type B; let a: A->B; let b: B; a(b)").unwrap_err();
+   //unexpected argument B to function A -> B
+   tlc.check(None, "type Ab; type Bc; let a: Ab->Bc; let b: Ab; a(b)").unwrap();
+   tlc.check(None, "type Ab; type Bc; let a: Ab->Bc; let b: Bc; a(b)").unwrap_err();
 }
