@@ -4,6 +4,7 @@ COMMENT = _{ ("/*" ~ (!"*/" ~ ANY)* ~ "*/") |
 
 upper = { 'A'..'Z' }
 lower = { 'a'..'z' }
+lowerl = { 'a'..'z' | "_" }
 alpha = { 'a'..'z' | 'A'..'Z' }
 alphal = { 'a'..'z' | 'A'..'Z' | "_" | "." }
 digit = { '0'..'9' }
@@ -14,7 +15,7 @@ typname    = { upper ~ alpha* }
 kindname   = { upper ~ alpha* }
 simplename = { alphal ~ (alphal | digit)* }
 quotedname = { "$\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
-ident      = { !("let" | "forall" | "type") ~ (simplename | quotedname) }
+ident      = { !("let" | "forall" | "type") ~ ((lowerl~alphal*) | quotedname) }
 esign      = { ("e"|"E") ~ ("+" | "-")? }
 numerical  = { digit ~ digital* ~ (esign ~ digital+)? }
 imaginary  = { "+" ~ numerical ~ "i" }
@@ -24,7 +25,10 @@ ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 divmul_op = { "/" | "*" | "%" }
 addsub_op = { "+" | "-" }
 
-value_term = { ident | constant }
+key_value = { ident ~ "=" ~ term }
+constructor = { typname ~ ("{" ~ (key_value ~ ("," ~ key_value)*)? ~ "}")? }
+
+value_term = { ident | constant | constructor }
 app_term = { (tuple_term | value_term) ~ (tuple_term)* }
 tuple_term = { "(" ~ (term ~ ("," ~ term)*)? ~ ")" }
 atom_term  = { app_term }
@@ -57,7 +61,7 @@ let_stmt_par = { "(" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ ")" }
 regex = { "/" ~ (!"/" ~ ANY)+ ~ "/" }
 typedef_branch = { regex | typname }
 typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
-typ_stmt = { "type" ~ ident ~ ("<" ~ ident_typ_kind ~ ("," ~ ident_typ_kind)* ~ ">")? ~ (":" ~ typ)? ~ ("=" ~ typedef)? ~ ("::" ~ kind)? }
+typ_stmt = { "type" ~ typname ~ ("<" ~ ident_typ_kind ~ ("," ~ ident_typ_kind)* ~ ">")? ~ (":" ~ typ)? ~ ("=" ~ typedef)? ~ ("::" ~ kind)? }
 
 inference = { typ ~ ("=>" ~ typ)? }
 forall_stmt = { "forall" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ inference ~ ("=" ~ term)? ~ ("::" ~ kind)?}

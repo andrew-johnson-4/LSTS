@@ -13,6 +13,7 @@ pub struct TLC {
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
    pub regexes: Vec<(Typ,Regex)>,
+   pub constructors: Vec<(Typ,String,Vec<Typ>,Vec<(String,Typ)>)>,
    pub ident_regex: Regex,
    pub tvar_regex: Regex,
 }
@@ -239,11 +240,12 @@ impl Inference {
 #[derive(Clone)]
 pub enum Typedef {
    Regex(String),
+   Constructor(String,Vec<(String,Typ)>),
 }
 
 #[derive(Clone)]
 pub enum TypeRule {
-   Typedef(String,Vec<(Option<String>,Option<Typ>,Option<Kind>)>,Option<Typ>,Option<Typedef>,Option<Kind>,Span),
+   Typedef(String,Vec<(Option<String>,Option<Typ>,Option<Kind>)>,Option<Typ>,Vec<Typedef>,Option<Kind>,Span),
 
    Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>,Span),
 }
@@ -297,6 +299,7 @@ pub enum Term {
    Tuple(Vec<TermId>),
    Block(ScopeId,Vec<TermId>),
    Ascript(TermId,Typ),
+   Constructor(String,Vec<(String,TermId)>),
 }
 
 impl TLC {
@@ -318,6 +321,7 @@ impl TLC {
          rules: Vec::new(),
          scopes: Vec::new(),
          regexes: Vec::new(),
+         constructors: Vec::new(),
          ident_regex: Regex::new("^[a-z][_0-9a-zA-Z]*$").expect("Failed to compile ident_regex in TLC initialization"),
          tvar_regex: Regex::new("^[A-Z]+$").expect("Failed to compile tvar_regex in TLC initialization"),
       }
@@ -342,6 +346,9 @@ impl TLC {
          },
          Term::Block(_,es) => {
             format!("{{{}}}", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(";"))
+         },
+         Term::Constructor(cn,_kvs) => {
+            format!("{}{{}}", cn)
          },
       }
    }
@@ -434,8 +441,8 @@ impl TLC {
                })
             }
          },
-         TypeRule::Typedef(tn,_itks,_implies,td,_tk,_span) => {
-            if let Some(td) = td { match td {
+         TypeRule::Typedef(tn,_itks,_implies,tds,_tk,_span) => {
+            for td in tds.iter() { match td {
                Typedef::Regex(pat) => {
                   if let Ok(r) = Regex::new(&pat[1..pat.len()-1]) {
                      self.regexes.push((Typ::Ident(tn.clone(),Vec::new()),r));
@@ -443,6 +450,9 @@ impl TLC {
                      panic!("typedef regex rejected: {}", pat);
                   }
                },
+               Typedef::Constructor(cname,kts) => {
+                  self.constructors.push((Typ::Ident(tn.clone(),Vec::new()),cname.clone(),Vec::new(),kts.clone()));
+               }
             }}
          },
       }}
@@ -649,13 +659,15 @@ impl TLC {
             }
          },
 
+
+
          //inference rules
          Rule::typ_stmt => {
             let mut ps = p.into_inner();
             let t = ps.next().expect("TLC Grammar Error in rule [typ_stmt.1]").into_inner().concat();
             let mut implies = None;
             let mut itks = Vec::new();
-            let mut typedef = None;
+            let mut typedef = Vec::new();
             let mut kind = None;
             for e in ps { match e.as_rule() {
                Rule::ident_typ_kind => {
@@ -672,13 +684,20 @@ impl TLC {
                },
                Rule::typ => { implies = Some(self.unparse_ast_typ(e)?); },
                Rule::typedef => {
-                  for td in e.into_inner() {
-                     let td = td.into_inner().concat();
-                     if td.starts_with("/") {
-                        typedef = Some(Typedef::Regex(td.clone()));
-                        break;
+ 
+                  for tdb in e.into_inner() {
+                     let mut tbs = tdb.into_inner();
+                     let tbl = tbs.concat();
+                     let tb = tbs.next().expect("TLC Grammar Error in rule [typedef.2]");
+                     match tb.as_rule() {
+                        Rule::regex => {
+                           typedef.push( Typedef::Regex(tbl) );
+                        },
+                        Rule::typname => {
+                           typedef.push( Typedef::Constructor(tbl,Vec::new()) );
+                        },
+                        rule => panic!("unexpected typedef rule: {:?}", rule)
                      }
-                     //TODO: Enum Typedefs
                   }
                },
                Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); },
@@ -695,6 +714,17 @@ impl TLC {
             Ok(TermId { id:0 })
          },
 
+         Rule::constructor => {
+            let mut ps = p.into_inner();
+            let cname = ps.next().expect("TLC Grammar Error in rule [constructor], expected typname").into_inner().concat();
+            let kvs = Vec::new();
+            //key_value = { ident ~ "=" ~ term }
+            //constructor = { typname ~ ("{" ~ (key_value ~ ("," ~ key_value)*)? ~ "}")? }
+            Ok(self.push_term(Term::Constructor(
+               cname,
+               kvs
+            ),&span))
+         },
          
          Rule::forall_stmt => {
             let mut quants: Vec<(Option<String>,Option<Typ>,Option<Kind>)> = Vec::new();
@@ -1001,6 +1031,29 @@ impl TLC {
                           Box::new(implied.clone().unwrap_or(Typ::Any)))
             ))?;
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[g.id].typ.returns(), &self.rows[t.id].span)?;
+         },
+         Term::Constructor(cname,kvs) => {
+            for (_k,v) in kvs.iter() {
+               self.typecheck(scope.clone(), *v, None)?;
+            }
+            let mut found = false;
+            for (tt, tname,_tpars,_tkvs) in self.constructors.iter() {
+               if &cname==tname {
+                  self.rows[t.id].typ = unify(
+                     &self.rows[t.id].typ,
+                     &tt,
+                     &self.rows[t.id].span
+                  )?;
+                  found = true;
+                  break;
+               }
+            }
+            if !found { return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("type constructor, none found for: {}", self.print_term(t)),
+               span: self.rows[t.id].span.clone(),
+               snippet: "".to_string()
+            }) }
          },
          _ => panic!("TODO typecheck term: {}", self.print_term(t))
       };

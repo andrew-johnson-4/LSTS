@@ -6,6 +6,8 @@ fn check_constant_literals() {
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
 
    //soft cast literals into typed values
+   tlc.check(Some(si), "True:Boolean").unwrap();
+   tlc.check(Some(si), "False:Boolean").unwrap();
    tlc.check(Some(si), "1:Boolean").unwrap_err();
 
    tlc.check(Some(si), "0:Integer").unwrap();

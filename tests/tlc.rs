@@ -29,9 +29,9 @@ fn parse_simplytyped() {
    tlc.parse("let f():A").unwrap();
    tlc.parse("let f()::Term").unwrap();
    tlc.parse("type A").unwrap();
-   tlc.parse("forall A,B:C::D. (A,B)").unwrap();
-   tlc.parse("forall A,B:C::D. (A,B) :: R").unwrap();
-   tlc.parse("forall A,B:C::D. (A,B) => C :: R").unwrap();
+   tlc.parse("forall :A,:B::C. (A,B)").unwrap();
+   tlc.parse("forall :A,:B::C. (A,B) :: R").unwrap();
+   tlc.parse("forall :A,:B::C. (A,B) => C :: R").unwrap();
    tlc.parse("{a; b}").unwrap();
 }
 
