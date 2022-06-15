@@ -245,7 +245,7 @@ pub enum Typedef {
 
 #[derive(Clone)]
 pub enum TypeRule {
-   Typedef(String,Vec<(Option<String>,Option<Typ>,Option<Kind>)>,Option<Typ>,Vec<Typedef>,Option<Kind>,Span),
+   Typedef(String,Vec<(String,Option<Typ>,Option<Kind>)>,Option<Typ>,Vec<Typedef>,Option<Kind>,Span),
 
    Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>,Span),
 }
@@ -263,9 +263,9 @@ impl std::fmt::Debug for TypeRule {
            TypeRule::Typedef(tn,itks,implies,_td,tk,_) => write!(f, "{}{}{}{}{}::{:?}",
               tn,
               if itks.len()==0 { "" } else { "<" },
-              itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
-                    i.clone().unwrap_or("_".to_string()),
-                    t.clone().unwrap_or(Typ::Nil),
+              itks.iter().map(|(t,i,k)| format!("{:?}:{:?}::{:?}",
+                    t.clone(),
+                    i.clone().unwrap_or(Typ::Any),
                     k.clone().unwrap_or(Kind::Nil),
               )).collect::<Vec<String>>().join(","),
               if itks.len()==0 { "" } else { ">" },
@@ -666,21 +666,21 @@ impl TLC {
             let mut ps = p.into_inner();
             let t = ps.next().expect("TLC Grammar Error in rule [typ_stmt.1]").into_inner().concat();
             let mut implies = None;
-            let mut itks = Vec::new();
+            let mut tiks = Vec::new();
             let mut typedef = Vec::new();
             let mut kind = None;
             for e in ps { match e.as_rule() {
-               Rule::ident_typ_kind => {
-                  let mut ident = None;
-                  let mut typ = None;
+               Rule::typ_inf_kind => {
+                  let mut typ = "".to_string();
+                  let mut inf = None;
                   let mut kind = None;
                   for itk in e.into_inner() { match itk.as_rule() {
-                     Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                     Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)?); },
+                     Rule::typvar => { typ = itk.into_inner().concat(); },
+                     Rule::typ   => { inf   = Some(self.unparse_ast_typ(itk)?); },
                      Rule::kind   => { kind   = Some(self.unparse_ast_kind(itk)?); },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
-                  itks.push((ident,typ,kind));
+                  tiks.push((typ,inf,kind));
                },
                Rule::typ => { implies = Some(self.unparse_ast_typ(e)?); },
                Rule::typedef => {
@@ -693,8 +693,20 @@ impl TLC {
                         Rule::regex => {
                            typedef.push( Typedef::Regex(tbl) );
                         },
-                        Rule::typname => {
-                           typedef.push( Typedef::Constructor(tbl,Vec::new()) );
+                        Rule::constructor_typedef => {
+                           let mut tcname = t.clone(); //if not provided, constructor name is same as of the type being defined
+                           let mut tcrows = Vec::new();
+                           for tc in tb.into_inner() { match tc.as_rule() {
+                              Rule::typname => { tcname = tc.into_inner().concat(); },
+                              Rule::key_typ => {
+                                 let mut kts = tc.into_inner();
+                                 let ki = kts.next().expect("TLC Grammar Error in rule [typedef.3]").into_inner().concat();
+                                 let kt = self.unparse_ast_typ(kts.next().expect("TLC Grammar Error in rule [typedef.4]"))?;
+                                 tcrows.push((ki,kt));
+                              },
+                              rule => panic!("unexpected constructor_typedef rule: {:?}", rule)
+                           }}
+                           typedef.push( Typedef::Constructor(tcname,tcrows) );
                         },
                         rule => panic!("unexpected typedef rule: {:?}", rule)
                      }
@@ -705,7 +717,7 @@ impl TLC {
             }}
             self.rules.push(TypeRule::Typedef(
                t,
-               itks,
+               tiks,
                implies,
                typedef,
                kind,
