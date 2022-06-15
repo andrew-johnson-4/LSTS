@@ -58,6 +58,21 @@ fn check_type_equality() {
 }
 
 #[test]
+fn check_compound_types() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //use constructors
+   tlc.check(Some(si), "Point2D { x=1:Integer, y=2:Integer }").unwrap();
+   tlc.check(Some(si), "Point2D { x=True:Boolean, y=1:Integer").unwrap_err();
+   tlc.check(Some(si), "Point2D { x=True:Boolean, y=False:Boolean").unwrap_err();
+
+   tlc.check(Some(si), "Point3D { x=1:Integer, y=2:Integer, z=1:Integer }").unwrap();
+   tlc.check(Some(si), "Point3D { x=1:Integer, y=2:Integer, z=False:Boolean").unwrap_err();
+   tlc.check(Some(si), "Point3D { x=True:Boolean, y=False:Boolean, z=False:Boolean").unwrap_err();
+}
+
+#[test]
 fn check_kinded_type_equality() {
    //TODO check Units unify and persist
 }

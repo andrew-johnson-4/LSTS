@@ -17,6 +17,11 @@ type Kelvin  :: Unit;
 type Mole    :: Unit;
 type Candela :: Unit;
 
+//: Compound Types
+type Point2D<:N::Number> = { x:N, y:N };
+type Point3D<:N::Number> = { x:N, y:N, z:N };
+type Point4D<:N::Number> = { x:N, y:N, z:N, w:N };
+
 //: Units are Numbers
 forall :X::Unit. X => Number :: Term;  //: All-Caps types are type variables.
 
