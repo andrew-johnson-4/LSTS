@@ -18,9 +18,9 @@ type Mole    :: Unit;
 type Candela :: Unit;
 
 //: Compound Types
-type Point2D<:N::Number> = { x:N, y:N };
-type Point3D<:N::Number> = { x:N, y:N, z:N };
-type Point4D<:N::Number> = { x:N, y:N, z:N, w:N };
+type Point2D<N:Number> = { x:N, y:N };
+type Point3D<N:Number> = { x:N, y:N, z:N };
+type Point4D<N:Number> = { x:N, y:N, z:N, w:N };
 
 //: Units are Numbers
 forall :X::Unit. X => Number :: Term;  //: All-Caps types are type variables.
@@ -74,16 +74,16 @@ type RefractiveIndex :: Unit;
 type RelativePermeability :: Unit;
 
 //: SI Metric Prefixes
-type Yotta<:U::Unit> :: Unit;
-type Zetta<:U::Unit> :: Unit;
-type Exa<:U::Unit> :: Unit;
-type Peta<:U::Unit> :: Unit;
-type Tera<:U::Unit> :: Unit;
-type Giga<:U::Unit> :: Unit;
-type Mega<:U::Unit> :: Unit;
-type Kilo<:U::Unit> :: Unit;
-type Hecto<:U::Unit> :: Unit;
-type Deca<:U::Unit> :: Unit;
+type Yotta<U::Unit> :: Unit;
+type Zetta<U::Unit> :: Unit;
+type Exa<U::Unit> :: Unit;
+type Peta<U::Unit> :: Unit;
+type Tera<U::Unit> :: Unit;
+type Giga<U::Unit> :: Unit;
+type Mega<U::Unit> :: Unit;
+type Kilo<U::Unit> :: Unit;
+type Hecto<U::Unit> :: Unit;
+type Deca<U::Unit> :: Unit;
 
 //: SI Metric Prefixes, boxing
 forall u:U::Unit. U => Yotta<U> = 1000000000000000000000000 * u :: Unit;

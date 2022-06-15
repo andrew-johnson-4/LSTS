@@ -9,10 +9,12 @@ alpha = { 'a'..'z' | 'A'..'Z' }
 alphal = { 'a'..'z' | 'A'..'Z' | "_" | "." }
 digit = { '0'..'9' }
 digital = { '0'..'9' | "_" | "." }
+alnum   = { 'a'..'z' | 'A'..'Z' | '0'..'9' }
 alnumop = { 'a'..'z' | 'A'..'Z' | '0'..'9' | "+" | "-" | "_" }
 
-typname    = { upper ~ alpha* }
-kindname   = { upper ~ alpha* }
+typvar     = { upper+ }
+typname    = { upper ~ alnum* }
+kindname   = { upper ~ alnum* }
 simplename = { alphal ~ (alphal | digit)* }
 quotedname = { "$\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 ident      = { !("let" | "forall" | "type") ~ ((lowerl~alphal*) | quotedname) }
@@ -21,6 +23,7 @@ numerical  = { digit ~ digital* ~ (esign ~ digital+)? }
 imaginary  = { "+" ~ numerical ~ "i" }
 constant   = { numerical ~ imaginary? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
+typ_inf_kind = { typvar ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
 divmul_op = { "/" | "*" | "%" }
 addsub_op = { "+" | "-" }
@@ -58,10 +61,12 @@ kind      = { kindname ~ ("<" ~ kind? ~ ("," ~ kind)* ~ ">")? }
 let_stmt = { "let" ~ ident ~ let_stmt_par? ~ (":" ~ typ)? ~ ("::" ~ kind)? ~ ("=" ~ term)? }
 let_stmt_par = { "(" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ ")" }
 
+key_typ = { ident ~ ":" ~ typ }
+constructor_typedef = { typname? ~ ("{" ~ (key_typ ~ ("," ~ key_typ)*)? ~ "}")? }
 regex = { "/" ~ (!"/" ~ ANY)+ ~ "/" }
-typedef_branch = { regex | typname }
+typedef_branch = { regex | constructor_typedef }
 typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
-typ_stmt = { "type" ~ typname ~ ("<" ~ ident_typ_kind ~ ("," ~ ident_typ_kind)* ~ ">")? ~ (":" ~ typ)? ~ ("=" ~ typedef)? ~ ("::" ~ kind)? }
+typ_stmt = { "type" ~ typname ~ ("<" ~ typ_inf_kind ~ ("," ~ typ_inf_kind)* ~ ">")? ~ (":" ~ typ)? ~ ("=" ~ typedef)? ~ ("::" ~ kind)? }
 
 inference = { typ ~ ("=>" ~ typ)? }
 forall_stmt = { "forall" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ inference ~ ("=" ~ term)? ~ ("::" ~ kind)?}
