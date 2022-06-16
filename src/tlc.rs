@@ -1030,6 +1030,22 @@ impl TLC {
       }
       Ok(())
    }
+   pub fn bound_implied(&self, tt: &Typ, span: &Span) -> Result<(),Error> {
+      match tt {
+         Typ::Nil => Ok(()),
+         Typ::Any => Ok(()),
+         Typ::Or(_ts) => Ok(()),
+         Typ::Arrow(p,b) => { self.bound_implied(p,span)?; self.bound_implied(b,span)?; Ok(()) },
+         Typ::Ratio(p,b) => { self.bound_implied(p,span)?; self.bound_implied(b,span)?; Ok(()) },
+         Typ::And(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
+         Typ::Tuple(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
+         Typ::Product(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
+         Typ::Ident(tn,ts) => {
+            if ts.len()==0 { return Ok(()); }
+            panic!("check implied bounds on typ: {:?}", tt.clone());
+         },
+      }
+   }
    pub fn extend_implied(&self, tt: &Typ) -> Typ {
       match tt {
          Typ::Nil => tt.clone(),
@@ -1141,6 +1157,7 @@ impl TLC {
             } else {
                self.rows[t.id].typ = Typ::Nil;
             }
+            self.bound_implied(&rt,&self.rows[t.id].span)?;
          },
          Term::Ascript(x,tt) => {
             self.typecheck(scope.clone(), x, Some(tt.clone()))?;
@@ -1212,6 +1229,7 @@ impl TLC {
       if let Some(ref i) = implied {
          self.rows[t.id].typ = unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
       };
+      self.bound_implied(&self.rows[t.id].typ,&self.rows[t.id].span)?;
       Ok(())
    }
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
