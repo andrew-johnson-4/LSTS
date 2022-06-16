@@ -347,8 +347,8 @@ impl TLC {
          Term::Block(_,es) => {
             format!("{{{}}}", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(";"))
          },
-         Term::Constructor(cn,_kvs) => {
-            format!("{}{{}}", cn)
+         Term::Constructor(cn,kvs) => {
+            format!("{}{{{}}}", cn, kvs.iter().map(|(k,v)|format!("{}={}",k,self.print_term(*v))).collect::<Vec<String>>().join(","))
          },
       }
    }
@@ -385,7 +385,7 @@ impl TLC {
       Ok(ScopeId {id:0})
    }
    pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
-      let ast = self.parse_doc(docname, src)?;
+      let ast = self.parse_doc(globals, docname, src)?;
       self.compile_rules(docname)?;
       self.typecheck(globals, ast, None)?;
       self.sanitycheck()?;
@@ -460,12 +460,13 @@ impl TLC {
       Ok(())
    }
    pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
-      self.parse_doc("[string]", src)
+      //used mainly in tests
+      self.parse_doc(None, "[string]", src)
    }
-   pub fn parse_doc(&mut self, docname:&str, src:&str) -> Result<TermId,Error> {
+   pub fn parse_doc(&mut self, scope:Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
       let parse_result = TlcParser::parse(Rule::file, src);
       match parse_result {
-        Ok(parse_ast) => { self.unparse_file(docname, parse_ast) }
+        Ok(parse_ast) => { self.unparse_file(scope, docname, parse_ast) }
         Err(pe) => {
           let (start,end) = match pe.line_col {
              LineColLocation::Pos(s) => (s,s),
@@ -499,7 +500,7 @@ impl TLC {
         }
       } 
    }
-   pub fn unparse_file(&mut self, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<TermId,Error> {
+   pub fn unparse_file(&mut self, scope:Option<ScopeId>, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<TermId,Error> {
       let p = ps.peek().unwrap();
       let span = Span {
          filename: fp.to_string(),
@@ -508,10 +509,10 @@ impl TLC {
          offset_start: p.as_span().start(),
          offset_end: p.as_span().end(),
       };
-      let file_scope = self.push_scope(Scope {
+      let file_scope = scope.unwrap_or(self.push_scope(Scope {
          parent: None,
          children: Vec::new(),
-      }, &span);
+      }, &span));
       self.unparse_ast(file_scope, fp, p, &span)
    }
    pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
@@ -683,17 +684,17 @@ impl TLC {
                   let mut typ = "".to_string();
                   let mut inf = None;
                   let mut kind = None;
-                  for itk in e.into_inner() { match itk.as_rule() {
-                     Rule::typvar => { typ = itk.into_inner().concat(); },
-                     Rule::typ   => { inf   = Some(self.unparse_ast_typ(itk)?); },
-                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(itk)?); },
+                  for tik in e.into_inner() { match tik.as_rule() {
+                     Rule::typvar => { typ = tik.into_inner().concat(); },
+                     Rule::typ   => { inf   = Some(self.unparse_ast_typ(tik)?); },
+                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(tik)?); },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                   tiks.push((typ,inf,kind));
                },
                Rule::typ => { implies = Some(self.unparse_ast_typ(e)?); },
                Rule::typedef => {
- 
+                  let struct_typ = Typ::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Typ::Ident(t.clone(),Vec::new())).collect::<Vec<Typ>>());
                   for tdb in e.into_inner() {
                      let mut tbs = tdb.into_inner();
                      let tbl = tbs.concat();
@@ -711,11 +712,17 @@ impl TLC {
                                  let mut kts = tc.into_inner();
                                  let ki = kts.next().expect("TLC Grammar Error in rule [typedef.3]").into_inner().concat();
                                  let kt = self.unparse_ast_typ(kts.next().expect("TLC Grammar Error in rule [typedef.4]"))?;
+                                 self.scopes[scope.id].children.push((
+                                    format!(".{}",ki.clone()),
+                                    Typ::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
+                                 ));
                                  tcrows.push((ki,kt));
                               },
                               rule => panic!("unexpected constructor_typedef rule: {:?}", rule)
                            }}
                            typedef.push( Typedef::Constructor(tcname,tcrows) );
+
+                           //TODO push let .ident(c:C) -> T into scope
                         },
                         rule => panic!("unexpected typedef rule: {:?}", rule)
                      }
