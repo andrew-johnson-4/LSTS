@@ -830,7 +830,12 @@ impl TLC {
             Ok(Typ::Ident(name,Vec::new()))
          },
          Rule::typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
-         Rule::ident_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [ident_typ]")),
+         Rule::ident_typ => {
+            let mut ps = p.into_inner();
+            let tn = ps.next().expect("TLC Grammar Error in rule [ident_typ.1]").into_inner().concat();
+            let tps = ps.map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Typ>>();
+            Ok(Typ::Ident(tn,tps))
+         },
          Rule::atom_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
          Rule::any_typ => Ok(Typ::Any),
          Rule::paren_typ => {
@@ -962,7 +967,9 @@ impl TLC {
       if let Some(scope) = scope {
          let ref sc = self.scopes[scope.id];
          for (tn,tt) in sc.children.iter() {
-            if tn==v { return Ok(tt.clone()) }
+            if tn==v {
+               return Ok(tt.clone())
+            }
          }
          self.typeof_var(&sc.parent.clone(), &v, span)
       } else { Err(Error {
