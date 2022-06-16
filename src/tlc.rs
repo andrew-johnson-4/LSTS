@@ -1038,7 +1038,23 @@ impl TLC {
          Typ::Arrow(p,b) => Typ::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Typ::Ratio(p,b) => Typ::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Typ::Ident(tn,ts) => {
-            panic!("TODO: lookup ident to extend")
+            for tr in self.rules.iter() { match tr {
+               TypeRule::Typedef(tdn,itks,implies,_td,_tk,_) if tn==tdn && ts.len()==itks.len() => {
+                  let implies = if let Some(it) = implies {
+                     match it {
+                        Typ::And(its) => its.clone(),
+                        i => vec![i.clone()],
+                     }
+                  } else { Vec::new() };
+                  if implies.len()==0 { return tt.clone(); }
+                  let mut ats = Vec::new();
+                  ats.push(tt.clone());
+                  //TODO: substitute type variables in implied types
+                  ats.append(&mut implies.clone());
+                  return Typ::And(ats);
+               }, _ => (),
+	    }}
+            tt.clone()
          },
          Typ::And(ts) => {
             let mut ats = Vec::new();
