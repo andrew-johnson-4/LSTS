@@ -135,8 +135,16 @@ impl Typ {
          }
       }
    }
-   fn normalize(&self) -> Typ {
-      self.clone()
+   fn normalize(&mut self) {
+      match self {
+         Typ::Or(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); }
+         Typ::And(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); }
+         Typ::Tuple(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); }
+         Typ::Product(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); }
+         Typ::Arrow(p,b) => { p.normalize(); b.normalize(); }
+         Typ::Ratio(p,b) => { p.normalize(); b.normalize(); }
+         _ => (),
+      }
    }
    fn substitute(&self, subs:&Vec<(Typ,Typ)>) -> Typ {
       for (lt,rt) in subs.iter() {
@@ -185,11 +193,13 @@ impl std::fmt::Debug for Typ {
     }
 }
 pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
+   let mut lt = lt.clone(); lt.normalize();
+   let mut rt = rt.clone(); rt.normalize();
    let mut subs = Vec::new();
-   let r = unify_impl(&mut subs, lt, rt, span);
+   let r = unify_impl(&mut subs, &lt, &rt, span);
    subs.sort();
    subs.dedup();
-   let tt = if let Ok(tt) = r {
+   let mut tt = if let Ok(tt) = r {
       tt.substitute(&subs)
    } else { return Err(Error {
       kind: "Type Error".to_string(),
@@ -197,7 +207,8 @@ pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
       span: span.clone(),
       snippet: "".to_string(),
    }) };
-   Ok(tt.normalize())
+   tt.normalize();
+   Ok(tt)
 }
 fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
    match (lt,rt) {
