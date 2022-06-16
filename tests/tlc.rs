@@ -57,6 +57,16 @@ fn check_normalization() {
 }
 
 #[test]
+fn check_subtyping() {
+   let mut tlc = TLC::new();
+
+   //the type system should accept subtyping relationships
+   tlc.check(None, "type Ab; type Bc; type Cd; let a: Ab+Bc; a:Ab").unwrap(); 
+   tlc.check(None, "type Ab; type Bc; type Cd; let a: Ab+Bc; a:Bc").unwrap(); 
+   tlc.check(None, "type Ab; type Bc; type Cd; let a: Ab+Bc; a:Cd").unwrap_err(); 
+}
+
+#[test]
 fn check_narrow_implication() {
    let mut tlc = TLC::new();
    

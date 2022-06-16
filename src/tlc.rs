@@ -193,6 +193,7 @@ impl std::fmt::Debug for Typ {
     }
 }
 pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
+   //lt => rt
    let mut lt = lt.clone(); lt.normalize();
    let mut rt = rt.clone(); rt.normalize();
    let mut subs = Vec::new();
@@ -210,7 +211,22 @@ pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
    tt.normalize();
    Ok(tt)
 }
+fn can_unify(lt: &Typ, rt: &Typ) -> bool {
+   match (lt,rt) {
+      (Typ::Any,_r) => true,
+      (_l,Typ::Any) => true,
+      (Typ::Nil,Typ::Nil) => true,
+      (Typ::Ident(lv,_lps),Typ::Ident(_rv,_rps)) if lv.chars().all(char::is_uppercase) => true,
+      (Typ::Ident(_lv,_lps),Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => true,
+      (Typ::Ident(lv,lps),Typ::Ident(rv,rps)) if lv==rv && lps.len()==rps.len() => true,
+      (Typ::Arrow(pl,bl),Typ::Arrow(pr,br)) => can_unify(pl,pr) && can_unify(bl,br),
+      (Typ::Ratio(pl,bl),Typ::Ratio(pr,br)) => can_unify(pl,pr) && can_unify(bl,br),
+      (Typ::Product(la),Typ::Product(ra)) => la.len()==ra.len() && std::iter::zip(la,ra).all(|(l,r)|can_unify(l,r)),
+      _ => false
+   }
+}
 fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
+   //lt => rt
    match (lt,rt) {
       (Typ::Any,r) => Ok(r.clone()),
       (l,Typ::Any) => Ok(l.clone()),
@@ -248,12 +264,21 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
          }
          Ok(Typ::Product(ts))
       },
-      (Typ::And(la),Typ::And(ra)) => {
+      (Typ::And(_la),Typ::And(ra)) => {
+         //lt => rt
          let mut ts = Vec::new();
-         for (lt,rt) in std::iter::zip(la,ra) {
+         for rt in ra.iter() {
             ts.push(unify_impl(subs,lt,rt,span)?);
          }
          Ok(Typ::And(ts))
+      },
+      (Typ::And(la),rt) => {
+         for lt in la.iter() {
+            if can_unify(lt, rt) {
+               return unify_impl(subs,lt,rt,span);
+            }
+         }
+         Err(())
       },
       _ => Err(()),
    }
@@ -1007,13 +1032,19 @@ impl TLC {
       }
       Ok(())
    }
+   pub fn extend_implied(&self, tt: &Typ) -> Typ {
+      //TODO: gather and join all implications from type rules
+      tt.clone()
+   }
    pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Typ>, span: &Span) -> Result<Typ,Error> {
       if let Some(scope) = scope {
          let ref sc = self.scopes[scope.id];
          for (tn,tt) in sc.children.iter() {
             if tn==v {
                if let Some(it) = implied {
-                  if let Ok(rt) = unify(tt,it,span) {
+                  let tt = self.extend_implied(tt);
+                  //if tt => it
+                  if let Ok(rt) = unify(&tt,it,span) {
                      return Ok(rt.clone());
                   }
                } else {
