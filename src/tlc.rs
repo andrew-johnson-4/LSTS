@@ -1002,7 +1002,9 @@ impl TLC {
          for (tn,tt) in sc.children.iter() {
             if tn==v {
                if let Some(it) = implied {
-                  return Ok(unify(tt,it,span)?);
+                  if let Ok(rt) = unify(tt,it,span) {
+                     return Ok(rt.clone());
+                  }
                } else {
                   return Ok(tt.clone());
                }
