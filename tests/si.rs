@@ -35,6 +35,18 @@ fn check_constant_literals() {
 }
 
 #[test]
+fn check_project_kinded() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //It is ok to let the compiler infer the Term type
+   tlc.check(Some(si), "True").unwrap(); //should be a Boolean
+   tlc.check(Some(si), "1").unwrap(); //should be an Integer number
+   tlc.check(Some(si), "1.2").unwrap(); //should be a Real number
+   tlc.check(Some(si), "1.2+3i").unwrap(); //should be an Complex number
+}
+
+#[test]
 fn check_type_equality() {
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();

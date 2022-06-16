@@ -1180,8 +1180,9 @@ impl TLC {
                let span = self.rows[t.id].span.clone();
                let xt = self.typeof_var(&scope, &x, &implied, &span)?;
                self.rows[t.id].typ = unify(&self.rows[t.id].typ, &xt, &self.rows[t.id].span)?;
-            } else if let Some(ref i) = implied {
-               let i = self.project_kinded_type(&Kind::Simple("Term".to_string(),Vec::new()), i);
+            } else {
+               let i = if let Some(ref i) = implied { i.clone() } else { Typ::Any };
+               let i = self.project_kinded_type(&Kind::Simple("Term".to_string(),Vec::new()), &i);
                let mut r = None;
                for (pat,re) in self.regexes.iter() {
                   if pat==&i { r=Some(re); break; }
