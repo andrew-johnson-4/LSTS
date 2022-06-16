@@ -16,6 +16,7 @@ pub struct TLC {
    pub constructors: Vec<(Typ,String,Vec<Typ>,Vec<(String,Typ)>)>,
    pub ident_regex: Regex,
    pub tvar_regex: Regex,
+   pub term_kind: Kind,
 }
 
 pub struct Row {
@@ -393,6 +394,7 @@ impl TLC {
          constructors: Vec::new(),
          ident_regex: Regex::new("^[a-z.][_0-9a-zA-Z]*$").expect("Failed to compile ident_regex in TLC initialization"),
          tvar_regex: Regex::new("^[A-Z]+$").expect("Failed to compile tvar_regex in TLC initialization"),
+         term_kind: Kind::Simple("Term".to_string(),Vec::new()),
       }
    }
    pub fn print_scope(&self, s: ScopeId) -> String {
@@ -421,7 +423,7 @@ impl TLC {
          },
       }
    }
-   pub fn project_kinded_type(&mut self, k: &Kind, t: &Typ) -> Typ {
+   pub fn project_kinded(&self, k: &Kind, t: &Typ) -> Typ {
       let ts = match t {
          Typ::And(ts) => ts.clone(),
          tt => vec![tt.clone()],
@@ -431,7 +433,7 @@ impl TLC {
          for tr in self.rules.iter() { match tr {
             TypeRule::Typedef(tn,_itks,_implies,_td,tk,_) => {
                if &ts!=tn { continue; }
-               let tk = tk.clone().unwrap_or(Kind::Simple("Term".to_string(),Vec::new()));
+               let tk = tk.clone().unwrap_or(self.term_kind.clone());
                if &tk==k { return t.clone(); }
                //TODO: kind-project parameterized types
             },
@@ -463,7 +465,7 @@ impl TLC {
    pub fn kind_of(&self, t: &Typ) -> Kind {
       for rule in self.rules.iter() { match rule {
          TypeRule::Typedef(tt,_tps,_implies,_td,k,_) => { if &format!("{:?}",t)==tt {
-            return k.clone().unwrap_or(Kind::Simple("Term".to_string(),Vec::new()));
+            return k.clone().unwrap_or(self.term_kind.clone());
          }},
          _ => ()
       }}
@@ -589,7 +591,7 @@ impl TLC {
       self.rows.push(Row {
          term: term,
          typ: Typ::Any,
-         kind: Kind::Simple("Term".to_string(),Vec::new()),
+         kind: self.term_kind.clone(),
          span: span.clone(),
       });
       TermId { id: index }
@@ -866,7 +868,7 @@ impl TLC {
                  vec![quants.clone()],
                  Some(t),
                  Typ::Any,
-                 Kind::Simple("Term".to_string(),Vec::new()),
+                 self.term_kind.clone(),
                ),&span))
             } else {
                Ok(TermId { id:0 })
@@ -1182,10 +1184,15 @@ impl TLC {
                self.rows[t.id].typ = unify(&self.rows[t.id].typ, &xt, &self.rows[t.id].span)?;
             } else {
                let i = if let Some(ref i) = implied { i.clone() } else { Typ::Any };
-               let i = self.project_kinded_type(&Kind::Simple("Term".to_string(),Vec::new()), &i);
+               let i = self.project_kinded(&self.term_kind, &i);
                let mut r = None;
                for (pat,re) in self.regexes.iter() {
                   if pat==&i { r=Some(re); break; }
+                  else if Typ::Nil==i && re.is_match(&x) {
+                     r = Some(re);
+                     self.rows[t.id].typ = unify(&self.rows[t.id].typ, pat, &self.rows[t.id].span)?;
+                     break;
+                  }
                }
                if let Some(re) = r {
                   if !re.is_match(&x) {
