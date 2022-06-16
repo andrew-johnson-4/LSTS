@@ -49,6 +49,14 @@ fn check_simplytyped() {
 }
 
 #[test]
+fn check_normalization() {
+   let mut tlc = TLC::new();
+
+   //types should be normalized during unification
+   tlc.check(None, "type Ab; type Bc; type Cd; let a: Ab+Bc*Cd; a:Cd*Bc+Ab").unwrap(); 
+}
+
+#[test]
 fn check_narrow_implication() {
    let mut tlc = TLC::new();
    
@@ -58,3 +66,4 @@ fn check_narrow_implication() {
    tlc.check(None, "type Ab; type Bc: Ab; let a: Bc; a:Ab").unwrap();     //Bc implies        Ab
    tlc.check(None, "type Ab; type Bc: Ab; let a: Bc; a:Bc").unwrap();     //Bc implies        Bc
 }
+
