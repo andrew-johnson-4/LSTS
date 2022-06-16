@@ -135,6 +135,20 @@ impl Typ {
          }
       }
    }
+   fn substitute(&self, subs:&Vec<(Typ,Typ)>) -> Typ {
+      for (lt,rt) in subs.iter() {
+         if self==lt { return rt.clone(); }
+      }
+      match self {
+         Typ::Or(ts) => Typ::Or(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
+         Typ::And(ts) => Typ::And(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
+         Typ::Tuple(ts) => Typ::Tuple(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
+         Typ::Product(ts) => Typ::Product(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
+         Typ::Arrow(p,b) => Typ::Arrow(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
+         Typ::Ratio(p,b) => Typ::Ratio(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
+         _ => self.clone(),
+      }
+   }
    fn is_concrete(&self) -> bool {
       match self {
          Typ::Nil => true,
@@ -167,42 +181,58 @@ impl std::fmt::Debug for Typ {
         }
     }
 }
-pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
+pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<(Vec<(Typ,Typ)>,Typ),Error> {
    match (lt,rt) {
-      (Typ::Any,r) => Ok(r.clone()),
-      (l,Typ::Any) => Ok(l.clone()),
-      (Typ::Nil,Typ::Nil) => Ok(lt.clone()),
+      (Typ::Any,r) => Ok((Vec::new(),r.clone())),
+      (l,Typ::Any) => Ok((Vec::new(),l.clone())),
+      (Typ::Nil,Typ::Nil) => Ok((Vec::new(),lt.clone())),
+      (Typ::Ident(lv,_lps),Typ::Ident(_rv,_rps)) if lv.chars().all(char::is_uppercase) => {
+         Ok((vec![(lt.clone(),rt.clone())], rt.clone()))
+      },
       (Typ::Ident(lv,lps),Typ::Ident(rv,rps))
       if lv==rv && lps.len()==rps.len() => {
+         let mut subs = Vec::new();
          let mut tps = Vec::new();
          for (lp,rp) in std::iter::zip(lps,rps) {
-            tps.push(unify(lp,rp,span)?);
+            let (mut psub, pt) = unify(lp,rp,span)?;
+            subs.append(&mut psub);
+            tps.push(pt);
          }
-         Ok(Typ::Ident(lv.clone(),tps))
+         Ok((subs,Typ::Ident(lv.clone(),tps)))
       }
       (Typ::Arrow(pl,bl),Typ::Arrow(pr,br)) => {
-         let pt = unify(pl,pr,span)?;
-         let bt = unify(bl,br,span)?;
-         Ok(Typ::Arrow(Box::new(pt),Box::new(bt)))
+         let (mut psubs,pt) = unify(pl,pr,span)?;
+         let (mut bsubs,bt) = unify(&bl,br,span)?;
+         psubs.append(&mut bsubs);
+         let pt = pt.substitute(&psubs);
+         let bt = bt.substitute(&psubs);
+         Ok((psubs,Typ::Arrow(Box::new(pt),Box::new(bt))))
       },
       (Typ::Ratio(pl,bl),Typ::Ratio(pr,br)) => {
-         let pt = unify(pl,pr,span)?;
-         let bt = unify(bl,br,span)?;
-         Ok(Typ::Ratio(Box::new(pt),Box::new(bt)))
+         let (mut psubs,pt) = unify(pl,pr,span)?;
+         let (mut bsubs,bt) = unify(bl,br,span)?;
+         psubs.append(&mut bsubs);
+         Ok((psubs,Typ::Ratio(Box::new(pt),Box::new(bt))))
       },
       (Typ::Product(la),Typ::Product(ra)) => {
+         let mut subs = Vec::new();
          let mut ts = Vec::new();
          for (lt,rt) in std::iter::zip(la,ra) {
-            ts.push(unify(lt,rt,span)?);
+            let (mut sub,nt) = unify(lt,rt,span)?;
+            subs.append(&mut sub);
+            ts.push(nt);
          }
-         Ok(Typ::Product(ts))
+         Ok((subs,Typ::Product(ts)))
       },
       (Typ::And(la),Typ::And(ra)) => {
+         let mut subs = Vec::new();
          let mut ts = Vec::new();
          for (lt,rt) in std::iter::zip(la,ra) {
-            ts.push(unify(lt,rt,span)?);
+            let (mut sub,nt) = unify(lt,rt,span)?;
+            subs.append(&mut sub);
+            ts.push(nt);
          }
-         Ok(Typ::And(ts))
+         Ok((subs,Typ::And(ts)))
       },
       (l,r) => {
          Err(Error {
@@ -1004,7 +1034,7 @@ impl TLC {
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Nil => {
-            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &Typ::Nil, &self.rows[t.id].span)?;
+            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &Typ::Nil, &self.rows[t.id].span)?.1;
          },
          Term::Block(sid,es) => {
             let mut last_typ = Typ::Nil;
@@ -1012,7 +1042,7 @@ impl TLC {
                self.typecheck(Some(sid), *e, None)?;
                last_typ = self.rows[e.id].typ.clone();
             }
-            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?;
+            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?.1;
          },
          Term::Let(s,v,_ps,b,rt,_rk) => {
             if v=="" {
@@ -1027,13 +1057,13 @@ impl TLC {
          },
          Term::Ascript(x,tt) => {
             self.typecheck(scope.clone(), x, Some(tt.clone()))?;
-            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[x.id].typ, &self.rows[t.id].span)?;
+            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[x.id].typ, &self.rows[t.id].span)?.1;
          },
          Term::Ident(x) => {
             if self.ident_regex.is_match(&x) {
                let span = self.rows[t.id].span.clone();
                let xt = self.typeof_var(&scope, &x, &span)?;
-               self.rows[t.id].typ = unify(&self.rows[t.id].typ, &xt, &self.rows[t.id].span)?;
+               self.rows[t.id].typ = unify(&self.rows[t.id].typ, &xt, &self.rows[t.id].span)?.1;
             } else if let Some(ref i) = implied {
                let i = self.project_kinded_type(&Kind::Simple("Term".to_string(),Vec::new()), i);
                let mut r = None;
@@ -1065,7 +1095,7 @@ impl TLC {
                Typ::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(implied.clone().unwrap_or(Typ::Any)))
             ))?;
-            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[g.id].typ.returns(), &self.rows[t.id].span)?;
+            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[g.id].typ.returns(), &self.rows[t.id].span)?.1;
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.iter() {
@@ -1078,7 +1108,7 @@ impl TLC {
                      &self.rows[t.id].typ,
                      &tt,
                      &self.rows[t.id].span
-                  )?;
+                  )?.1;
                   found = true;
                   break;
                }
@@ -1093,7 +1123,7 @@ impl TLC {
          _ => panic!("TODO typecheck term: {}", self.print_term(t))
       };
       if let Some(ref i) = implied {
-         self.rows[t.id].typ = unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
+         self.rows[t.id].typ = unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?.1;
       };
       Ok(())
    }
