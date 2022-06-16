@@ -182,12 +182,15 @@ impl std::fmt::Debug for Typ {
     }
 }
 pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<(Vec<(Typ,Typ)>,Typ),Error> {
-   match (lt,rt) {
+   let st = match (lt,rt) {
       (Typ::Any,r) => Ok((Vec::new(),r.clone())),
       (l,Typ::Any) => Ok((Vec::new(),l.clone())),
       (Typ::Nil,Typ::Nil) => Ok((Vec::new(),lt.clone())),
       (Typ::Ident(lv,_lps),Typ::Ident(_rv,_rps)) if lv.chars().all(char::is_uppercase) => {
          Ok((vec![(lt.clone(),rt.clone())], rt.clone()))
+      },
+      (Typ::Ident(_lv,_lps),Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
+         Ok((vec![(rt.clone(),lt.clone())], lt.clone()))
       },
       (Typ::Ident(lv,lps),Typ::Ident(rv,rps))
       if lv==rv && lps.len()==rps.len() => {
@@ -242,7 +245,14 @@ pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<(Vec<(Typ,Typ)>,Typ),Err
             snippet: "".to_string(),
          })
       }
-   }
+   };
+   if let Ok((mut subs,tt)) = st {
+      subs.sort();
+      subs.dedup();
+      eprintln!("{:?} (x) {:?} => {:?} with {}", lt, rt, &tt,
+         subs.iter().map(|(lt,rt)| format!("{:?}=>{:?}",lt,rt)).collect::<Vec<String>>().join(" ; "));
+      Ok((subs,tt))
+   } else { st }
 }
 
 #[derive(Clone)]
@@ -1031,6 +1041,9 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
+      if let Some(scope) = scope {
+         eprintln!("typecheck in scope: {}", self.print_scope(scope));
+      }
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Nil => {
@@ -1093,8 +1106,14 @@ impl TLC {
             self.typecheck(scope.clone(), x, None)?;
             self.typecheck(scope.clone(), g, Some(
                Typ::Arrow(Box::new(self.rows[x.id].typ.clone()),
-                          Box::new(implied.clone().unwrap_or(Typ::Any)))
+                          Box::new(Typ::Any))
             ))?;
+            if let Some(ref rt) = implied {
+               self.typecheck(scope.clone(), g, Some(
+                  Typ::Arrow(Box::new(Typ::Any),
+                             Box::new(rt.clone()))
+               ))?;
+            }
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[g.id].typ.returns(), &self.rows[t.id].span)?.1;
          },
          Term::Constructor(cname,kvs) => {
@@ -1132,6 +1151,7 @@ impl TLC {
       let rules_l = self.rules.len();
       let scopes_l = self.scopes.len();
       let regexes_l = self.regexes.len();
+      let globals_l = if let Some(g) = globals { self.scopes[g.id].children.len() } else { 0 };
 
       let r = self.compile_str(globals, src);
 
@@ -1139,6 +1159,7 @@ impl TLC {
       self.rules.truncate(rules_l);
       self.scopes.truncate(scopes_l);
       self.regexes.truncate(regexes_l);
+      if let Some(g) = globals { self.scopes[g.id].children.truncate(globals_l); };
 
       r?; Ok(())
    }
