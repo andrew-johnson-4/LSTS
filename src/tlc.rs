@@ -790,8 +790,6 @@ impl TLC {
                               rule => panic!("unexpected constructor_typedef rule: {:?}", rule)
                            }}
                            typedef.push( Typedef::Constructor(tcname,tcrows) );
-
-                           //TODO push let .ident(c:C) -> T into scope
                         },
                         rule => panic!("unexpected typedef rule: {:?}", rule)
                      }
@@ -1033,8 +1031,30 @@ impl TLC {
       Ok(())
    }
    pub fn extend_implied(&self, tt: &Typ) -> Typ {
-      //TODO: gather and join all implications from type rules
-      tt.clone()
+      match tt {
+         Typ::Nil => tt.clone(),
+         Typ::Any => tt.clone(),
+         Typ::Or(_ts) => tt.clone(),
+         Typ::Arrow(p,b) => Typ::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
+         Typ::Ratio(p,b) => Typ::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
+         Typ::Ident(tn,ts) => {
+            panic!("TODO: lookup ident to extend")
+         },
+         Typ::And(ts) => {
+            let mut ats = Vec::new();
+            for tc in ts.iter() {
+               let ct = self.extend_implied(tc);
+               if let Typ::And(mut cts) = ct {
+                  ats.append(&mut cts);
+               } else {
+                  ats.push(ct);
+               }
+            }
+            Typ::And(ats)
+         },
+         Typ::Tuple(ts) => Typ::Tuple(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Typ>>()),
+         Typ::Product(ts) => Typ::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Typ>>()),
+      }
    }
    pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Typ>, span: &Span) -> Result<Typ,Error> {
       if let Some(scope) = scope {
