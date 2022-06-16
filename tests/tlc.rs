@@ -47,3 +47,14 @@ fn check_simplytyped() {
    tlc.check(None, "type Ab; type Bc; let a: Ab->Bc; let b: Ab; a(b)").unwrap();
    tlc.check(None, "type Ab; type Bc; let a: Ab->Bc; let b: Bc; a(b)").unwrap_err();
 }
+
+#[test]
+fn check_narrow_implication() {
+   let mut tlc = TLC::new();
+   
+   //narrow subtyping truth table, Bc => Ab
+   tlc.check(None, "type Ab; type Bc: Ab; let a: Ab; a:Ab").unwrap();     //Ab implies        Ab
+   tlc.check(None, "type Ab; type Bc: Ab; let a: Ab; a:Bc").unwrap_err(); //Ab does not imply Bc
+   tlc.check(None, "type Ab; type Bc: Ab; let a: Bc; a:Ab").unwrap();     //Bc implies        Ab
+   tlc.check(None, "type Ab; type Bc: Ab; let a: Bc; a:Bc").unwrap();     //Bc implies        Bc
+}
