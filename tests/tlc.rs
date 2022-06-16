@@ -77,3 +77,14 @@ fn check_narrow_implication() {
    tlc.check(None, "type Ab; type Bc: Ab; let a: Bc; a:Bc").unwrap();     //Bc implies        Bc
 }
 
+#[test]
+fn check_narrow_implication_with_parameters() {
+   let mut tlc = TLC::new();
+   
+   //narrow subtyping truth table, Bc<Pt> => Ab<Pt>
+   tlc.check(None, "type Pt; type Ab<A>; type Bc<B>: Ab<B>; let a: Ab<Pt>; a:Ab<Pt>").unwrap();     //Ab<Pt> implies        Ab<Pt>
+   tlc.check(None, "type Pt; type Ab<A>; type Bc<B>: Ab<B>; let a: Ab<Pt>; a:Bc<Pt>").unwrap_err(); //Ab<Pt> does not imply Bc<Pt>
+   tlc.check(None, "type Pt; type Ab<A>; type Bc<B>: Ab<B>; let a: Bc<Pt>; a:Ab<Pt>").unwrap();     //Bc<Pt> implies        Ab<Pt>
+   tlc.check(None, "type Pt; type Ab<A>; type Bc<B>: Ab<B>; let a: Bc<Pt>; a:Bc<Pt>").unwrap();     //Bc<Pt> implies        Bc<Pt>
+}
+
