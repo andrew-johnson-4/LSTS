@@ -249,8 +249,6 @@ pub fn unify(lt: &Typ, rt: &Typ, span: &Span) -> Result<(Vec<(Typ,Typ)>,Typ),Err
    if let Ok((mut subs,tt)) = st {
       subs.sort();
       subs.dedup();
-      eprintln!("{:?} (x) {:?} => {:?} with {}", lt, rt, &tt,
-         subs.iter().map(|(lt,rt)| format!("{:?}=>{:?}",lt,rt)).collect::<Vec<String>>().join(" ; "));
       Ok((subs,tt))
    } else { st }
 }
@@ -1003,15 +1001,21 @@ impl TLC {
       }
       Ok(())
    }
-   pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, span: &Span) -> Result<Typ,Error> {
+   pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Typ>, span: &Span) -> Result<Typ,Error> {
       if let Some(scope) = scope {
          let ref sc = self.scopes[scope.id];
          for (tn,tt) in sc.children.iter() {
             if tn==v {
-               return Ok(tt.clone())
+               if let Some(it) = implied {
+                  if let Ok((_subs,vt)) = unify(tt,it,span) {
+                     return Ok(vt);
+                  }
+               } else {
+                  return Ok(tt.clone());
+               }
             }
          }
-         self.typeof_var(&sc.parent.clone(), &v, span)
+         self.typeof_var(&sc.parent.clone(), v, implied, span)
       } else { Err(Error {
          kind: "Type Error".to_string(),
          rule: format!("variable not found in scope: {}", v),
@@ -1041,9 +1045,6 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
-      if let Some(scope) = scope {
-         eprintln!("typecheck in scope: {}", self.print_scope(scope));
-      }
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Nil => {
@@ -1075,7 +1076,7 @@ impl TLC {
          Term::Ident(x) => {
             if self.ident_regex.is_match(&x) {
                let span = self.rows[t.id].span.clone();
-               let xt = self.typeof_var(&scope, &x, &span)?;
+               let xt = self.typeof_var(&scope, &x, &implied, &span)?;
                self.rows[t.id].typ = unify(&self.rows[t.id].typ, &xt, &self.rows[t.id].span)?.1;
             } else if let Some(ref i) = implied {
                let i = self.project_kinded_type(&Kind::Simple("Term".to_string(),Vec::new()), i);
@@ -1108,12 +1109,6 @@ impl TLC {
                Typ::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Typ::Any))
             ))?;
-            if let Some(ref rt) = implied {
-               self.typecheck(scope.clone(), g, Some(
-                  Typ::Arrow(Box::new(Typ::Any),
-                             Box::new(rt.clone()))
-               ))?;
-            }
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[g.id].typ.returns(), &self.rows[t.id].span)?.1;
          },
          Term::Constructor(cname,kvs) => {
