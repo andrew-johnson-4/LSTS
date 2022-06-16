@@ -94,6 +94,15 @@ fn check_compound_types() {
 }
 
 #[test]
+fn check_tik_i() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   tlc.check(Some(si), "let xy: Point2D<Integer>").unwrap();
+   tlc.check(Some(si), "let xy: Point2D<Boolean>").unwrap_err();
+}
+
+#[test]
 fn check_kinded_type_equality() {
    //TODO check Units unify and persist
 }
