@@ -58,6 +58,42 @@ fn check_type_equality() {
 }
 
 #[test]
+fn check_compound_types() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //use constructors
+   tlc.check(Some(si), "Point2D { x=1:Integer, y=2:Integer }").unwrap();
+   tlc.check(Some(si), "Point2D { x=True:Boolean, y=1:Integer").unwrap_err();
+   tlc.check(Some(si), "Point2D { x=True:Boolean, y=False:Boolean").unwrap_err();
+
+   tlc.check(Some(si), "Point3D { x=1:Integer, y=2:Integer, z=1:Integer }").unwrap();
+   tlc.check(Some(si), "Point3D { x=1:Integer, y=2:Integer, z=False:Boolean").unwrap_err();
+   tlc.check(Some(si), "Point3D { x=True:Boolean, y=False:Boolean, z=False:Boolean").unwrap_err();
+
+   //use fields
+   tlc.check(Some(si), "let xy: Point2D<Integer>; xy.x:Integer").unwrap();
+   tlc.check(Some(si), "let xy: Point2D<Integer>; xy.y:Integer").unwrap();
+   tlc.check(Some(si), "let xy: Point2D<Integer>; xy.z:Integer").unwrap_err();
+   tlc.check(Some(si), "let xy: Point2D<Real>; xy.x:Real").unwrap();
+   tlc.check(Some(si), "let xy: Point2D<Real>; xy.y:Real").unwrap();
+   tlc.check(Some(si), "let xy: Point2D<Real>; xy.z:Real").unwrap_err();
+   tlc.check(Some(si), "let xy: Point2D<Real>; xy.x:Integer").unwrap_err();
+   tlc.check(Some(si), "let xy: Point2D<Real>; xy.y:Integer").unwrap_err();
+   tlc.check(Some(si), "let xy: Point2D<Real>; xy.z:Integer").unwrap_err();
+
+   tlc.check(Some(si), "let xyz: Point3D<Integer>; xyz.x:Integer").unwrap();
+   tlc.check(Some(si), "let xyz: Point3D<Integer>; xyz.y:Integer").unwrap();
+   tlc.check(Some(si), "let xyz: Point3D<Integer>; xyz.z:Integer").unwrap();
+   tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.x:Real").unwrap();
+   tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.y:Real").unwrap();
+   tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.z:Real").unwrap();
+   tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.x:Integer").unwrap_err();
+   tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.y:Integer").unwrap_err();
+   tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.z:Integer").unwrap_err();
+}
+
+#[test]
 fn check_kinded_type_equality() {
    //TODO check Units unify and persist
 }
