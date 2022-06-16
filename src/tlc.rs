@@ -1042,7 +1042,19 @@ impl TLC {
          Typ::Product(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
          Typ::Ident(tn,ts) => {
             if ts.len()==0 { return Ok(()); }
-            panic!("check implied bounds on typ: {:?}", tt.clone());
+            if !tt.is_concrete() { return Ok(()); }
+            for tr in self.rules.iter() { match tr {
+               TypeRule::Typedef(tdn,itks,_implies,_td,_tk,_) if tn==tdn && ts.len()==itks.len() => {
+                  for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,itks) {
+                     if let Some(bt) = bt {
+                        let cpt = self.extend_implied(pt);
+                        unify(&cpt, bt, span)?;
+                     }
+                  }
+                  return Ok(())
+               }, _ => (),
+            }}
+            Ok(())
          },
       }
    }
