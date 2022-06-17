@@ -1149,9 +1149,8 @@ impl TLC {
          for (tn,tt) in sc.children.iter() {
             if tn==v {
                if let Some(it) = implied {
-                  let ite = self.extend_implied(it);
-                  //if ite => tt
-                  if let Ok(rt) = self.unify(&ite,tt,span) {
+                  //if tt => it
+                  if let Ok(rt) = self.unify(&tt,it,span) {
                      return Ok(rt.clone());
                   }
                } else {
