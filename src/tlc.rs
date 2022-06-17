@@ -92,6 +92,28 @@ pub enum Typ {
    Ratio(Box<Typ>,Box<Typ>),
 }
 impl Typ {
+   fn and(&self, other:&Typ) -> Typ {
+      match (self,other) {
+         (Typ::And(ls),Typ::And(rs)) => {
+            let mut ts = ls.clone();
+            ts.append(&mut rs.clone());
+            Typ::And(ts)
+         },
+         (Typ::And(ls),r) => {
+            let mut ts = ls.clone();
+            ts.push(r.clone());
+            Typ::And(ts)
+         }
+         (l,Typ::And(rs)) => {
+            let mut ts = rs.clone();
+            ts.push(l.clone());
+            Typ::And(ts)
+         },
+         (l,r) => {
+            Typ::And(vec![l.clone(),r.clone()])
+         }
+      }
+   }
    fn expects(&self) -> Typ {
       match self {
          Typ::Arrow(p,_b) => *p.clone(),
@@ -172,7 +194,7 @@ impl Typ {
          Typ::Arrow(p,b) => p.is_concrete() && b.is_concrete(),
          Typ::Ratio(p,b) => p.is_concrete() && b.is_concrete(),
          Typ::Ident(_tn,ts) => ts.iter().all(|tc| tc.is_concrete()),
-         Typ::And(ts) => ts.len()>0 && ts.iter().all(|tc| tc.is_concrete()),
+         Typ::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom type is also concrete
          Typ::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
          Typ::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
       }
@@ -231,6 +253,14 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
          let pt = unify_impl(subs,pl,pr,span)?;
          let bt = unify_impl(subs,bl,br,span)?;
          Ok(Typ::Ratio(Box::new(pt),Box::new(bt)))
+      },
+      (Typ::Ratio(pl,bl),r) => {
+         let pt = unify_impl(subs,pl,r,span)?;
+         Ok(Typ::Ratio(Box::new(pt),Box::new(*bl.clone())))
+      },
+      (l,Typ::Ratio(pr,br)) => {
+         let pt = unify_impl(subs,l,pr,span)?;
+         Ok(Typ::Ratio(Box::new(pt),Box::new(*br.clone())))
       },
       (Typ::Product(la),Typ::Product(ra)) if la.len()==ra.len() => {
          let mut ts = Vec::new();
@@ -1285,11 +1315,11 @@ impl TLC {
          },
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { Typ::Any };
-            let i = self.project_kinded(&self.term_kind, &i);
+            let ki = self.project_kinded(&self.term_kind, &i);
             let mut r = None;
             for (pat,re) in self.regexes.iter() {
-               if pat==&i { r=Some(re); break; }
-               else if self.nil_type==i && re.is_match(&x) {
+               if pat==&ki { r=Some(re); break; } //Term kinded is not []
+               else if self.bottom_type==ki && re.is_match(&x) { //Term kinded is []
                   r = Some(re);
                   self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, pat, &self.rows[t.id].span)?;
                   break;
@@ -1303,6 +1333,11 @@ impl TLC {
                      span: self.rows[t.id].span.clone(),
                      snippet: "".to_string()
                   })
+               }
+               //if any non Term typ is implied, introduce it here
+               let ri = self.remove_kinded(&self.term_kind, &i);
+               if self.bottom_type!=ri {
+                  self.rows[t.id].typ = self.rows[t.id].typ.and(&ri);
                }
             } else {
                return Err(Error {
