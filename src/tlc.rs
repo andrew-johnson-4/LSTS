@@ -1217,6 +1217,14 @@ impl TLC {
             }
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?;
          },
+         Term::Tuple(es) => {
+            let mut ts = Vec::new();
+            for e in es.iter() {
+               self.typecheck(scope, *e, None)?;
+               ts.push(self.rows[e.id].typ.clone());
+            }
+            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &Typ::Tuple(ts), &self.rows[t.id].span)?;
+         },
          Term::Let(s,v,_ps,b,rt,_rk) => {
             if v=="" {
                //term is untyped
@@ -1300,7 +1308,6 @@ impl TLC {
                snippet: "".to_string()
             }) }
          },
-         _ => panic!("TODO typecheck term: {}", self.print_term(t))
       };
       if let Some(ref i) = implied {
          self.rows[t.id].typ = unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
