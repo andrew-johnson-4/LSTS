@@ -1265,10 +1265,19 @@ impl TLC {
             self.typecheck(scope.clone(), x, Some(into.clone()))?;
             let into_kind = self.kindof(&into);
             let from_kinded = self.project_kinded(&into_kind, &self.rows[x.id].typ);
+//forall i:Integer. Integer => Real    = i; //cast Integer to Real
+//forall i:Integer. Integer => Complex = i; //cast Integer to Complex
+//forall i:Real   . Real    => Complex = i; //cast Real to Complex
+//           TypeRule::Forall(itks,inf,_t,tk,_) => write!(f, "forall {}. {:?} :: {:?}", 
+            if let Ok(nt) = self.unify(&self.rows[x.id].typ, &into, &self.rows[t.id].span) {
+               //if cast is already satisfied, do nothing
+               self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+            } else {
+               eprintln!("typecheck {}:{:?} as {:?}", self.print_term(x), &self.rows[x.id].typ, &into);
+            }
             //TODO:
             //3. look for conversion rules matching, typeof(x) => Into :: kindof(Into)
             //4. t : typeof(x) / Into
-            self.rows[t.id].typ = from_kinded;
          },
          Term::Ident(x) => {
             let span = self.rows[t.id].span.clone();
