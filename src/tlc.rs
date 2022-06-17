@@ -367,7 +367,7 @@ impl TLC {
          //the first row, index 0, is nullary
          rows: vec![Row {
             term: Term::Tuple(Vec::new()),
-            typ: Typ::And(Vec::new()),
+            typ: Typ::Tuple(Vec::new()), //typeof(NULL) is () not []
             kind: Kind::Nil,
             span: Span {
                filename:"".to_string(),
@@ -1216,7 +1216,6 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
-      eprintln!("typecheck {}", self.print_term(t));
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
