@@ -144,10 +144,10 @@ impl Typ {
    }
    fn normalize(&mut self) {
       match self {
-         Typ::Or(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); }
-         Typ::And(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); }
+         Typ::Or(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); ts.dedup(); }
+         Typ::And(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); ts.dedup(); }
+         Typ::Product(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); ts.dedup(); }
          Typ::Tuple(ts) => { for t in ts.iter_mut() { t.normalize(); } }
-         Typ::Product(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); }
          Typ::Arrow(p,b) => { p.normalize(); b.normalize(); }
          Typ::Ratio(p,b) => { p.normalize(); b.normalize(); }
          _ => (),
@@ -237,7 +237,7 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
          let bt = unify_impl(subs,bl,br,span)?;
          Ok(Typ::Ratio(Box::new(pt),Box::new(bt)))
       },
-      (Typ::Product(la),Typ::Product(ra)) => {
+      (Typ::Product(la),Typ::Product(ra)) if la.len()==ra.len() => {
          let mut ts = Vec::new();
          for (lt,rt) in std::iter::zip(la,ra) {
             ts.push(unify_impl(subs,lt,rt,span)?);
@@ -251,21 +251,28 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
          }
          Ok(Typ::Tuple(ts))
       },
-      (Typ::And(_la),Typ::And(ra)) => {
+      (Typ::And(lts),Typ::And(ra)) => {
          //lt => rt
-         let mut ts = Vec::new();
+         let mut lts = lts.clone();
          for rt in ra.iter() {
-            ts.push(unify_impl(subs,lt,rt,span)?);
+            lts.push(unify_impl(subs,lt,rt,span)?);
          }
-         Ok(Typ::And(ts))
+         Ok(Typ::And(lts))
       },
-      (Typ::And(la),rt) => {
-         for lt in la.iter() {
+      (Typ::And(lts),rt) => {
+         let mut lts = lts.clone();
+         let mut accept = false;
+         for lt in lts.clone().iter() {
             if let Ok(nt) = unify_impl(subs,lt,rt,span) {
-               return Ok(nt.clone());
+               accept = true;
+               lts.push(nt);
             }
          }
-         Err(())
+         if accept {
+            Ok(Typ::And(lts))
+         } else {
+            Err(())
+         }
       },
       _ => Err(()),
    }
@@ -1229,7 +1236,8 @@ impl TLC {
          Term::Ident(x) => {
             let span = self.rows[t.id].span.clone();
             let xt = self.typeof_var(&scope, &x, &implied, &span)?;
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &xt, &self.rows[t.id].span)?;
+            //typeof(x) => t.typ
+            self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
          },
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { Typ::Any };
@@ -1262,6 +1270,8 @@ impl TLC {
             }
 	 },
          Term::App(g,x) => {
+            //covariant, contravariant matters here
+            //unify(lt,rt) means lt => rt, not always rt => lt
             self.typecheck(scope.clone(), x, None)?;
             self.typecheck(scope.clone(), g, Some(
                Typ::Arrow(Box::new(self.rows[x.id].typ.clone()),
