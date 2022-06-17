@@ -635,7 +635,23 @@ impl TLC {
          Rule::term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [term]"),span),
          Rule::value_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [value_term]"),span),
          Rule::atom_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_term]"),span),
-         Rule::prefix_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [prefix_term]"),span),
+         Rule::prefix_term => {
+            let mut prefix = None;
+            let mut term = None;
+            for pe in p.into_inner() { match pe.as_rule() {
+               Rule::prefix_op => { prefix = Some(pe.into_inner().concat()); },
+               Rule::atom_term => { term = Some(self.unparse_ast(scope,fp,pe,span)?); },
+               _ => panic!("TLC Grammar Error in rule [prefix_term.1]")
+            }}
+            match (prefix,term) {
+               (Some(prefix),Some(term)) => {
+                  let it = self.push_term(Term::Ident(prefix),&span);
+                  Ok(self.push_term(Term::App(it,term),&span))
+               },
+               (None,Some(term)) => Ok(term),
+               _ => panic!("TLC Grammar Error in rule [prefix_term.2]")
+            }
+         },
          Rule::infix_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [infix_term]"),span),
 
          //literal value rules
