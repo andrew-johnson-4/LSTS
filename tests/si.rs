@@ -120,25 +120,25 @@ fn check_unit_math() {
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
 
    //check math operations
-   tlc.check(Some(si), "let x: Meter; +x:Meter").unwrap();
-   tlc.check(Some(si), "let x: Meter; +x:Second").unwrap_err();
-   tlc.check(Some(si), "let x: Meter; -x:Meter").unwrap();
-   tlc.check(Some(si), "let x: Meter; -x:Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; +x:Metre").unwrap();
+   tlc.check(Some(si), "let x: Metre; +x:Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; -x:Metre").unwrap();
+   tlc.check(Some(si), "let x: Metre; -x:Second").unwrap_err();
 
-   tlc.check(Some(si), "let x: Meter; let y: Meter; x+y:Meter").unwrap();
-   tlc.check(Some(si), "let x: Meter; let y: Second; x+y:Meter").unwrap_err();
-   tlc.check(Some(si), "let x: Meter; let y: Meter; x-y:Meter").unwrap();
-   tlc.check(Some(si), "let x: Meter; let y: Second; x-y:Meter").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; let y: Metre; x+y:Metre").unwrap();
+   tlc.check(Some(si), "let x: Metre; let y: Second; x+y:Metre").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; let y: Metre; x-y:Metre").unwrap();
+   tlc.check(Some(si), "let x: Metre; let y: Second; x-y:Metre").unwrap_err();
 
-   tlc.check(Some(si), "let x: Meter; let y: Second; x*y:Meter*Second").unwrap();
-   tlc.check(Some(si), "let x: Meter; let y: Meter; x*y:Meter*Second").unwrap_err();
-   tlc.check(Some(si), "let x: Meter; let y: Second; x/y:Meter/Second").unwrap();
-   tlc.check(Some(si), "let x: Meter; let y: Meter; x/y:Meter/Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; let y: Second; x*y:Metre*Second").unwrap();
+   tlc.check(Some(si), "let x: Metre; let y: Metre; x*y:Metre*Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; let y: Second; x/y:Metre/Second").unwrap();
+   tlc.check(Some(si), "let x: Metre; let y: Metre; x/y:Metre/Second").unwrap_err();
 
-   tlc.check(Some(si), "let x: Meter; (2:Integer)*x:Meter").unwrap();
-   tlc.check(Some(si), "let x: Meter; (2:Integer)*x:Second").unwrap_err();
-   tlc.check(Some(si), "let x: Meter; (2:Integer)/x:()/Meter").unwrap();
-   tlc.check(Some(si), "let x: Meter; (2:Integer)/x:()/Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; (2:Integer)*x:Metre").unwrap();
+   tlc.check(Some(si), "let x: Metre; (2:Integer)*x:Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Metre").unwrap();
+   tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Second").unwrap_err();
 }
 
 #[test]
@@ -147,8 +147,8 @@ fn check_unit_conversion() {
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
 
    //check unit conversions
-   tlc.check(Some(si), "let x: Meter; x:Kilo<Meter>").unwrap();
-   tlc.check(Some(si), "let x: Meter; x:Kilo<Second>").unwrap_err();
-   tlc.check(Some(si), "let x: Kilo<Meter>; x:Meter").unwrap();
-   tlc.check(Some(si), "let x: Kilo<Meter>; x:Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; x:Kilo<Metre>").unwrap();
+   tlc.check(Some(si), "let x: Metre; x:Kilo<Second>").unwrap_err();
+   tlc.check(Some(si), "let x: Kilo<Metre>; x:Metre").unwrap();
+   tlc.check(Some(si), "let x: Kilo<Metre>; x:Second").unwrap_err();
 }

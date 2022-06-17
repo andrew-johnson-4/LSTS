@@ -93,6 +93,12 @@ pub enum Typ {
    Ratio(Box<Typ>,Box<Typ>),
 }
 impl Typ {
+   fn expects(&self) -> Typ {
+      match self {
+         Typ::Arrow(p,_b) => *p.clone(),
+         _ => Typ::And(Vec::new()), //absurd
+      }
+   }
    fn returns(&self) -> Typ {
       match self {
          Typ::Arrow(_p,b) => *b.clone(),
@@ -364,6 +370,7 @@ pub struct TermId {
 pub enum Term {
    Nil,
    Ident(String),
+   Value(String),
    App(TermId,TermId),
    Let(ScopeId,String,Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>>,Option<TermId>,Typ,Kind),
    Tuple(Vec<TermId>),
@@ -409,6 +416,7 @@ impl TLC {
       match &self.rows[t.id].term {
          Term::Nil => format!("()"),
          Term::Ident(x) => format!("{}", x),
+         Term::Value(x) => format!("'{}'", x),
          Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
          Term::Let(_sc,v,_ps,_b,_rt,_rk) => format!("let {}", v),
          Term::Ascript(t,tt) => format!("{}:{:?}", self.print_term(*t), tt),
@@ -656,7 +664,7 @@ impl TLC {
 
          //literal value rules
          Rule::ident => Ok(self.push_term(Term::Ident(self.into_ident(p.into_inner().concat())), &span)),
-         Rule::constant => Ok(self.push_term(Term::Ident(p.into_inner().concat()), &span)),
+         Rule::constant => Ok(self.push_term(Term::Value(p.into_inner().concat()), &span)),
 
          //complex rules
          Rule::let_stmt => {
@@ -1160,6 +1168,7 @@ impl TLC {
       match self.rows[t.id].term.clone() {
          Term::Nil => (),
          Term::Ident(_x) => (),
+         Term::Value(_x) => (),
          Term::Block(_sid,es) => {
             for e in es.iter() {
                self.untyped(*e);
@@ -1207,39 +1216,38 @@ impl TLC {
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[x.id].typ, &self.rows[t.id].span)?;
          },
          Term::Ident(x) => {
-            if self.ident_regex.is_match(&x) {
-               let span = self.rows[t.id].span.clone();
-               let xt = self.typeof_var(&scope, &x, &implied, &span)?;
-               self.rows[t.id].typ = unify(&self.rows[t.id].typ, &xt, &self.rows[t.id].span)?;
-            } else {
-               let i = if let Some(ref i) = implied { i.clone() } else { Typ::Any };
-               let i = self.project_kinded(&self.term_kind, &i);
-               let mut r = None;
-               for (pat,re) in self.regexes.iter() {
-                  if pat==&i { r=Some(re); break; }
-                  else if Typ::Nil==i && re.is_match(&x) {
-                     r = Some(re);
-                     self.rows[t.id].typ = unify(&self.rows[t.id].typ, pat, &self.rows[t.id].span)?;
-                     break;
-                  }
+            let span = self.rows[t.id].span.clone();
+            let xt = self.typeof_var(&scope, &x, &implied, &span)?;
+            self.rows[t.id].typ = unify(&self.rows[t.id].typ, &xt, &self.rows[t.id].span)?;
+         },
+         Term::Value(x) => {
+            let i = if let Some(ref i) = implied { i.clone() } else { Typ::Any };
+            let i = self.project_kinded(&self.term_kind, &i);
+            let mut r = None;
+            for (pat,re) in self.regexes.iter() {
+               if pat==&i { r=Some(re); break; }
+               else if Typ::Nil==i && re.is_match(&x) {
+                  r = Some(re);
+                  self.rows[t.id].typ = unify(&self.rows[t.id].typ, pat, &self.rows[t.id].span)?;
+                  break;
                }
-               if let Some(re) = r {
-                  if !re.is_match(&x) {
-                     return Err(Error {
-                        kind: "Type Error".to_string(),
-                        rule: format!("type {:?} rejected the literal {}", i, x),
-                        span: self.rows[t.id].span.clone(),
-                        snippet: "".to_string()
-                     })
-                  }
-               } else {
+            }
+            if let Some(re) = r {
+               if !re.is_match(&x) {
                   return Err(Error {
                      kind: "Type Error".to_string(),
-                     rule: format!("type {:?} is not literal: {}", i, x),
+                     rule: format!("type {:?} rejected the literal {}", i, x),
                      span: self.rows[t.id].span.clone(),
                      snippet: "".to_string()
                   })
                }
+            } else {
+               return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("type {:?} is not literal: {}", i, x),
+                  span: self.rows[t.id].span.clone(),
+                  snippet: "".to_string()
+               })
             }
 	 },
          Term::App(g,x) => {
@@ -1248,6 +1256,7 @@ impl TLC {
                Typ::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Typ::Any))
             ))?;
+            self.rows[x.id].typ = unify(&self.rows[x.id].typ, &self.rows[g.id].typ.expects(), &self.rows[x.id].span)?;
             self.rows[t.id].typ = unify(&self.rows[t.id].typ, &self.rows[g.id].typ.returns(), &self.rows[t.id].span)?;
          },
          Term::Constructor(cname,kvs) => {
