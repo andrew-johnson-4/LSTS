@@ -694,7 +694,20 @@ impl TLC {
                   children.push((i.clone().unwrap_or("_".to_string()), t.clone().unwrap_or(Typ::Nil)));
                }
             }
-            self.scopes[scope.id].children.push((ident.clone(), rt.clone())); //TODO: add gathered type signature for function definitions
+            let mut ft = rt.clone();
+            for itks in pars.iter().rev() {
+               let mut ps = Vec::new();
+               for (_i,t,_k) in itks.iter() {
+                  ps.push(t.clone().unwrap_or(Typ::Nil));
+               }
+               let pt = if ps.len()==1 {
+                  ps[0].clone()
+               } else {
+                  Typ::Tuple(ps.clone())
+               };
+               ft = Typ::Arrow(Box::new(pt),Box::new(ft));
+            }
+            self.scopes[scope.id].children.push((ident.clone(), ft));
             let inner_scope = self.push_scope(Scope {
                parent: Some(scope),
                children: children,

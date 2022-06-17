@@ -25,9 +25,11 @@ constant   = { numerical ~ imaginary? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 typ_inf_kind = { typvar ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
-divmul_op = { "/" | "*" | "%" }
-addsub_op = { "+" | "-" }
-prefix_op = { "+" | "-" }
+divmul_chars = { "/" | "*" | "%" }
+divmul_op = { divmul_chars }
+addsub_chars = { "+" | "-" }
+addsub_op = { addsub_chars }
+prefix_op = { addsub_chars }
 
 key_value = { ident ~ "=" ~ term }
 constructor = { typname ~ ("{" ~ (key_value ~ ("," ~ key_value)*)? ~ "}")? }
