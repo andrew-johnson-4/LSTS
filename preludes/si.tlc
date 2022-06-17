@@ -145,9 +145,9 @@ let pos(x:X::Unit):X::Unit;                     //pos
 let neg(x:X::Unit):X::Unit;                     //neg
 let $"+"(x:X::Unit, y:X::Unit):X::Unit;         //add
 let $"-"(x:X::Unit, y:X::Unit):X::Unit;         //sub
-let $"*"(x:X::Unit, y:Y::Unit):X*Y::Unit;       //mul
 let $"*"(x:Number::Term, y:Y::Unit):Y::Unit;    //mul constant
 let $"*"(x:X::Unit, y:Number::Term):X::Unit;    //mul constant
-let $"/"(x:X::Unit, y:Y::Unit):X/Y::Unit;       //div
+let $"*"(x:X::Unit, y:Y::Unit):X*Y::Unit;       //mul
 let $"/"(x:Number::Term, y:Y::Unit):()/Y::Unit; //div constant
 let $"/"(x:X::Unit, y:Number::Term):X::Unit;    //div constant
+let $"/"(x:X::Unit, y:Y::Unit):X/Y::Unit;       //div
