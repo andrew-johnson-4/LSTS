@@ -15,7 +15,7 @@ LSTS implements [a categorical view of typed lambda calculus with flexible sound
 
     let v: Kilo<Meter>/Second = 123.456;
     let s: Minute = 78.9;
-    let d: Mile = v * s;
+    let d: Mile = (v as Mile/Minute) * s;
 
 Unit is a Kind separate from Term. Unit typing adds a check for dimension analysis. Inference rules are programmable on a Kind by Kind basis.
 
