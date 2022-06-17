@@ -223,8 +223,8 @@ fn can_unify(lt: &Typ, rt: &Typ) -> bool {
       (Typ::Any,_r) => true,
       (_l,Typ::Any) => true,
       (Typ::Nil,Typ::Nil) => true,
-      (Typ::Ident(lv,_lps),Typ::Ident(_rv,_rps)) if lv.chars().all(char::is_uppercase) => true,
-      (Typ::Ident(_lv,_lps),Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => true,
+      (Typ::Ident(lv,_lps),_rt) if lv.chars().all(char::is_uppercase) => true,
+      (_lt,Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => true,
       (Typ::Ident(lv,lps),Typ::Ident(rv,rps)) if lv==rv && lps.len()==rps.len() => true,
       (Typ::Arrow(pl,bl),Typ::Arrow(pr,br)) => can_unify(pl,pr) && can_unify(bl,br),
       (Typ::Ratio(pl,bl),Typ::Ratio(pr,br)) => can_unify(pl,pr) && can_unify(bl,br),
@@ -239,11 +239,17 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
       (Typ::Any,r) => Ok(r.clone()),
       (l,Typ::Any) => Ok(l.clone()),
       (Typ::Nil,Typ::Nil) => Ok(lt.clone()),
-      (Typ::Ident(lv,_lps),Typ::Ident(_rv,_rps)) if lv.chars().all(char::is_uppercase) => {
+      (Typ::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
+         for (sl,sr) in subs.clone().iter() {
+            if lt==sl { return unify_impl(subs,sr,rt,span); }
+         }
          subs.push((lt.clone(),rt.clone()));
          Ok(rt.clone())
       },
-      (Typ::Ident(_lv,_lps),Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
+      (lt,Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
+         for (sl,sr) in subs.clone().iter() {
+            if rt==sl { return unify_impl(subs,lt,sr,span); }
+         }
          subs.push((rt.clone(),lt.clone()));
          Ok(lt.clone())
       },
@@ -655,7 +661,11 @@ impl TLC {
             let mut prefix = None;
             let mut term = None;
             for pe in p.into_inner() { match pe.as_rule() {
-               Rule::prefix_op => { prefix = Some(pe.into_inner().concat()); },
+               Rule::prefix_op => { match pe.into_inner().concat() {
+                  s if s=="+" => { prefix=Some("pos".to_string()); },
+                  s if s=="-" => { prefix=Some("neg".to_string()); },
+                  s => panic!("TLC Grammar Error in rule [prefix_term.0] '{}'", s),
+               }},
                Rule::atom_term => { term = Some(self.unparse_ast(scope,fp,pe,span)?); },
                _ => panic!("TLC Grammar Error in rule [prefix_term.1]")
             }}
@@ -716,7 +726,9 @@ impl TLC {
                for (_i,t,_k) in itks.iter() {
                   ps.push(t.clone().unwrap_or(Typ::Nil));
                }
-               let pt = if ps.len()==1 {
+               let pt = if ps.len()==0 {
+                  Typ::Nil
+               } else if ps.len()==1 {
                   ps[0].clone()
                } else {
                   Typ::Tuple(ps.clone())
@@ -746,9 +758,9 @@ impl TLC {
             let mut g = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [atom_term]"),span)?;
             for x in es { match x.as_rule() {
                Rule::tuple_term => {
-                  g = {let t = Term::App(
+                  g = { let f = self.unparse_ast(scope,fp,x,span)?; let t = Term::App(
                      g,
-                     self.unparse_ast(scope,fp,x,span)?
+                     f,
                   ); self.push_term(t,&span)};
                },
                Rule::field_term => {
