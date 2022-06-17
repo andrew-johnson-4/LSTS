@@ -263,6 +263,21 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
          }
       },
 
+      //ratio types have next precedence
+      (Typ::Ratio(pl,bl),Typ::Ratio(pr,br)) => {
+         let pt = unify_impl(subs,pl,pr,span)?;
+         let bt = unify_impl(subs,bl,br,span)?;
+         Ok(Typ::Ratio(Box::new(pt),Box::new(bt)))
+      },
+      (Typ::Ratio(pl,bl),r) => {
+         let pt = unify_impl(subs,pl,r,span)?;
+         Ok(Typ::Ratio(Box::new(pt),Box::new(*bl.clone())))
+      },
+      (l,Typ::Ratio(pr,br)) => {
+         let pt = unify_impl(subs,l,pr,span)?;
+         Ok(Typ::Ratio(Box::new(pt),Box::new(*br.clone())))
+      },
+
       //everything else is a mixed bag
       (Typ::Ident(lv,lps),Typ::Ident(rv,rps))
       if lv==rv && lps.len()==rps.len() => {
@@ -276,19 +291,6 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
          let pt = unify_impl(subs,pl,pr,span)?;
          let bt = unify_impl(subs,bl,br,span)?;
          Ok(Typ::Arrow(Box::new(pt),Box::new(bt)))
-      },
-      (Typ::Ratio(pl,bl),Typ::Ratio(pr,br)) => {
-         let pt = unify_impl(subs,pl,pr,span)?;
-         let bt = unify_impl(subs,bl,br,span)?;
-         Ok(Typ::Ratio(Box::new(pt),Box::new(bt)))
-      },
-      (Typ::Ratio(pl,bl),r) => {
-         let pt = unify_impl(subs,pl,r,span)?;
-         Ok(Typ::Ratio(Box::new(pt),Box::new(*bl.clone())))
-      },
-      (l,Typ::Ratio(pr,br)) => {
-         let pt = unify_impl(subs,l,pr,span)?;
-         Ok(Typ::Ratio(Box::new(pt),Box::new(*br.clone())))
       },
       (Typ::Product(la),Typ::Product(ra)) if la.len()==ra.len() => {
          let mut ts = Vec::new();
@@ -1251,6 +1253,7 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
+      eprintln!("typecheck {}", self.print_term(t));
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
@@ -1309,14 +1312,15 @@ impl TLC {
                   }, _ => {} 
                }}
             }
-            //TODO:
-            //4. t : typeof(x) / Into
          },
          Term::Ident(x) => {
+            eprintln!("typecheck Ident.1");
             let span = self.rows[t.id].span.clone();
             let xt = self.typeof_var(&scope, &x, &implied, &span)?;
             //typeof(x) => t.typ
+            eprintln!("typecheck Ident.2");
             self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+            eprintln!("typecheck Ident.3");
          },
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { Typ::Any };
@@ -1389,12 +1393,15 @@ impl TLC {
          },
       };
       if let Some(ref i) = implied {
+         eprintln!("start typecheck implied {:?}", i);
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
+         eprintln!("end typecheck implied {:?}", i);
       };
       self.bound_implied(&self.rows[t.id].typ,&self.rows[t.id].span)?;
       Ok(())
    }
    pub fn unify(&self, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
+      eprintln!("unify {:?} (x) {:?}", lt, rt);
       //lt => rt
       let mut lt = self.extend_implied(lt); lt.normalize();
       let mut rt = rt.clone(); rt.normalize();
