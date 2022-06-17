@@ -229,6 +229,7 @@ fn can_unify(lt: &Typ, rt: &Typ) -> bool {
       (Typ::Arrow(pl,bl),Typ::Arrow(pr,br)) => can_unify(pl,pr) && can_unify(bl,br),
       (Typ::Ratio(pl,bl),Typ::Ratio(pr,br)) => can_unify(pl,pr) && can_unify(bl,br),
       (Typ::Product(la),Typ::Product(ra)) => la.len()==ra.len() && std::iter::zip(la,ra).all(|(l,r)|can_unify(l,r)),
+      (Typ::Tuple(la),Typ::Tuple(ra)) => la.len()==ra.len() && std::iter::zip(la,ra).all(|(l,r)|can_unify(l,r)),
       _ => false
    }
 }
@@ -270,6 +271,13 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
             ts.push(unify_impl(subs,lt,rt,span)?);
          }
          Ok(Typ::Product(ts))
+      },
+      (Typ::Tuple(la),Typ::Tuple(ra)) => {
+         let mut ts = Vec::new();
+         for (lt,rt) in std::iter::zip(la,ra) {
+            ts.push(unify_impl(subs,lt,rt,span)?);
+         }
+         Ok(Typ::Tuple(ts))
       },
       (Typ::And(_la),Typ::And(ra)) => {
          //lt => rt
