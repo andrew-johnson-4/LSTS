@@ -244,7 +244,7 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
          }
          Ok(Typ::Product(ts))
       },
-      (Typ::Tuple(la),Typ::Tuple(ra)) => {
+      (Typ::Tuple(la),Typ::Tuple(ra)) if la.len()==ra.len() => {
          let mut ts = Vec::new();
          for (lt,rt) in std::iter::zip(la,ra) {
             ts.push(unify_impl(subs,lt,rt,span)?);
