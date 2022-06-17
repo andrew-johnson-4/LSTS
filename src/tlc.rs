@@ -363,6 +363,7 @@ pub enum Term {
    Tuple(Vec<TermId>),
    Block(ScopeId,Vec<TermId>),
    Ascript(TermId,Typ),
+   As(TermId,Typ),
    Constructor(String,Vec<(String,TermId)>),
 }
 
@@ -407,6 +408,7 @@ impl TLC {
          Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
          Term::Let(_sc,v,_ps,_b,_rt,_rk) => format!("let {}", v),
          Term::Ascript(t,tt) => format!("{}:{:?}", self.print_term(*t), tt),
+         Term::As(t,tt) => format!("{} as {:?}", self.print_term(*t), tt),
          Term::Tuple(es) => {
             format!("({})", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(","))
          },
@@ -721,6 +723,17 @@ impl TLC {
             match es.next() {
                None => self.unparse_ast(scope,fp,e,span),
                Some(tt) => Ok({let t = Term::Ascript(
+                  self.unparse_ast(scope,fp,e,span)?, //term
+                  self.unparse_ast_typ(tt)? //type
+               ); self.push_term(t, &span)}),
+            }
+         },
+         Rule::as_term => {
+            let mut es = p.into_inner();
+            let e = es.next().expect("TLC Grammar Error in rule [as_term]");
+            match es.next() {
+               None => self.unparse_ast(scope,fp,e,span),
+               Some(tt) => Ok({let t = Term::As(
                   self.unparse_ast(scope,fp,e,span)?, //term
                   self.unparse_ast_typ(tt)? //type
                ); self.push_term(t, &span)}),
@@ -1143,6 +1156,22 @@ impl TLC {
          Typ::Product(ts) => Typ::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Typ>>()),
       }
    }
+   pub fn kindof(&self, tt:&Typ) -> Kind {
+      match tt {
+         //only simple types can be kinded
+         Typ::Ident(tn,ts) => {
+            for tr in self.rules.iter() { match tr {
+               TypeRule::Typedef(tdn,itks,_implies,_td,tk,_) => {
+                  if tn==tdn && ts.len()==itks.len() {
+                     return tk.clone().unwrap_or(self.term_kind.clone());
+                  }
+               },
+               _ => ()
+            }}
+            Kind::Nil
+         }, _ => Kind::Nil
+      }
+   }
    pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Typ>, span: &Span) -> Result<Typ,Error> {
       if let Some(scope) = scope {
          let ref sc = self.scopes[scope.id];
@@ -1231,6 +1260,15 @@ impl TLC {
          Term::Ascript(x,tt) => {
             self.typecheck(scope.clone(), x, Some(tt.clone()))?;
             self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &self.rows[x.id].typ, &self.rows[t.id].span)?;
+         },
+         Term::As(x,into) => {
+            self.typecheck(scope.clone(), x, Some(into.clone()))?;
+            let into_kind = self.kindof(&into);
+            let from_kinded = self.project_kinded(&into_kind, &self.rows[x.id].typ);
+            //TODO:
+            //3. look for conversion rules matching, typeof(x) => Into :: kindof(Into)
+            //4. t : typeof(x) / Into
+            self.rows[t.id].typ = from_kinded;
          },
          Term::Ident(x) => {
             let span = self.rows[t.id].span.clone();
