@@ -755,14 +755,28 @@ impl TLC {
          },
          Rule::divmul_term => {
             let mut es = p.into_inner();
-            let e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [divmul_term]"),span)?;
-            //TODO: combine terms
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [divmul_term.1]"),span)?;
+            while let Some(op) = es.next() {
+               let op = op.into_inner().concat();
+               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [divmul_term.2]"),span)?;
+               e = {let t = Term::App(
+                  self.push_term(Term::Ident(op),span),
+                  self.push_term(Term::Tuple(vec![e,d]),span),
+               ); self.push_term(t,&span)};
+            }
             Ok(e)
          },
          Rule::addsub_term => {
             let mut es = p.into_inner();
-            let e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [addsub_term]"),span)?;
-            //TODO: combine terms
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [addsub_term.1]"),span)?;
+            while let Some(op) = es.next() {
+               let op = op.into_inner().concat();
+               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [addsub_term.2]"),span)?;
+               e = {let t = Term::App(
+                  self.push_term(Term::Ident(op),span),
+                  self.push_term(Term::Tuple(vec![e,d]),span),
+               ); self.push_term(t,&span)};
+            }
             Ok(e)
          },
          Rule::tuple_term => {
@@ -1169,7 +1183,13 @@ impl TLC {
          Term::Nil => (),
          Term::Ident(_x) => (),
          Term::Value(_x) => (),
+         Term::App(g,x) => { self.untyped(g); self.untyped(x); },
          Term::Block(_sid,es) => {
+            for e in es.iter() {
+               self.untyped(*e);
+            }
+         },
+         Term::Tuple(es) => {
             for e in es.iter() {
                self.untyped(*e);
             }
