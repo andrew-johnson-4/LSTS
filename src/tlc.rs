@@ -1145,11 +1145,9 @@ impl TLC {
                   let ite = self.extend_implied(it);
                   //if ite => tt
                   if let Ok(rt) = self.unify(&ite,tt,span) {
-                     eprintln!("typeof_var {}: {:?} yields {:?}", v, ite.clone(), rt.clone());
                      return Ok(rt.clone());
                   }
                } else {
-                  eprintln!("typeof_var {}: {:?} yields {:?}", v, Typ::Any, tt.clone());
                   return Ok(tt.clone());
                }
             }
@@ -1264,18 +1262,13 @@ impl TLC {
             }
 	 },
          Term::App(g,x) => {
-            eprintln!("typecheck Term::App.1");
             self.typecheck(scope.clone(), x, None)?;
-            eprintln!("typecheck Term::App.2");
             self.typecheck(scope.clone(), g, Some(
                Typ::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Typ::Any))
             ))?;
-            eprintln!("typecheck Term::App.3");
             self.rows[x.id].typ = self.unify(&self.rows[x.id].typ, &self.rows[g.id].typ.expects(), &self.rows[x.id].span)?;
-            eprintln!("typecheck Term::App.4");
             self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &self.rows[g.id].typ.returns(), &self.rows[t.id].span)?;
-            eprintln!("typecheck Term::App.5");
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.iter() {
