@@ -161,18 +161,6 @@ fn check_type_cast() {
 }
 
 #[test]
-fn check_alt_kind_type_cast() {
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-
-   //introduce a type of a different kind
-   tlc.check(Some(si), "True as Metre").unwrap_err();
-   tlc.check(Some(si), "1:Integer as Metre").unwrap();
-   tlc.check(Some(si), "1:Real as Metre").unwrap();
-   tlc.check(Some(si), "1:Complex as Metre").unwrap();
-}
-
-#[test]
 fn check_narrow_type_cast() {
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();

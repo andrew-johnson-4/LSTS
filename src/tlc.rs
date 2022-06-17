@@ -439,6 +439,14 @@ impl TLC {
       }
       Typ::Nil
    }
+   pub fn remove_kinded(&self, k: &Kind, t: &Typ) -> Typ {
+      let ts = match t {
+         Typ::And(ts) => ts.clone(),
+         tt => vec![tt.clone()],
+      };
+      let ts = ts.into_iter().filter(|ct|&self.kindof(&ct)!=k).collect::<Vec<Typ>>();
+      Typ::And(ts)
+   }
 
    pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
       self.compile_doc(globals, "[string]", src)
@@ -1262,21 +1270,30 @@ impl TLC {
             self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &self.rows[x.id].typ, &self.rows[t.id].span)?;
          },
          Term::As(x,into) => {
-            self.typecheck(scope.clone(), x, Some(into.clone()))?;
+            self.typecheck(scope.clone(), x, None)?;
             let into_kind = self.kindof(&into);
-            let from_kinded = self.project_kinded(&into_kind, &self.rows[x.id].typ);
-//forall i:Integer. Integer => Real    = i; //cast Integer to Real
-//forall i:Integer. Integer => Complex = i; //cast Integer to Complex
-//forall i:Real   . Real    => Complex = i; //cast Real to Complex
-//           TypeRule::Forall(itks,inf,_t,tk,_) => write!(f, "forall {}. {:?} :: {:?}", 
             if let Ok(nt) = self.unify(&self.rows[x.id].typ, &into, &self.rows[t.id].span) {
                //if cast is already satisfied, do nothing
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
-               eprintln!("typecheck {}:{:?} as {:?}", self.print_term(x), &self.rows[x.id].typ, &into);
+               let from_kinded = self.project_kinded(&into_kind, &self.rows[x.id].typ);
+               for tr in self.rules.iter() { match tr {
+                  TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,tk,_) if tk.clone().unwrap_or(self.term_kind.clone())==into_kind => {
+                     if let Ok(lt) = self.unify(&from_kinded, lt, &self.rows[t.id].span) {
+                     if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span) {
+                        //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
+                        //eliminate typeof(x) :: kindof(Into)
+                        let l_narrowed = self.remove_kinded(&into_kind, &lt);
+                        //introduce typeof(x) (x) R
+                        let l_widened = self.unify(&rt, &l_narrowed, &self.rows[t.id].span)?;
+                        self.rows[t.id].typ = l_widened;
+                        //TODO: substitute term t into macro body if exists
+                        break;
+                     }}
+                  }, _ => {} 
+               }}
             }
             //TODO:
-            //3. look for conversion rules matching, typeof(x) => Into :: kindof(Into)
             //4. t : typeof(x) / Into
          },
          Term::Ident(x) => {
