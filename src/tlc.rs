@@ -14,9 +14,9 @@ pub struct TLC {
    pub scopes: Vec<Scope>,
    pub regexes: Vec<(Typ,Regex)>,
    pub constructors: Vec<(Typ,String,Vec<Typ>,Vec<(String,Typ)>)>,
-   pub ident_regex: Regex,
-   pub tvar_regex: Regex,
    pub term_kind: Kind,
+   pub nil_type: Typ,
+   pub bottom_type: Typ,
 }
 
 pub struct Row {
@@ -82,13 +82,12 @@ impl std::fmt::Debug for Kind {
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd)]
 pub enum Typ {
-   Nil,
    Any,
    Ident(String,Vec<Typ>),
    Or(Vec<Typ>),
-   And(Vec<Typ>),
+   And(Vec<Typ>), //Bottom is the empty conjunctive
    Arrow(Box<Typ>,Box<Typ>),
-   Tuple(Vec<Typ>),   //Tuple is order-sensitive
+   Tuple(Vec<Typ>),   //Tuple is order-sensitive, Nil is the empty tuple
    Product(Vec<Typ>), //Product is order-insensitive
    Ratio(Box<Typ>,Box<Typ>),
 }
@@ -107,7 +106,6 @@ impl Typ {
    }
    fn vars(&self) -> Vec<String> {
       match self {
-         Typ::Nil => vec![],
          Typ::Any => vec![],
          Typ::Or(_ts) => vec![],
          Typ::Ident(tn,ts) => {
@@ -169,7 +167,6 @@ impl Typ {
    }
    fn is_concrete(&self) -> bool {
       match self {
-         Typ::Nil => true,
          Typ::Any => false,
          Typ::Or(_ts) => false,
          Typ::Arrow(p,b) => p.is_concrete() && b.is_concrete(),
@@ -184,14 +181,13 @@ impl Typ {
 impl std::fmt::Debug for Typ {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           Typ::Nil => write!(f, "()"),
            Typ::Any => write!(f, "?"),
            Typ::Ident(t,ts) => {
               if ts.len()==0 { write!(f, "{}", t) }
               else { write!(f, "{}<{}>", t, ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ) }
            }
            Typ::Or(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("|") ),
-           Typ::And(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("+") ),
+           Typ::And(ts) => write!(f, "[{}]", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("+") ),
            Typ::Tuple(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ),
            Typ::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
            Typ::Arrow(p,b) => write!(f, "({:?})=>({:?})", p, b),
@@ -204,7 +200,6 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
    match (lt,rt) {
       (Typ::Any,r) => Ok(r.clone()),
       (l,Typ::Any) => Ok(l.clone()),
-      (Typ::Nil,Typ::Nil) => Ok(lt.clone()),
       (Typ::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
          for (sl,sr) in subs.clone().iter() {
             if lt==sl { return unify_impl(subs,sr,rt,span); }
@@ -338,7 +333,7 @@ impl std::fmt::Debug for TypeRule {
            TypeRule::Forall(itks,inf,_t,tk,_) => write!(f, "forall {}. {:?} :: {:?}", 
               itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
                     i.clone().unwrap_or("_".to_string()),
-                    t.clone().unwrap_or(Typ::Nil),
+                    t.clone().unwrap_or(Typ::And(Vec::new())),
                     k.clone().unwrap_or(Kind::Nil),
               )).collect::<Vec<String>>().join(","),
               inf,
@@ -355,7 +350,6 @@ pub struct TermId {
 //does not implement Clone because terms are uniquely identified by their id
 #[derive(Clone)] //clone seems to be needed to deconflict mutable borrows :(
 pub enum Term {
-   Nil,
    Ident(String),
    Value(String),
    App(TermId,TermId),
@@ -372,8 +366,8 @@ impl TLC {
       TLC {
          //the first row, index 0, is nullary
          rows: vec![Row {
-            term: Term::Nil,
-            typ: Typ::Nil,
+            term: Term::Tuple(Vec::new()),
+            typ: Typ::And(Vec::new()),
             kind: Kind::Nil,
             span: Span {
                filename:"".to_string(),
@@ -387,9 +381,9 @@ impl TLC {
          scopes: Vec::new(),
          regexes: Vec::new(),
          constructors: Vec::new(),
-         ident_regex: Regex::new("^[a-z.][_0-9a-zA-Z]*$").expect("Failed to compile ident_regex in TLC initialization"),
-         tvar_regex: Regex::new("^[A-Z]+$").expect("Failed to compile tvar_regex in TLC initialization"),
          term_kind: Kind::Simple("Term".to_string(),Vec::new()),
+         nil_type: Typ::Tuple(Vec::new()),
+         bottom_type: Typ::And(Vec::new()),
       }
    }
    pub fn print_scope(&self, s: ScopeId) -> String {
@@ -402,7 +396,6 @@ impl TLC {
    }
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
-         Term::Nil => format!("()"),
          Term::Ident(x) => format!("{}", x),
          Term::Value(x) => format!("'{}'", x),
          Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
@@ -437,7 +430,7 @@ impl TLC {
             _ => ()
          }}
       }
-      Typ::Nil
+      self.bottom_type.clone()
    }
    pub fn remove_kinded(&self, k: &Kind, t: &Typ) -> Typ {
       let ts = match t {
@@ -490,7 +483,7 @@ impl TLC {
                match (t,k) {
                   (Some(tt),Some(kk)) => domains.push((tt.clone(),kk.clone())),
                   (Some(tt),None) => domains.push((tt.clone(),self.kind_of(tt))),
-                  _ => domains.push((Typ::Nil,Kind::Nil))
+                  _ => domains.push((self.bottom_type.clone(),Kind::Nil))
                }
             }
             for it in inf.types().iter() {
@@ -672,7 +665,7 @@ impl TLC {
             let mut ps = p.into_inner();
             let ident  = self.into_ident(ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat());
             let mut pars: Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>> = Vec::new();
-            let mut rt = Typ::Nil;
+            let mut rt = self.bottom_type.clone();
             let mut rk = Kind::Nil;
             let mut t  = None;
             for e in ps { match e.as_rule() {
@@ -700,18 +693,16 @@ impl TLC {
             let mut children = Vec::new();
             for itks in pars.iter() {
                for (i,t,_k) in itks.iter() {
-                  children.push((i.clone().unwrap_or("_".to_string()), t.clone().unwrap_or(Typ::Nil)));
+                  children.push((i.clone().unwrap_or("_".to_string()), t.clone().unwrap_or(self.bottom_type.clone())));
                }
             }
             let mut ft = rt.clone();
             for itks in pars.iter().rev() {
                let mut ps = Vec::new();
                for (_i,t,_k) in itks.iter() {
-                  ps.push(t.clone().unwrap_or(Typ::Nil));
+                  ps.push(t.clone().unwrap_or(self.bottom_type.clone()));
                }
-               let pt = if ps.len()==0 {
-                  Typ::Nil
-               } else if ps.len()==1 {
+               let pt = if ps.len()==1 {
                   ps[0].clone()
                } else {
                   Typ::Tuple(ps.clone())
@@ -796,9 +787,7 @@ impl TLC {
          Rule::tuple_term => {
             let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e,span).expect("TLC Grammar Error in rule [tuple_term]"))
                       .collect::<Vec<TermId>>();
-            if es.len()==0 {
-               Ok(self.push_term(Term::Nil, &span))
-            } else if es.len()==1 {
+            if es.len()==1 {
                Ok(es[0].clone())
             } else {
                Ok(self.push_term(Term::Tuple(es), &span))
@@ -919,7 +908,7 @@ impl TLC {
             if let Some(t) = term {
                let mut children = Vec::new();
                for (i,t,_k) in quants.iter() {
-                  children.push((i.clone().unwrap_or("_".to_string()), t.clone().unwrap_or(Typ::Nil)));
+                  children.push((i.clone().unwrap_or("_".to_string()), t.clone().unwrap_or(self.bottom_type.clone())));
                }
                let sid = self.push_scope(Scope {
                   parent: Some(scope),
@@ -973,9 +962,7 @@ impl TLC {
          Rule::paren_typ => {
             let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [paren_typ]"))
                       .collect::<Vec<Typ>>();
-            if ts.len()==0 {
-               Ok(Typ::Nil)
-            } else if ts.len()==1 {
+            if ts.len()==1 {
                Ok(ts[0].clone())
             } else {
                Ok(Typ::Tuple(ts))
@@ -1077,7 +1064,7 @@ impl TLC {
             _ => (),
          }
          for tvar in rvars.iter() {
-            if self.tvar_regex.is_match(tvar) { continue; } //Type variables don't need to be defined
+            if tvar.chars().all(char::is_uppercase) { continue; } //Type variables don't need to be defined
             let mut defined = false;
             for rule in self.rules.iter() { match rule {
                TypeRule::Typedef(tt,_tps,_implies,_td,_k,_) => { if tvar==tt {
@@ -1097,7 +1084,6 @@ impl TLC {
    }
    pub fn bound_implied(&self, tt: &Typ, span: &Span) -> Result<(),Error> {
       match tt {
-         Typ::Nil => Ok(()),
          Typ::Any => Ok(()),
          Typ::Or(_ts) => Ok(()),
          Typ::Arrow(p,b) => { self.bound_implied(p,span)?; self.bound_implied(b,span)?; Ok(()) },
@@ -1124,7 +1110,6 @@ impl TLC {
    }
    pub fn extend_implied(&self, tt: &Typ) -> Typ {
       match tt {
-         Typ::Nil => tt.clone(),
          Typ::Any => tt.clone(),
          Typ::Or(_ts) => tt.clone(),
          Typ::Arrow(p,b) => Typ::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
@@ -1204,9 +1189,8 @@ impl TLC {
       }) }
    }
    pub fn untyped(&mut self, t: TermId) {
-      self.rows[t.id].typ = Typ::Nil;
+      self.rows[t.id].typ = self.bottom_type.clone();
       match self.rows[t.id].term.clone() {
-         Term::Nil => (),
          Term::Ident(_x) => (),
          Term::Value(_x) => (),
          Term::App(g,x) => { self.untyped(g); self.untyped(x); },
@@ -1232,13 +1216,11 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
+      eprintln!("typecheck {}", self.print_term(t));
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
-         Term::Nil => {
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &Typ::Nil, &self.rows[t.id].span)?;
-         },
          Term::Block(sid,es) => {
-            let mut last_typ = Typ::Nil;
+            let mut last_typ = self.nil_type.clone();
             for e in es.iter() {
                self.typecheck(Some(sid), *e, None)?;
                last_typ = self.rows[e.id].typ.clone();
@@ -1259,9 +1241,9 @@ impl TLC {
                self.untyped(t);
             } else if let Some(ref b) = b {
                self.typecheck(Some(s), *b, Some(rt.clone()))?;
-               self.rows[t.id].typ = Typ::Nil;
+               self.rows[t.id].typ = self.bottom_type.clone();
             } else {
-               self.rows[t.id].typ = Typ::Nil;
+               self.rows[t.id].typ = self.bottom_type.clone();
             }
             self.bound_implied(&rt,&self.rows[t.id].span)?;
          },
@@ -1308,7 +1290,7 @@ impl TLC {
             let mut r = None;
             for (pat,re) in self.regexes.iter() {
                if pat==&i { r=Some(re); break; }
-               else if Typ::Nil==i && re.is_match(&x) {
+               else if self.nil_type==i && re.is_match(&x) {
                   r = Some(re);
                   self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, pat, &self.rows[t.id].span)?;
                   break;
