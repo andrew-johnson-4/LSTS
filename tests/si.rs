@@ -141,6 +141,42 @@ fn check_unit_math() {
    //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Second").unwrap_err();
 }
 
+#[test]
+fn check_type_cast() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //check type cast of compatible numerical types
+   tlc.check(Some(si), "True as Boolean").unwrap();
+   tlc.check(Some(si), "True as Integer").unwrap_err();
+   tlc.check(Some(si), "1:Integer as Integer").unwrap();
+   tlc.check(Some(si), "1:Integer as Real").unwrap();
+   tlc.check(Some(si), "1:Integer as Complex").unwrap();
+   tlc.check(Some(si), "1:Real as Integer").unwrap_err();
+   tlc.check(Some(si), "1:Real as Real").unwrap();
+   tlc.check(Some(si), "1:Real as Complex").unwrap();
+   tlc.check(Some(si), "1:Complex as Integer").unwrap_err();
+   tlc.check(Some(si), "1:Complex as Real").unwrap_err();
+   tlc.check(Some(si), "1:Complex as Complex").unwrap();
+}
+
+#[test]
+fn check_narrow_type_cast() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //check type cast of compatible types within a kind
+   tlc.check(Some(si), "(1:Integer+Metre) as Integer").unwrap();
+   tlc.check(Some(si), "(1:Integer+Metre) as Real").unwrap();
+   tlc.check(Some(si), "(1:Integer+Metre) as Complex").unwrap();
+   tlc.check(Some(si), "(1:Real+Metre) as Integer").unwrap_err();
+   tlc.check(Some(si), "(1:Real+Metre) as Real").unwrap();
+   tlc.check(Some(si), "(1:Real+Metre) as Complex").unwrap();
+   tlc.check(Some(si), "(1:Complex+Metre) as Integer").unwrap_err();
+   tlc.check(Some(si), "(1:Complex+Metre) as Real").unwrap_err();
+   tlc.check(Some(si), "(1:Complex+Metre) as Complex").unwrap();
+}
+
 /*
 #[test]
 fn check_unit_conversion() {
@@ -152,5 +188,15 @@ fn check_unit_conversion() {
    tlc.check(Some(si), "let x: Metre; x as Kilo<Second>").unwrap_err();
    tlc.check(Some(si), "let x: Kilo<Metre>; x as Metre").unwrap();
    tlc.check(Some(si), "let x: Kilo<Metre>; x as Second").unwrap_err();
+}
+
+#[test]
+fn check_narrow_conversion() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //check type cast of compatible types within a kind
+   tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Meter>").unwrap();
+   tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Second>").unwrap_err();
 }
 */

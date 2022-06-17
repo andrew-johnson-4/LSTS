@@ -12,16 +12,17 @@ digital = { '0'..'9' | "_" | "." }
 alnum   = { 'a'..'z' | 'A'..'Z' | '0'..'9' }
 alnumop = { 'a'..'z' | 'A'..'Z' | '0'..'9' | "+" | "-" | "_" }
 
-typvar     = { upper+ }
-typname    = { upper ~ alnum* }
-kindname   = { upper ~ alnum* }
-simplename = { alphal ~ (alphal | digit)* }
-quotedname = { "$\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
-ident      = { !("let" | "forall" | "type") ~ ((lowerl~alphal*) | quotedname) }
-esign      = { ("e"|"E") ~ ("+" | "-")? }
-numerical  = { digit ~ digital* ~ (esign ~ digital+)? }
-imaginary  = { "+" ~ numerical ~ "i" }
-constant   = { numerical ~ imaginary? }
+typvar     = ${ upper+ }
+typname    = ${ upper ~ alnum* }
+kindname   = ${ upper ~ alnum* }
+simplename = ${ alphal ~ (alphal | digit)* }
+quotedname = ${ "$\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
+ident      = ${ !("as" | "if" | "else " | "let" | "forall" | "type") ~ ((lowerl~alphal*) | quotedname) }
+esign      = ${ ("e"|"E") ~ ("+" | "-")? }
+numerical  = ${ digit ~ digital* ~ (esign ~ digital+)? }
+imaginary  = ${ "+" ~ numerical ~ "i" }
+constant   = ${ numerical ~ imaginary? }
+
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 typ_inf_kind = { typvar ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
@@ -44,7 +45,8 @@ divmul_term = { prefix_term ~ (divmul_op ~ prefix_term)* }
 addsub_term = { divmul_term ~ (addsub_op ~ divmul_term)* }
 infix_term = { addsub_term }
 ascript_term = { infix_term ~ (":" ~ typ)? }
-term = { ascript_term }
+as_term = { ascript_term ~ ("as" ~ typ)? }
+term = { as_term }
 
 ident_typ = { typname ~ ("<" ~ typ ~ ("," ~ typ)* ~ ">")? }
 any_typ = { "?" }
