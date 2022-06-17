@@ -147,8 +147,8 @@ fn check_unit_conversion() {
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
 
    //check unit conversions
-   tlc.check(Some(si), "let x: Metre; x:Kilo<Metre>").unwrap();
-   tlc.check(Some(si), "let x: Metre; x:Kilo<Second>").unwrap_err();
-   tlc.check(Some(si), "let x: Kilo<Metre>; x:Metre").unwrap();
-   tlc.check(Some(si), "let x: Kilo<Metre>; x:Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; x as Kilo<Metre>").unwrap();
+   tlc.check(Some(si), "let x: Metre; x as Kilo<Second>").unwrap_err();
+   tlc.check(Some(si), "let x: Kilo<Metre>; x as Metre").unwrap();
+   tlc.check(Some(si), "let x: Kilo<Metre>; x as Second").unwrap_err();
 }
