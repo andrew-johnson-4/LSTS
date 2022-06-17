@@ -1,7 +1,7 @@
 use lsts::tlc::TLC;
 
 #[test]
-fn check_narrow_conversion() {
+fn check_example() {
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
 

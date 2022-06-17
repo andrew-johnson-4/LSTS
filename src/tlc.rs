@@ -220,6 +220,7 @@ impl std::fmt::Debug for Typ {
 fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
    //lt => rt
    match (lt,rt) {
+      //wildcard match
       (Typ::Any,r) => Ok(r.clone()),
       (l,Typ::Any) => Ok(l.clone()),
       (Typ::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
@@ -236,6 +237,33 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
          subs.push((rt.clone(),lt.clone()));
          Ok(lt.clone())
       },
+
+      //conjunctive normal form takes precedence
+      (Typ::And(lts),Typ::And(ra)) => {
+         //lt => rt
+         let mut lts = lts.clone();
+         for rt in ra.iter() {
+            lts.push(unify_impl(subs,lt,rt,span)?);
+         }
+         Ok(Typ::And(lts))
+      },
+      (Typ::And(lts),rt) => {
+         let mut lts = lts.clone();
+         let mut accept = false;
+         for lt in lts.clone().iter() {
+            if let Ok(nt) = unify_impl(subs,lt,rt,span) {
+               accept = true;
+               lts.push(nt);
+            }
+         }
+         if accept {
+            Ok(Typ::And(lts))
+         } else {
+            Err(())
+         }
+      },
+
+      //everything else is a mixed bag
       (Typ::Ident(lv,lps),Typ::Ident(rv,rps))
       if lv==rv && lps.len()==rps.len() => {
          let mut tps = Vec::new();
@@ -275,29 +303,6 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
             ts.push(unify_impl(subs,lt,rt,span)?);
          }
          Ok(Typ::Tuple(ts))
-      },
-      (Typ::And(lts),Typ::And(ra)) => {
-         //lt => rt
-         let mut lts = lts.clone();
-         for rt in ra.iter() {
-            lts.push(unify_impl(subs,lt,rt,span)?);
-         }
-         Ok(Typ::And(lts))
-      },
-      (Typ::And(lts),rt) => {
-         let mut lts = lts.clone();
-         let mut accept = false;
-         for lt in lts.clone().iter() {
-            if let Ok(nt) = unify_impl(subs,lt,rt,span) {
-               accept = true;
-               lts.push(nt);
-            }
-         }
-         if accept {
-            Ok(Typ::And(lts))
-         } else {
-            Err(())
-         }
       },
       _ => Err(()),
    }
@@ -1406,6 +1411,7 @@ impl TLC {
          snippet: "".to_string(),
       }) };
       tt.normalize();
+      eprintln!("unify {:?} (x) {:?} yields {:?}", lt, rt, &tt);
       Ok(tt)
    }
 
