@@ -791,8 +791,6 @@ impl TLC {
             }
          },
 
-
-
          //inference rules
          Rule::typ_stmt => {
             let mut ps = p.into_inner();
