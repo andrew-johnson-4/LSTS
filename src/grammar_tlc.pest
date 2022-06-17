@@ -25,8 +25,11 @@ constant   = { numerical ~ imaginary? }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 typ_inf_kind = { typvar ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
-divmul_op = { "/" | "*" | "%" }
-addsub_op = { "+" | "-" }
+divmul_chars = { "/" | "*" | "%" }
+divmul_op = { divmul_chars }
+addsub_chars = { "+" | "-" }
+addsub_op = { addsub_chars }
+prefix_op = { addsub_chars }
 
 key_value = { ident ~ "=" ~ term }
 constructor = { typname ~ ("{" ~ (key_value ~ ("," ~ key_value)*)? ~ "}")? }
@@ -36,7 +39,7 @@ app_term = { (tuple_term | value_term) ~ (field_term | tuple_term)* }
 field_term = { "." ~ ident }
 tuple_term = { "(" ~ (term ~ ("," ~ term)*)? ~ ")" }
 atom_term  = { app_term }
-prefix_term = { atom_term }
+prefix_term = { prefix_op? ~ atom_term }
 divmul_term = { prefix_term ~ (divmul_op ~ prefix_term)* }
 addsub_term = { divmul_term ~ (addsub_op ~ divmul_term)* }
 infix_term = { addsub_term }

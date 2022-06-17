@@ -35,6 +35,18 @@ fn check_constant_literals() {
 }
 
 #[test]
+fn check_project_kinded() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //It is ok to let the compiler infer the Term type
+   tlc.check(Some(si), "True").unwrap(); //should be a Boolean
+   tlc.check(Some(si), "1").unwrap(); //should be an Integer number
+   tlc.check(Some(si), "1.2").unwrap(); //should be a Real number
+   tlc.check(Some(si), "1.2+3i").unwrap(); //should be an Complex number
+}
+
+#[test]
 fn check_type_equality() {
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
@@ -103,6 +115,42 @@ fn check_tik_i() {
 }
 
 #[test]
-fn check_kinded_type_equality() {
-   //TODO check Units unify and persist
+fn check_unit_math() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //check math operations
+   tlc.check(Some(si), "let x: Metre; +x:Metre").unwrap();
+   tlc.check(Some(si), "let x: Metre; +x:Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; -x:Metre").unwrap();
+   tlc.check(Some(si), "let x: Metre; -x:Second").unwrap_err();
+
+   tlc.check(Some(si), "let x: Metre; let y: Metre; x+y:Metre").unwrap();
+   tlc.check(Some(si), "let x: Metre; let y: Second; x+y:Metre").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; let y: Metre; x-y:Metre").unwrap();
+   tlc.check(Some(si), "let x: Metre; let y: Second; x-y:Metre").unwrap_err();
+
+   tlc.check(Some(si), "let x: Metre; let y: Second; x*y:Metre*Second").unwrap();
+   tlc.check(Some(si), "let x: Metre; let y: Metre; x*y:Metre*Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; let y: Second; x/y:Metre/Second").unwrap();
+   tlc.check(Some(si), "let x: Metre; let y: Metre; x/y:Metre/Second").unwrap_err();
+
+   //tlc.check(Some(si), "let x: Metre; (2:Integer)*x:Metre").unwrap();
+   //tlc.check(Some(si), "let x: Metre; (2:Integer)*x:Second").unwrap_err();
+   //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Metre").unwrap();
+   //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Second").unwrap_err();
 }
+
+/*
+#[test]
+fn check_unit_conversion() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //check unit conversions
+   tlc.check(Some(si), "let x: Metre; x as Kilo<Metre>").unwrap();
+   tlc.check(Some(si), "let x: Metre; x as Kilo<Second>").unwrap_err();
+   tlc.check(Some(si), "let x: Kilo<Metre>; x as Metre").unwrap();
+   tlc.check(Some(si), "let x: Kilo<Metre>; x as Second").unwrap_err();
+}
+*/
