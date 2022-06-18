@@ -218,6 +218,8 @@ impl std::fmt::Debug for Typ {
     }
 }
 fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
+   //lt => rt
+   //bug unify [?+Integer+Kilo<Meter>+Metre+Number] (x) ? yields [?+Integer+Kilo<Meter>+Metre+Number] with Integer::Term; Kilo<Meter>::Unit; Metre::Unit; Number::Term
    let mut lk = Kind::Nil;
    let mut rk = Kind::Nil;
    for (ot,ok) in kinds.iter() {
@@ -227,8 +229,6 @@ fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: 
    if lk!=rk && lk!=Kind::Nil && rk!=Kind::Nil { //kinding only comes into play during conflict
       return Err(());
    }
-   //bug unify [Ab+Bc] (x) [Ab+Bc+[Ab+Bc]] yields [Ab+Bc+[Ab+Bc]+[Ab+Bc+[Ab+Bc]]]
-   //lt => rt
    match (lt,rt) {
       //wildcard match
       (Typ::Any,r) => Ok(r.clone()),
@@ -249,15 +249,18 @@ fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: 
       },
 
       //conjunctive normal form takes precedence
-      (Typ::And(lts),Typ::And(ra)) => {
+      (Typ::And(lts),Typ::And(rts)) => {
+         let lts = lts.iter().map(|tt|tt.clone()).filter(|tt|tt==&Typ::Any).collect::<Vec<Typ>>();
+         let rts = rts.iter().map(|tt|tt.clone()).filter(|tt|tt==&Typ::Any).collect::<Vec<Typ>>();
          //lt => rt
          let mut lts = lts.clone();
-         for rt in ra.iter() {
+         for rt in rts.iter() {
             lts.push(unify_impl(kinds,subs,lt,rt,span)?);
          }
          Ok(Typ::And(lts))
       },
       (Typ::And(lts),rt) => {
+         let lts = lts.iter().map(|tt|tt.clone()).filter(|tt|tt==&Typ::Any).collect::<Vec<Typ>>();
          let mut lts = lts.clone();
          let mut accept = false;
          for lt in lts.clone().iter() {
@@ -1464,6 +1467,9 @@ impl TLC {
          snippet: "".to_string(),
       }) };
       tt.normalize();
+      eprintln!("unify {:?} (x) {:?} yields {:?} with {}", lt, rt, &tt,
+         kinds.iter().map(|(t,k)|format!("{:?}::{:?}",t,k))
+              .collect::<Vec<String>>().join("; "));
       Ok(tt)
    }
 
