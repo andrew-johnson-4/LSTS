@@ -60,7 +60,7 @@ pub struct ScopeId {
 //does not implement Clone because scopes are uniquely identified by their id
 pub struct Scope {
    pub parent: Option<ScopeId>,
-   pub children: Vec<(String,Typ)>,
+   pub children: Vec<(String,Vec<(Typ,Kind)>,Typ)>,
 }
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd)]
@@ -425,7 +425,7 @@ impl TLC {
    }
    pub fn print_scope(&self, s: ScopeId) -> String {
       let mut buf:String = format!("#{}{{", s.id);
-      for (cn,ct) in self.scopes[s.id].children.iter() {
+      for (cn,_pks,ct) in self.scopes[s.id].children.iter() {
          buf += &format!("{}: {:?}\n", cn, ct);
       }
       buf += "}\n";
@@ -730,13 +730,14 @@ impl TLC {
             let mut children = Vec::new();
             for itks in pars.iter() {
                for (i,t,_k) in itks.iter() {
-                  children.push((i.clone().unwrap_or("_".to_string()), t.clone().unwrap_or(self.bottom_type.clone())));
+                  children.push((i.clone().unwrap_or("_".to_string()), Vec::new(), t.clone().unwrap_or(self.bottom_type.clone())));
                }
             }
             let mut ft = rt.clone();
+            let mut fkts = Vec::new();
             for itks in pars.iter().rev() {
                let mut ps = Vec::new();
-               for (_i,t,_k) in itks.iter() {
+               for (_i,t,k) in itks.iter() {
                   ps.push(t.clone().unwrap_or(self.bottom_type.clone()));
                }
                let pt = if ps.len()==1 {
@@ -746,7 +747,7 @@ impl TLC {
                };
                ft = Typ::Arrow(Box::new(pt),Box::new(ft));
             }
-            self.scopes[scope.id].children.push((ident.clone(), ft));
+            self.scopes[scope.id].children.push((ident.clone(), fkts, ft));
             let inner_scope = self.push_scope(Scope {
                parent: Some(scope),
                children: children,
@@ -874,6 +875,7 @@ impl TLC {
                                  let kt = self.unparse_ast_typ(kts.next().expect("TLC Grammar Error in rule [typedef.4]"))?;
                                  self.scopes[scope.id].children.push((
                                     format!(".{}",ki.clone()),
+                                    Vec::new(),
                                     Typ::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
                                  ));
                                  tcrows.push((ki,kt));
@@ -945,7 +947,7 @@ impl TLC {
             if let Some(t) = term {
                let mut children = Vec::new();
                for (i,t,_k) in quants.iter() {
-                  children.push((i.clone().unwrap_or("_".to_string()), t.clone().unwrap_or(self.bottom_type.clone())));
+                  children.push((i.clone().unwrap_or("_".to_string()), Vec::new(), t.clone().unwrap_or(self.bottom_type.clone())));
                }
                let sid = self.push_scope(Scope {
                   parent: Some(scope),
@@ -1205,7 +1207,7 @@ impl TLC {
    pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Typ>, span: &Span) -> Result<Typ,Error> {
       if let Some(scope) = scope {
          let ref sc = self.scopes[scope.id];
-         for (tn,tt) in sc.children.iter() {
+         for (tn,_tkts,tt) in sc.children.iter() {
             if tn==v {
                if let Some(it) = implied {
                   //if tt => it
