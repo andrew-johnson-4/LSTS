@@ -169,7 +169,10 @@ impl Typ {
    fn normalize(&mut self) {
       match self {
          Typ::Or(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); ts.dedup(); }
-         Typ::And(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); ts.dedup(); }
+         Typ::And(ts) => {
+            for t in ts.iter_mut() { t.normalize(); }
+            ts.sort(); ts.dedup();
+         }
          Typ::Product(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); ts.dedup(); }
          Typ::Tuple(ts) => { for t in ts.iter_mut() { t.normalize(); } }
          Typ::Arrow(p,b) => { p.normalize(); b.normalize(); }
@@ -256,7 +259,10 @@ fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: 
          //lt => rt
          let mut lts = lts.clone();
          for rt in rts.iter() {
-            lts.push(unify_impl(kinds,subs,lt,rt,span)?);
+            match unify_impl(kinds,subs,lt,rt,span)? {
+               Typ::And(mut tts) => { lts.append(&mut tts); },
+               tt => { lts.push(tt); },
+            }
          }
          Ok(Typ::And(lts))
       },
@@ -266,7 +272,10 @@ fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: 
          for ltt in lts.clone().iter() {
             if let Ok(nt) = unify_impl(kinds,subs,ltt,rt,span) {
                accept = true;
-               lts.push(nt);
+               match nt {
+                  Typ::And(mut tts) => { lts.append(&mut tts); },
+                  tt => { lts.push(tt); },
+               }
             }
          }
          if accept {
@@ -1340,11 +1349,11 @@ impl TLC {
             self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &self.rows[x.id].typ, &self.rows[t.id].span)?;
          },
          Term::As(x,into) => {
+            //end typecheck '1':[Real+Metre] as Complex : ?
             self.typecheck(scope.clone(), x, None)?;
             let into_kind = self.kindof(&into);
             if let Ok(nt) = self.unify(&self.rows[x.id].typ, &into, &self.rows[t.id].span) {
                //if cast is already satisfied, do nothing
-               eprintln!("Simple As {:?} as {:?} yields {:?}", self.rows[x.id].typ, into, nt);
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
                let from_kinded = self.project_kinded(&into_kind, &self.rows[x.id].typ);
@@ -1376,10 +1385,14 @@ impl TLC {
             let ki = self.project_kinded(&self.term_kind, &i);
             let mut r = None;
             for (pat,re) in self.regexes.iter() {
-               if pat==&ki { r=Some(re); break; } //Term kinded is not []
+               if pat==&ki { //Term kinded is not []
+                  r = Some(re);
+                  self.rows[t.id].typ = self.unify(pat, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+                  break;
+               }
                else if self.bottom_type==ki && re.is_match(&x) { //Term kinded is []
                   r = Some(re);
-                  self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, pat, &self.rows[t.id].span)?;
+                  self.rows[t.id].typ = self.unify(pat, &self.rows[t.id].typ, &self.rows[t.id].span)?;
                   break;
                }
             }
@@ -1452,7 +1465,9 @@ impl TLC {
       self.unify_with_kinds(&Vec::new(), lt, rt, span)
    }
    pub fn unify_with_kinds(&self, kinds: &Vec<(Typ,Kind)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
-      eprintln!("try normalize {:?} (x) {:?}", lt, rt);
+      eprintln!("try unify {:?} (x) {:?} with {}", lt, rt,
+                kinds.iter().map(|(t,k)|format!("{:?}::{:?}",t,k))
+                     .collect::<Vec<String>>().join("; "));
       let mut kinds = kinds.clone();
       self.kindsof(&mut kinds, lt);
       self.kindsof(&mut kinds, rt);
@@ -1474,7 +1489,7 @@ impl TLC {
          snippet: "".to_string(),
       }) };
       tt.normalize();
-      eprintln!("try normalize {:?} (x) {:?} yields {:?}", lt, rt, &tt);
+      eprintln!("end unify {:?} (x) {:?} yields {:?}", lt, rt, &tt);
       Ok(tt)
    }
 
