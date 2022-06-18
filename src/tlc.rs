@@ -425,9 +425,9 @@ impl TLC {
       }
    }
    pub fn print_scope(&self, s: ScopeId) -> String {
-      let mut buf:String = format!("#{}{{", s.id);
+      let mut buf:String = format!("#{}{{\n", s.id);
       for (cn,pks,ct) in self.scopes[s.id].children.iter() {
-         buf += &format!("{}: {:?} with {}\n", cn, ct,
+         buf += &format!("\t{}: {:?} with {}\n", cn, ct,
             pks.iter().map(|(p,k)|format!("{:?}::{:?}",p,k)).collect::<Vec<String>>().join(";"));
       }
       buf += "}\n";
@@ -731,8 +731,10 @@ impl TLC {
             }}
             let mut children = Vec::new();
             for itks in pars.iter() {
-               for (i,t,_k) in itks.iter() {
-                  children.push((i.clone().unwrap_or("_".to_string()), Vec::new(), t.clone().unwrap_or(self.bottom_type.clone())));
+               for (i,t,k) in itks.iter() {
+                  let t = t.clone().unwrap_or(self.bottom_type.clone());
+                  let ks = if let Some(k)=k { vec![(t.clone(),k.clone())] } else { Vec::new() };
+                  children.push((i.clone().unwrap_or("_".to_string()), ks, t.clone()));
                }
             }
             let mut ft = rt.clone();
@@ -740,7 +742,9 @@ impl TLC {
             for itks in pars.iter().rev() {
                let mut ps = Vec::new();
                for (_i,t,k) in itks.iter() {
-                  ps.push(t.clone().unwrap_or(self.bottom_type.clone()));
+                  let t = t.clone().unwrap_or(self.bottom_type.clone());
+                  if let Some(k)=k { fkts.push((t.clone(),k.clone())); };
+                  ps.push(t.clone());
                }
                let pt = if ps.len()==1 {
                   ps[0].clone()
