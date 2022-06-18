@@ -1194,6 +1194,23 @@ impl TLC {
          Typ::Product(ts) => Typ::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Typ>>()),
       }
    }
+   pub fn kindsof(&self, kinds:&mut Vec<(Typ,Kind)>, tt:&Typ) {
+      match tt {
+         Typ::Any => {},
+         Typ::Ident(t,ts) => {
+            for (ot,_ok) in kinds.iter() {
+               if ot==tt { return; } //type is already kinded
+            }
+            kinds.push((tt.clone(), self.kindof(tt)));
+         },
+         Typ::Or(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
+         Typ::And(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
+         Typ::Tuple(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
+         Typ::Product(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
+         Typ::Arrow(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
+         Typ::Ratio(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
+      }
+   }
    pub fn kindof(&self, tt:&Typ) -> Kind {
       match tt {
          //only simple types can be kinded
@@ -1428,6 +1445,9 @@ impl TLC {
       self.unify_with_kinds(&Vec::new(), lt, rt, span)
    }
    pub fn unify_with_kinds(&self, kinds: &Vec<(Typ,Kind)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
+      let mut kinds = kinds.clone();
+      self.kindsof(&mut kinds, lt);
+      self.kindsof(&mut kinds, rt);
       eprintln!("unify {:?} (x) {:?} with {}", lt, rt,
                 kinds.iter().map(|(t,k)| format!("{:?}::{:?}",t,k))
                      .collect::<Vec<String>>().join("; "));
