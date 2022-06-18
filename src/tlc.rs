@@ -1313,7 +1313,6 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
-      eprintln!("typecheck {} imply {:?}", self.print_term(t), implied.clone().unwrap_or(Typ::Any));
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
@@ -1465,7 +1464,6 @@ impl TLC {
       if let Some(ref i) = implied {
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
       };
-      eprintln!("end typecheck {} : {:?}", self.print_term(t), self.rows[t.id].typ);
       self.bound_implied(&self.rows[t.id].typ,&self.rows[t.id].span)?;
       Ok(())
    }
