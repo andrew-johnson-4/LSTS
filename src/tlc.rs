@@ -1313,7 +1313,7 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
-      eprintln!("typecheck {} : {:?}", self.print_term(t), implied.clone().unwrap_or(Typ::Any));
+      eprintln!("typecheck {} imply {:?}", self.print_term(t), implied.clone().unwrap_or(Typ::Any));
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
@@ -1364,7 +1364,7 @@ impl TLC {
                         //eliminate typeof(x) :: kindof(Into)
                         let l_narrowed = self.remove_kinded(&into_kind, &lt);
                         //introduce typeof(x) (x) R
-                        let l_widened = self.unify(&rt, &l_narrowed, &self.rows[t.id].span)?;
+                        let l_widened = rt.and(&l_narrowed);
                         self.rows[t.id].typ = l_widened;
                         //TODO: substitute term t into macro body if exists
                         accept = true;
