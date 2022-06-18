@@ -17,6 +17,13 @@ type normal Kelvin  :: Unit;
 type normal Mole    :: Unit;
 type normal Candela :: Unit;
 
+//: Imperial & Misc. Units
+type Feet :: Unit;
+type Yard :: Unit;
+type Mile :: Unit;
+type Minute :: Unit;
+type Hour :: Unit;
+
 //: Compound Types
 type Point2D<N:Number> = { x:N, y:N };
 type Point3D<N:Number> = { x:N, y:N, z:N };

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 use pest::Parser;
 use pest::iterators::{Pair,Pairs};
@@ -14,6 +15,8 @@ pub struct TLC {
    pub scopes: Vec<Scope>,
    pub regexes: Vec<(Typ,Regex)>,
    pub constructors: Vec<(Typ,String,Vec<Typ>,Vec<(String,Typ)>)>,
+   pub type_is_normal: HashSet<Typ>,
+   pub kind_is_normal: HashSet<Kind>,
    pub term_kind: Kind,
    pub nil_type: Typ,
    pub bottom_type: Typ,
@@ -63,7 +66,7 @@ pub struct Scope {
    pub children: Vec<(String,Vec<(Typ,Kind)>,Typ)>,
 }
 
-#[derive(Clone,Eq,PartialEq,Ord,PartialOrd)]
+#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Kind {
    Nil,
    Simple(String,Vec<Kind>),
@@ -80,7 +83,7 @@ impl std::fmt::Debug for Kind {
     }
 }
 
-#[derive(Clone,Eq,PartialEq,Ord,PartialOrd)]
+#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Typ {
    Any,
    Ident(String,Vec<Typ>),
@@ -441,6 +444,8 @@ impl TLC {
          scopes: Vec::new(),
          regexes: Vec::new(),
          constructors: Vec::new(),
+         type_is_normal: HashSet::new(),
+         kind_is_normal: HashSet::new(),
          term_kind: Kind::Simple("Term".to_string(),Vec::new()),
          nil_type: Typ::Tuple(Vec::new()),
          bottom_type: Typ::And(Vec::new()),
@@ -921,6 +926,12 @@ impl TLC {
                Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); },
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
+            if normal {
+               self.type_is_normal.insert(Typ::Ident(t.clone(),Vec::new()));
+               if let Some(ref kind) = kind {
+                  self.kind_is_normal.insert(kind.clone());
+               }
+            }
             self.rules.push(TypeRule::Typedef(
                t,
                normal,
@@ -1238,7 +1249,7 @@ impl TLC {
    }
    pub fn kindof(&self, tt:&Typ) -> Kind {
       match tt {
-         //only simple types can be kinded
+         Typ::Any => Kind::Nil,
          Typ::Ident(tn,ts) => {
             for tr in self.rules.iter() { match tr {
                TypeRule::Typedef(tdn,_norm,itks,_implies,_td,tk,_) => {
@@ -1249,7 +1260,13 @@ impl TLC {
                _ => ()
             }}
             Kind::Nil
-         }, _ => Kind::Nil
+         },
+         Typ::Or(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
+         Typ::And(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
+         Typ::Tuple(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
+         Typ::Product(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
+         Typ::Arrow(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) }
+         Typ::Ratio(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) }
       }
    }
    pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Typ>, span: &Span) -> Result<Typ,Error> {
@@ -1357,6 +1374,9 @@ impl TLC {
                //if cast is already satisfied, do nothing
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
+               if self.kind_is_normal.contains(&into_kind) {
+                  panic!("TODO: into kind is normal {:?} as {:?}::{:?}", &self.rows[x.id].typ, &into, &into_kind);
+               }
                let mut accept = false;
                for tr in self.rules.iter() { match tr {
                   TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,tk,_) if tk.clone().unwrap_or(self.term_kind.clone())==into_kind => {
