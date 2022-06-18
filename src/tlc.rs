@@ -485,16 +485,9 @@ impl TLC {
          tt => vec![tt.clone()],
       };
       for t in ts.iter() {
-         let ts = format!("{:?}",t);
-         for tr in self.rules.iter() { match tr {
-            TypeRule::Typedef(tn,_norm,_itks,_implies,_td,tk,_) => {
-               if &ts!=tn { continue; }
-               let tk = tk.clone().unwrap_or(self.term_kind.clone());
-               if &tk==k { return t.clone(); }
-               //TODO: kind-project parameterized types
-            },
-            _ => ()
-         }}
+         if k==&self.kindof(t) {
+            return t.clone();
+         }
       }
       self.bottom_type.clone()
    }
@@ -1375,7 +1368,8 @@ impl TLC {
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
                if self.kind_is_normal.contains(&into_kind) {
-                  panic!("TODO: into kind is normal {:?} as {:?}::{:?}", &self.rows[x.id].typ, &into, &into_kind);
+                  let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
+                  panic!("TODO: into kind is normal {:?} as {:?}::{:?}", &l_only, &into, &into_kind);
                }
                let mut accept = false;
                for tr in self.rules.iter() { match tr {
