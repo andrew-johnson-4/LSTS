@@ -1383,9 +1383,17 @@ impl TLC {
                if self.kind_is_normal.contains(&into_kind) {
                   let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
                   if !self.is_normal(&l_only) {
-                     panic!("TODO: into-of-normal cast {:?} as {:?}::{:?}", &l_only, &into, &into_kind);
+                     //prioritized into-normal conversion
+                     //1. lookup typedefs for maybe a -> T:A*B/C -> rule, can only convert one-to-many type atoms
+                     //2. lookup forall rules for unboxing rules, can only convert one type atom
+                     //3. lookup forall rules for boxing rules, can only convert one type atom
+                     panic!("TODO: into-normal cast {:?} as {:?}::{:?}", &l_only, &into, &into_kind);
                   }
                   if self.unify(&l_only, &into, &self.rows[t.id].span).is_err() {
+                     //prioritized out-of-normal conversion
+                     //1. lookup typedefs for maybe a <- T:A*B/C <- rule, can only convert many-to-one type atoms
+                     //2. lookup forall rules for unboxing rules, can only convert one type atom
+                     //3. lookup forall rules for boxing rules, can only convert one type atom
                      panic!("TODO: out-of-normal cast {:?} as {:?}::{:?}", &l_only, &into, &into_kind);
                   }
                } else {
