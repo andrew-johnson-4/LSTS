@@ -218,6 +218,7 @@ impl std::fmt::Debug for Typ {
     }
 }
 fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
+   //bug unify [Ab+Bc] (x) [Ab+Bc+[Ab+Bc]] yields [Ab+Bc+[Ab+Bc]+[Ab+Bc+[Ab+Bc]]]
    //lt => rt
    match (lt,rt) {
       //wildcard match
@@ -425,8 +426,9 @@ impl TLC {
    }
    pub fn print_scope(&self, s: ScopeId) -> String {
       let mut buf:String = format!("#{}{{", s.id);
-      for (cn,_pks,ct) in self.scopes[s.id].children.iter() {
-         buf += &format!("{}: {:?}\n", cn, ct);
+      for (cn,pks,ct) in self.scopes[s.id].children.iter() {
+         buf += &format!("{}: {:?} with {}\n", cn, ct,
+            pks.iter().map(|(p,k)|format!("{:?}::{:?}",p,k)).collect::<Vec<String>>().join(";"));
       }
       buf += "}\n";
       buf
@@ -1256,6 +1258,9 @@ impl TLC {
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
       eprintln!("typecheck {}", self.print_term(t));
+      if let Some(scope) = scope {
+         eprintln!("typecheck scope {}", self.print_scope(scope));
+      }
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
