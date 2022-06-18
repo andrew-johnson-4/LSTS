@@ -1349,17 +1349,16 @@ impl TLC {
             self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &self.rows[x.id].typ, &self.rows[t.id].span)?;
          },
          Term::As(x,into) => {
-            //end typecheck '1':[Real+Metre] as Complex : ?
             self.typecheck(scope.clone(), x, None)?;
             let into_kind = self.kindof(&into);
             if let Ok(nt) = self.unify(&self.rows[x.id].typ, &into, &self.rows[t.id].span) {
                //if cast is already satisfied, do nothing
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
-               let from_kinded = self.project_kinded(&into_kind, &self.rows[x.id].typ);
+               let mut accept = false;
                for tr in self.rules.iter() { match tr {
                   TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,tk,_) if tk.clone().unwrap_or(self.term_kind.clone())==into_kind => {
-                     if let Ok(lt) = self.unify(&from_kinded, lt, &self.rows[t.id].span) {
+                     if let Ok(lt) = self.unify(&self.rows[x.id].typ, lt, &self.rows[t.id].span) {
                      if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span) {
                         //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
                         //eliminate typeof(x) :: kindof(Into)
@@ -1368,10 +1367,19 @@ impl TLC {
                         let l_widened = self.unify(&rt, &l_narrowed, &self.rows[t.id].span)?;
                         self.rows[t.id].typ = l_widened;
                         //TODO: substitute term t into macro body if exists
+                        accept = true;
                         break;
                      }}
                   }, _ => {} 
                }}
+               if !accept {
+                  return Err(Error {
+                     kind: "Type Error".to_string(),
+                     rule: format!("could not cast {:?} into {:?}", &self.rows[x.id].typ, &into),
+                     span: self.rows[t.id].span.clone(),
+                     snippet: "".to_string()
+                  })
+               }
             }
          },
          Term::Ident(x) => {
@@ -1465,9 +1473,9 @@ impl TLC {
       self.unify_with_kinds(&Vec::new(), lt, rt, span)
    }
    pub fn unify_with_kinds(&self, kinds: &Vec<(Typ,Kind)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
-      eprintln!("try unify {:?} (x) {:?} with {}", lt, rt,
-                kinds.iter().map(|(t,k)|format!("{:?}::{:?}",t,k))
-                     .collect::<Vec<String>>().join("; "));
+      //eprintln!("try unify {:?} (x) {:?} with {}", lt, rt,
+      //          kinds.iter().map(|(t,k)|format!("{:?}::{:?}",t,k))
+      //               .collect::<Vec<String>>().join("; "));
       let mut kinds = kinds.clone();
       self.kindsof(&mut kinds, lt);
       self.kindsof(&mut kinds, rt);
@@ -1489,7 +1497,7 @@ impl TLC {
          snippet: "".to_string(),
       }) };
       tt.normalize();
-      eprintln!("end unify {:?} (x) {:?} yields {:?}", lt, rt, &tt);
+      //eprintln!("end unify {:?} (x) {:?} yields {:?}", lt, rt, &tt);
       Ok(tt)
    }
 
