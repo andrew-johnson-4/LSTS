@@ -1304,6 +1304,7 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
+      eprintln!("typecheck {} : {:?}", self.print_term(t), implied.clone().unwrap_or(Typ::Any));
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
@@ -1343,6 +1344,7 @@ impl TLC {
             let into_kind = self.kindof(&into);
             if let Ok(nt) = self.unify(&self.rows[x.id].typ, &into, &self.rows[t.id].span) {
                //if cast is already satisfied, do nothing
+               eprintln!("Simple As {:?} as {:?} yields {:?}", self.rows[x.id].typ, into, nt);
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
                let from_kinded = self.project_kinded(&into_kind, &self.rows[x.id].typ);
@@ -1370,7 +1372,7 @@ impl TLC {
             self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
          },
          Term::Value(x) => {
-            let i = if let Some(ref i) = implied { i.clone() } else { Typ::Any };
+            let i = if let Some(ref i) = implied { i.clone() } else { self.bottom_type.clone() };
             let ki = self.project_kinded(&self.term_kind, &i);
             let mut r = None;
             for (pat,re) in self.regexes.iter() {
@@ -1442,6 +1444,7 @@ impl TLC {
       if let Some(ref i) = implied {
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
       };
+      eprintln!("end typecheck {} : {:?}", self.print_term(t), self.rows[t.id].typ);
       self.bound_implied(&self.rows[t.id].typ,&self.rows[t.id].span)?;
       Ok(())
    }
@@ -1449,6 +1452,7 @@ impl TLC {
       self.unify_with_kinds(&Vec::new(), lt, rt, span)
    }
    pub fn unify_with_kinds(&self, kinds: &Vec<(Typ,Kind)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
+      eprintln!("try normalize {:?} (x) {:?}", lt, rt);
       let mut kinds = kinds.clone();
       self.kindsof(&mut kinds, lt);
       self.kindsof(&mut kinds, rt);
@@ -1470,6 +1474,7 @@ impl TLC {
          snippet: "".to_string(),
       }) };
       tt.normalize();
+      eprintln!("try normalize {:?} (x) {:?} yields {:?}", lt, rt, &tt);
       Ok(tt)
    }
 
