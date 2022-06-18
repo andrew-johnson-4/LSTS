@@ -1214,11 +1214,11 @@ impl TLC {
       if let Some(scope) = scope {
          let mut matches = Vec::new();
          let ref sc = self.scopes[scope.id];
-         for (tn,_tkts,tt) in sc.children.iter() {
+         for (tn,tkts,tt) in sc.children.iter() {
             if tn==v {
                if let Some(it) = implied {
                   //if tt => it
-                  if let Ok(rt) = self.unify(&tt,it,span) {
+                  if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,it,span) {
                      matches.push(rt.clone());
                   }
                } else {
@@ -1425,7 +1425,12 @@ impl TLC {
       Ok(())
    }
    pub fn unify(&self, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
-      eprintln!("unify {:?} (x) {:?}", lt, rt);
+      self.unify_with_kinds(&Vec::new(), lt, rt, span)
+   }
+   pub fn unify_with_kinds(&self, kinds: &Vec<(Typ,Kind)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
+      eprintln!("unify {:?} (x) {:?} with {}", lt, rt,
+                kinds.iter().map(|(t,k)| format!("{:?}::{:?}",t,k))
+                     .collect::<Vec<String>>().join("; "));
       //lt => rt
       let mut lt = self.extend_implied(lt); lt.normalize();
       let mut rt = rt.clone(); rt.normalize();
