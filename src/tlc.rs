@@ -253,8 +253,6 @@ fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: 
 
       //conjunctive normal form takes precedence
       (Typ::And(lts),Typ::And(rts)) => {
-         let lts = lts.iter().map(|tt|tt.clone()).filter(|tt|tt==&Typ::Any).collect::<Vec<Typ>>();
-         let rts = rts.iter().map(|tt|tt.clone()).filter(|tt|tt==&Typ::Any).collect::<Vec<Typ>>();
          //lt => rt
          let mut lts = lts.clone();
          for rt in rts.iter() {
@@ -262,10 +260,7 @@ fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: 
          }
          Ok(Typ::And(lts))
       },
-      //bug reject [Integer+Number] (x) Number with Integer::Term; Number::Term
-
       (Typ::And(lts),rt) => {
-         let lts = lts.iter().map(|tt|tt.clone()).filter(|tt|tt==&Typ::Any).collect::<Vec<Typ>>();
          let mut lts = lts.clone();
          let mut accept = false;
          for ltt in lts.clone().iter() {
