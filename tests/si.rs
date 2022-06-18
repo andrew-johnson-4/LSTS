@@ -1,6 +1,5 @@
 use lsts::tlc::TLC;
 
-/*
 #[test]
 fn check_constant_literals() {
    let mut tlc = TLC::new();
@@ -197,4 +196,3 @@ fn check_narrow_conversion() {
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Meter>").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Second>").unwrap_err();
 }
-*/
