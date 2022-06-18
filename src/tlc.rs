@@ -227,6 +227,21 @@ impl std::fmt::Debug for Typ {
         }
     }
 }
+fn project_ratio(tt: &Typ) -> (Vec<Typ>,Vec<Typ>) {
+   match tt {
+      Typ::Ratio(p,b) => {
+         let (mut pn,mut pd) = project_ratio(p);
+         let (mut bn,mut bd) = project_ratio(b);
+         pn.append(&mut bd);
+         pd.append(&mut bn);
+         (pn, pd)
+      },
+      Typ::Product(ts) => {
+         (ts.clone(), Vec::new())
+      },
+      _ => (vec![tt.clone()], Vec::new())
+   }
+}
 fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
    //lt => rt
    let mut lk = Kind::Nil;
@@ -1382,7 +1397,8 @@ impl TLC {
             } else {
                if self.kind_is_normal.contains(&into_kind) {
                   let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
-                  if !self.is_normal(&l_only) {
+                  while !self.is_normal(&l_only) {
+                     let (numerator,denominator) = project_ratio(&l_only);
                      //prioritized into-normal conversion
                      //1. lookup typedefs for maybe a -> T:A*B/C -> rule, can only convert one-to-many type atoms
                      //2. lookup forall rules for unboxing rules, can only convert one type atom
@@ -1390,6 +1406,7 @@ impl TLC {
                      panic!("TODO: into-normal cast {:?} as {:?}::{:?}", &l_only, &into, &into_kind);
                   }
                   if self.unify(&l_only, &into, &self.rows[t.id].span).is_err() {
+                     let (numerator,denominator) = project_ratio(&l_only);
                      //prioritized out-of-normal conversion
                      //1. lookup typedefs for maybe a <- T:A*B/C <- rule, can only convert many-to-one type atoms
                      //2. lookup forall rules for unboxing rules, can only convert one type atom
