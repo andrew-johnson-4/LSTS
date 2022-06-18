@@ -863,12 +863,15 @@ impl TLC {
          //inference rules
          Rule::typ_stmt => {
             let mut ps = p.into_inner();
-            let t = ps.next().expect("TLC Grammar Error in rule [typ_stmt.1]").into_inner().concat();
+            let mut t = "".to_string();
+            let mut normal = false;
             let mut implies = None;
             let mut tiks = Vec::new();
             let mut typedef = Vec::new();
             let mut kind = None;
             for e in ps { match e.as_rule() {
+               Rule::typname => { t=e.into_inner().concat(); },
+               Rule::normal => { normal=true; },
                Rule::typ_inf_kind => {
                   let mut typ = "".to_string();
                   let mut inf = None;

@@ -9,13 +9,13 @@ forall i:Integer. Integer => Complex = i; //cast Integer to Complex
 forall i:Real   . Real    => Complex = i; //cast Real to Complex
 
 //: SI Units
-type Second  :: Unit; //Unit is the Kind of SI Unit types.
-type Metre   :: Unit; //Kinds do not need to be declared before use.
-type Gram    :: Unit;
-type Ampere  :: Unit;
-type Kelvin  :: Unit;
-type Mole    :: Unit;
-type Candela :: Unit;
+type normal Second  :: Unit; //Unit is the Kind of SI Unit types.
+type normal Metre   :: Unit; //Kinds do not need to be declared before use.
+type normal Gram    :: Unit;
+type normal Ampere  :: Unit;
+type normal Kelvin  :: Unit;
+type normal Mole    :: Unit;
+type normal Candela :: Unit;
 
 //: Compound Types
 type Point2D<N:Number> = { x:N, y:N };

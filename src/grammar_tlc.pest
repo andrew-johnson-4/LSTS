@@ -17,12 +17,13 @@ typname    = ${ upper ~ alnum* }
 kindname   = ${ upper ~ alnum* }
 simplename = ${ alphal ~ (alphal | digit)* }
 quotedname = ${ "$\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
-ident      = ${ !("as" | "if" | "else " | "let" | "forall" | "type") ~ ((lowerl~alphal*) | quotedname) }
+ident      = ${ !("as" | "if" | "else " | "let" | "forall" | "type" | "normal") ~ ((lowerl~alphal*) | quotedname) }
 esign      = ${ ("e"|"E") ~ ("+" | "-")? }
 numerical  = ${ digit ~ digital* ~ (esign ~ digital+)? }
 imaginary  = ${ "+" ~ numerical ~ "i" }
 constant   = ${ numerical ~ imaginary? }
 
+normal = { "normal" }
 ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 typ_inf_kind = { typvar ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
@@ -71,7 +72,7 @@ constructor_typedef = { typname? ~ ("{" ~ (key_typ ~ ("," ~ key_typ)*)? ~ "}")? 
 regex = { "/" ~ (!"/" ~ ANY)+ ~ "/" }
 typedef_branch = { regex | constructor_typedef }
 typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
-typ_stmt = { "type" ~ typname ~ ("<" ~ typ_inf_kind ~ ("," ~ typ_inf_kind)* ~ ">")? ~ (":" ~ typ)? ~ ("=" ~ typedef)? ~ ("::" ~ kind)? }
+typ_stmt = { "type" ~ normal? ~ typname ~ ("<" ~ typ_inf_kind ~ ("," ~ typ_inf_kind)* ~ ">")? ~ (":" ~ typ)? ~ ("=" ~ typedef)? ~ ("::" ~ kind)? }
 
 inference = { typ ~ ("=>" ~ typ)? }
 forall_stmt = { "forall" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ inference ~ ("=" ~ term)? ~ ("::" ~ kind)?}
