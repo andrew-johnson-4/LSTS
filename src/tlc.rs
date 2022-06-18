@@ -94,6 +94,10 @@ pub enum Typ {
 impl Typ {
    fn and(&self, other:&Typ) -> Typ {
       match (self,other) {
+         (Typ::Any,r) => r.clone(),
+         (l,Typ::Any) => l.clone(),
+         (Typ::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => rt.clone(),
+         (lt,Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => lt.clone(),
          (Typ::And(ls),Typ::And(rs)) => {
             let mut ts = ls.clone();
             ts.append(&mut rs.clone());
@@ -219,7 +223,6 @@ impl std::fmt::Debug for Typ {
 }
 fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
    //lt => rt
-   //bug unify [?+Integer+Kilo<Meter>+Metre+Number] (x) ? yields [?+Integer+Kilo<Meter>+Metre+Number] with Integer::Term; Kilo<Meter>::Unit; Metre::Unit; Number::Term
    let mut lk = Kind::Nil;
    let mut rk = Kind::Nil;
    for (ot,ok) in kinds.iter() {
@@ -259,18 +262,21 @@ fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: 
          }
          Ok(Typ::And(lts))
       },
+      //bug reject [Integer+Number] (x) Number with Integer::Term; Number::Term
+
       (Typ::And(lts),rt) => {
          let lts = lts.iter().map(|tt|tt.clone()).filter(|tt|tt==&Typ::Any).collect::<Vec<Typ>>();
          let mut lts = lts.clone();
          let mut accept = false;
-         for lt in lts.clone().iter() {
-            if let Ok(nt) = unify_impl(kinds,subs,lt,rt,span) {
+         for ltt in lts.clone().iter() {
+            if let Ok(nt) = unify_impl(kinds,subs,ltt,rt,span) {
                accept = true;
                lts.push(nt);
             }
          }
          if accept {
-            Ok(Typ::And(lts))
+            if lts.len()==1 { Ok(lts[0].clone()) }
+            else { Ok(Typ::And(lts)) }
          } else {
             Err(())
          }
@@ -1462,14 +1468,13 @@ impl TLC {
          tt.substitute(&subs)
       } else { return Err(Error {
          kind: "Type Error".to_string(),
-         rule: format!("failed unification {:?} (x) {:?}",lt,rt),
+         rule: format!("failed unification {:?} (x) {:?} with {}",lt,rt,
+                  kinds.iter().map(|(t,k)|format!("{:?}::{:?}",t,k))
+                       .collect::<Vec<String>>().join("; ")),
          span: span.clone(),
          snippet: "".to_string(),
       }) };
       tt.normalize();
-      eprintln!("unify {:?} (x) {:?} yields {:?} with {}", lt, rt, &tt,
-         kinds.iter().map(|(t,k)|format!("{:?}::{:?}",t,k))
-              .collect::<Vec<String>>().join("; "));
       Ok(tt)
    }
 
