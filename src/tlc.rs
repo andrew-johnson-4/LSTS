@@ -1262,6 +1262,19 @@ impl TLC {
          Typ::Ratio(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) }
       }
    }
+   pub fn is_normal(&self, tt:&Typ) -> bool {
+      match tt {
+         Typ::Any => false,
+         Typ::Or(ts) => false,
+         Typ::And(ts) => false,
+         Typ::Ident(tn,ts) => self.type_is_normal.contains(&Typ::Ident(tn.clone(),Vec::new())) &&
+                              ts.iter().all(|ct|self.is_normal(ct)),
+         Typ::Tuple(ts) => ts.iter().all(|ct|self.is_normal(ct)),
+         Typ::Product(ts) => ts.iter().all(|ct|self.is_normal(ct)),
+         Typ::Arrow(p,b) => self.is_normal(p) && self.is_normal(b),
+         Typ::Ratio(p,b) => self.is_normal(p) && self.is_normal(b),
+      }
+   }
    pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Typ>, span: &Span) -> Result<Typ,Error> {
       if let Some(scope) = scope {
          let mut matches = Vec::new();
@@ -1368,33 +1381,39 @@ impl TLC {
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
                if self.kind_is_normal.contains(&into_kind) {
-                  let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
-                  panic!("TODO: into kind is normal {:?} as {:?}::{:?}", &l_only, &into, &into_kind);
-               }
-               let mut accept = false;
-               for tr in self.rules.iter() { match tr {
-                  TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,tk,_) if tk.clone().unwrap_or(self.term_kind.clone())==into_kind => {
-                     if let Ok(lt) = self.unify(&self.rows[x.id].typ, lt, &self.rows[t.id].span) {
-                     if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span) {
-                        //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
-                        //eliminate typeof(x) :: kindof(Into)
-                        let l_narrowed = self.remove_kinded(&into_kind, &lt);
-                        //introduce typeof(x) (x) R
-                        let l_widened = rt.and(&l_narrowed);
-                        self.rows[t.id].typ = l_widened;
-                        //TODO: substitute term t into macro body if exists
-                        accept = true;
-                        break;
-                     }}
-                  }, _ => {} 
-               }}
-               if !accept {
-                  return Err(Error {
-                     kind: "Type Error".to_string(),
-                     rule: format!("could not cast {:?} into {:?}", &self.rows[x.id].typ, &into),
-                     span: self.rows[t.id].span.clone(),
-                     snippet: "".to_string()
-                  })
+                  let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
+                  if !self.is_normal(&l_only) {
+                     panic!("TODO: into-of-normal cast {:?} as {:?}::{:?}", &l_only, &into, &into_kind);
+                  }
+                  if self.unify(&l_only, &into, &self.rows[t.id].span).is_err() {
+                     panic!("TODO: out-of-normal cast {:?} as {:?}::{:?}", &l_only, &into, &into_kind);
+                  }
+               } else {
+                  let mut accept = false;
+                  for tr in self.rules.iter() { match tr {
+                     TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,tk,_) if tk.clone().unwrap_or(self.term_kind.clone())==into_kind => {
+                        if let Ok(lt) = self.unify(&self.rows[x.id].typ, lt, &self.rows[t.id].span) {
+                        if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span) {
+                           //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
+                           //eliminate typeof(x) :: kindof(Into)
+                           let l_narrowed = self.remove_kinded(&into_kind, &lt);
+                           //introduce typeof(x) (x) R
+                           let l_widened = rt.and(&l_narrowed);
+                           self.rows[t.id].typ = l_widened;
+                           //TODO: substitute term t into macro body if exists
+                           accept = true;
+                           break;
+                        }}
+                     }, _ => {} 
+                  }}
+                  if !accept {
+                     return Err(Error {
+                        kind: "Type Error".to_string(),
+                        rule: format!("could not cast {:?} into {:?}", &self.rows[x.id].typ, &into),
+                        span: self.rows[t.id].span.clone(),
+                        snippet: "".to_string()
+                     })
+                  }
                }
             }
          },
