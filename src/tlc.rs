@@ -1212,20 +1212,33 @@ impl TLC {
    }
    pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Typ>, span: &Span) -> Result<Typ,Error> {
       if let Some(scope) = scope {
+         let mut matches = Vec::new();
          let ref sc = self.scopes[scope.id];
          for (tn,_tkts,tt) in sc.children.iter() {
             if tn==v {
                if let Some(it) = implied {
                   //if tt => it
                   if let Ok(rt) = self.unify(&tt,it,span) {
-                     return Ok(rt.clone());
+                     matches.push(rt.clone());
                   }
                } else {
-                  return Ok(tt.clone());
+                  matches.push(tt.clone());
                }
             }
          }
-         self.typeof_var(&sc.parent.clone(), v, implied, span)
+         if matches.len()>1 { Err(Error {
+            kind: "Type Error".to_string(),
+            rule: format!("variable found in scope is ambiguous: {:?} matches {}",
+                     implied.clone().unwrap_or(Typ::Any),
+                     matches.iter().map(|t|format!("{:?}",t))
+                            .collect::<Vec<String>>().join(" | ") ),
+            span: span.clone(),
+            snippet: "".to_string()
+         }) } else if matches.len()==1 {
+            Ok(matches[0].clone())
+         } else {
+            self.typeof_var(&sc.parent.clone(), v, implied, span)
+         }
       } else { Err(Error {
          kind: "Type Error".to_string(),
          rule: format!("variable not found in scope: {}", v),
