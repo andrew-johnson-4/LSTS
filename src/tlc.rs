@@ -217,7 +217,16 @@ impl std::fmt::Debug for Typ {
         }
     }
 }
-fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
+fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
+   let mut lk = Kind::Nil;
+   let mut rk = Kind::Nil;
+   for (ot,ok) in kinds.iter() {
+      if ot==lt { lk = ok.clone(); }
+      if ot==rt { rk = ok.clone(); }
+   }
+   if lk!=rk && lk!=Kind::Nil && rk!=Kind::Nil { //kinding only comes into play during conflict
+      return Err(());
+   }
    //bug unify [Ab+Bc] (x) [Ab+Bc+[Ab+Bc]] yields [Ab+Bc+[Ab+Bc]+[Ab+Bc+[Ab+Bc]]]
    //lt => rt
    match (lt,rt) {
@@ -226,14 +235,14 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
       (l,Typ::Any) => Ok(l.clone()),
       (Typ::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
          for (sl,sr) in subs.clone().iter() {
-            if lt==sl { return unify_impl(subs,sr,rt,span); }
+            if lt==sl { return unify_impl(kinds,subs,sr,rt,span); }
          }
          subs.push((lt.clone(),rt.clone()));
          Ok(rt.clone())
       },
       (lt,Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
          for (sl,sr) in subs.clone().iter() {
-            if rt==sl { return unify_impl(subs,lt,sr,span); }
+            if rt==sl { return unify_impl(kinds,subs,lt,sr,span); }
          }
          subs.push((rt.clone(),lt.clone()));
          Ok(lt.clone())
@@ -244,7 +253,7 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
          //lt => rt
          let mut lts = lts.clone();
          for rt in ra.iter() {
-            lts.push(unify_impl(subs,lt,rt,span)?);
+            lts.push(unify_impl(kinds,subs,lt,rt,span)?);
          }
          Ok(Typ::And(lts))
       },
@@ -252,7 +261,7 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
          let mut lts = lts.clone();
          let mut accept = false;
          for lt in lts.clone().iter() {
-            if let Ok(nt) = unify_impl(subs,lt,rt,span) {
+            if let Ok(nt) = unify_impl(kinds,subs,lt,rt,span) {
                accept = true;
                lts.push(nt);
             }
@@ -266,16 +275,16 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
 
       //ratio types have next precedence
       (Typ::Ratio(pl,bl),Typ::Ratio(pr,br)) => {
-         let pt = unify_impl(subs,pl,pr,span)?;
-         let bt = unify_impl(subs,bl,br,span)?;
+         let pt = unify_impl(kinds,subs,pl,pr,span)?;
+         let bt = unify_impl(kinds,subs,bl,br,span)?;
          Ok(Typ::Ratio(Box::new(pt),Box::new(bt)))
       },
       (Typ::Ratio(pl,bl),r) => {
-         let pt = unify_impl(subs,pl,r,span)?;
+         let pt = unify_impl(kinds,subs,pl,r,span)?;
          Ok(Typ::Ratio(Box::new(pt),Box::new(*bl.clone())))
       },
       (l,Typ::Ratio(pr,br)) => {
-         let pt = unify_impl(subs,l,pr,span)?;
+         let pt = unify_impl(kinds,subs,l,pr,span)?;
          Ok(Typ::Ratio(Box::new(pt),Box::new(*br.clone())))
       },
 
@@ -284,26 +293,26 @@ fn unify_impl(subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Res
       if lv==rv && lps.len()==rps.len() => {
          let mut tps = Vec::new();
          for (lp,rp) in std::iter::zip(lps,rps) {
-            tps.push(unify_impl(subs,lp,rp,span)?);
+            tps.push(unify_impl(kinds,subs,lp,rp,span)?);
          }
          Ok(Typ::Ident(lv.clone(),tps))
       }
       (Typ::Arrow(pl,bl),Typ::Arrow(pr,br)) => {
-         let pt = unify_impl(subs,pl,pr,span)?;
-         let bt = unify_impl(subs,bl,br,span)?;
+         let pt = unify_impl(kinds,subs,pl,pr,span)?;
+         let bt = unify_impl(kinds,subs,bl,br,span)?;
          Ok(Typ::Arrow(Box::new(pt),Box::new(bt)))
       },
       (Typ::Product(la),Typ::Product(ra)) if la.len()==ra.len() => {
          let mut ts = Vec::new();
          for (lt,rt) in std::iter::zip(la,ra) {
-            ts.push(unify_impl(subs,lt,rt,span)?);
+            ts.push(unify_impl(kinds,subs,lt,rt,span)?);
          }
          Ok(Typ::Product(ts))
       },
       (Typ::Tuple(la),Typ::Tuple(ra)) if la.len()==ra.len() => {
          let mut ts = Vec::new();
          for (lt,rt) in std::iter::zip(la,ra) {
-            ts.push(unify_impl(subs,lt,rt,span)?);
+            ts.push(unify_impl(kinds,subs,lt,rt,span)?);
          }
          Ok(Typ::Tuple(ts))
       },
@@ -1197,7 +1206,7 @@ impl TLC {
    pub fn kindsof(&self, kinds:&mut Vec<(Typ,Kind)>, tt:&Typ) {
       match tt {
          Typ::Any => {},
-         Typ::Ident(t,ts) => {
+         Typ::Ident(_t,_ts) => {
             for (ot,_ok) in kinds.iter() {
                if ot==tt { return; } //type is already kinded
             }
@@ -1291,10 +1300,6 @@ impl TLC {
       }
    }
    pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
-      eprintln!("typecheck {}", self.print_term(t));
-      if let Some(scope) = scope {
-         eprintln!("typecheck scope {}", self.print_scope(scope));
-      }
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
@@ -1355,13 +1360,10 @@ impl TLC {
             }
          },
          Term::Ident(x) => {
-            eprintln!("typecheck Ident.1");
             let span = self.rows[t.id].span.clone();
             let xt = self.typeof_var(&scope, &x, &implied, &span)?;
             //typeof(x) => t.typ
-            eprintln!("typecheck Ident.2");
             self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
-            eprintln!("typecheck Ident.3");
          },
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { Typ::Any };
@@ -1434,9 +1436,7 @@ impl TLC {
          },
       };
       if let Some(ref i) = implied {
-         eprintln!("start typecheck implied {:?}", i);
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
-         eprintln!("end typecheck implied {:?}", i);
       };
       self.bound_implied(&self.rows[t.id].typ,&self.rows[t.id].span)?;
       Ok(())
@@ -1448,14 +1448,11 @@ impl TLC {
       let mut kinds = kinds.clone();
       self.kindsof(&mut kinds, lt);
       self.kindsof(&mut kinds, rt);
-      eprintln!("unify {:?} (x) {:?} with {}", lt, rt,
-                kinds.iter().map(|(t,k)| format!("{:?}::{:?}",t,k))
-                     .collect::<Vec<String>>().join("; "));
       //lt => rt
       let mut lt = self.extend_implied(lt); lt.normalize();
       let mut rt = rt.clone(); rt.normalize();
       let mut subs = Vec::new();
-      let r = unify_impl(&mut subs, &lt, &rt, span);
+      let r = unify_impl(&kinds, &mut subs, &lt, &rt, span);
       subs.sort();
       subs.dedup();
       let mut tt = if let Ok(tt) = r {
@@ -1467,7 +1464,6 @@ impl TLC {
          snippet: "".to_string(),
       }) };
       tt.normalize();
-      eprintln!("unify {:?} (x) {:?} yields {:?}", lt, rt, &tt);
       Ok(tt)
    }
 
