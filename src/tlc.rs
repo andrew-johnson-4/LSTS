@@ -363,14 +363,14 @@ pub enum Typedef {
 
 #[derive(Clone)]
 pub enum TypeRule {
-   Typedef(String,Vec<(String,Option<Typ>,Option<Kind>)>,Option<Typ>,Vec<Typedef>,Option<Kind>,Span),
+   Typedef(String,bool,Vec<(String,Option<Typ>,Option<Kind>)>,Option<Typ>,Vec<Typedef>,Option<Kind>,Span),
 
    Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>,Span),
 }
 impl TypeRule {
    pub fn span(&self) -> Span {
       match self {
-         TypeRule::Typedef(_,_,_,_,_,sp) => sp.clone(),
+         TypeRule::Typedef(_,_,_,_,_,_,sp) => sp.clone(),
          TypeRule::Forall(_,_,_,_,sp) => sp.clone(),
       }
    }
@@ -378,7 +378,7 @@ impl TypeRule {
 impl std::fmt::Debug for TypeRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           TypeRule::Typedef(tn,itks,implies,_td,tk,_) => write!(f, "{}{}{}{}{}::{:?}",
+           TypeRule::Typedef(tn,_norm,itks,implies,_td,tk,_) => write!(f, "{}{}{}{}{}::{:?}",
               tn,
               if itks.len()==0 { "" } else { "<" },
               itks.iter().map(|(t,i,k)| format!("{:?}:{:?}::{:?}",
@@ -482,7 +482,7 @@ impl TLC {
       for t in ts.iter() {
          let ts = format!("{:?}",t);
          for tr in self.rules.iter() { match tr {
-            TypeRule::Typedef(tn,_itks,_implies,_td,tk,_) => {
+            TypeRule::Typedef(tn,_norm,_itks,_implies,_td,tk,_) => {
                if &ts!=tn { continue; }
                let tk = tk.clone().unwrap_or(self.term_kind.clone());
                if &tk==k { return t.clone(); }
@@ -523,7 +523,7 @@ impl TLC {
    }
    pub fn kind_of(&self, t: &Typ) -> Kind {
       for rule in self.rules.iter() { match rule {
-         TypeRule::Typedef(tt,_tps,_implies,_td,k,_) => { if &format!("{:?}",t)==tt {
+         TypeRule::Typedef(tt,_norm,_tps,_implies,_td,k,_) => { if &format!("{:?}",t)==tt {
             return k.clone().unwrap_or(self.term_kind.clone());
          }},
          _ => ()
@@ -571,7 +571,7 @@ impl TLC {
                })
             }
          },
-         TypeRule::Typedef(tn,_itks,_implies,tds,_tk,_span) => {
+         TypeRule::Typedef(tn,_norm,_itks,_implies,tds,_tk,_span) => {
             for td in tds.iter() { match td {
                Typedef::Regex(pat) => {
                   if let Ok(r) = Regex::new(&pat[1..pat.len()-1]) {
@@ -862,14 +862,13 @@ impl TLC {
 
          //inference rules
          Rule::typ_stmt => {
-            let mut ps = p.into_inner();
             let mut t = "".to_string();
             let mut normal = false;
             let mut implies = None;
             let mut tiks = Vec::new();
             let mut typedef = Vec::new();
             let mut kind = None;
-            for e in ps { match e.as_rule() {
+            for e in p.into_inner() { match e.as_rule() {
                Rule::typname => { t=e.into_inner().concat(); },
                Rule::normal => { normal=true; },
                Rule::typ_inf_kind => {
@@ -924,6 +923,7 @@ impl TLC {
             }}
             self.rules.push(TypeRule::Typedef(
                t,
+               normal,
                tiks,
                implies,
                typedef,
@@ -1137,7 +1137,7 @@ impl TLC {
             if tvar.chars().all(char::is_uppercase) { continue; } //Type variables don't need to be defined
             let mut defined = false;
             for rule in self.rules.iter() { match rule {
-               TypeRule::Typedef(tt,_tps,_implies,_td,_k,_) => { if tvar==tt {
+               TypeRule::Typedef(tt,_norm,_tps,_implies,_td,_k,_) => { if tvar==tt {
                   defined=true;
                }},
                _ => ()
@@ -1165,7 +1165,7 @@ impl TLC {
             if ts.len()==0 { return Ok(()); }
             if !tt.is_concrete() { return Ok(()); }
             for tr in self.rules.iter() { match tr {
-               TypeRule::Typedef(tdn,itks,_implies,_td,_tk,_) if tn==tdn && ts.len()==itks.len() => {
+               TypeRule::Typedef(tdn,_norm,itks,_implies,_td,_tk,_) if tn==tdn && ts.len()==itks.len() => {
                   for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,itks) {
                      if let Some(bt) = bt {
                         self.unify(pt, bt, span)?;
@@ -1186,7 +1186,7 @@ impl TLC {
          Typ::Ratio(p,b) => Typ::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Typ::Ident(tn,ts) => {
             for tr in self.rules.iter() { match tr {
-               TypeRule::Typedef(tdn,itks,implies,_td,_tk,_) if tn==tdn && ts.len()==itks.len() => {
+               TypeRule::Typedef(tdn,_norm,itks,implies,_td,_tk,_) if tn==tdn && ts.len()==itks.len() => {
                   let implies = if let Some(it) = implies {
                      match it {
                         Typ::And(its) => its.clone(),
@@ -1241,7 +1241,7 @@ impl TLC {
          //only simple types can be kinded
          Typ::Ident(tn,ts) => {
             for tr in self.rules.iter() { match tr {
-               TypeRule::Typedef(tdn,itks,_implies,_td,tk,_) => {
+               TypeRule::Typedef(tdn,_norm,itks,_implies,_td,tk,_) => {
                   if tn==tdn && ts.len()==itks.len() {
                      return tk.clone().unwrap_or(self.term_kind.clone());
                   }
