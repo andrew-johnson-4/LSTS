@@ -87,3 +87,38 @@ fn check_narrow_implication_with_parameters() {
    tlc.check(None, "type Pt; type Ab<A>; type Bc<B>: Ab<B>; let a: Bc<Pt>; a:Ab<Pt>").unwrap();     //Bc<Pt> implies        Ab<Pt>
    tlc.check(None, "type Pt; type Ab<A>; type Bc<B>: Ab<B>; let a: Bc<Pt>; a:Bc<Pt>").unwrap();     //Bc<Pt> implies        Bc<Pt>
 }
+
+#[test]
+fn check_kinded_polymorphism() {
+   let mut tlc = TLC::new();
+
+   //unification is kind sensitive
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Ab = a;").unwrap();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Bc = b;").unwrap();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Ab+Bc = a;").unwrap_err();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Ab+Bc = b;").unwrap_err();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Ab = b;").unwrap_err();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Bc = a;").unwrap_err();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Ab+Bc; let c:Ab = a;").unwrap();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Ab+Bc; let c:Bc = a;").unwrap_err();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Ab+Bc; let c:Ab = b;").unwrap();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Ab+Bc; let c:Bc = b;").unwrap();
+}
+
+#[test]
+fn check_kinded_parametric_polymorphism() {
+   let mut tlc = TLC::new();
+
+   //unification is kind sensitive
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:Ab::Term); let f(x:Bc::BKind); let x:Ab; f(x)").unwrap();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:Ab::Term); let f(x:Bc::BKind); let x:Bc; f(x)").unwrap();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:Ab::Term); let f(x:Bc::BKind); let x:Ab+Bc; f(x)").unwrap_err(); //ambiguous
+
+   //parameters can be inferred by kind
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab; f(x)").unwrap();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Bc; f(x)").unwrap();
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab+Bc; f(x)").unwrap_err(); //ambiguous
+}
+
+
+

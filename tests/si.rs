@@ -56,12 +56,10 @@ fn check_type_equality() {
    tlc.check(Some(si), "let x:Real=1:Real;").unwrap();
    tlc.check(Some(si), "let x:Complex=1:Complex;").unwrap();
 
-   /*
    //Ground Types unify with other Types when a viable cast rule is available
-   tlc.check(Some(si), "let x:Real=1:Integer;").unwrap();
-   tlc.check(Some(si), "let x:Complex=1:Integer;").unwrap();
-   tlc.check(Some(si), "let x:Complex=1:Real;").unwrap();
-   */
+   //tlc.check(Some(si), "let x:Real=1:Integer;").unwrap();
+   //tlc.check(Some(si), "let x:Complex=1:Integer;").unwrap();
+   //tlc.check(Some(si), "let x:Complex=1:Real;").unwrap();
 
    //Ground Types do not unify if no cast rule is available
    tlc.check(Some(si), "let x:Integer=1:Real;").unwrap_err();
