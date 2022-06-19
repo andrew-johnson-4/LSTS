@@ -193,10 +193,10 @@ fn check_narrow_conversion() {
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
 
    //check type cast of compatible types within a kind
-   tlc.check(Some(si), "(1:Integer+Kilo<Metre>) as Metre").unwrap();
-   tlc.check(Some(si), "(1:Integer+Kilo<Metre>) as Second").unwrap_err();
    tlc.check(Some(si), "(1:Integer+Minute) as Hour").unwrap();
    tlc.check(Some(si), "(1:Integer+Minute) as Metre").unwrap_err();
+   tlc.check(Some(si), "(1:Integer+Kilo<Metre>) as Metre").unwrap();
+   tlc.check(Some(si), "(1:Integer+Kilo<Metre>) as Second").unwrap_err();
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Metre>").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Second>").unwrap_err();
 }
