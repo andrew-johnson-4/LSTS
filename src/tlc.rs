@@ -1434,6 +1434,8 @@ impl TLC {
                   let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
                   let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
 
+                  eprintln!("begin norm/denorm {:?} into {:?}", l_only, into);
+
                   while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
                      let mut num_collector = Vec::new();
                      let mut den_collector = Vec::new();
@@ -1544,44 +1546,82 @@ impl TLC {
                      else { l_only = r_only; }
                   }
 
+                  eprintln!("normalized norm/denorm {:?} into {:?}", l_only, into);
+
                   if !self.is_normal(&into) && self.unify(&l_only, &into, &self.rows[t.id].span).is_err() {
                      let mut num_collector = Vec::new();
                      let mut den_collector = Vec::new();
                      let (numerator,denominator) = project_ratio(&into);
                      for n in numerator.iter() {
+                        //if Into part is normal, do nothing
                         if self.is_normal(n) {
                            num_collector.push(n.clone());
                            continue;
                         }
+
+                        //if Into part implies a normal, replace part with implied
                         if let Typ::Ident(nn,_nns) = n {
                         if let Some(ti) = self.typedef_index.get(nn) {
                         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
                         let it = implies.clone().unwrap_or(Typ::Any);
                         if self.is_normal(&it) {
-                           num_collector.push(n.clone());
+                           let (inum, iden) = project_ratio(&it);
+                           num_collector.append(&mut inum.clone());
+                           den_collector.append(&mut iden.clone());
                            continue;
                         }}}}
-                        //else if forall unbox into normal rule exists
-                        //else if forall box   into normal rule exists
-                        panic!("Could not denormalize numerator type atom in cast {:?}", n);
+
+                        /*
+                        let mnt = into.mask();
+                        let mut found = false;
+                        if let Some(tis) = self.foralls_index.get(&mnt) {
+                        for ti in tis.iter() { if !found {
+                        if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+                           let kinds = Vec::new();
+                           let mut subs = Vec::new();
+                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &into, &self.rows[t.id].span) {
+                              let srt = rt.substitute(&subs);
+                              let (inum, iden) = project_ratio(&srt);
+                              num_collector.append(&mut inum.clone());
+                              den_collector.append(&mut iden.clone());
+                              found = true;
+                              continue;
+                           }
+                        }}}}
+                        if found { continue; }
+                        */
+
+                        return Err(Error {
+                           kind: "Type Error".to_string(),
+                           rule: format!("could not denormalize numerator type atom in cast {:?}", n),
+                           span: self.rows[t.id].span.clone(),
+                           snippet: "".to_string()
+                        })
                      }
                      for d in denominator.iter() {
+                        //if Into part is normal, do nothing
                         if self.is_normal(d) {
                            den_collector.push(d.clone());
                            continue;
                         }
+
+                        //if Into part implies a normal, replace part with implied
                         if let Typ::Ident(dn,_dns) = d {
                         if let Some(ti) = self.typedef_index.get(dn) {
                         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
                         let it = implies.clone().unwrap_or(Typ::Any);
                         if self.is_normal(&it) {
-                           den_collector.push(d.clone());
+                           let (inum, iden) = project_ratio(&it);
+                           num_collector.append(&mut iden.clone());
+                           den_collector.append(&mut inum.clone());
                            continue;
                         }}}}
+
                         //else if forall unbox into normal rule exists
                         //else if forall box   into normal rule exists
                         panic!("Could not denormalize denominator type atom in cast {:?}", d);
                      }
+
                      let num = if num_collector.len()==0 {
                         Typ::Tuple(Vec::new())
                      } else if num_collector.len()==1 {
@@ -1597,8 +1637,10 @@ impl TLC {
                         let den = Typ::Product(den_collector);
                         Typ::Ratio(Box::new(num),Box::new(den))
                      };
-                     self.unify(&b_only, &l_only, &self.rows[t.id].span)?;
+                     self.unify(&self.rows[x.id].typ, &b_only, &self.rows[t.id].span)?;
                   }
+
+                  eprintln!("denormalized norm/denorm {:?} into {:?}", l_only, into);
 
                   self.rows[t.id].typ = self.unify(&into,&l_only,&self.rows[t.id].span)?.and(&l_alts);
                } else {
