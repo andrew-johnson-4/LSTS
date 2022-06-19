@@ -18,6 +18,7 @@ pub struct TLC {
    pub type_is_normal: HashSet<Typ>,
    pub kind_is_normal: HashSet<Kind>,
    pub typedef_index: HashMap<String,usize>,
+   pub foralls_index: HashMap<Typ,Vec<usize>>,
    pub term_kind: Kind,
    pub nil_type: Typ,
    pub bottom_type: Typ,
@@ -96,6 +97,19 @@ pub enum Typ {
    Ratio(Box<Typ>,Box<Typ>),
 }
 impl Typ {
+   fn mask(&self) -> Typ {
+      match self {
+         Typ::Any => Typ::Any,
+         Typ::Ident(tn,_ts) if tn.chars().all(char::is_uppercase) => Typ::Any,
+         Typ::Ident(tn,ts) => Typ::Ident(tn.clone(),ts.iter().map(|_|Typ::Any).collect::<Vec<Typ>>()),
+         Typ::Arrow(p,b) => Typ::Arrow(Box::new(p.mask()),Box::new(b.mask())),
+         Typ::Ratio(p,b) => Typ::Ratio(Box::new(p.mask()),Box::new(b.mask())),
+         Typ::Or(ts) => Typ::Or(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
+         Typ::And(ts) => Typ::And(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
+         Typ::Tuple(ts) => Typ::Tuple(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
+         Typ::Product(ts) => Typ::Product(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
+      }
+   }
    fn and(&self, other:&Typ) -> Typ {
       match (self,other) {
          (Typ::Any,r) => r.clone(),
@@ -460,6 +474,7 @@ impl TLC {
          scopes: Vec::new(),
          regexes: Vec::new(),
          constructors: Vec::new(),
+         foralls_index: HashMap::new(),
          typedef_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
@@ -495,6 +510,12 @@ impl TLC {
             format!("{}{{{}}}", cn, kvs.iter().map(|(k,v)|format!("{}={}",k,self.print_term(*v))).collect::<Vec<String>>().join(","))
          },
       }
+   }
+   pub fn query_foralls(&self, tt: &Typ) -> Vec<usize> {
+      let mt = tt.mask();
+      if let Some(fs) = self.foralls_index.get(&mt) {
+         fs.clone()
+      } else { Vec::new() }
    }
    pub fn project_kinded(&self, k: &Kind, t: &Typ) -> Typ {
       let ts = match t {
