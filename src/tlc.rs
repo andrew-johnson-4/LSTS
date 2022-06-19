@@ -1436,12 +1436,18 @@ impl TLC {
                      for n in numerator.iter() {
                         if self.is_normal(n) {
                            num_collector.push(n.clone());
-                        //else if T:A*B/C where is_normal(A*B/C)
+                           continue;
+                        }
+                        if let Typ::Ident(nn,_nns) = n {
+                        if let Some(ti) = self.typedef_index.get(nn) {
+                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
+                        if self.is_normal(&implies.clone().unwrap_or(Typ::Any)) {
+                           panic!("TODO T:A*B/C where is_normal(A*B/C)");
+                           continue;
+                        }}}}
                         //else if forall unbox into normal rule exists
                         //else if forall box   into normal rule exists
-                        } else {
-                           panic!("Could not normalize numerator type atom in cast {:?}", n);
-                        }
+                        panic!("Could not normalize numerator type atom in cast {:?}", n);
                      }
                      for d in denominator.iter() {
                         if self.is_normal(d) {
