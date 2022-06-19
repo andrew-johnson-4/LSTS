@@ -204,7 +204,6 @@ fn check_narrow_conversion() {
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Second>").unwrap_err();
 }
 
-/*
 #[test]
 fn check_unit_conversion() {
    let mut tlc = TLC::new();
@@ -240,4 +239,3 @@ fn check_imperial_conversion() {
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Mile/Minute").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Watt/Minute").unwrap_err();
 }
-*/
