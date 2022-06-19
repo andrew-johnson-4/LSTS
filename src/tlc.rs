@@ -618,7 +618,11 @@ impl TLC {
    pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
       self.compile_doc(globals, "[string]", src)
    }
-   pub fn compile_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
+   pub fn import_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<ScopeId,Error> {
+      self.compile_doc(globals, "[string]", src);
+      Ok(ScopeId {id:0})
+   }
+   pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
       if !Path::new(filename).exists() {
          panic!("parse_file could not find file: '{}'", filename)
       }
