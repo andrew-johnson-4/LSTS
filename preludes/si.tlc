@@ -9,13 +9,35 @@ forall i:Integer. Integer => Complex = i; //cast Integer to Complex
 forall i:Real   . Real    => Complex = i; //cast Real to Complex
 
 //: SI Units
-type Second  :: Unit; //Unit is the Kind of SI Unit types.
-type Metre   :: Unit; //Kinds do not need to be declared before use.
-type Gram    :: Unit;
-type Ampere  :: Unit;
-type Kelvin  :: Unit;
-type Mole    :: Unit;
-type Candela :: Unit;
+type normal Second  :: Unit; //Unit is the Kind of SI Unit types.
+type normal Metre   :: Unit; //Kinds do not need to be declared before use.
+type normal Gram    :: Unit;
+type normal Ampere  :: Unit;
+type normal Kelvin  :: Unit;
+type normal Mole    :: Unit;
+type normal Candela :: Unit;
+
+//: Imperial & Misc. Units
+type Feet :: Unit;
+forall u:Feet::Unit. Feet => Metre  = 0.3048*u :: Unit;
+forall u:Metre::Unit. Metre => Feet  = u/0.3048 :: Unit;
+
+type Yard :: Unit;
+forall u:Yard::Unit. Yard => Metre  = 0.9144*u :: Unit;
+forall u:Metre::Unit. Metre => Yard  = u/0.9144 :: Unit;
+
+type Mile :: Unit;
+forall u:Mile::Unit. Mile => Metre  = 1609.34*u :: Unit;
+forall u:Metre::Unit. Metre => Mile  = u/1609.34 :: Unit;
+
+type Minute :: Unit;
+forall u:Minute::Unit. Minute => Second  = 60*u :: Unit;
+forall u:Second::Unit. Second => Minute  = u/60 :: Unit;
+
+type Hour :: Unit;
+forall u:Hour::Unit. Hour => Second  = 3600*u :: Unit;
+forall u:Second::Unit. Second => Hour  = u/3600 :: Unit;
+
 
 //: Compound Types
 type Point2D<N:Number> = { x:N, y:N };
@@ -31,11 +53,8 @@ forall :X::Unit,:Y::Unit. X*Y :: Unit; //The product of Units X and Y is also a 
 forall :X::Unit,:Y::Unit. X/Y :: Unit; //The ratio of Units X and Y is also a Unit.
 
 //: Dimensionless Units
-type Angle         :: Unit; //marker trait for Angles
-type Radian: Angle :: Unit;
-
-type SolidAngle            :: Unit; //marker trait for SolidAngles
-type Steradian: SolidAngle :: Unit;
+type normal Radian    :: Unit;
+type normal Steradian :: Unit;
 
 //: SI Derived Units (source: https://www.ece.utoronto.ca/canadian-metric-association/si-derived-units/)
 type Hertz: ()/Second :: Unit;

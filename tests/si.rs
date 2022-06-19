@@ -175,17 +175,19 @@ fn check_narrow_type_cast() {
    tlc.check(Some(si), "(1:Complex+Metre) as Complex").unwrap();
 }
 
-/*
 #[test]
-fn check_unit_conversion() {
+fn check_narrow_noop_conversion() {
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
 
-   //check unit conversions
-   tlc.check(Some(si), "let x: Metre; x as Kilo<Metre>").unwrap();
-   tlc.check(Some(si), "let x: Metre; x as Kilo<Second>").unwrap_err();
-   tlc.check(Some(si), "let x: Kilo<Metre>; x as Metre").unwrap();
-   tlc.check(Some(si), "let x: Kilo<Metre>; x as Second").unwrap_err();
+   //check type cast of compatible types within a kind
+   tlc.check(Some(si), "(1:Integer+Speed) as Metre/Second").unwrap();
+   tlc.check(Some(si), "(1:Integer+Speed) as Metre").unwrap_err();
+   tlc.check(Some(si), "(1:Integer+Speed) as Second").unwrap_err();
+
+   tlc.check(Some(si), "(1:Integer+Metre/Second) as Speed").unwrap();
+   tlc.check(Some(si), "(1:Integer+Metre) as Speed").unwrap_err();
+   tlc.check(Some(si), "(1:Integer+Second) as Speed").unwrap_err();
 }
 
 #[test]
@@ -194,7 +196,46 @@ fn check_narrow_conversion() {
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
 
    //check type cast of compatible types within a kind
-   tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Meter>").unwrap();
+   tlc.check(Some(si), "(1:Integer+Minute) as Hour").unwrap();
+   tlc.check(Some(si), "(1:Integer+Minute) as Metre").unwrap_err();
+   tlc.check(Some(si), "(1:Integer+Kilo<Metre>) as Metre").unwrap();
+   tlc.check(Some(si), "(1:Integer+Kilo<Metre>) as Second").unwrap_err();
+   tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Metre>").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Second>").unwrap_err();
 }
-*/
+
+#[test]
+fn check_unit_conversion() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //check unit conversions
+   tlc.check(Some(si), "let x: Kilo<Metre>; x as Metre").unwrap();
+   tlc.check(Some(si), "let x: Kilo<Metre>; x as Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; x as Kilo<Metre>").unwrap();
+   tlc.check(Some(si), "let x: Metre; x as Kilo<Second>").unwrap_err();
+}
+
+#[test]
+fn check_ratio_conversion() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //check type cast of compatible types within a kind
+   tlc.check(Some(si), "(1:Integer+Kilo<Metre>/Second) as Metre/Second").unwrap();
+   tlc.check(Some(si), "(1:Integer+Kilo<Metre>/Second) as Second/Second").unwrap_err();
+   tlc.check(Some(si), "(1:Integer+Metre/Second) as Kilo<Metre>/Second").unwrap();
+   tlc.check(Some(si), "(1:Integer+Metre/Second) as Kilo<Second>/Second").unwrap_err();
+}
+
+#[test]
+fn check_imperial_conversion() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //check type cast of compatible types within a kind
+   tlc.check(Some(si), "(1:Integer+Kilo<Metre>/Second) as Mile/Minute").unwrap();
+   tlc.check(Some(si), "(1:Integer+Kilo<Metre>/Second) as Watt/Minute").unwrap_err();
+   tlc.check(Some(si), "(1:Integer+Metre/Second) as Mile/Minute").unwrap();
+   tlc.check(Some(si), "(1:Integer+Metre/Second) as Watt/Minute").unwrap_err();
+}
