@@ -1393,12 +1393,44 @@ impl TLC {
                if self.kind_is_normal.contains(&into_kind) {
                   let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
                   while !self.is_normal(&l_only) {
+                     let mut num_collector = Vec::new();
+                     let mut den_collector = Vec::new();
                      let (numerator,denominator) = project_ratio(&l_only);
-                     //prioritized into-normal conversion
-                     //1. lookup typedefs for maybe a -> T:A*B/C -> rule, can only convert one-to-many type atoms
-                     //2. lookup forall rules for unboxing rules, can only convert one type atom
-                     //3. lookup forall rules for boxing rules, can only convert one type atom
-                     panic!("TODO: into-normal cast {:?} as {:?}::{:?}", &l_only, &into, &into_kind);
+                     for n in numerator.iter() {
+                        if self.is_normal(n) {
+                           num_collector.push(n.clone());
+                        //else if T:A*B/C where is_normal(A*B/C)
+                        //else if forall unbox into normal rule exists
+                        //else if forall box   into normal rule exists
+                        } else {
+                           panic!("Could not normalize numerator type atom in cast {:?}", n);
+                        }
+                     }
+                     for d in denominator.iter() {
+                        if self.is_normal(d) {
+                           den_collector.push(d.clone());
+                        //else if T:A*B/C where is_normal(A*B/C)
+                        //else if forall unbox into normal rule exists
+                        //else if forall box   into normal rule exists
+                        } else {
+                           panic!("Could not normalize denominator type atom in cast {:?}", d);
+                        }
+                     }
+                     let num = if num_collector.len()==0 {
+                        Typ::Tuple(Vec::new())
+                     } else if num_collector.len()==1 {
+                        num_collector[0].clone()
+                     } else {
+                        Typ::Product(num_collector)
+                     };
+                     if den_collector.len()==0 {
+                        l_only = num;
+                     } else if den_collector.len()==1 {
+                        l_only = Typ::Ratio(Box::new(num),Box::new(den_collector[0].clone()));
+                     } else {
+                        let den = Typ::Product(den_collector);
+                        l_only = Typ::Ratio(Box::new(num),Box::new(den));
+                    }
                   }
                   if self.unify(&l_only, &into, &self.rows[t.id].span).is_err() {
                      let (numerator,denominator) = project_ratio(&l_only);
