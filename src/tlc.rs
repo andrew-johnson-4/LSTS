@@ -619,7 +619,7 @@ impl TLC {
       self.compile_doc(globals, "[string]", src)
    }
    pub fn import_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<ScopeId,Error> {
-      self.compile_doc(globals, "[string]", src);
+      self.compile_doc(globals, "[string]", src)?;
       Ok(ScopeId {id:0})
    }
    pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
