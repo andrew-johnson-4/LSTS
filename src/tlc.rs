@@ -526,7 +526,7 @@ impl TLC {
             } else if let Some(fs) = self.foralls_rev_index.get_mut(&rmt) {
                fs.push(fi);
             } else {
-               self.foralls_index.insert(rmt, vec![fi]);
+               self.foralls_rev_index.insert(rmt, vec![fi]);
             }
          }, _ => ()
       }

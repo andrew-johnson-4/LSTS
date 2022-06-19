@@ -191,18 +191,6 @@ fn check_narrow_noop_conversion() {
 }
 
 #[test]
-fn check_unit_conversion() {
-   let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
-
-   //check unit conversions
-   tlc.check(Some(si), "let x: Kilo<Metre>; x as Metre").unwrap();
-   tlc.check(Some(si), "let x: Kilo<Metre>; x as Second").unwrap_err();
-   tlc.check(Some(si), "let x: Metre; x as Kilo<Metre>").unwrap();
-   tlc.check(Some(si), "let x: Metre; x as Kilo<Second>").unwrap_err();
-}
-
-#[test]
 fn check_narrow_conversion() {
    let mut tlc = TLC::new();
    let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
@@ -214,6 +202,19 @@ fn check_narrow_conversion() {
    tlc.check(Some(si), "(1:Integer+Kilo<Metre>) as Second").unwrap_err();
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Metre>").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Second>").unwrap_err();
+}
+
+/*
+#[test]
+fn check_unit_conversion() {
+   let mut tlc = TLC::new();
+   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+
+   //check unit conversions
+   tlc.check(Some(si), "let x: Kilo<Metre>; x as Metre").unwrap();
+   tlc.check(Some(si), "let x: Kilo<Metre>; x as Second").unwrap_err();
+   tlc.check(Some(si), "let x: Metre; x as Kilo<Metre>").unwrap();
+   tlc.check(Some(si), "let x: Metre; x as Kilo<Second>").unwrap_err();
 }
 
 #[test]
@@ -239,3 +240,4 @@ fn check_imperial_conversion() {
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Mile/Minute").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Watt/Minute").unwrap_err();
 }
+*/

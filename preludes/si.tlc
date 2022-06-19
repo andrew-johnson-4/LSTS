@@ -22,7 +22,12 @@ type Feet :: Unit;
 type Yard :: Unit;
 type Mile :: Unit;
 type Minute :: Unit;
+forall u:Minute::Unit. Minute => Second  = 60*u :: Unit;
+forall u:Second::Unit. Second => Minute  = u/60 :: Unit;
 type Hour :: Unit;
+forall u:Hour::Unit. Hour => Second  = 3600*u :: Unit;
+forall u:Second::Unit. Second => Hour  = u/3600 :: Unit;
+
 
 //: Compound Types
 type Point2D<N:Number> = { x:N, y:N };
