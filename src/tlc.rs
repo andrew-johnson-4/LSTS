@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet,HashMap};
 use std::path::Path;
 use pest::Parser;
 use pest::iterators::{Pair,Pairs};
@@ -17,6 +17,7 @@ pub struct TLC {
    pub constructors: Vec<(Typ,String,Vec<Typ>,Vec<(String,Typ)>)>,
    pub type_is_normal: HashSet<Typ>,
    pub kind_is_normal: HashSet<Kind>,
+   pub typedef_index: HashMap<String,usize>,
    pub term_kind: Kind,
    pub nil_type: Typ,
    pub bottom_type: Typ,
@@ -459,6 +460,7 @@ impl TLC {
          scopes: Vec::new(),
          regexes: Vec::new(),
          constructors: Vec::new(),
+         typedef_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
          term_kind: Kind::Simple("Term".to_string(),Vec::new()),
@@ -534,12 +536,14 @@ impl TLC {
       self.sanitycheck()?;
       Ok(ast)
    }
-   pub fn kind_of(&self, t: &Typ) -> Kind {
-      for rule in self.rules.iter() { match rule {
-         TypeRule::Typedef(tt,_norm,_tps,_implies,_td,k,_) => { if &format!("{:?}",t)==tt {
-            return k.clone().unwrap_or(self.term_kind.clone());
-         }},
-         _ => ()
+   pub fn kind_of(&self, tt: &Typ) -> Kind {
+      let tn = match tt {
+         Typ::Ident(cn,cts) => cn.clone(),
+         _ => "".to_string(),
+      };
+      if let Some(ti) = self.typedef_index.get(&tn) {
+      if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,k,_) = &self.rules[*ti] {
+         return k.clone().unwrap_or(self.term_kind.clone());
       }}
       Kind::Nil //undefined types have Nil kind
    }
@@ -940,6 +944,7 @@ impl TLC {
                   self.kind_is_normal.insert(kind.clone());
                }
             }
+            self.typedef_index.insert(t.clone(), self.rules.len());
             self.rules.push(TypeRule::Typedef(
                t,
                normal,
