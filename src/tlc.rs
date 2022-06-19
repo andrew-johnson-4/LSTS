@@ -515,7 +515,7 @@ impl TLC {
          Inference::Imply(lt,rt) => {
             let lmt = lt.mask();
             if lmt == Typ::Any {
-            } else if let Some(mut fs) = self.foralls_index.get_mut(&lmt) {
+            } else if let Some(fs) = self.foralls_index.get_mut(&lmt) {
                fs.push(fi);
             } else {
                self.foralls_index.insert(lmt, vec![fi]);
@@ -523,7 +523,7 @@ impl TLC {
 
             let rmt = rt.mask();
             if rmt == Typ::Any {
-            } else if let Some(mut fs) = self.foralls_rev_index.get_mut(&rmt) {
+            } else if let Some(fs) = self.foralls_rev_index.get_mut(&rmt) {
                fs.push(fi);
             } else {
                self.foralls_index.insert(rmt, vec![fi]);
@@ -578,7 +578,7 @@ impl TLC {
    }
    pub fn kind_of(&self, tt: &Typ) -> Kind {
       let tn = match tt {
-         Typ::Ident(cn,cts) => cn.clone(),
+         Typ::Ident(cn,_cts) => cn.clone(),
          _ => "".to_string(),
       };
       if let Some(ti) = self.typedef_index.get(&tn) {
@@ -1315,8 +1315,8 @@ impl TLC {
    pub fn is_normal(&self, tt:&Typ) -> bool {
       match tt {
          Typ::Any => false,
-         Typ::Or(ts) => false,
-         Typ::And(ts) => false,
+         Typ::Or(_ts) => false,
+         Typ::And(_ts) => false,
          Typ::Ident(tn,ts) => self.type_is_normal.contains(&Typ::Ident(tn.clone(),Vec::new())) &&
                               ts.iter().all(|ct|self.is_normal(ct)),
          Typ::Tuple(ts) => ts.iter().all(|ct|self.is_normal(ct)),
@@ -1432,9 +1432,9 @@ impl TLC {
             } else {
                if self.kind_is_normal.contains(&into_kind) {
                   let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
-                  let mut l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
+                  let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
 
-                  if !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
+                  while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
                      let mut num_collector = Vec::new();
                      let mut den_collector = Vec::new();
                      let (numerator,denominator) = project_ratio(&l_only);
@@ -1443,19 +1443,44 @@ impl TLC {
                            num_collector.push(n.clone());
                            continue;
                         }
+
                         if let Typ::Ident(nn,_nns) = n {
                         if let Some(ti) = self.typedef_index.get(nn) {
                         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
                         let it = implies.clone().unwrap_or(Typ::Any);
                         if self.is_normal(&it) {
-                           let (mut inum, mut iden) = project_ratio(&it);
+                           let (inum, iden) = project_ratio(&it);
                            num_collector.append(&mut inum.clone());
                            den_collector.append(&mut iden.clone());
                            continue;
                         }}}}
-                        //else if forall unbox into normal rule exists
-                        //else if forall box   into normal rule exists
-                        panic!("Could not normalize numerator type atom in cast {:?}", n);
+
+                        let mnt = n.mask();
+                        let mut found = false;
+                        if let Some(tis) = self.foralls_index.get(&mnt) {
+                        for ti in tis.iter() { if !found {
+                        if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+                           let kinds = Vec::new();
+                           let mut subs = Vec::new();
+                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &n, &self.rows[t.id].span) {
+                              let srt = rt.substitute(&subs);
+                              if self.is_normal(&srt) {
+                                 let (inum, iden) = project_ratio(&srt);
+                                 num_collector.append(&mut inum.clone());
+                                 den_collector.append(&mut iden.clone());
+                                 found = true;
+                                 continue;
+                              }
+                           }
+                        }}}}
+                        if found { continue; }
+
+                        return Err(Error {
+                           kind: "Type Error".to_string(),
+                           rule: format!("could not normalize numerator type atom in cast {:?}", n),
+                           span: self.rows[t.id].span.clone(),
+                           snippet: "".to_string()
+                        })
                      }
                      for d in denominator.iter() {
                         if self.is_normal(d) {
@@ -1467,14 +1492,38 @@ impl TLC {
                         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
                         let it = implies.clone().unwrap_or(Typ::Any);
                         if self.is_normal(&it) {
-                           let (mut inum, mut iden) = project_ratio(&it);
+                           let (inum, iden) = project_ratio(&it);
                            num_collector.append(&mut iden.clone());
                            den_collector.append(&mut inum.clone());
                            continue;
                         }}}}
-                        //else if forall unbox into normal rule exists
-                        //else if forall box   into normal rule exists
-                        panic!("Could not normalize denominator type atom in cast {:?}", d);
+
+                        let mdt = d.mask();
+                        let mut found = false;
+                        if let Some(tis) = self.foralls_index.get(&mdt) {
+                        for ti in tis.iter() { if !found {
+                        if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+                           let kinds = Vec::new();
+                           let mut subs = Vec::new();
+                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &d, &self.rows[t.id].span) {
+                              let srt = rt.substitute(&subs);
+                              if self.is_normal(&srt) {
+                                 let (inum, iden) = project_ratio(&srt);
+                                 num_collector.append(&mut iden.clone());
+                                 den_collector.append(&mut inum.clone());
+                                 found = true;
+                                 continue;
+                              }
+                           }
+                        }}}}
+                        if found { continue; }
+
+                        return Err(Error {
+                           kind: "Type Error".to_string(),
+                           rule: format!("could not normalize denominator type atom in cast {:?}", d),
+                           span: self.rows[t.id].span.clone(),
+                           snippet: "".to_string()
+                        })
                      }
                      let num = if num_collector.len()==0 {
                         Typ::Tuple(Vec::new())
@@ -1483,14 +1532,16 @@ impl TLC {
                      } else {
                         Typ::Product(num_collector)
                      };
-                     if den_collector.len()==0 {
-                        l_only = num;
+                     let r_only = if den_collector.len()==0 {
+                        num
                      } else if den_collector.len()==1 {
-                        l_only = Typ::Ratio(Box::new(num),Box::new(den_collector[0].clone()));
+                        Typ::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
                      } else {
                         let den = Typ::Product(den_collector);
-                        l_only = Typ::Ratio(Box::new(num),Box::new(den));
-                    }
+                        Typ::Ratio(Box::new(num),Box::new(den))
+                     };
+                     if l_only==r_only { break; }
+                     else { l_only = r_only; }
                   }
 
                   if !self.is_normal(&into) && self.unify(&l_only, &into, &self.rows[t.id].span).is_err() {
