@@ -34,10 +34,13 @@ LSTS does not ensure against all forms of logical errors, however it does compla
     type A; forall :B. A => B :: Term
     //accept: (A,B) must share a domain (Term,Term)
     
-    /* Types are polymorphic by default */
-    
-    let f(x: X);
-    //X is a Term but also might have a Unit or other association
-    
-    let f(x: X::Term);
-    //to disable polymorphic inference a bounding domain must be specified
+    /* The square root of 2 is irrational */
+
+    let $"/"(x:X, y:Y): X/Y;
+    let $"*"(x:X, y:Y): X*Y;
+    let square(x:X): X*X;
+
+    type P;
+    type Q; let q:Q;
+    let sqrt_of_two: P/Q;
+    square(sqrt_of_two) * square(q): P*P
