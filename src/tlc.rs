@@ -19,6 +19,7 @@ pub struct TLC {
    pub kind_is_normal: HashSet<Kind>,
    pub typedef_index: HashMap<String,usize>,
    pub foralls_index: HashMap<Typ,Vec<usize>>,
+   pub foralls_rev_index: HashMap<Typ,Vec<usize>>,
    pub term_kind: Kind,
    pub nil_type: Typ,
    pub bottom_type: Typ,
@@ -467,6 +468,7 @@ impl TLC {
          regexes: Vec::new(),
          constructors: Vec::new(),
          foralls_index: HashMap::new(),
+         foralls_rev_index: HashMap::new(),
          typedef_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
@@ -511,11 +513,20 @@ impl TLC {
       ));
       match &inference {
          Inference::Imply(lt,rt) => {
-            let mt = lt.mask();
-            if let Some(mut fs) = self.foralls_index.get_mut(&mt) {
+            let lmt = lt.mask();
+            if lmt == Typ::Any {
+            } else if let Some(mut fs) = self.foralls_index.get_mut(&lmt) {
                fs.push(fi);
             } else {
-               self.foralls_index.insert(mt, vec![fi]);
+               self.foralls_index.insert(lmt, vec![fi]);
+            }
+
+            let rmt = rt.mask();
+            if rmt == Typ::Any {
+            } else if let Some(mut fs) = self.foralls_rev_index.get_mut(&rmt) {
+               fs.push(fi);
+            } else {
+               self.foralls_index.insert(rmt, vec![fi]);
             }
          }, _ => ()
       }
@@ -1423,7 +1434,7 @@ impl TLC {
                   let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
                   let mut l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
 
-                  while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
+                  if !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
                      let mut num_collector = Vec::new();
                      let mut den_collector = Vec::new();
                      let (numerator,denominator) = project_ratio(&l_only);
@@ -1501,7 +1512,7 @@ impl TLC {
                         }}}}
                         //else if forall unbox into normal rule exists
                         //else if forall box   into normal rule exists
-                        panic!("Could not normalize numerator type atom in cast {:?}", n);
+                        panic!("Could not denormalize numerator type atom in cast {:?}", n);
                      }
                      for d in denominator.iter() {
                         if self.is_normal(d) {
@@ -1518,7 +1529,7 @@ impl TLC {
                         }}}}
                         //else if forall unbox into normal rule exists
                         //else if forall box   into normal rule exists
-                        panic!("Could not normalize denominator type atom in cast {:?}", d);
+                        panic!("Could not denormalize denominator type atom in cast {:?}", d);
                      }
                      let num = if num_collector.len()==0 {
                         Typ::Tuple(Vec::new())
@@ -1696,6 +1707,7 @@ impl TLC {
       let kind_is_normal_l = self.kind_is_normal.clone();
       let typedef_index_l = self.typedef_index.clone();
       let foralls_index_l = self.foralls_index.clone();
+      let foralls_rev_index_l = self.foralls_rev_index.clone();
 
       let r = self.compile_str(globals, src);
 
@@ -1708,6 +1720,7 @@ impl TLC {
       self.kind_is_normal = kind_is_normal_l;
       self.typedef_index = typedef_index_l;
       self.foralls_index = foralls_index_l;
+      self.foralls_rev_index = foralls_rev_index_l;
 
       r?; Ok(())
    }
