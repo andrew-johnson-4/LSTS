@@ -186,8 +186,8 @@ fn check_narrow_noop_conversion() {
    tlc.check(Some(si), "(1:Integer+Speed) as Second").unwrap_err();
 
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Speed").unwrap();
-   tlc.check(Some(si), "(1:Integer+Metre/Second) as Speed").unwrap_err();
-   tlc.check(Some(si), "(1:Integer+Metre/Second) as Speed").unwrap_err();
+   tlc.check(Some(si), "(1:Integer+Metre) as Speed").unwrap_err();
+   tlc.check(Some(si), "(1:Integer+Second) as Speed").unwrap_err();
 }
 
 /*
