@@ -1159,14 +1159,7 @@ impl TLC {
          }
          for tvar in rvars.iter() {
             if tvar.chars().all(char::is_uppercase) { continue; } //Type variables don't need to be defined
-            let mut defined = false;
-            for rule in self.rules.iter() { match rule {
-               TypeRule::Typedef(tt,_norm,_tps,_implies,_td,_k,_) => { if tvar==tt {
-                  defined=true;
-               }},
-               _ => ()
-            }}
-            if !defined { return Err(Error {
+            if !self.typedef_index.contains_key(tvar) { return Err(Error {
                kind: "Type Error".to_string(),
                rule: format!("inhabited type is not defined: {}", tvar),
                span: r.span.clone(),
@@ -1188,16 +1181,16 @@ impl TLC {
          Typ::Ident(tn,ts) => {
             if ts.len()==0 { return Ok(()); }
             if !tt.is_concrete() { return Ok(()); }
-            for tr in self.rules.iter() { match tr {
-               TypeRule::Typedef(tdn,_norm,itks,_implies,_td,_tk,_) if tn==tdn && ts.len()==itks.len() => {
-                  for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,itks) {
-                     if let Some(bt) = bt {
-                        self.unify(pt, bt, span)?;
-                     }
+            if let Some(ti) = self.typedef_index.get(tn) {
+            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,_tk,_) = &self.rules[*ti] {
+            if ts.len()==itks.len() {
+               for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,itks) {
+                  if let Some(bt) = bt {
+                     self.unify(pt, bt, span)?;
                   }
-                  return Ok(())
-               }, _ => (),
-            }}
+               }
+               return Ok(());
+            }}}
             Ok(())
          },
       }
@@ -1209,22 +1202,22 @@ impl TLC {
          Typ::Arrow(p,b) => Typ::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Typ::Ratio(p,b) => Typ::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Typ::Ident(tn,ts) => {
-            for tr in self.rules.iter() { match tr {
-               TypeRule::Typedef(tdn,_norm,itks,implies,_td,_tk,_) if tn==tdn && ts.len()==itks.len() => {
-                  let implies = if let Some(it) = implies {
-                     match it {
-                        Typ::And(its) => its.clone(),
-                        i => vec![i.clone()],
-                     }
-                  } else { Vec::new() };
-                  if implies.len()==0 { return tt.clone(); }
-                  let mut ats = Vec::new();
-                  ats.push(tt.clone());
-                  //TODO: substitute type variables in implied types
-                  ats.append(&mut implies.clone());
-                  return Typ::And(ats);
-               }, _ => (),
-	    }}
+            if let Some(ti) = self.typedef_index.get(tn) {
+            if let TypeRule::Typedef(_tn,_norm,itks,implies,_td,_tk,_) = &self.rules[*ti] {
+            if ts.len()==itks.len() {
+               let implies = if let Some(it) = implies {
+                  match it {
+                     Typ::And(its) => its.clone(),
+                     i => vec![i.clone()],
+                  }
+               } else { Vec::new() };
+               if implies.len()==0 { return tt.clone(); }
+               let mut ats = Vec::new();
+               ats.push(tt.clone());
+               //TODO: substitute type variables in implied types
+               ats.append(&mut implies.clone());
+               return Typ::And(ats);
+            }}}
             tt.clone()
          },
          Typ::And(ts) => {
@@ -1264,14 +1257,11 @@ impl TLC {
       match tt {
          Typ::Any => Kind::Nil,
          Typ::Ident(tn,ts) => {
-            for tr in self.rules.iter() { match tr {
-               TypeRule::Typedef(tdn,_norm,itks,_implies,_td,tk,_) => {
-                  if tn==tdn && ts.len()==itks.len() {
-                     return tk.clone().unwrap_or(self.term_kind.clone());
-                  }
-               },
-               _ => ()
-            }}
+            if let Some(ti) = self.typedef_index.get(tn) {
+            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,tk,_) = &self.rules[*ti] {
+            if ts.len()==itks.len() {
+               return tk.clone().unwrap_or(self.term_kind.clone());
+            }}}
             Kind::Nil
          },
          Typ::Or(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
