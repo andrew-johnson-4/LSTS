@@ -1421,7 +1421,7 @@ impl TLC {
             } else {
                if self.kind_is_normal.contains(&into_kind) {
                   let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
-                  while !self.is_normal(&l_only) {
+                  while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
                      let mut num_collector = Vec::new();
                      let mut den_collector = Vec::new();
                      let (numerator,denominator) = project_ratio(&l_only);
@@ -1433,8 +1433,11 @@ impl TLC {
                         if let Typ::Ident(nn,_nns) = n {
                         if let Some(ti) = self.typedef_index.get(nn) {
                         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
-                        if self.is_normal(&implies.clone().unwrap_or(Typ::Any)) {
-                           panic!("TODO T:A*B/C where is_normal(A*B/C)");
+                        let it = implies.clone().unwrap_or(Typ::Any);
+                        if self.is_normal(&it) {
+                           let (mut inum, mut iden) = project_ratio(&it);
+                           num_collector.append(&mut inum.clone());
+                           den_collector.append(&mut iden.clone());
                            continue;
                         }}}}
                         //else if forall unbox into normal rule exists
@@ -1444,12 +1447,21 @@ impl TLC {
                      for d in denominator.iter() {
                         if self.is_normal(d) {
                            den_collector.push(d.clone());
-                        //else if T:A*B/C where is_normal(A*B/C)
+                           continue;
+                        }
+                        if let Typ::Ident(dn,_dns) = d {
+                        if let Some(ti) = self.typedef_index.get(dn) {
+                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
+                        let it = implies.clone().unwrap_or(Typ::Any);
+                        if self.is_normal(&it) {
+                           let (mut inum, mut iden) = project_ratio(&it);
+                           num_collector.append(&mut iden.clone());
+                           den_collector.append(&mut inum.clone());
+                           continue;
+                        }}}}
                         //else if forall unbox into normal rule exists
                         //else if forall box   into normal rule exists
-                        } else {
-                           panic!("Could not normalize denominator type atom in cast {:?}", d);
-                        }
+                        panic!("Could not normalize denominator type atom in cast {:?}", d);
                      }
                      let num = if num_collector.len()==0 {
                         Typ::Tuple(Vec::new())
@@ -1467,10 +1479,9 @@ impl TLC {
                         l_only = Typ::Ratio(Box::new(num),Box::new(den));
                     }
                   }
-                  if self.unify(&l_only, &into, &self.rows[t.id].span).is_err() {
+                  if !self.is_normal(&into) && self.unify(&l_only, &into, &self.rows[t.id].span).is_err() {
                      let (numerator,denominator) = project_ratio(&l_only);
                      //prioritized out-of-normal conversion
-                     //1. lookup typedefs for maybe a <- T:A*B/C <- rule, can only convert many-to-one type atoms
                      //2. lookup forall rules for unboxing rules, can only convert one type atom
                      //3. lookup forall rules for boxing rules, can only convert one type atom
                      panic!("TODO: out-of-normal cast {:?} as {:?}::{:?}", &l_only, &into, &into_kind);
