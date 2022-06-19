@@ -325,14 +325,6 @@ fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: 
          let bt = unify_impl(kinds,subs,bl,br,span)?;
          Ok(Typ::Ratio(Box::new(pt),Box::new(bt)))
       },
-      (Typ::Ratio(pl,bl),r) => {
-         let pt = unify_impl(kinds,subs,pl,r,span)?;
-         Ok(Typ::Ratio(Box::new(pt),Box::new(*bl.clone())))
-      },
-      (l,Typ::Ratio(pr,br)) => {
-         let pt = unify_impl(kinds,subs,l,pr,span)?;
-         Ok(Typ::Ratio(Box::new(pt),Box::new(*br.clone())))
-      },
 
       //everything else is a mixed bag
       (Typ::Ident(lv,lps),Typ::Ident(rv,rps))
