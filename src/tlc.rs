@@ -511,9 +511,25 @@ impl TLC {
          },
       }
    }
+   pub fn push_forall(&mut self, quants: Vec<(Option<String>,Option<Typ>,Option<Kind>)>,
+                             inference: Inference, term: Option<TermId>, kind: Option<Kind>, span: Span) {
+      let fi = self.rules.len();
+      self.rules.push(TypeRule::Forall(
+         quants, inference.clone(), term, kind, span
+      ));
+      match &inference {
+         Inference::Imply(lt,rt) => {
+            let mt = lt.mask();
+            if let Some(mut fs) = self.foralls_index.get_mut(&mt) {
+               fs.push(fi);
+            } else {
+               self.foralls_index.insert(mt, vec![fi]);
+            }
+         }, _ => ()
+      }
+   }
    pub fn query_foralls(&self, tt: &Typ) -> Vec<usize> {
-      let mt = tt.mask();
-      if let Some(fs) = self.foralls_index.get(&mt) {
+      if let Some(fs) = self.foralls_index.get(&tt.mask()) {
          fs.clone()
       } else { Vec::new() }
    }
@@ -1013,13 +1029,13 @@ impl TLC {
                Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); }
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
-            self.rules.push(TypeRule::Forall(
+            self.push_forall(
                quants.clone(),
                inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
                term,
                kind,
                span.clone(),
-            ));
+            );
             if let Some(t) = term {
                let mut children = Vec::new();
                for (i,t,_k) in quants.iter() {
