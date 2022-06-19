@@ -19,11 +19,21 @@ type normal Candela :: Unit;
 
 //: Imperial & Misc. Units
 type Feet :: Unit;
+forall u:Feet::Unit. Feet => Metre  = 0.3048*u :: Unit;
+forall u:Metre::Unit. Metre => Feet  = u/0.3048 :: Unit;
+
 type Yard :: Unit;
+forall u:Yard::Unit. Yard => Metre  = 0.9144*u :: Unit;
+forall u:Metre::Unit. Metre => Yard  = u/0.9144 :: Unit;
+
 type Mile :: Unit;
+forall u:Mile::Unit. Mile => Metre  = 1609.34*u :: Unit;
+forall u:Metre::Unit. Metre => Mile  = u/1609.34 :: Unit;
+
 type Minute :: Unit;
 forall u:Minute::Unit. Minute => Second  = 60*u :: Unit;
 forall u:Second::Unit. Second => Minute  = u/60 :: Unit;
+
 type Hour :: Unit;
 forall u:Hour::Unit. Hour => Second  = 3600*u :: Unit;
 forall u:Second::Unit. Second => Hour  = u/3600 :: Unit;

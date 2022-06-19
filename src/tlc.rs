@@ -98,6 +98,28 @@ pub enum Typ {
    Ratio(Box<Typ>,Box<Typ>),
 }
 impl Typ {
+   fn project_ratio(&self) -> (Vec<Typ>,Vec<Typ>) {
+       match self {
+         Typ::Ratio(p,b) => {
+            let (mut pn,mut pd) = p.project_ratio();
+            let (mut bn,mut bd) = b.project_ratio();
+            pn.append(&mut bd);
+            pd.append(&mut bn);
+            (pn, pd)
+         },
+         Typ::Product(ts) => {
+            let mut tn = Vec::new();
+            let mut td = Vec::new();
+            for tc in ts.iter() {
+               let (mut tcn,mut tcd) = tc.project_ratio();
+               tn.append(&mut tcn);
+               td.append(&mut tcd);
+            }
+            (tn, td)
+         },
+         tt => (vec![tt.clone()], Vec::new())
+      }
+   }
    fn mask(&self) -> Typ {
       match self {
          Typ::Any => Typ::Any,
@@ -185,18 +207,47 @@ impl Typ {
          }
       }
    }
-   fn normalize(&mut self) {
+   fn simplify_ratio(&self) -> Typ {
+      //assume type has already been normalized
+      let (mut num, mut den) = self.project_ratio();
+      self.clone()
+   }
+   fn normalize(&self) -> Typ {
       match self {
-         Typ::Or(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); ts.dedup(); }
-         Typ::And(ts) => {
-            for t in ts.iter_mut() { t.normalize(); }
+         Typ::Or(ts) => {
+            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
             ts.sort(); ts.dedup();
-         }
-         Typ::Product(ts) => { for t in ts.iter_mut() { t.normalize(); } ts.sort(); ts.dedup(); }
-         Typ::Tuple(ts) => { for t in ts.iter_mut() { t.normalize(); } }
-         Typ::Arrow(p,b) => { p.normalize(); b.normalize(); }
-         Typ::Ratio(p,b) => { p.normalize(); b.normalize(); }
-         _ => (),
+            Typ::Or(ts)
+         },
+         Typ::And(ts) => {
+            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
+            ts.sort(); ts.dedup();
+            if ts.len()==1 {
+               ts[0].clone()
+            } else {
+               Typ::And(ts)
+            }
+         },
+         Typ::Product(ts) => {
+            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
+            ts.sort(); ts.dedup();
+            Typ::Product(ts).simplify_ratio()
+         },
+         Typ::Tuple(ts) => {
+            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
+            ts.sort(); ts.dedup();
+            Typ::Tuple(ts)
+         },
+         Typ::Ident(tn,ts) => {
+            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
+            ts.sort(); ts.dedup();
+            Typ::Ident(tn.clone(),ts)
+         },
+         Typ::Arrow(p,b) => {
+            Typ::Arrow(Box::new(p.normalize()), Box::new(b.normalize()))
+         },
+         Typ::Ratio(_p,_b) => self.simplify_ratio(),
+         tt => tt.clone(),
       }
    }
    fn substitute(&self, subs:&Vec<(Typ,Typ)>) -> Typ {
@@ -242,21 +293,6 @@ impl std::fmt::Debug for Typ {
            Typ::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
         }
     }
-}
-fn project_ratio(tt: &Typ) -> (Vec<Typ>,Vec<Typ>) {
-   match tt {
-      Typ::Ratio(p,b) => {
-         let (mut pn,mut pd) = project_ratio(p);
-         let (mut bn,mut bd) = project_ratio(b);
-         pn.append(&mut bd);
-         pd.append(&mut bn);
-         (pn, pd)
-      },
-      Typ::Product(ts) => {
-         (ts.clone(), Vec::new())
-      },
-      _ => (vec![tt.clone()], Vec::new())
-   }
 }
 fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
    //lt => rt
@@ -1437,7 +1473,7 @@ impl TLC {
                   while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
                      let mut num_collector = Vec::new();
                      let mut den_collector = Vec::new();
-                     let (numerator,denominator) = project_ratio(&l_only);
+                     let (numerator,denominator) = l_only.project_ratio();
                      for n in numerator.iter() {
                         if self.is_normal(n) {
                            num_collector.push(n.clone());
@@ -1449,7 +1485,7 @@ impl TLC {
                         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
                         let it = implies.clone().unwrap_or(Typ::Any);
                         if self.is_normal(&it) {
-                           let (inum, iden) = project_ratio(&it);
+                           let (inum, iden) = it.project_ratio();
                            num_collector.append(&mut inum.clone());
                            den_collector.append(&mut iden.clone());
                            continue;
@@ -1465,7 +1501,7 @@ impl TLC {
                            if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &n, &self.rows[t.id].span) {
                               let srt = rt.substitute(&subs);
                               if self.is_normal(&srt) {
-                                 let (inum, iden) = project_ratio(&srt);
+                                 let (inum, iden) = srt.project_ratio();
                                  num_collector.append(&mut inum.clone());
                                  den_collector.append(&mut iden.clone());
                                  found = true;
@@ -1492,7 +1528,7 @@ impl TLC {
                         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
                         let it = implies.clone().unwrap_or(Typ::Any);
                         if self.is_normal(&it) {
-                           let (inum, iden) = project_ratio(&it);
+                           let (inum, iden) = it.project_ratio();
                            num_collector.append(&mut iden.clone());
                            den_collector.append(&mut inum.clone());
                            continue;
@@ -1508,7 +1544,7 @@ impl TLC {
                            if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &d, &self.rows[t.id].span) {
                               let srt = rt.substitute(&subs);
                               if self.is_normal(&srt) {
-                                 let (inum, iden) = project_ratio(&srt);
+                                 let (inum, iden) = srt.project_ratio();
                                  num_collector.append(&mut iden.clone());
                                  den_collector.append(&mut inum.clone());
                                  found = true;
@@ -1547,7 +1583,7 @@ impl TLC {
                   if !self.is_normal(&into) {
                      let mut num_collector = Vec::new();
                      let mut den_collector = Vec::new();
-                     let (numerator,denominator) = project_ratio(&into);
+                     let (numerator,denominator) = into.project_ratio();
                      for n in numerator.iter() {
                         //if Into part is normal, do nothing
                         if self.is_normal(n) {
@@ -1561,7 +1597,7 @@ impl TLC {
                         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
                         let it = implies.clone().unwrap_or(Typ::Any);
                         if self.is_normal(&it) {
-                           let (inum, iden) = project_ratio(&it);
+                           let (inum, iden) = it.project_ratio();
                            num_collector.append(&mut inum.clone());
                            den_collector.append(&mut iden.clone());
                            continue;
@@ -1575,9 +1611,9 @@ impl TLC {
                         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
                            let kinds = Vec::new();
                            let mut subs = Vec::new();
-                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &into, &self.rows[t.id].span) {
+                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &n, &self.rows[t.id].span) {
                               let srt = rt.substitute(&subs);
-                              let (inum, iden) = project_ratio(&srt);
+                              let (inum, iden) = srt.project_ratio();
                               num_collector.append(&mut inum.clone());
                               den_collector.append(&mut iden.clone());
                               found = true;
@@ -1606,7 +1642,7 @@ impl TLC {
                         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
                         let it = implies.clone().unwrap_or(Typ::Any);
                         if self.is_normal(&it) {
-                           let (inum, iden) = project_ratio(&it);
+                           let (inum, iden) = it.project_ratio();
                            num_collector.append(&mut iden.clone());
                            den_collector.append(&mut inum.clone());
                            continue;
@@ -1620,9 +1656,9 @@ impl TLC {
                         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
                            let kinds = Vec::new();
                            let mut subs = Vec::new();
-                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &into, &self.rows[t.id].span) {
+                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &d, &self.rows[t.id].span) {
                               let srt = rt.substitute(&subs);
-                              let (inum, iden) = project_ratio(&srt);
+                              let (inum, iden) = srt.project_ratio();
                               num_collector.append(&mut iden.clone());
                               den_collector.append(&mut inum.clone());
                               found = true;
@@ -1786,8 +1822,8 @@ impl TLC {
       self.kindsof(&mut kinds, lt);
       self.kindsof(&mut kinds, rt);
       //lt => rt
-      let mut lt = self.extend_implied(lt); lt.normalize();
-      let mut rt = rt.clone(); rt.normalize();
+      let mut lt = self.extend_implied(lt); lt = lt.normalize();
+      let mut rt = rt.clone(); rt = rt.normalize();
       let mut subs = Vec::new();
       let r = unify_impl(&kinds, &mut subs, &lt, &rt, span);
       subs.sort();
@@ -1802,7 +1838,7 @@ impl TLC {
          span: span.clone(),
          snippet: "".to_string(),
       }) };
-      tt.normalize();
+      tt = tt.normalize();
       //eprintln!("end unify {:?} (x) {:?} yields {:?}", lt, rt, &tt);
       Ok(tt)
    }
