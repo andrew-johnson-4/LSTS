@@ -209,8 +209,30 @@ impl Typ {
    }
    fn simplify_ratio(&self) -> Typ {
       //assume type has already been normalized
-      let (mut num, mut den) = self.project_ratio();
-      self.clone()
+      let (mut num, den) = self.project_ratio();
+      let mut rden = Vec::new();
+      for d in den.into_iter() {
+         if let Some(ni) = num.iter().position(|n|n==&d) {
+            num.remove(ni);
+         } else {
+            rden.push(d);
+         }
+      }
+      let n = if num.len()==0 {
+         Typ::Tuple(Vec::new())
+      } else if num.len()==1 {
+         num[0].clone()
+      } else {
+         Typ::Product(num)
+      };
+      if rden.len()==0 {
+         n
+      } else if rden.len()==1 {
+         Typ::Ratio(Box::new(n),Box::new(rden[0].clone()))
+      } else {
+         let d = Typ::Product(rden);
+         Typ::Ratio(Box::new(n),Box::new(d))
+      }
    }
    fn normalize(&self) -> Typ {
       match self {
@@ -1815,9 +1837,6 @@ impl TLC {
       self.unify_with_kinds(&Vec::new(), lt, rt, span)
    }
    pub fn unify_with_kinds(&self, kinds: &Vec<(Typ,Kind)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
-      //eprintln!("try unify {:?} (x) {:?} with {}", lt, rt,
-      //          kinds.iter().map(|(t,k)|format!("{:?}::{:?}",t,k))
-      //               .collect::<Vec<String>>().join("; "));
       let mut kinds = kinds.clone();
       self.kindsof(&mut kinds, lt);
       self.kindsof(&mut kinds, rt);
@@ -1839,7 +1858,6 @@ impl TLC {
          snippet: "".to_string(),
       }) };
       tt = tt.normalize();
-      //eprintln!("end unify {:?} (x) {:?} yields {:?}", lt, rt, &tt);
       Ok(tt)
    }
 
