@@ -1527,14 +1527,15 @@ impl TLC {
                      } else {
                         Typ::Product(num_collector)
                      };
-                     if den_collector.len()==0 {
-                        l_only = num;
+                     let b_only = if den_collector.len()==0 {
+                        num
                      } else if den_collector.len()==1 {
-                        l_only = Typ::Ratio(Box::new(num),Box::new(den_collector[0].clone()));
+                        Typ::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
                      } else {
                         let den = Typ::Product(den_collector);
-                        l_only = Typ::Ratio(Box::new(num),Box::new(den));
-                     }
+                        Typ::Ratio(Box::new(num),Box::new(den))
+                     };
+                     self.unify(&b_only, &l_only, &self.rows[t.id].span)?;
                   }
 
                   self.rows[t.id].typ = self.unify(&into,&l_only,&self.rows[t.id].span)?.and(&l_alts);
@@ -1691,6 +1692,10 @@ impl TLC {
       let scopes_l = self.scopes.len();
       let regexes_l = self.regexes.len();
       let globals_l = if let Some(g) = globals { self.scopes[g.id].children.len() } else { 0 };
+      let type_is_normal_l = self.type_is_normal.clone();
+      let kind_is_normal_l = self.kind_is_normal.clone();
+      let typedef_index_l = self.typedef_index.clone();
+      let foralls_index_l = self.foralls_index.clone();
 
       let r = self.compile_str(globals, src);
 
@@ -1699,6 +1704,10 @@ impl TLC {
       self.scopes.truncate(scopes_l);
       self.regexes.truncate(regexes_l);
       if let Some(g) = globals { self.scopes[g.id].children.truncate(globals_l); };
+      self.type_is_normal = type_is_normal_l;
+      self.kind_is_normal = kind_is_normal_l;
+      self.typedef_index = typedef_index_l;
+      self.foralls_index = foralls_index_l;
 
       r?; Ok(())
    }
