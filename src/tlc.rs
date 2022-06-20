@@ -68,21 +68,34 @@ pub struct Scope {
 pub enum Kind {
    Nil,
    Simple(String,Vec<Kind>),
+   And(Vec<Kind>),
 }
 impl std::fmt::Debug for Kind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           Kind::Nil => write!(f, "Nil"),
+           Kind::Nil => {
+              write!(f, "Nil")
+           },
            Kind::Simple(k,ps) => {
               if ps.len()==0 { write!(f, "{}", k) }
               else { write!(f, "{}<{:?}>", k, ps.iter().map(|p|format!("{:?}",p)).collect::<Vec<String>>().join(",")) }
-           }
+           },
+           Kind::And(ks) => {
+              write!(f, "{}",
+                 ks.iter().map(|k| format!("{:?}",k))
+                   .collect::<Vec<String>>().join(" + "))
+           },
         }
     }
 }
-fn print_kinds(kinds: &Vec<Kind>) -> String {
-   kinds.iter().map(|k| format!("{:?}",k))
-        .collect::<Vec<String>>().join(" + ")
+impl Kind {
+   pub fn flatten(&self) -> Vec<Kind> {
+      match self {
+         Kind::Nil => vec![],
+         Kind::And(ks) => ks.clone(),
+         _ => vec![self.clone()],
+      }
+   }
 }
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
@@ -440,16 +453,16 @@ pub enum Typedef {
 
 #[derive(Clone)]
 pub struct Invariant {
-   pub itks: Vec<(Option<String>,Option<Typ>,Option<Kind>)>,
+   pub itks: Vec<(Option<String>,Option<Typ>,Kind)>,
    pub assm: Option<TermId>,
    pub prop: TermId,
 }
 
 #[derive(Clone)]
 pub enum TypeRule {
-   Typedef(String,bool,Vec<(String,Option<Typ>,Option<Kind>)>,Option<Typ>,Vec<Typedef>,Vec<Kind>,Vec<Invariant>,Span),
+   Typedef(String,bool,Vec<(String,Option<Typ>,Kind)>,Option<Typ>,Vec<Typedef>,Kind,Vec<Invariant>,Span),
 
-   Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>,Span),
+   Forall(Vec<(Option<String>,Option<Typ>,Kind)>, Inference, Option<TermId>, Kind, Span),
 }
 impl TypeRule {
    pub fn span(&self) -> Span {
@@ -462,26 +475,26 @@ impl TypeRule {
 impl std::fmt::Debug for TypeRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           TypeRule::Typedef(tn,_norm,itks,implies,_td,tks,_props,_) => write!(f, "{}{}{}{}{}::{}",
+           TypeRule::Typedef(tn,_norm,itks,implies,_td,tk,_props,_) => write!(f, "{}{}{}{}{}::{:?}",
               tn,
               if itks.len()==0 { "" } else { "<" },
               itks.iter().map(|(t,i,k)| format!("{:?}:{:?}::{:?}",
                     t.clone(),
                     i.clone().unwrap_or(Typ::Any),
-                    k.clone().unwrap_or(Kind::Nil),
+                    k
               )).collect::<Vec<String>>().join(","),
               if itks.len()==0 { "" } else { ">" },
               if let Some(ti) = implies { format!(":{:?}",ti) } else { format!("") },
-              print_kinds(&tks)
+              tk
            ),
            TypeRule::Forall(itks,inf,_t,tk,_) => write!(f, "forall {}. {:?} :: {:?}", 
               itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
                     i.clone().unwrap_or("_".to_string()),
                     t.clone().unwrap_or(Typ::And(Vec::new())),
-                    k.clone().unwrap_or(Kind::Nil),
+                    k,
               )).collect::<Vec<String>>().join(","),
               inf,
-              tk.clone().unwrap_or(Kind::Nil),
+              tk,
            ),
         }
     }
@@ -497,7 +510,7 @@ pub enum Term {
    Ident(String),
    Value(String),
    App(TermId,TermId),
-   Let(ScopeId,String,Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>>,Option<TermId>,Typ,Kind),
+   Let(ScopeId,String,Vec<Vec<(Option<String>,Option<Typ>,Kind)>>,Option<TermId>,Typ,Kind),
    Tuple(Vec<TermId>),
    Block(ScopeId,Vec<TermId>),
    Ascript(TermId,Typ),
@@ -563,8 +576,8 @@ impl TLC {
          },
       }
    }
-   pub fn push_forall(&mut self, quants: Vec<(Option<String>,Option<Typ>,Option<Kind>)>,
-                             inference: Inference, term: Option<TermId>, kind: Option<Kind>, span: Span) {
+   pub fn push_forall(&mut self, quants: Vec<(Option<String>,Option<Typ>,Kind)>,
+                             inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
       let fi = self.rules.len();
       self.rules.push(TypeRule::Forall(
          quants, inference.clone(), term, kind, span
@@ -644,9 +657,8 @@ impl TLC {
          _ => "".to_string(),
       };
       if let Some(ti) = self.typedef_index.get(&tn) {
-      if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,tks,_props,_) = &self.rules[*ti] {
-         if tks.len()==0 { return self.term_kind.clone();
-         } else { return tks[0].clone(); } //first kind is the "default" kind in kind lists
+      if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,k,_props,_) = &self.rules[*ti] {
+         return k.clone();
       }}
       Kind::Nil //undefined types have Nil kind
    }
@@ -656,23 +668,19 @@ impl TLC {
       for rule in self.rules.clone().iter() { match rule {
          TypeRule::Forall(qs,inf,_t,k,sp) => {
             //check if domain is explicit
-            if k.clone().unwrap_or(Kind::Nil) != Kind::Nil { continue; }
+            if k != &Kind::Nil { continue; }
 
             //otherwise check that all variables share a domain
             let mut domains: Vec<(Typ,Kind)> = Vec::new();
             for (_i,t,k) in qs.iter() {
-               match (t,k) {
-                  (Some(tt),Some(kk)) => domains.push((tt.clone(),kk.clone())),
-                  (Some(tt),None) => domains.push((tt.clone(),self.kind_of(tt))),
+               match t {
+                  Some(tt) => domains.push((tt.clone(),k.clone())),
                   _ => domains.push((self.bottom_type.clone(),Kind::Nil))
                }
             }
             for it in inf.types().iter() {
                if !qs.iter().any(|(_i,t,_k)| &Some(it.clone())==t) {
-                  let tk = qs.iter().fold(None, |lk,(_i,t,tk)| {
-                     if &Some(it.clone())==t {tk.clone()} else {lk}
-                  });
-                  domains.push((it.clone(),tk.clone().unwrap_or(self.kind_of(it))));
+                  domains.push((it.clone(),self.kindof(it)));
                }
             }
             domains.sort();
@@ -852,7 +860,7 @@ impl TLC {
          Rule::let_stmt => {
             let mut ps = p.into_inner();
             let ident  = self.into_ident(ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat());
-            let mut pars: Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>> = Vec::new();
+            let mut pars: Vec<Vec<(Option<String>,Option<Typ>,Kind)>> = Vec::new();
             let mut rt = self.bottom_type.clone();
             let mut rk = Kind::Nil;
             let mut t  = None;
@@ -862,11 +870,11 @@ impl TLC {
                   for itkse in e.into_inner() {
                      let mut ident = None;
                      let mut typ   = None;
-                     let mut kind  = None;
+                     let mut kind  = Kind::Nil;
                      for itk in itkse.into_inner() { match itk.as_rule() {
                         Rule::ident => { ident = Some(itk.into_inner().concat()); },
                         Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)?); },
-                        Rule::kind   => { kind = Some(self.unparse_ast_kind(itk)?); },
+                        Rule::kind   => { kind = self.unparse_ast_kind(itk)?; },
                         rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                      }}
                      itks.push((ident,typ,kind));
@@ -882,7 +890,7 @@ impl TLC {
             for itks in pars.iter() {
                for (i,t,k) in itks.iter() {
                   let t = t.clone().unwrap_or(self.bottom_type.clone());
-                  let ks = if let Some(k)=k { vec![(t.clone(),k.clone())] } else { Vec::new() };
+                  let ks = vec![(t.clone(),k.clone())];
                   children.push((i.clone().unwrap_or("_".to_string()), ks, t.clone()));
                }
             }
@@ -892,7 +900,7 @@ impl TLC {
                let mut ps = Vec::new();
                for (_i,t,k) in itks.iter() {
                   let t = t.clone().unwrap_or(self.bottom_type.clone());
-                  if let Some(k)=k { fkts.push((t.clone(),k.clone())); };
+                  fkts.push((t.clone(),k.clone()));
                   ps.push(t.clone());
                }
                let pt = if ps.len()==1 {
@@ -1028,11 +1036,11 @@ impl TLC {
                Rule::typ_inf_kind => {
                   let mut typ = "".to_string();
                   let mut inf = None;
-                  let mut kind = None;
+                  let mut kind = Kind::Nil;
                   for tik in e.into_inner() { match tik.as_rule() {
                      Rule::typvar => { typ = tik.into_inner().concat(); },
                      Rule::typ   => { inf   = Some(self.unparse_ast_typ(tik)?); },
-                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(tik)?); },
+                     Rule::kind   => { kind   = self.unparse_ast_kind(tik)?; },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                   tiks.push((typ,inf,kind));
@@ -1081,11 +1089,11 @@ impl TLC {
                      Rule::ident_typ_kind => {
                         let mut idn = None;
                         let mut inf = None;
-                        let mut kind = None;
+                        let mut kind = Kind::Nil;
                         for itk in tip.into_inner() { match itk.as_rule() {
                            Rule::ident => { idn = Some(itk.into_inner().concat()); },
                            Rule::typ   => { inf   = Some(self.unparse_ast_typ(itk)?); },
-                           Rule::kind   => { kind   = Some(self.unparse_ast_kind(itk)?); },
+                           Rule::kind   => { kind   = self.unparse_ast_kind(itk)?; },
                            rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                         }}
                         itks.push((idn,inf,kind));
@@ -1102,9 +1110,12 @@ impl TLC {
                },
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
+            let kinds = if kinds.len()==0 { Kind::Nil
+            } else if kinds.len()==1 { kinds[0].clone()
+            } else { Kind::And(kinds) };
             if normal {
                self.type_is_normal.insert(Typ::Ident(t.clone(),Vec::new()));
-               for k in kinds.iter() {
+               for k in kinds.flatten().iter() {
                   self.kind_is_normal.insert(k.clone());
                }
             }
@@ -1135,26 +1146,26 @@ impl TLC {
          },
          
          Rule::forall_stmt => {
-            let mut quants: Vec<(Option<String>,Option<Typ>,Option<Kind>)> = Vec::new();
+            let mut quants: Vec<(Option<String>,Option<Typ>,Kind)> = Vec::new();
             let mut inference  = None;
             let mut term = None;
-            let mut kind = None;
+            let mut kind = self.term_kind.clone();
             for e in p.into_inner() { match e.as_rule() {
                Rule::ident_typ_kind => {
                   let mut ident = None;
                   let mut typ = None;
-                  let mut kind = None;
+                  let mut kind = Kind::Nil;
                   for itk in e.into_inner() { match itk.as_rule() {
                      Rule::ident => { ident = Some(itk.into_inner().concat()); },
                      Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)?); },
-                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(itk)?); },
+                     Rule::kind   => { kind   = self.unparse_ast_kind(itk)?; },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                   quants.push((ident, typ, kind));
                },
                Rule::inference => { inference = Some(self.unparse_ast_inference(e)?); }
                Rule::term => { term = Some(self.unparse_ast(scope,fp,e,span)?); }
-               Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); }
+               Rule::kind => { kind = self.unparse_ast_kind(e)?; }
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
             self.push_forall(
@@ -1411,10 +1422,10 @@ impl TLC {
          Typ::Any => Kind::Nil,
          Typ::Ident(tn,ts) => {
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,tks,_props,_) = &self.rules[*ti] {
+            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,k,_props,_) = &self.rules[*ti] {
             if ts.len()==itks.len() {
-               if tks.len()==0 { return self.term_kind.clone();
-               } else { return tks[0].clone(); }
+               if k==&Kind::Nil { return self.term_kind.clone(); }
+               else { return k.clone(); }
             }}}
             Kind::Nil
          },
@@ -1787,7 +1798,7 @@ impl TLC {
                } else {
                   let mut accept = false;
                   for tr in self.rules.iter() { match tr {
-                     TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,tk,_) if tk.clone().unwrap_or(self.term_kind.clone())==into_kind => {
+                     TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,k,_) if k==&into_kind => {
                         if let Ok(lt) = self.unify(&self.rows[x.id].typ, lt, &self.rows[t.id].span) {
                         if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span) {
                            //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
