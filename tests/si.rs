@@ -3,7 +3,7 @@ use lsts::tlc::TLC;
 #[test]
 fn check_constant_literals() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //soft cast literals into typed values
    tlc.check(Some(si), "True:Boolean").unwrap();
@@ -37,7 +37,7 @@ fn check_constant_literals() {
 #[test]
 fn check_project_kinded() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //It is ok to let the compiler infer the Term type
    tlc.check(Some(si), "True").unwrap(); //should be a Boolean
@@ -49,7 +49,7 @@ fn check_project_kinded() {
 #[test]
 fn check_type_equality() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //Ground Types unify with themselves
    tlc.check(Some(si), "let x:Integer=1:Integer;").unwrap();
@@ -70,7 +70,7 @@ fn check_type_equality() {
 #[test]
 fn check_compound_types() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //use constructors
    tlc.check(Some(si), "Point2D { x=1:Integer, y=2:Integer }").unwrap();
@@ -106,7 +106,7 @@ fn check_compound_types() {
 #[test]
 fn check_tik_i() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    tlc.check(Some(si), "let xy: Point2D<Integer>").unwrap();
    tlc.check(Some(si), "let xy: Point2D<Boolean>").unwrap_err();
@@ -115,7 +115,7 @@ fn check_tik_i() {
 #[test]
 fn check_unit_math() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //check math operations
    tlc.check(Some(si), "let x: Metre; +x:Metre").unwrap();
@@ -142,7 +142,7 @@ fn check_unit_math() {
 #[test]
 fn check_type_cast() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //check type cast of compatible numerical types
    tlc.check(Some(si), "True as Boolean").unwrap();
@@ -161,7 +161,7 @@ fn check_type_cast() {
 #[test]
 fn check_narrow_type_cast() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //check type cast of compatible types within a kind
    tlc.check(Some(si), "(1:Integer+Metre) as Integer").unwrap();
@@ -178,7 +178,7 @@ fn check_narrow_type_cast() {
 #[test]
 fn check_narrow_noop_conversion() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //check type cast of compatible types within a kind
    tlc.check(Some(si), "(1:Integer+Speed) as Metre/Second").unwrap();
@@ -193,7 +193,7 @@ fn check_narrow_noop_conversion() {
 #[test]
 fn check_narrow_conversion() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //check type cast of compatible types within a kind
    tlc.check(Some(si), "(1:Integer+Minute) as Hour").unwrap();
@@ -207,7 +207,7 @@ fn check_narrow_conversion() {
 #[test]
 fn check_unit_conversion() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //check unit conversions
    tlc.check(Some(si), "let x: Kilo<Metre>; x as Metre").unwrap();
@@ -219,7 +219,7 @@ fn check_unit_conversion() {
 #[test]
 fn check_ratio_conversion() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //check type cast of compatible types within a kind
    tlc.check(Some(si), "(1:Integer+Kilo<Metre>/Second) as Metre/Second").unwrap();
@@ -231,7 +231,7 @@ fn check_ratio_conversion() {
 #[test]
 fn check_imperial_conversion() {
    let mut tlc = TLC::new();
-   let si = tlc.compile_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //check type cast of compatible types within a kind
    tlc.check(Some(si), "(1:Integer+Kilo<Metre>/Second) as Mile/Minute").unwrap();
