@@ -969,6 +969,32 @@ impl TLC {
             }
             Ok(e)
          },
+         Rule::compare_term => {
+            let mut es = p.into_inner();
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [compare_term.1]"),span)?;
+            while let Some(op) = es.next() {
+               let op = op.into_inner().concat();
+               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [compare_term.2]"),span)?;
+               e = {let t = Term::App(
+                  self.push_term(Term::Ident(op),span),
+                  self.push_term(Term::Tuple(vec![e,d]),span),
+               ); self.push_term(t,&span)};
+            }
+            Ok(e)
+         },
+         Rule::logical_term => {
+            let mut es = p.into_inner();
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [logical_term.1]"),span)?;
+            while let Some(op) = es.next() {
+               let op = op.into_inner().concat();
+               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [logical_term.2]"),span)?;
+               e = {let t = Term::App(
+                  self.push_term(Term::Ident(op),span),
+                  self.push_term(Term::Tuple(vec![e,d]),span),
+               ); self.push_term(t,&span)};
+            }
+            Ok(e)
+         },
          Rule::tuple_term => {
             let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e,span).expect("TLC Grammar Error in rule [tuple_term]"))
                       .collect::<Vec<TermId>>();
@@ -1038,6 +1064,9 @@ impl TLC {
                   }
                },
                Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); },
+               Rule::typ_invariant => {
+                  panic!("TODO: parse invariants in type declaration")
+               },
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
             if normal {
