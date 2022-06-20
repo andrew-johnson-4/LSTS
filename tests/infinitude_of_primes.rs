@@ -5,7 +5,7 @@ fn check_infinitude_of_primes() {
    let mut tlc = TLC::new();
    let sa = tlc.import_str(None, r#"
    //define a prime as being indivisible by any other integer
-   type Prime:Integer where d:Prime, n:Integer. d%n != 0;
+   type Prime:Integer where d:Prime, n:Integer if (n>1). d%n != 0;
 "#).unwrap();
 
    //prove that there are an infinite number of primes
