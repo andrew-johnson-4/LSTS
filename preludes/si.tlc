@@ -170,3 +170,8 @@ let $"*"(x:X::Unit, y:Number::Term):X::Unit;    //mul constant
 let $"/"(x:X::Unit, y:Y::Unit):X/Y::Unit;       //div
 let $"/"(x:Number::Term, y:Y::Unit):()/Y::Unit; //div constant
 let $"/"(x:X::Unit, y:Number::Term):X::Unit;    //div constant
+
+//: Proof Types
+
+//define a prime as being indivisible by any other integer
+type Prime:Integer where d:Prime, n:Integer if (n>1: True). (d%n != 0: True);
