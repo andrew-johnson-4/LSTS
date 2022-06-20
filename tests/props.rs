@@ -9,7 +9,7 @@ fn check_boolean() {
    tlc.check(Some(si), "True:True").unwrap();
    tlc.check(Some(si), "True:False").unwrap_err();
    tlc.check(Some(si), "False:False").unwrap();
-   tlc.check(Some(si), "False:False").unwrap_err();
+   tlc.check(Some(si), "False:True").unwrap_err();
 
    tlc.check(Some(si), "not(True):False").unwrap();
    tlc.check(Some(si), "not(True):True").unwrap_err();

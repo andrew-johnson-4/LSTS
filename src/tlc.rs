@@ -709,6 +709,7 @@ impl TLC {
                   }
                },
                Typedef::Constructor(cname,kts) => {
+                  //constructor: (Typ, String, Vec<Typ>, Vec<(String,Typ)>)
                   self.constructors.push((Typ::Ident(tn.clone(),Vec::new()),cname.clone(),Vec::new(),kts.clone()));
                }
             }}
@@ -1030,6 +1031,7 @@ impl TLC {
             let mut typedef = Vec::new();
             let mut kinds = Vec::new();
             let mut props = Vec::new();
+            let mut constructors = Vec::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::typname => { t=e.into_inner().concat(); },
                Rule::normal => { normal=true; },
@@ -1074,6 +1076,7 @@ impl TLC {
                               },
                               rule => panic!("unexpected constructor_typedef rule: {:?}", rule)
                            }}
+                           constructors.push(tcname.clone());
                            typedef.push( Typedef::Constructor(tcname,tcrows) );
                         },
                         rule => panic!("unexpected typedef rule: {:?}", rule)
@@ -1120,6 +1123,13 @@ impl TLC {
                }
             }
             self.typedef_index.insert(t.clone(), self.rules.len());
+            for c in constructors.iter() {
+               if &t==c { continue; } //constructor has same name as type
+               self.typedef_index.insert(c.clone(), self.rules.len());
+               if normal {
+                  self.type_is_normal.insert(Typ::Ident(c.clone(),Vec::new()));
+               }
+            }
             self.rules.push(TypeRule::Typedef(
                t,
                normal,
@@ -1892,6 +1902,9 @@ impl TLC {
                      &tt,
                      &self.rows[t.id].span
                   )?;
+                  //type Boolean = True | False
+                  //True : Boolean + True
+                  self.rows[t.id].typ = self.rows[t.id].typ.and(&Typ::Ident(tname.clone(),Vec::new()));
                   found = true;
                   break;
                }
