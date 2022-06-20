@@ -65,8 +65,7 @@ product_typ = { suffix_typ ~ ("*" ~ suffix_typ)* }
 ratio_typ = { product_typ ~ ("/" ~ product_typ)? }
 arrow_typ = { ratio_typ ~ ("->" ~ ratio_typ)* }
 and_typ    = { arrow_typ ~ ("+" ~ arrow_typ)* }
-or_typ    = { and_typ ~ ("|" ~ and_typ)* }
-typ       = { or_typ }
+typ       = { and_typ }
 
 kind      = { kindname ~ ("<" ~ kind? ~ ("," ~ kind)* ~ ">")? }
 

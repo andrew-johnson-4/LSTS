@@ -18,7 +18,6 @@ fn parse_simplytyped() {
    tlc.parse("let t: A->B").unwrap();
    tlc.parse("let t: (A)->B").unwrap();
    tlc.parse("let t: (A,B)->C").unwrap();
-   tlc.parse("let t: A|B").unwrap();
    tlc.parse("let a: A; let a: B").unwrap();
    tlc.parse("let a: A; let b: A").unwrap();
    tlc.parse("let f()").unwrap();

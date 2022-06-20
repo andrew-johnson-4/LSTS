@@ -90,7 +90,6 @@ impl std::fmt::Debug for Kind {
 pub enum Typ {
    Any,
    Ident(String,Vec<Typ>),
-   Or(Vec<Typ>),
    And(Vec<Typ>), //Bottom is the empty conjunctive
    Arrow(Box<Typ>,Box<Typ>),
    Tuple(Vec<Typ>),   //Tuple is order-sensitive, Nil is the empty tuple
@@ -127,7 +126,6 @@ impl Typ {
          Typ::Ident(tn,ts) => Typ::Ident(tn.clone(),ts.iter().map(|_|Typ::Any).collect::<Vec<Typ>>()),
          Typ::Arrow(p,b) => Typ::Arrow(Box::new(p.mask()),Box::new(b.mask())),
          Typ::Ratio(p,b) => Typ::Ratio(Box::new(p.mask()),Box::new(b.mask())),
-         Typ::Or(ts) => Typ::Or(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
          Typ::And(ts) => Typ::And(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
          Typ::Tuple(ts) => Typ::Tuple(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
          Typ::Product(ts) => Typ::Product(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
@@ -174,7 +172,6 @@ impl Typ {
    fn vars(&self) -> Vec<String> {
       match self {
          Typ::Any => vec![],
-         Typ::Or(_ts) => vec![],
          Typ::Ident(tn,ts) => {
             let mut nv = vec![tn.clone()];
             for tt in ts.iter() {
@@ -236,11 +233,6 @@ impl Typ {
    }
    fn normalize(&self) -> Typ {
       match self {
-         Typ::Or(ts) => {
-            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
-            ts.sort(); ts.dedup();
-            Typ::Or(ts)
-         },
          Typ::And(ts) => {
             let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
             ts.sort(); ts.dedup();
@@ -277,7 +269,6 @@ impl Typ {
          if self==lt { return rt.clone(); }
       }
       match self {
-         Typ::Or(ts) => Typ::Or(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
          Typ::And(ts) => Typ::And(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
          Typ::Tuple(ts) => Typ::Tuple(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
          Typ::Product(ts) => Typ::Product(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
@@ -289,7 +280,6 @@ impl Typ {
    fn is_concrete(&self) -> bool {
       match self {
          Typ::Any => false,
-         Typ::Or(_ts) => false,
          Typ::Arrow(p,b) => p.is_concrete() && b.is_concrete(),
          Typ::Ratio(p,b) => p.is_concrete() && b.is_concrete(),
          Typ::Ident(_tn,ts) => ts.iter().all(|tc| tc.is_concrete()),
@@ -307,7 +297,6 @@ impl std::fmt::Debug for Typ {
               if ts.len()==0 { write!(f, "{}", t) }
               else { write!(f, "{}<{}>", t, ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ) }
            }
-           Typ::Or(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("|") ),
            Typ::And(ts) => write!(f, "[{}]", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("+") ),
            Typ::Tuple(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ),
            Typ::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
@@ -1264,15 +1253,6 @@ impl TLC {
                Ok(Typ::Product(ts))
             }
          },
-         Rule::or_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [or_typ]"))
-                      .collect::<Vec<Typ>>();
-            if ts.len()==1 {
-               Ok(ts[0].clone())
-            } else {
-               Ok(Typ::Or(ts))
-            }
-         },
          Rule::and_typ => {
             let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [and_typ]"))
                       .collect::<Vec<Typ>>();
@@ -1335,7 +1315,6 @@ impl TLC {
    pub fn bound_implied(&self, tt: &Typ, span: &Span) -> Result<(),Error> {
       match tt {
          Typ::Any => Ok(()),
-         Typ::Or(_ts) => Ok(()),
          Typ::Arrow(p,b) => { self.bound_implied(p,span)?; self.bound_implied(b,span)?; Ok(()) },
          Typ::Ratio(p,b) => { self.bound_implied(p,span)?; self.bound_implied(b,span)?; Ok(()) },
          Typ::And(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
@@ -1361,7 +1340,6 @@ impl TLC {
    pub fn extend_implied(&self, tt: &Typ) -> Typ {
       match tt {
          Typ::Any => tt.clone(),
-         Typ::Or(_ts) => tt.clone(),
          Typ::Arrow(p,b) => Typ::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Typ::Ratio(p,b) => Typ::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Typ::Ident(tn,ts) => {
@@ -1408,7 +1386,6 @@ impl TLC {
             }
             kinds.push((tt.clone(), self.kindof(tt)));
          },
-         Typ::Or(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
          Typ::And(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
          Typ::Tuple(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
          Typ::Product(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
@@ -1427,7 +1404,6 @@ impl TLC {
             }}}
             Kind::Nil
          },
-         Typ::Or(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
          Typ::And(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
          Typ::Tuple(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
          Typ::Product(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
@@ -1438,7 +1414,6 @@ impl TLC {
    pub fn is_normal(&self, tt:&Typ) -> bool {
       match tt {
          Typ::Any => false,
-         Typ::Or(_ts) => false,
          Typ::And(_ts) => false,
          Typ::Ident(tn,ts) => self.type_is_normal.contains(&Typ::Ident(tn.clone(),Vec::new())) &&
                               ts.iter().all(|ct|self.is_normal(ct)),
