@@ -246,12 +246,19 @@ impl Typ {
    fn normalize(&self) -> Typ {
       match self {
          Typ::And(ts) => {
-            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
-            ts.sort(); ts.dedup();
-            if ts.len()==1 {
-               ts[0].clone()
+            let mut cnf = Vec::new();
+            for ct in ts.iter() {
+               let ct = ct.normalize();
+               match ct {
+                  Typ::And(mut cts) => { cnf.append(&mut cts); },
+                  _ => { cnf.push(ct); }
+               }
+            }
+            cnf.sort(); cnf.dedup();
+            if cnf.len()==1 {
+               cnf[0].clone()
             } else {
-               Typ::And(ts)
+               Typ::And(cnf)
             }
          },
          Typ::Product(ts) => {
@@ -1476,16 +1483,10 @@ impl TLC {
                }
             }
          }
-         if matches.len()>1 { Err(Error {
-            kind: "Type Error".to_string(),
-            rule: format!("variable found in scope is ambiguous: {}: {:?} matches {}",
-                     v,
-                     implied.clone().unwrap_or(Typ::Any),
-                     matches.iter().map(|t|format!("{:?}",t))
-                            .collect::<Vec<String>>().join(" | ") ),
-            span: span.clone(),
-            snippet: "".to_string()
-         }) } else if matches.len()==1 {
+         if matches.len()>1 {
+            //it is OK for multiple functions to match
+            Ok(Typ::And(matches).normalize())
+         } else if matches.len()==1 {
             Ok(matches[0].clone())
          } else if candidates.len()>0 { Err(Error {
             kind: "Type Error".to_string(),
