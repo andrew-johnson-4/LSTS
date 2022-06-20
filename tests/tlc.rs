@@ -119,5 +119,25 @@ fn check_kinded_parametric_polymorphism() {
    tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab+Bc; f(x)").unwrap_err(); //ambiguous
 }
 
+#[test]
+fn check_products_and_ratios() {
+   let mut tlc = TLC::new();
 
+   //ratio types and product types are rational
+   tlc.check(None, "type At; let a: At*At; a:At*At").unwrap();
+   tlc.check(None, "type At; let a: At*At; a:?").unwrap();
+   tlc.check(None, "type At; let a: At*At; a:?/()").unwrap();
+   tlc.check(None, "type At; let a: At*At; a:At").unwrap_err();
+   tlc.check(None, "type At; let a: At*At/At; a:At").unwrap();
+   tlc.check(None, "type At; let a: At*At/At; a:?").unwrap();
+   tlc.check(None, "type At; let a: At*At/At; a:?/()").unwrap();
+   tlc.check(None, "type At; let a: At/At; a:()").unwrap();
+   tlc.check(None, "type At; let a: At/At; a:?").unwrap_err();
+   tlc.check(None, "type At; let a: At/At; a:?/()").unwrap();
+   tlc.check(None, "type At; let a: At/At; a:At").unwrap_err();
+   tlc.check(None, "type At; let a: At/At*At; a:At").unwrap_err();
+   tlc.check(None, "type At; let a: At/At*At; a:()/At").unwrap();
+   tlc.check(None, "type At; let a: At/At*At; a:()/At*At").unwrap_err();
+   tlc.check(None, "type At; let a: At/At*At; a:?/()").unwrap_err();
+}
 
