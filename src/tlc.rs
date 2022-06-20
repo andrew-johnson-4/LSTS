@@ -40,11 +40,6 @@ pub struct Span {
    pub linecol_start: (usize,usize),
    pub linecol_end: (usize,usize),
 }
-impl Span {
-   pub fn snippet(&self) -> String {
-      format!("")
-   }
-}
 
 pub struct Error {
    pub kind: String,
@@ -55,7 +50,7 @@ pub struct Error {
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "\n{}, expected {}, in {} --> {},{}\n{}\n", self.kind, self.rule, self.span.filename,
-               self.span.linecol_start.0, self.span.linecol_start.1, self.span.snippet())
+               self.span.linecol_start.0, self.span.linecol_start.1, self.snippet)
     }
 }
 
@@ -84,6 +79,10 @@ impl std::fmt::Debug for Kind {
            }
         }
     }
+}
+fn print_kinds(kinds: &Vec<Kind>) -> String {
+   kinds.iter().map(|k| format!("{:?}",k))
+        .collect::<Vec<String>>().join(" + ")
 }
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
@@ -448,7 +447,7 @@ pub struct Invariant {
 
 #[derive(Clone)]
 pub enum TypeRule {
-   Typedef(String,bool,Vec<(String,Option<Typ>,Option<Kind>)>,Option<Typ>,Vec<Typedef>,Option<Kind>,Vec<Invariant>,Span),
+   Typedef(String,bool,Vec<(String,Option<Typ>,Option<Kind>)>,Option<Typ>,Vec<Typedef>,Vec<Kind>,Vec<Invariant>,Span),
 
    Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>,Span),
 }
@@ -463,7 +462,7 @@ impl TypeRule {
 impl std::fmt::Debug for TypeRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           TypeRule::Typedef(tn,_norm,itks,implies,_td,tk,_props,_) => write!(f, "{}{}{}{}{}::{:?}",
+           TypeRule::Typedef(tn,_norm,itks,implies,_td,tks,_props,_) => write!(f, "{}{}{}{}{}::{}",
               tn,
               if itks.len()==0 { "" } else { "<" },
               itks.iter().map(|(t,i,k)| format!("{:?}:{:?}::{:?}",
@@ -473,7 +472,7 @@ impl std::fmt::Debug for TypeRule {
               )).collect::<Vec<String>>().join(","),
               if itks.len()==0 { "" } else { ">" },
               if let Some(ti) = implies { format!(":{:?}",ti) } else { format!("") },
-              tk
+              print_kinds(&tks)
            ),
            TypeRule::Forall(itks,inf,_t,tk,_) => write!(f, "forall {}. {:?} :: {:?}", 
               itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
@@ -645,8 +644,9 @@ impl TLC {
          _ => "".to_string(),
       };
       if let Some(ti) = self.typedef_index.get(&tn) {
-      if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,k,_props,_) = &self.rules[*ti] {
-         return k.clone().unwrap_or(self.term_kind.clone());
+      if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,tks,_props,_) = &self.rules[*ti] {
+         if tks.len()==0 { return self.term_kind.clone();
+         } else { return tks[0].clone(); } //first kind is the "default" kind in kind lists
       }}
       Kind::Nil //undefined types have Nil kind
    }
@@ -687,11 +687,11 @@ impl TLC {
                      domains.iter().map(|(_t,k)|format!("{:?}",k)).collect::<Vec<String>>().join(",")
                   ),
                   span: sp.clone(),
-                  snippet: sp.snippet(),
+                  snippet: format!("{:?}", rule),
                })
             }
          },
-         TypeRule::Typedef(tn,_norm,_itks,_implies,tds,_tk,props,_span) => {
+         TypeRule::Typedef(tn,_norm,_itks,_implies,tds,_tks,props,_span) => {
             for td in tds.iter() { match td {
                Typedef::Regex(pat) => {
                   if let Ok(r) = Regex::new(&pat[1..pat.len()-1]) {
@@ -1020,7 +1020,7 @@ impl TLC {
             let mut implies = None;
             let mut tiks = Vec::new();
             let mut typedef = Vec::new();
-            let mut kind = None;
+            let mut kinds = Vec::new();
             let mut props = Vec::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::typname => { t=e.into_inner().concat(); },
@@ -1072,7 +1072,7 @@ impl TLC {
                      }
                   }
                },
-               Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); },
+               Rule::kind => { kinds.push(self.unparse_ast_kind(e)?); },
                Rule::typ_invariant => {
                   let mut itks = Vec::new();
                   let mut assm = None;
@@ -1104,8 +1104,8 @@ impl TLC {
             }}
             if normal {
                self.type_is_normal.insert(Typ::Ident(t.clone(),Vec::new()));
-               if let Some(ref kind) = kind {
-                  self.kind_is_normal.insert(kind.clone());
+               for k in kinds.iter() {
+                  self.kind_is_normal.insert(k.clone());
                }
             }
             self.typedef_index.insert(t.clone(), self.rules.len());
@@ -1115,7 +1115,7 @@ impl TLC {
                tiks,
                implies,
                typedef,
-               kind,
+               kinds,
                props,
                span.clone()
             ));
@@ -1411,9 +1411,10 @@ impl TLC {
          Typ::Any => Kind::Nil,
          Typ::Ident(tn,ts) => {
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,tk,_props,_) = &self.rules[*ti] {
+            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,tks,_props,_) = &self.rules[*ti] {
             if ts.len()==itks.len() {
-               return tk.clone().unwrap_or(self.term_kind.clone());
+               if tks.len()==0 { return self.term_kind.clone();
+               } else { return tks[0].clone(); }
             }}}
             Kind::Nil
          },

@@ -24,7 +24,7 @@ imaginary  = ${ "+" ~ numerical ~ "i" }
 constant   = ${ numerical ~ imaginary? }
 
 normal = { "normal" }
-ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
+ident_typ_kind = { ident? ~ (":"? ~ typ) ~ ("::" ~ kind)? }
 typ_inf_kind = { typvar ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
 compare_chars = { "==" | "!=" | "<" | "<=" | ">" | ">=" }
@@ -81,7 +81,7 @@ typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
 
 typ_invariant = { ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ ("if" ~ "(" ~ assume ~ ")")? ~ "." ~ term }
 typ_stmt = { "type" ~ normal? ~ typname ~ ("<" ~ typ_inf_kind ~ ("," ~ typ_inf_kind)* ~ ">")? ~ (":" ~ typ)?
-                    ~ ("=" ~ typedef)? ~ ("::" ~ kind)?
+                    ~ ("=" ~ typedef)? ~ ("::" ~ kind ~ ("+" ~ kind)*)?
                     ~ ("where" ~ typ_invariant ~ ("and" ~ typ_invariant)*)? }
 
 inference = { typ ~ ("=>" ~ typ)? }
