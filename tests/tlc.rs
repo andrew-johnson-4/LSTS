@@ -132,7 +132,7 @@ fn check_products_and_ratios() {
    tlc.check(None, "type At; let a: At*At/At; a:?").unwrap();
    tlc.check(None, "type At; let a: At*At/At; a:?/()").unwrap();
    tlc.check(None, "type At; let a: At/At; a:()").unwrap();
-   tlc.check(None, "type At; let a: At/At; a:?").unwrap_err();
+   tlc.check(None, "type At; let a: At/At; a:?").unwrap();
    tlc.check(None, "type At; let a: At/At; a:?/()").unwrap();
    tlc.check(None, "type At; let a: At/At; a:At").unwrap_err();
    tlc.check(None, "type At; let a: At/At*At; a:At").unwrap_err();
