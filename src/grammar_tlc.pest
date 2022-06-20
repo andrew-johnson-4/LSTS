@@ -82,7 +82,7 @@ typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
 typ_invariant = { ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ term }
 typ_stmt = { "type" ~ normal? ~ typname ~ ("<" ~ typ_inf_kind ~ ("," ~ typ_inf_kind)* ~ ">")? ~ (":" ~ typ)?
                     ~ ("=" ~ typedef)? ~ ("::" ~ kind)?
-                    ~ ("where" ~ typ_invariant ~ ("and" ~ typ_invariant)*) }
+                    ~ ("where" ~ typ_invariant ~ ("and" ~ typ_invariant)*)? }
 
 inference = { typ ~ ("=>" ~ typ)? }
 forall_stmt = { "forall" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ inference ~ ("=" ~ term)? ~ ("::" ~ kind)?}
