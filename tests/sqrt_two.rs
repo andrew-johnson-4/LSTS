@@ -10,8 +10,11 @@ let square(x:X):X*X;              "#).unwrap();
 
    //prove that sqrt(2) is irrational
    tlc.check(Some(sa), r#"
-type P;
-type Q; let q:Q;
-let sqrt_of_two: P/Q;
-square(sqrt_of_two) * square(q): P*P "#).unwrap_err();
+type Pt; let p:Pt;
+type Qt; let q:Qt;
+let sqrt_of_two: Pt/Qt;
+square(sqrt_of_two) * square(q): Pt*Pt; //2 * q*q = p*p
+square(p) / square(sqrt_of_two): Qt*Qt; //p*p / 2 = q*q
+p / square(sqrt_of_two) : ?/();         //2 is a factor of p
+"#).unwrap_err();
 }
