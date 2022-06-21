@@ -171,6 +171,14 @@ let $"/"(x:X::Unit, y:Y::Unit):X/Y::Unit;       //div
 let $"/"(x:Number::Term, y:Y::Unit):()/Y::Unit; //div constant
 let $"/"(x:X::Unit, y:Number::Term):X::Unit;    //div constant
 
+//: Constant Math
+let pos([x]+Number): [x]+Number;                //pos
+let neg([x]+Number): [-x]+Number;               //neg
+let $"+"([x]+Number, [y]+Number): [x+y]+Number; //add
+let $"-"([x]+Number, [y]+Number): [x-y]+Number; //sub
+let $"*"([x]+Number, [y]+Number): [x*y]+Number; //mul
+let $"/"([x]+Number, [y]+Number): [x/y]+Number; //div
+
 //: Boolean Proof Objects
 type And<A:Boolean, B:Boolean>: Boolean ::Boolean;
 type Or<A:Boolean, B:Boolean>: Boolean ::Boolean;
