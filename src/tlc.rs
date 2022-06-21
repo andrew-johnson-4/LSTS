@@ -174,6 +174,12 @@ impl Typ {
          }
       }
    }
+   pub fn is_var(&self) -> bool {
+      match self {
+         Typ::Ident(tn,ts) => ts.len()==0 && tn.chars().all(char::is_uppercase),
+         _ => false
+      }
+   }
    fn expects(&self) -> Typ {
       match self {
          Typ::Arrow(p,_b) => *p.clone(),
@@ -291,12 +297,13 @@ impl Typ {
          if self==lt { return rt.clone(); }
       }
       match self {
+         Typ::Any => Typ::Any,
+         Typ::Arrow(p,b) => Typ::Arrow(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
+         Typ::Ratio(p,b) => Typ::Ratio(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
+         Typ::Ident(tn,ts) => Typ::Ident(tn.clone(),ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
          Typ::And(ts) => Typ::And(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
          Typ::Tuple(ts) => Typ::Tuple(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
          Typ::Product(ts) => Typ::Product(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
-         Typ::Arrow(p,b) => Typ::Arrow(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
-         Typ::Ratio(p,b) => Typ::Ratio(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
-         _ => self.clone(),
       }
    }
    fn is_concrete(&self) -> bool {
@@ -340,8 +347,8 @@ fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: 
    }
    match (lt,rt) {
       //wildcard match
-      (Typ::Any,r) => Ok(r.clone()),
-      (l,Typ::Any) => Ok(l.clone()),
+      (Typ::Any,r) => Ok(r.substitute(subs)),
+      (l,Typ::Any) => Ok(l.substitute(subs)),
       (Typ::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
          for (sl,sr) in subs.clone().iter() {
             if lt==sl { return unify_impl(kinds,subs,sr,rt); }
@@ -351,7 +358,7 @@ fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: 
       },
       (lt,Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
          for (sl,sr) in subs.clone().iter() {
-            if rt==sl { return unify_impl(kinds,subs,lt,sr); }
+            if rt==sl { return unify_impl(kinds,subs,sr,lt); }
          }
          subs.push((rt.clone(),lt.clone()));
          Ok(lt.clone())
@@ -1498,9 +1505,9 @@ impl TLC {
             if tn==v {
                candidates.push(tt.clone());
                if let Some(it) = implied {
-                  //if tt => it
-                  if let Ok(_rt) = self.unify_with_kinds(&tkts,&tt,it,span) {
-                     matches.push(tt.clone());
+                  //if it => tt
+                  if let Ok(rt) = self.unify_with_kinds(&tkts,&it,tt,span) {
+                     matches.push(rt.clone());
                   }
                } else {
                   matches.push(tt.clone());
@@ -1860,9 +1867,8 @@ impl TLC {
             }
          },
          Term::Ident(x) => {
-            let span = self.rows[t.id].span.clone();
-            let xt = self.typeof_var(&scope, &x, &implied, &span)?;
-            //typeof(x) => t.typ
+            let xt = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span)?;
+            //typeof(x:Implied) => t.typ
             self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
          },
          Term::Value(x) => {
