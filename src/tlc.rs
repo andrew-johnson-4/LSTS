@@ -1488,7 +1488,7 @@ impl TLC {
    pub fn is_normal(&self, tt:&Typ) -> bool {
       match tt {
          Typ::Any => false,
-         Typ::And(_ts) => false,
+         Typ::And(ts) => ts.iter().any(|ct|self.is_normal(ct)),
          Typ::Ident(tn,ts) => self.type_is_normal.contains(&Typ::Ident(tn.clone(),Vec::new())) &&
                               ts.iter().all(|ct|self.is_normal(ct)),
          Typ::Tuple(ts) => ts.iter().all(|ct|self.is_normal(ct)),
