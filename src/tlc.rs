@@ -1136,7 +1136,10 @@ impl TLC {
             } else if kinds.len()==1 { kinds[0].clone()
             } else { Kind::And(kinds) };
             if normal {
-               self.type_is_normal.insert(Typ::Ident(t.clone(),Vec::new()));
+               if constructors.len()==0 {
+                  //constructors are preferred normal forms
+                  self.type_is_normal.insert(Typ::Ident(t.clone(),Vec::new()));
+               }
                for k in kinds.flatten().iter() {
                   if k == &self.term_kind { continue; } //Term is never normal
                   self.kind_is_normal.insert(k.clone());
@@ -1144,11 +1147,11 @@ impl TLC {
             }
             self.typedef_index.insert(t.clone(), self.rules.len());
             for c in constructors.iter() {
-               if &t==c { continue; } //constructor has same name as type
-               self.typedef_index.insert(c.clone(), self.rules.len());
                if normal {
                   self.type_is_normal.insert(Typ::Ident(c.clone(),Vec::new()));
                }
+               if &t==c { continue; } //constructor has same name as type
+               self.typedef_index.insert(c.clone(), self.rules.len());
             }
             self.rules.push(TypeRule::Typedef(
                t,
@@ -1376,16 +1379,18 @@ impl TLC {
 
             //check that multiple constructors of the same type are not present
             let mut uq: HashSet<Typ> = HashSet::new();
+            let mut nuq: HashSet<String> = HashSet::new();
             for tc in ts.iter() {
             if let Typ::Ident(tn,_ts) = tc {
                if let Some((bt,_,_)) = self.constructors.get(tn) {
-                  if uq.contains(bt) { return Err(Error {
+                  if uq.contains(bt) && !nuq.contains(tn) { return Err(Error {
                      kind: "Type Error".to_string(),
                      rule: format!("multiple type constructors of type {:?} are present in type {:?}", bt, tt),
                      span: span.clone(),
                      snippet: "".to_string()
                   }) }
                   uq.insert(bt.clone());
+                  nuq.insert(tn.clone());
                }
             }}
 
@@ -1493,6 +1498,10 @@ impl TLC {
          Typ::Ratio(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) }
       }
    }
+   pub fn is_knormal(&self, k:&Kind) -> bool {
+      let ks = k.flatten();
+      ks.iter().any(|kf| self.kind_is_normal.contains(kf))
+   }
    pub fn is_normal(&self, tt:&Typ) -> bool {
       match tt {
          Typ::Any => false,
@@ -1514,8 +1523,8 @@ impl TLC {
             if tn==v {
                candidates.push(tt.clone());
                if let Some(it) = implied {
-                  //if it => tt
-                  if let Ok(rt) = self.unify_with_kinds(&tkts,&it,tt,span) {
+                  //if tt => it
+                  if let Ok(rt) = self.unify_with_kinds(&tkts,tt,&it,span) {
                      matches.push(rt.clone());
                   }
                } else {
@@ -1528,7 +1537,7 @@ impl TLC {
             Ok(Typ::And(matches).normalize())
          } else if matches.len()==1 {
             Ok(matches[0].clone())
-         } else if candidates.len()>0 { Err(Error {
+         } else if candidates.len() > 0 { Err(Error {
             kind: "Type Error".to_string(),
             rule: format!("variable {}: {:?} did not match any candidate {}",
                      v,
@@ -1616,7 +1625,7 @@ impl TLC {
                //if cast is already satisfied, do nothing
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
-               if self.is_normal(&into) {
+               if self.is_knormal(&into_kind) {
                   let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
                   let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
 
