@@ -41,8 +41,7 @@ fn check_complex_predicates() {
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //Boolean Proofs
-   //normalization is still to weak to resolve complex predicates
-   //tlc.check(Some(si), "True && True && True as True").unwrap();
+   tlc.check(Some(si), "True && True && True as True").unwrap();
 }
 
 #[test]
