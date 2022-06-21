@@ -1416,23 +1416,31 @@ impl TLC {
          Typ::Arrow(p,b) => Typ::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Typ::Ratio(p,b) => Typ::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Typ::Ident(tn,ts) => {
+            let mut implies = Vec::new();
+
+            //lookup typedefs
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,implies,_td,_tk,_props,_) = &self.rules[*ti] {
+            if let TypeRule::Typedef(_tn,_norm,itks,imp,_td,_tk,_props,_) = &self.rules[*ti] {
             if ts.len()==itks.len() {
-               let implies = if let Some(it) = implies {
-                  match it {
-                     Typ::And(its) => its.clone(),
-                     i => vec![i.clone()],
+               if let Some(it) = imp {
+                  match it.clone() {
+                     Typ::And(mut its) => { implies.append(&mut its); },
+                     i => { implies.push(i); },
                   }
-               } else { Vec::new() };
-               if implies.len()==0 { return tt.clone(); }
-               let mut ats = Vec::new();
-               ats.push(tt.clone());
-               //TODO: substitute type variables in implied types
-               ats.append(&mut implies.clone());
-               return Typ::And(ats);
+               }
             }}}
-            tt.clone()
+
+            //lookup constructors
+            if let Some((bt,_ps,_kts)) = self.constructors.get(tn) {
+               implies.push(bt.clone());
+            }
+
+            if implies.len()==0 { return tt.clone(); }
+            let mut ats = Vec::new();
+            ats.push(tt.clone());
+            //TODO: substitute type variables in implied types
+            ats.append(&mut implies.clone());
+            Typ::And(ats).normalize()
          },
          Typ::And(ts) => {
             let mut ats = Vec::new();
@@ -1608,7 +1616,7 @@ impl TLC {
                //if cast is already satisfied, do nothing
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
-               if self.kind_is_normal.contains(&into_kind) {
+               if self.is_normal(&into) {
                   let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
                   let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
 
@@ -1837,7 +1845,8 @@ impl TLC {
                      l_only = into.clone();
                   }
 
-                  self.rows[t.id].typ = self.unify(&into,&l_only,&self.rows[t.id].span)?.and(&l_alts);
+                  //quod erat demonstrandum
+                  self.rows[t.id].typ = self.unify(&l_only,&into,&self.rows[t.id].span)?.and(&l_alts);
                } else {
                   let mut accept = false;
                   for tr in self.rules.iter() { match tr {
