@@ -36,6 +36,16 @@ fn check_boolean() {
 }
 
 #[test]
+fn check_complex_predicates() {
+   let mut tlc = TLC::new();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+
+   //Boolean Proofs
+   //normalization is still to weak to resolve complex predicates
+   //tlc.check(Some(si), "True && True && True as True").unwrap();
+}
+
+#[test]
 fn check_contradictions() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
