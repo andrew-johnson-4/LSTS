@@ -1138,6 +1138,7 @@ impl TLC {
             if normal {
                self.type_is_normal.insert(Typ::Ident(t.clone(),Vec::new()));
                for k in kinds.flatten().iter() {
+                  if k == &self.term_kind { continue; } //Term is never normal
                   self.kind_is_normal.insert(k.clone());
                }
             }
