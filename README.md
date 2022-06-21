@@ -37,6 +37,7 @@ LSTS does not ensure against all forms of logical errors, however it does compla
     p / square(sqrt_of_two) : ?/();         //2 is a factor of p
 
     /* Infinitude of primes */
+
     import "number_theory.tlc";
 
     let primes:Prime[];           //assume there are a finite number of primes
