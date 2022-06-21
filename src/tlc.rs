@@ -14,7 +14,7 @@ pub struct TLC {
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
    pub regexes: Vec<(Typ,Regex)>,
-   pub constructors: Vec<(Typ,String,Vec<Typ>,Vec<(String,Typ)>)>,
+   pub constructors: HashMap<String,(Typ,Vec<Typ>,Vec<(String,Typ)>)>,
    pub type_is_normal: HashSet<Typ>,
    pub kind_is_normal: HashSet<Kind>,
    pub typedef_index: HashMap<String,usize>,
@@ -89,6 +89,11 @@ impl std::fmt::Debug for Kind {
     }
 }
 impl Kind {
+   pub fn has(&self, other: &Kind) -> bool {
+      let ls = self.flatten();
+      let rs = other.flatten();
+      rs.iter().all(|rk| ls.contains(rk))
+   }
    pub fn flatten(&self) -> Vec<Kind> {
       match self {
          Kind::Nil => vec![],
@@ -544,7 +549,7 @@ impl TLC {
          rules: Vec::new(),
          scopes: Vec::new(),
          regexes: Vec::new(),
-         constructors: Vec::new(),
+         constructors: HashMap::new(),
          foralls_index: HashMap::new(),
          foralls_rev_index: HashMap::new(),
          typedef_index: HashMap::new(),
@@ -631,7 +636,8 @@ impl TLC {
          Typ::And(ts) => ts.clone(),
          tt => vec![tt.clone()],
       };
-      let ts = ts.into_iter().filter(|ct|&self.kindof(&ct)!=k).collect::<Vec<Typ>>();
+      //remove T :: K
+      let ts = ts.into_iter().filter(|ct|!self.kindof(ct).has(k)).collect::<Vec<Typ>>();
       Typ::And(ts)
    }
 
@@ -654,8 +660,8 @@ impl TLC {
    pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
       let ast = self.parse_doc(globals, docname, src)?;
       self.compile_rules(docname)?;
-      self.typecheck(globals, ast, None)?;
-      self.sanitycheck()?;
+      self.typeck(globals, ast, None)?;
+      self.sanityck()?;
       Ok(ast)
    }
    pub fn kind_of(&self, tt: &Typ) -> Kind {
@@ -716,8 +722,7 @@ impl TLC {
                   }
                },
                Typedef::Constructor(cname,kts) => {
-                  //constructor: (Typ, String, Vec<Typ>, Vec<(String,Typ)>)
-                  self.constructors.push((Typ::Ident(tn.clone(),Vec::new()),cname.clone(),Vec::new(),kts.clone()));
+                  self.constructors.insert(cname.clone(), (Typ::Ident(tn.clone(),Vec::new()),Vec::new(),kts.clone()));
                }
             }}
             for p in props.iter() {
@@ -1322,7 +1327,7 @@ impl TLC {
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
    }
-   pub fn sanitycheck(&mut self) -> Result<(),Error> {
+   pub fn sanityck(&mut self) -> Result<(),Error> {
       for (ri,r) in self.rows.iter().enumerate() {
          if ri==0 { continue; } //first row is nullary and not sane
          if !r.typ.is_concrete() {
@@ -1353,14 +1358,33 @@ impl TLC {
       }
       Ok(())
    }
-   pub fn bound_implied(&self, tt: &Typ, span: &Span) -> Result<(),Error> {
+   pub fn soundck(&self, tt: &Typ, span: &Span) -> Result<(),Error> {
       match tt {
          Typ::Any => Ok(()),
-         Typ::Arrow(p,b) => { self.bound_implied(p,span)?; self.bound_implied(b,span)?; Ok(()) },
-         Typ::Ratio(p,b) => { self.bound_implied(p,span)?; self.bound_implied(b,span)?; Ok(()) },
-         Typ::And(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
-         Typ::Tuple(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
-         Typ::Product(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
+         Typ::Arrow(p,b) => { self.soundck(p,span)?; self.soundck(b,span)?; Ok(()) },
+         Typ::Ratio(p,b) => { self.soundck(p,span)?; self.soundck(b,span)?; Ok(()) },
+         Typ::And(ts) => {
+            for tc in ts.iter() { self.soundck(tc,span)?; }
+
+            //check that multiple constructors of the same type are not present
+            let mut uq: HashSet<Typ> = HashSet::new();
+            for tc in ts.iter() {
+            if let Typ::Ident(tn,_ts) = tc {
+               if let Some((bt,_,_)) = self.constructors.get(tn) {
+                  if uq.contains(bt) { return Err(Error {
+                     kind: "Type Error".to_string(),
+                     rule: format!("multiple type constructors of type {:?} are present in type {:?}", bt, tt),
+                     span: span.clone(),
+                     snippet: "".to_string()
+                  }) }
+                  uq.insert(bt.clone());
+               }
+            }}
+
+            Ok(())
+         },
+         Typ::Tuple(ts) => { for tc in ts.iter() { self.soundck(tc,span)?; } Ok(()) },
+         Typ::Product(ts) => { for tc in ts.iter() { self.soundck(tc,span)?; } Ok(()) },
          Typ::Ident(tn,ts) => {
             if ts.len()==0 { return Ok(()); }
             if !tt.is_concrete() { return Ok(()); }
@@ -1534,13 +1558,13 @@ impl TLC {
          _ => panic!("TODO untype term: {}", self.print_term(t))
       }
    }
-   pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
+   pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
             let mut last_typ = self.nil_type.clone();
             for e in es.iter() {
-               self.typecheck(Some(sid), *e, None)?;
+               self.typeck(Some(sid), *e, None)?;
                last_typ = self.rows[e.id].typ.clone();
             }
             self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?;
@@ -1548,7 +1572,7 @@ impl TLC {
          Term::Tuple(es) => {
             let mut ts = Vec::new();
             for e in es.iter() {
-               self.typecheck(scope, *e, None)?;
+               self.typeck(scope, *e, None)?;
                ts.push(self.rows[e.id].typ.clone());
             }
             self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &Typ::Tuple(ts), &self.rows[t.id].span)?;
@@ -1558,19 +1582,19 @@ impl TLC {
                //term is untyped
                self.untyped(t);
             } else if let Some(ref b) = b {
-               self.typecheck(Some(s), *b, Some(rt.clone()))?;
+               self.typeck(Some(s), *b, Some(rt.clone()))?;
                self.rows[t.id].typ = self.bottom_type.clone();
             } else {
                self.rows[t.id].typ = self.bottom_type.clone();
             }
-            self.bound_implied(&rt,&self.rows[t.id].span)?;
+            self.soundck(&rt,&self.rows[t.id].span)?;
          },
          Term::Ascript(x,tt) => {
-            self.typecheck(scope.clone(), x, Some(tt.clone()))?;
+            self.typeck(scope.clone(), x, Some(tt.clone()))?;
             self.rows[t.id].typ = self.unify(&self.rows[x.id].typ, &tt, &self.rows[t.id].span)?;
          },
          Term::As(x,into) => {
-            self.typecheck(scope.clone(), x, None)?;
+            self.typeck(scope.clone(), x, None)?;
             let into_kind = self.kindof(&into);
             if let Ok(nt) = self.unify(&self.rows[x.id].typ, &into, &self.rows[t.id].span) {
                //if cast is already satisfied, do nothing
@@ -1868,9 +1892,8 @@ impl TLC {
                }
                //if any non Term typ is implied, introduce it here
                let ri = self.remove_kinded(&self.term_kind, &i);
-               if self.bottom_type!=ri {
-                  self.rows[t.id].typ = self.rows[t.id].typ.and(&ri);
-               }
+               self.rows[t.id].typ = self.rows[t.id].typ.and(&ri);
+               eprintln!("value '{}' type is {:?} with implied {:?}", x, &self.rows[t.id].typ, &i);
             } else {
                return Err(Error {
                   kind: "Type Error".to_string(),
@@ -1883,8 +1906,8 @@ impl TLC {
          Term::App(g,x) => {
             //covariant, contravariant matters here
             //unify(lt,rt) means lt => rt, not always rt => lt
-            self.typecheck(scope.clone(), x, None)?;
-            self.typecheck(scope.clone(), g, Some(
+            self.typeck(scope.clone(), x, None)?;
+            self.typeck(scope.clone(), g, Some(
                Typ::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Typ::Any))
             ))?;
@@ -1893,24 +1916,16 @@ impl TLC {
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.iter() {
-               self.typecheck(scope.clone(), *v, None)?;
+               self.typeck(scope.clone(), *v, None)?;
             }
-            let mut found = false;
-            for (tt, tname,_tpars,_tkvs) in self.constructors.iter() {
-               if &cname==tname {
-                  self.rows[t.id].typ = self.unify(
-                     &self.rows[t.id].typ,
-                     &tt,
-                     &self.rows[t.id].span
-                  )?;
-                  //type Boolean = True | False
-                  //True : Boolean + True
-                  self.rows[t.id].typ = self.rows[t.id].typ.and(&Typ::Ident(tname.clone(),Vec::new()));
-                  found = true;
-                  break;
-               }
-            }
-            if !found { return Err(Error {
+            if let Some((tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
+               self.rows[t.id].typ = self.unify(
+                  &self.rows[t.id].typ,
+                  &tt,
+                  &self.rows[t.id].span
+               )?;
+               self.rows[t.id].typ = self.rows[t.id].typ.and(&Typ::Ident(cname.clone(),Vec::new())).normalize();
+            } else { return Err(Error {
                kind: "Type Error".to_string(),
                rule: format!("type constructor, none found for: {}", self.print_term(t)),
                span: self.rows[t.id].span.clone(),
@@ -1921,7 +1936,7 @@ impl TLC {
       if let Some(ref i) = implied {
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
       };
-      self.bound_implied(&self.rows[t.id].typ,&self.rows[t.id].span)?;
+      self.soundck(&self.rows[t.id].typ, &self.rows[t.id].span)?;
       Ok(())
    }
    pub fn unify(&self, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {

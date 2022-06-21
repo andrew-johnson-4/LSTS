@@ -11,6 +11,7 @@ fn check_boolean() {
    tlc.check(Some(si), "False:False").unwrap();
    tlc.check(Some(si), "False:True").unwrap_err();
 
+   /*
    tlc.check(Some(si), "not(True):False").unwrap();
    tlc.check(Some(si), "not(True):True").unwrap_err();
    tlc.check(Some(si), "not(False):False").unwrap_err();
@@ -33,6 +34,7 @@ fn check_boolean() {
    tlc.check(Some(si), "True || False:False").unwrap_err();
    tlc.check(Some(si), "False || True:False").unwrap_err();
    tlc.check(Some(si), "False || False:False").unwrap();
+   */
 }
 
 #[test]
@@ -41,6 +43,8 @@ fn check_contradictions() {
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //Boolean Soundness
+   //True and False are constructors of the Boolean type
+   //it is therefore unsound to have a term that is both :True and :False
    tlc.check(Some(si), "let a:True").unwrap();
    tlc.check(Some(si), "let a:False").unwrap();
    tlc.check(Some(si), "let a:True+False").unwrap_err();
