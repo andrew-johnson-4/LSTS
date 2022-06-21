@@ -17,16 +17,20 @@ typname    = ${ upper ~ alnum* }
 kindname   = ${ upper ~ alnum* }
 simplename = ${ alphal ~ (alphal | digit)* }
 quotedname = ${ "$\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
-ident      = ${ !("as" | "if" | "else " | "let" | "forall" | "type" | "normal") ~ ((lowerl~alphal*) | quotedname) }
+ident      = ${ !("as" | "if" | "else " | "let" | "forall" | "type" | "normal" | "where") ~ ((lowerl~alphal*) | quotedname) }
 esign      = ${ ("e"|"E") ~ ("+" | "-")? }
 numerical  = ${ digit ~ digital* ~ (esign ~ digital+)? }
 imaginary  = ${ "+" ~ numerical ~ "i" }
 constant   = ${ numerical ~ imaginary? }
 
 normal = { "normal" }
-ident_typ_kind = { ident? ~ (":" ~ typ)? ~ ("::" ~ kind)? }
+ident_typ_kind = { ident? ~ (":"? ~ typ) ~ ("::" ~ kind)? }
 typ_inf_kind = { typvar ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
+compare_chars = { "==" | "!=" | "<" | "<=" | ">" | ">=" }
+compare_op = { compare_chars }
+logical_chars = { "&&" | "||" }
+logical_op = { logical_chars }
 divmul_chars = { "/" | "*" | "%" }
 divmul_op = { divmul_chars }
 addsub_chars = { "+" | "-" }
@@ -44,10 +48,13 @@ atom_term  = { app_term }
 prefix_term = { prefix_op? ~ atom_term }
 divmul_term = { prefix_term ~ (divmul_op ~ prefix_term)* }
 addsub_term = { divmul_term ~ (addsub_op ~ divmul_term)* }
-infix_term = { addsub_term }
+compare_term = { addsub_term ~ (compare_op ~ addsub_term)* }
+logical_term = { compare_term ~ (logical_op ~ compare_term)* }
+infix_term = { logical_term }
 ascript_term = { infix_term ~ (":" ~ typ)? }
 as_term = { ascript_term ~ ("as" ~ typ)? }
 term = { as_term }
+assume = { term }
 
 ident_typ = { typname ~ ("<" ~ typ ~ ("," ~ typ)* ~ ">")? }
 any_typ = { "?" }
@@ -59,8 +66,7 @@ product_typ = { suffix_typ ~ ("*" ~ suffix_typ)* }
 ratio_typ = { product_typ ~ ("/" ~ product_typ)? }
 arrow_typ = { ratio_typ ~ ("->" ~ ratio_typ)* }
 and_typ    = { arrow_typ ~ ("+" ~ arrow_typ)* }
-or_typ    = { and_typ ~ ("|" ~ and_typ)* }
-typ       = { or_typ }
+typ       = { and_typ }
 
 kind      = { kindname ~ ("<" ~ kind? ~ ("," ~ kind)* ~ ">")? }
 
@@ -72,7 +78,11 @@ constructor_typedef = { typname? ~ ("{" ~ (key_typ ~ ("," ~ key_typ)*)? ~ "}")? 
 regex = { "/" ~ (!"/" ~ ANY)+ ~ "/" }
 typedef_branch = { regex | constructor_typedef }
 typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
-typ_stmt = { "type" ~ normal? ~ typname ~ ("<" ~ typ_inf_kind ~ ("," ~ typ_inf_kind)* ~ ">")? ~ (":" ~ typ)? ~ ("=" ~ typedef)? ~ ("::" ~ kind)? }
+
+typ_invariant = { ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ ("if" ~ "(" ~ assume ~ ")")? ~ "." ~ term }
+typ_stmt = { "type" ~ normal? ~ typname ~ ("<" ~ typ_inf_kind ~ ("," ~ typ_inf_kind)* ~ ">")? ~ (":" ~ typ)?
+                    ~ ("=" ~ typedef)? ~ ("::" ~ kind ~ ("+" ~ kind)*)?
+                    ~ ("where" ~ typ_invariant ~ ("and" ~ typ_invariant)*)? }
 
 inference = { typ ~ ("=>" ~ typ)? }
 forall_stmt = { "forall" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ inference ~ ("=" ~ term)? ~ ("::" ~ kind)?}

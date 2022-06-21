@@ -1,5 +1,5 @@
 //: Definition of prelude types and kinds
-type Boolean = True | False;
+type normal Boolean = True | False ::Boolean + Term; //dual kinded type
 type Number;   //Marker trait for numbers. Require declaration to prevent accidental shadowing.
 type Integer   : Number = /^[0-9][_0-9]*([eE][_0-9]+)?$/; //This is how subtyping relations are defined.
 type Real      : Number = /^[0-9][_.0-9]*([eE][-]?[_0-9]+)?$/;
@@ -170,3 +170,40 @@ let $"*"(x:X::Unit, y:Number::Term):X::Unit;    //mul constant
 let $"/"(x:X::Unit, y:Y::Unit):X/Y::Unit;       //div
 let $"/"(x:Number::Term, y:Y::Unit):()/Y::Unit; //div constant
 let $"/"(x:X::Unit, y:Number::Term):X::Unit;    //div constant
+
+//: Boolean Proof Objects
+type And<A:Boolean, B:Boolean>: Boolean ::Boolean;
+type Or<A:Boolean, B:Boolean>: Boolean ::Boolean;
+type Not<A:Boolean>: Boolean ::Boolean;
+
+forall. Not<True> => False ::Boolean;
+forall. Not<False> => True ::Boolean;
+forall. And<True,True> => True ::Boolean;
+forall :A::Boolean. And<False,A> => False ::Boolean;
+forall :A::Boolean. And<A,False> => False ::Boolean;
+forall. Or<False,False> => False ::Boolean;
+forall :A::Boolean. Or<True,A> => True ::Boolean;
+forall :A::Boolean. Or<A,True> => True ::Boolean;
+
+//: Boolean Math
+let not(x:X+Boolean): Boolean + Not<X>;
+let $"&&"(x:X+Boolean, y:Y+Boolean): Boolean + And<X,Y>;
+let $"||"(x:X+Boolean, y:Y+Boolean): Boolean + Or<X,Y>;
+
+/*
+//: Numerical Proof Objects
+type Negative<A:Number>;
+type Plus<A:Number, B:Number>;
+type Minus<A:Number, B:Number>;
+type Times<A:Number, B:Number>;
+type Divided<A:Number, B:Number>;
+type Modulo<A:Number, B:Number>;
+
+type Equals<A:Number, B:Number>: Boolean;
+type NotEquals<A:Number, B:Number>: Boolean;
+type GreaterThan<A:Number, B:Number>: Boolean;
+type LessThan<A:Number, B:Number>: Boolean;
+
+//: Compound Proof Objects
+type Prime:Integer where d:Prime, n:Integer if (n>1: True). (d%n != 0: True);
+*/

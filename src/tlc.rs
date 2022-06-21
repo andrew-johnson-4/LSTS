@@ -4,6 +4,8 @@ use pest::Parser;
 use pest::iterators::{Pair,Pairs};
 use pest::error::{ErrorVariant,InputLocation,LineColLocation};
 use regex::Regex;
+use crate::typ::Type;
+use crate::kind::Kind;
 
 #[derive(Parser)]
 #[grammar = "grammar_tlc.pest"]
@@ -13,21 +15,21 @@ pub struct TLC {
    pub rows: Vec<Row>,
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
-   pub regexes: Vec<(Typ,Regex)>,
-   pub constructors: Vec<(Typ,String,Vec<Typ>,Vec<(String,Typ)>)>,
-   pub type_is_normal: HashSet<Typ>,
+   pub regexes: Vec<(Type,Regex)>,
+   pub constructors: HashMap<String,(Type,Vec<Type>,Vec<(String,Type)>)>,
+   pub type_is_normal: HashSet<Type>,
    pub kind_is_normal: HashSet<Kind>,
    pub typedef_index: HashMap<String,usize>,
-   pub foralls_index: HashMap<Typ,Vec<usize>>,
-   pub foralls_rev_index: HashMap<Typ,Vec<usize>>,
+   pub foralls_index: HashMap<Type,Vec<usize>>,
+   pub foralls_rev_index: HashMap<Type,Vec<usize>>,
    pub term_kind: Kind,
-   pub nil_type: Typ,
-   pub bottom_type: Typ,
+   pub nil_type: Type,
+   pub bottom_type: Type,
 }
 
 pub struct Row {
    pub term: Term,
-   pub typ: Typ,
+   pub typ: Type,
    pub kind: Kind,
    pub span: Span,
 }
@@ -40,11 +42,6 @@ pub struct Span {
    pub linecol_start: (usize,usize),
    pub linecol_end: (usize,usize),
 }
-impl Span {
-   pub fn snippet(&self) -> String {
-      format!("")
-   }
-}
 
 pub struct Error {
    pub kind: String,
@@ -55,7 +52,7 @@ pub struct Error {
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "\n{}, expected {}, in {} --> {},{}\n{}\n", self.kind, self.rule, self.span.filename,
-               self.span.linecol_start.0, self.span.linecol_start.1, self.span.snippet())
+               self.span.linecol_start.0, self.span.linecol_start.1, self.snippet)
     }
 }
 
@@ -66,374 +63,26 @@ pub struct ScopeId {
 //does not implement Clone because scopes are uniquely identified by their id
 pub struct Scope {
    pub parent: Option<ScopeId>,
-   pub children: Vec<(String,Vec<(Typ,Kind)>,Typ)>,
-}
-
-#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
-pub enum Kind {
-   Nil,
-   Simple(String,Vec<Kind>),
-}
-impl std::fmt::Debug for Kind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-           Kind::Nil => write!(f, "Nil"),
-           Kind::Simple(k,ps) => {
-              if ps.len()==0 { write!(f, "{}", k) }
-              else { write!(f, "{}<{:?}>", k, ps.iter().map(|p|format!("{:?}",p)).collect::<Vec<String>>().join(",")) }
-           }
-        }
-    }
-}
-
-#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
-pub enum Typ {
-   Any,
-   Ident(String,Vec<Typ>),
-   Or(Vec<Typ>),
-   And(Vec<Typ>), //Bottom is the empty conjunctive
-   Arrow(Box<Typ>,Box<Typ>),
-   Tuple(Vec<Typ>),   //Tuple is order-sensitive, Nil is the empty tuple
-   Product(Vec<Typ>), //Product is order-insensitive
-   Ratio(Box<Typ>,Box<Typ>),
-}
-impl Typ {
-   fn project_ratio(&self) -> (Vec<Typ>,Vec<Typ>) {
-       match self {
-         Typ::Ratio(p,b) => {
-            let (mut pn,mut pd) = p.project_ratio();
-            let (mut bn,mut bd) = b.project_ratio();
-            pn.append(&mut bd);
-            pd.append(&mut bn);
-            (pn, pd)
-         },
-         Typ::Product(ts) => {
-            let mut tn = Vec::new();
-            let mut td = Vec::new();
-            for tc in ts.iter() {
-               let (mut tcn,mut tcd) = tc.project_ratio();
-               tn.append(&mut tcn);
-               td.append(&mut tcd);
-            }
-            (tn, td)
-         },
-         tt => (vec![tt.clone()], Vec::new())
-      }
-   }
-   fn mask(&self) -> Typ {
-      match self {
-         Typ::Any => Typ::Any,
-         Typ::Ident(tn,_ts) if tn.chars().all(char::is_uppercase) => Typ::Any,
-         Typ::Ident(tn,ts) => Typ::Ident(tn.clone(),ts.iter().map(|_|Typ::Any).collect::<Vec<Typ>>()),
-         Typ::Arrow(p,b) => Typ::Arrow(Box::new(p.mask()),Box::new(b.mask())),
-         Typ::Ratio(p,b) => Typ::Ratio(Box::new(p.mask()),Box::new(b.mask())),
-         Typ::Or(ts) => Typ::Or(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
-         Typ::And(ts) => Typ::And(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
-         Typ::Tuple(ts) => Typ::Tuple(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
-         Typ::Product(ts) => Typ::Product(ts.iter().map(|ct|ct.mask()).collect::<Vec<Typ>>()),
-      }
-   }
-   fn and(&self, other:&Typ) -> Typ {
-      match (self,other) {
-         (Typ::Any,r) => r.clone(),
-         (l,Typ::Any) => l.clone(),
-         (Typ::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => rt.clone(),
-         (lt,Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => lt.clone(),
-         (Typ::And(ls),Typ::And(rs)) => {
-            let mut ts = ls.clone();
-            ts.append(&mut rs.clone());
-            Typ::And(ts)
-         },
-         (Typ::And(ls),r) => {
-            let mut ts = ls.clone();
-            ts.push(r.clone());
-            Typ::And(ts)
-         }
-         (l,Typ::And(rs)) => {
-            let mut ts = rs.clone();
-            ts.push(l.clone());
-            Typ::And(ts)
-         },
-         (l,r) => {
-            Typ::And(vec![l.clone(),r.clone()])
-         }
-      }
-   }
-   fn expects(&self) -> Typ {
-      match self {
-         Typ::Arrow(p,_b) => *p.clone(),
-         _ => Typ::And(Vec::new()), //absurd
-      }
-   }
-   fn returns(&self) -> Typ {
-      match self {
-         Typ::Arrow(_p,b) => *b.clone(),
-         _ => Typ::And(Vec::new()), //absurd
-      }
-   }
-   fn vars(&self) -> Vec<String> {
-      match self {
-         Typ::Any => vec![],
-         Typ::Or(_ts) => vec![],
-         Typ::Ident(tn,ts) => {
-            let mut nv = vec![tn.clone()];
-            for tt in ts.iter() {
-               nv.append(&mut tt.vars());
-            }
-            nv
-         }
-         Typ::Arrow(p,b) => { let mut pv=p.vars(); pv.append(&mut b.vars()); pv },
-         Typ::Ratio(p,b) => { let mut pv=p.vars(); pv.append(&mut b.vars()); pv },
-         Typ::And(ts) => {
-            let mut nv = Vec::new();
-            for tt in ts.iter() {
-               nv.append(&mut tt.vars());
-            }
-            nv
-         }
-         Typ::Tuple(ts) => {
-            let mut nv = Vec::new();
-            for tt in ts.iter() {
-               nv.append(&mut tt.vars());
-            }
-            nv
-         }
-         Typ::Product(ts) => {
-            let mut nv = Vec::new();
-            for tt in ts.iter() {
-               nv.append(&mut tt.vars());
-            }
-            nv
-         }
-      }
-   }
-   fn simplify_ratio(&self) -> Typ {
-      //assume type has already been normalized
-      let (mut num, den) = self.project_ratio();
-      let mut rden = Vec::new();
-      for d in den.into_iter() {
-         if let Some(ni) = num.iter().position(|n|n==&d) {
-            num.remove(ni);
-         } else {
-            rden.push(d);
-         }
-      }
-      let n = if num.len()==0 {
-         Typ::Tuple(Vec::new())
-      } else if num.len()==1 {
-         num[0].clone()
-      } else {
-         Typ::Product(num)
-      };
-      if rden.len()==0 {
-         n
-      } else if rden.len()==1 {
-         Typ::Ratio(Box::new(n),Box::new(rden[0].clone()))
-      } else {
-         let d = Typ::Product(rden);
-         Typ::Ratio(Box::new(n),Box::new(d))
-      }
-   }
-   fn normalize(&self) -> Typ {
-      match self {
-         Typ::Or(ts) => {
-            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
-            ts.sort(); ts.dedup();
-            Typ::Or(ts)
-         },
-         Typ::And(ts) => {
-            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
-            ts.sort(); ts.dedup();
-            if ts.len()==1 {
-               ts[0].clone()
-            } else {
-               Typ::And(ts)
-            }
-         },
-         Typ::Product(ts) => {
-            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
-            ts.sort(); ts.dedup();
-            Typ::Product(ts).simplify_ratio()
-         },
-         Typ::Tuple(ts) => {
-            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
-            ts.sort(); ts.dedup();
-            Typ::Tuple(ts)
-         },
-         Typ::Ident(tn,ts) => {
-            let mut ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Typ>>();
-            ts.sort(); ts.dedup();
-            Typ::Ident(tn.clone(),ts)
-         },
-         Typ::Arrow(p,b) => {
-            Typ::Arrow(Box::new(p.normalize()), Box::new(b.normalize()))
-         },
-         Typ::Ratio(_p,_b) => self.simplify_ratio(),
-         tt => tt.clone(),
-      }
-   }
-   fn substitute(&self, subs:&Vec<(Typ,Typ)>) -> Typ {
-      for (lt,rt) in subs.iter() {
-         if self==lt { return rt.clone(); }
-      }
-      match self {
-         Typ::Or(ts) => Typ::Or(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
-         Typ::And(ts) => Typ::And(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
-         Typ::Tuple(ts) => Typ::Tuple(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
-         Typ::Product(ts) => Typ::Product(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Typ>>()),
-         Typ::Arrow(p,b) => Typ::Arrow(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
-         Typ::Ratio(p,b) => Typ::Ratio(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
-         _ => self.clone(),
-      }
-   }
-   fn is_concrete(&self) -> bool {
-      match self {
-         Typ::Any => false,
-         Typ::Or(_ts) => false,
-         Typ::Arrow(p,b) => p.is_concrete() && b.is_concrete(),
-         Typ::Ratio(p,b) => p.is_concrete() && b.is_concrete(),
-         Typ::Ident(_tn,ts) => ts.iter().all(|tc| tc.is_concrete()),
-         Typ::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom type is also concrete
-         Typ::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
-         Typ::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
-      }
-   }
-}
-impl std::fmt::Debug for Typ {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-           Typ::Any => write!(f, "?"),
-           Typ::Ident(t,ts) => {
-              if ts.len()==0 { write!(f, "{}", t) }
-              else { write!(f, "{}<{}>", t, ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ) }
-           }
-           Typ::Or(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("|") ),
-           Typ::And(ts) => write!(f, "[{}]", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("+") ),
-           Typ::Tuple(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ),
-           Typ::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
-           Typ::Arrow(p,b) => write!(f, "({:?})=>({:?})", p, b),
-           Typ::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
-        }
-    }
-}
-fn unify_impl(kinds: &Vec<(Typ,Kind)>, subs: &mut Vec<(Typ,Typ)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,()> {
-   //lt => rt
-   let mut lk = Kind::Nil;
-   let mut rk = Kind::Nil;
-   for (ot,ok) in kinds.iter() {
-      if ot==lt { lk = ok.clone(); }
-      if ot==rt { rk = ok.clone(); }
-   }
-   if lk!=rk && lk!=Kind::Nil && rk!=Kind::Nil { //kinding only comes into play during conflict
-      return Err(());
-   }
-   match (lt,rt) {
-      //wildcard match
-      (Typ::Any,r) => Ok(r.clone()),
-      (l,Typ::Any) => Ok(l.clone()),
-      (Typ::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
-         for (sl,sr) in subs.clone().iter() {
-            if lt==sl { return unify_impl(kinds,subs,sr,rt,span); }
-         }
-         subs.push((lt.clone(),rt.clone()));
-         Ok(rt.clone())
-      },
-      (lt,Typ::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
-         for (sl,sr) in subs.clone().iter() {
-            if rt==sl { return unify_impl(kinds,subs,lt,sr,span); }
-         }
-         subs.push((rt.clone(),lt.clone()));
-         Ok(lt.clone())
-      },
-
-      //conjunctive normal form takes precedence
-      (Typ::And(lts),Typ::And(rts)) => {
-         //lt => rt
-         let mut lts = lts.clone();
-         for rt in rts.iter() {
-            match unify_impl(kinds,subs,lt,rt,span)? {
-               Typ::And(mut tts) => { lts.append(&mut tts); },
-               tt => { lts.push(tt); },
-            }
-         }
-         Ok(Typ::And(lts))
-      },
-      (Typ::And(lts),rt) => {
-         let mut lts = lts.clone();
-         let mut accept = false;
-         for ltt in lts.clone().iter() {
-            if let Ok(nt) = unify_impl(kinds,subs,ltt,rt,span) {
-               accept = true;
-               match nt {
-                  Typ::And(mut tts) => { lts.append(&mut tts); },
-                  tt => { lts.push(tt); },
-               }
-            }
-         }
-         if accept {
-            if lts.len()==1 { Ok(lts[0].clone()) }
-            else { Ok(Typ::And(lts)) }
-         } else {
-            Err(())
-         }
-      },
-
-      //ratio types have next precedence
-      (Typ::Ratio(pl,bl),Typ::Ratio(pr,br)) => {
-         let pt = unify_impl(kinds,subs,pl,pr,span)?;
-         let bt = unify_impl(kinds,subs,bl,br,span)?;
-         Ok(Typ::Ratio(Box::new(pt),Box::new(bt)))
-      },
-
-      //everything else is a mixed bag
-      (Typ::Ident(lv,lps),Typ::Ident(rv,rps))
-      if lv==rv && lps.len()==rps.len() => {
-         let mut tps = Vec::new();
-         for (lp,rp) in std::iter::zip(lps,rps) {
-            tps.push(unify_impl(kinds,subs,lp,rp,span)?);
-         }
-         Ok(Typ::Ident(lv.clone(),tps))
-      }
-      (Typ::Arrow(pl,bl),Typ::Arrow(pr,br)) => {
-         let pt = unify_impl(kinds,subs,pl,pr,span)?;
-         let bt = unify_impl(kinds,subs,bl,br,span)?;
-         Ok(Typ::Arrow(Box::new(pt),Box::new(bt)))
-      },
-      (Typ::Product(la),Typ::Product(ra)) if la.len()==ra.len() => {
-         let mut ts = Vec::new();
-         for (lt,rt) in std::iter::zip(la,ra) {
-            ts.push(unify_impl(kinds,subs,lt,rt,span)?);
-         }
-         Ok(Typ::Product(ts))
-      },
-      (Typ::Tuple(la),Typ::Tuple(ra)) if la.len()==ra.len() => {
-         let mut ts = Vec::new();
-         for (lt,rt) in std::iter::zip(la,ra) {
-            ts.push(unify_impl(kinds,subs,lt,rt,span)?);
-         }
-         Ok(Typ::Tuple(ts))
-      },
-      _ => Err(()),
-   }
+   pub children: Vec<(String,Vec<(Type,Kind)>,Type)>,
 }
 
 #[derive(Clone)]
 pub enum Inference {
-   Typ(Typ),
-   Imply(Typ,Typ),
+   Type(Type),
+   Imply(Type,Type),
 }
 impl std::fmt::Debug for Inference {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
       match self {
-        Inference::Typ(t) => write!(f, "{:?}", t),
+        Inference::Type(t) => write!(f, "{:?}", t),
         Inference::Imply(a,b) => write!(f, "{:?} => {:?}", a, b),
       }
    }
 }
 impl Inference {
-   pub fn types(&self) -> Vec<Typ> {
+   pub fn types(&self) -> Vec<Type> {
       match self {
-         Inference::Typ(t) => vec![t.clone()],
+         Inference::Type(t) => vec![t.clone()],
          Inference::Imply(a,b) => vec![a.clone(),b.clone()],
       }
    }
@@ -442,19 +91,26 @@ impl Inference {
 #[derive(Clone)]
 pub enum Typedef {
    Regex(String),
-   Constructor(String,Vec<(String,Typ)>),
+   Constructor(String,Vec<(String,Type)>),
+}
+
+#[derive(Clone)]
+pub struct Invariant {
+   pub itks: Vec<(Option<String>,Option<Type>,Kind)>,
+   pub assm: Option<TermId>,
+   pub prop: TermId,
 }
 
 #[derive(Clone)]
 pub enum TypeRule {
-   Typedef(String,bool,Vec<(String,Option<Typ>,Option<Kind>)>,Option<Typ>,Vec<Typedef>,Option<Kind>,Span),
+   Typedef(String,bool,Vec<(String,Option<Type>,Kind)>,Option<Type>,Vec<Typedef>,Kind,Vec<Invariant>,Span),
 
-   Forall(Vec<(Option<String>,Option<Typ>,Option<Kind>)>, Inference, Option<TermId>, Option<Kind>,Span),
+   Forall(Vec<(Option<String>,Option<Type>,Kind)>, Inference, Option<TermId>, Kind, Span),
 }
 impl TypeRule {
    pub fn span(&self) -> Span {
       match self {
-         TypeRule::Typedef(_,_,_,_,_,_,sp) => sp.clone(),
+         TypeRule::Typedef(_,_,_,_,_,_,_,sp) => sp.clone(),
          TypeRule::Forall(_,_,_,_,sp) => sp.clone(),
       }
    }
@@ -462,13 +118,13 @@ impl TypeRule {
 impl std::fmt::Debug for TypeRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           TypeRule::Typedef(tn,_norm,itks,implies,_td,tk,_) => write!(f, "{}{}{}{}{}::{:?}",
+           TypeRule::Typedef(tn,_norm,itks,implies,_td,tk,_props,_) => write!(f, "{}{}{}{}{}::{:?}",
               tn,
               if itks.len()==0 { "" } else { "<" },
               itks.iter().map(|(t,i,k)| format!("{:?}:{:?}::{:?}",
                     t.clone(),
-                    i.clone().unwrap_or(Typ::Any),
-                    k.clone().unwrap_or(Kind::Nil),
+                    i.clone().unwrap_or(Type::Any),
+                    k
               )).collect::<Vec<String>>().join(","),
               if itks.len()==0 { "" } else { ">" },
               if let Some(ti) = implies { format!(":{:?}",ti) } else { format!("") },
@@ -477,11 +133,11 @@ impl std::fmt::Debug for TypeRule {
            TypeRule::Forall(itks,inf,_t,tk,_) => write!(f, "forall {}. {:?} :: {:?}", 
               itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
                     i.clone().unwrap_or("_".to_string()),
-                    t.clone().unwrap_or(Typ::And(Vec::new())),
-                    k.clone().unwrap_or(Kind::Nil),
+                    t.clone().unwrap_or(Type::And(Vec::new())),
+                    k,
               )).collect::<Vec<String>>().join(","),
               inf,
-              tk.clone().unwrap_or(Kind::Nil),
+              tk,
            ),
         }
     }
@@ -497,11 +153,11 @@ pub enum Term {
    Ident(String),
    Value(String),
    App(TermId,TermId),
-   Let(ScopeId,String,Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>>,Option<TermId>,Typ,Kind),
+   Let(ScopeId,String,Vec<Vec<(Option<String>,Option<Type>,Kind)>>,Option<TermId>,Type,Kind),
    Tuple(Vec<TermId>),
    Block(ScopeId,Vec<TermId>),
-   Ascript(TermId,Typ),
-   As(TermId,Typ),
+   Ascript(TermId,Type),
+   As(TermId,Type),
    Constructor(String,Vec<(String,TermId)>),
 }
 
@@ -511,7 +167,7 @@ impl TLC {
          //the first row, index 0, is nullary
          rows: vec![Row {
             term: Term::Tuple(Vec::new()),
-            typ: Typ::Tuple(Vec::new()), //typeof(NULL) is () not []
+            typ: Type::Tuple(Vec::new()), //typeof(NULL) is () not []
             kind: Kind::Nil,
             span: Span {
                filename:"".to_string(),
@@ -524,15 +180,15 @@ impl TLC {
          rules: Vec::new(),
          scopes: Vec::new(),
          regexes: Vec::new(),
-         constructors: Vec::new(),
+         constructors: HashMap::new(),
          foralls_index: HashMap::new(),
          foralls_rev_index: HashMap::new(),
          typedef_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
          term_kind: Kind::Simple("Term".to_string(),Vec::new()),
-         nil_type: Typ::Tuple(Vec::new()),
-         bottom_type: Typ::And(Vec::new()),
+         nil_type: Type::Tuple(Vec::new()),
+         bottom_type: Type::And(Vec::new()),
       }
    }
    pub fn print_scope(&self, s: ScopeId) -> String {
@@ -563,8 +219,8 @@ impl TLC {
          },
       }
    }
-   pub fn push_forall(&mut self, quants: Vec<(Option<String>,Option<Typ>,Option<Kind>)>,
-                             inference: Inference, term: Option<TermId>, kind: Option<Kind>, span: Span) {
+   pub fn push_forall(&mut self, quants: Vec<(Option<String>,Option<Type>,Kind)>,
+                             inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
       let fi = self.rules.len();
       self.rules.push(TypeRule::Forall(
          quants, inference.clone(), term, kind, span
@@ -572,7 +228,7 @@ impl TLC {
       match &inference {
          Inference::Imply(lt,rt) => {
             let lmt = lt.mask();
-            if lmt == Typ::Any {
+            if lmt == Type::Any {
             } else if let Some(fs) = self.foralls_index.get_mut(&lmt) {
                fs.push(fi);
             } else {
@@ -580,7 +236,7 @@ impl TLC {
             }
 
             let rmt = rt.mask();
-            if rmt == Typ::Any {
+            if rmt == Type::Any {
             } else if let Some(fs) = self.foralls_rev_index.get_mut(&rmt) {
                fs.push(fi);
             } else {
@@ -589,30 +245,36 @@ impl TLC {
          }, _ => ()
       }
    }
-   pub fn query_foralls(&self, tt: &Typ) -> Vec<usize> {
+   pub fn query_foralls(&self, tt: &Type) -> Vec<usize> {
       if let Some(fs) = self.foralls_index.get(&tt.mask()) {
          fs.clone()
       } else { Vec::new() }
    }
-   pub fn project_kinded(&self, k: &Kind, t: &Typ) -> Typ {
+   pub fn project_kinded(&self, k: &Kind, t: &Type) -> Type {
       let ts = match t {
-         Typ::And(ts) => ts.clone(),
+         Type::And(ts) => ts.clone(),
          tt => vec![tt.clone()],
       };
+      let mut ats = Vec::new();
       for t in ts.iter() {
-         if k==&self.kindof(t) {
-            return t.clone();
+         if self.kindof(t).has(k) {
+            ats.push(t.clone());
          }
       }
-      self.bottom_type.clone()
+      if ats.len()==1 {
+         ats[0].clone()
+      } else {
+         Type::And(ats)
+      }
    }
-   pub fn remove_kinded(&self, k: &Kind, t: &Typ) -> Typ {
+   pub fn remove_kinded(&self, k: &Kind, t: &Type) -> Type {
       let ts = match t {
-         Typ::And(ts) => ts.clone(),
+         Type::And(ts) => ts.clone(),
          tt => vec![tt.clone()],
       };
-      let ts = ts.into_iter().filter(|ct|&self.kindof(&ct)!=k).collect::<Vec<Typ>>();
-      Typ::And(ts)
+      //remove T :: K
+      let ts = ts.into_iter().filter(|ct|!self.kindof(ct).has(k)).collect::<Vec<Type>>();
+      Type::And(ts)
    }
 
    pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
@@ -634,44 +296,40 @@ impl TLC {
    pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
       let ast = self.parse_doc(globals, docname, src)?;
       self.compile_rules(docname)?;
-      self.typecheck(globals, ast, None)?;
-      self.sanitycheck()?;
+      self.typeck(globals, ast, None)?;
+      self.sanityck()?;
       Ok(ast)
    }
-   pub fn kind_of(&self, tt: &Typ) -> Kind {
+   pub fn kind_of(&self, tt: &Type) -> Kind {
       let tn = match tt {
-         Typ::Ident(cn,_cts) => cn.clone(),
+         Type::Ident(cn,_cts) => cn.clone(),
          _ => "".to_string(),
       };
       if let Some(ti) = self.typedef_index.get(&tn) {
-      if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,k,_) = &self.rules[*ti] {
-         return k.clone().unwrap_or(self.term_kind.clone());
+      if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,k,_props,_) = &self.rules[*ti] {
+         return k.clone();
       }}
       Kind::Nil //undefined types have Nil kind
    }
    pub fn compile_rules(&mut self, _docname:&str) -> Result<(),Error> {
 
       //check logical consistency of foralls
-      for rule in self.rules.iter() { match rule {
+      for rule in self.rules.clone().iter() { match rule {
          TypeRule::Forall(qs,inf,_t,k,sp) => {
             //check if domain is explicit
-            if k.clone().unwrap_or(Kind::Nil) != Kind::Nil { continue; }
+            if k != &Kind::Nil { continue; }
 
             //otherwise check that all variables share a domain
-            let mut domains: Vec<(Typ,Kind)> = Vec::new();
+            let mut domains: Vec<(Type,Kind)> = Vec::new();
             for (_i,t,k) in qs.iter() {
-               match (t,k) {
-                  (Some(tt),Some(kk)) => domains.push((tt.clone(),kk.clone())),
-                  (Some(tt),None) => domains.push((tt.clone(),self.kind_of(tt))),
+               match t {
+                  Some(tt) => domains.push((tt.clone(),k.clone())),
                   _ => domains.push((self.bottom_type.clone(),Kind::Nil))
                }
             }
             for it in inf.types().iter() {
                if !qs.iter().any(|(_i,t,_k)| &Some(it.clone())==t) {
-                  let tk = qs.iter().fold(None, |lk,(_i,t,tk)| {
-                     if &Some(it.clone())==t {tk.clone()} else {lk}
-                  });
-                  domains.push((it.clone(),tk.clone().unwrap_or(self.kind_of(it))));
+                  domains.push((it.clone(),self.kindof(it)));
                }
             }
             domains.sort();
@@ -686,23 +344,29 @@ impl TLC {
                      domains.iter().map(|(_t,k)|format!("{:?}",k)).collect::<Vec<String>>().join(",")
                   ),
                   span: sp.clone(),
-                  snippet: sp.snippet(),
+                  snippet: format!("{:?}", rule),
                })
             }
          },
-         TypeRule::Typedef(tn,_norm,_itks,_implies,tds,_tk,_span) => {
+         TypeRule::Typedef(tn,_norm,_itks,_implies,tds,_tks,props,_span) => {
             for td in tds.iter() { match td {
                Typedef::Regex(pat) => {
                   if let Ok(r) = Regex::new(&pat[1..pat.len()-1]) {
-                     self.regexes.push((Typ::Ident(tn.clone(),Vec::new()),r));
+                     self.regexes.push((Type::Ident(tn.clone(),Vec::new()),r));
                   } else {
                      panic!("typedef regex rejected: {}", pat);
                   }
                },
                Typedef::Constructor(cname,kts) => {
-                  self.constructors.push((Typ::Ident(tn.clone(),Vec::new()),cname.clone(),Vec::new(),kts.clone()));
+                  self.constructors.insert(cname.clone(), (Type::Ident(tn.clone(),Vec::new()),Vec::new(),kts.clone()));
                }
             }}
+            for p in props.iter() {
+               if let Some(assm) = p.assm {
+                  self.untyped(assm);
+               }
+               self.untyped(p.prop);
+            }
          },
       }}
 
@@ -768,7 +432,7 @@ impl TLC {
       let index = self.rows.len();
       self.rows.push(Row {
          term: term,
-         typ: Typ::Any,
+         typ: Type::Any,
          kind: self.term_kind.clone(),
          span: span.clone(),
       });
@@ -811,6 +475,7 @@ impl TLC {
          //passthrough rules
          Rule::stmt => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span),
          Rule::term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [term]"),span),
+         Rule::assume => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [assume]"),span),
          Rule::value_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [value_term]"),span),
          Rule::atom_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_term]"),span),
          Rule::prefix_term => {
@@ -844,7 +509,7 @@ impl TLC {
          Rule::let_stmt => {
             let mut ps = p.into_inner();
             let ident  = self.into_ident(ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat());
-            let mut pars: Vec<Vec<(Option<String>,Option<Typ>,Option<Kind>)>> = Vec::new();
+            let mut pars: Vec<Vec<(Option<String>,Option<Type>,Kind)>> = Vec::new();
             let mut rt = self.bottom_type.clone();
             let mut rk = Kind::Nil;
             let mut t  = None;
@@ -854,18 +519,18 @@ impl TLC {
                   for itkse in e.into_inner() {
                      let mut ident = None;
                      let mut typ   = None;
-                     let mut kind  = None;
+                     let mut kind  = Kind::Nil;
                      for itk in itkse.into_inner() { match itk.as_rule() {
                         Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                        Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)?); },
-                        Rule::kind   => { kind = Some(self.unparse_ast_kind(itk)?); },
+                        Rule::typ   => { typ   = Some(self.unparse_ast_type(itk)?); },
+                        Rule::kind   => { kind = self.unparse_ast_kind(itk)?; },
                         rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                      }}
                      itks.push((ident,typ,kind));
                   }
                   pars.push(itks);
                },
-               Rule::typ => { rt = self.unparse_ast_typ(e)?; },
+               Rule::typ => { rt = self.unparse_ast_type(e)?; },
                Rule::kind => { rk = self.unparse_ast_kind(e)?; },
                Rule::term => { t = Some(self.unparse_ast(scope,fp,e,span)?); },
                rule => panic!("unexpected let_stmt rule: {:?}", rule),
@@ -874,7 +539,7 @@ impl TLC {
             for itks in pars.iter() {
                for (i,t,k) in itks.iter() {
                   let t = t.clone().unwrap_or(self.bottom_type.clone());
-                  let ks = if let Some(k)=k { vec![(t.clone(),k.clone())] } else { Vec::new() };
+                  let ks = vec![(t.clone(),k.clone())];
                   children.push((i.clone().unwrap_or("_".to_string()), ks, t.clone()));
                }
             }
@@ -884,15 +549,15 @@ impl TLC {
                let mut ps = Vec::new();
                for (_i,t,k) in itks.iter() {
                   let t = t.clone().unwrap_or(self.bottom_type.clone());
-                  if let Some(k)=k { fkts.push((t.clone(),k.clone())); };
+                  fkts.push((t.clone(),k.clone()));
                   ps.push(t.clone());
                }
                let pt = if ps.len()==1 {
                   ps[0].clone()
                } else {
-                  Typ::Tuple(ps.clone())
+                  Type::Tuple(ps.clone())
                };
-               ft = Typ::Arrow(Box::new(pt),Box::new(ft));
+               ft = Type::Arrow(Box::new(pt),Box::new(ft));
             }
             self.scopes[scope.id].children.push((ident.clone(), fkts, ft));
             let inner_scope = self.push_scope(Scope {
@@ -908,7 +573,7 @@ impl TLC {
                None => self.unparse_ast(scope,fp,e,span),
                Some(tt) => Ok({let t = Term::Ascript(
                   self.unparse_ast(scope,fp,e,span)?, //term
-                  self.unparse_ast_typ(tt)? //type
+                  self.unparse_ast_type(tt)? //type
                ); self.push_term(t, &span)}),
             }
          },
@@ -919,7 +584,7 @@ impl TLC {
                None => self.unparse_ast(scope,fp,e,span),
                Some(tt) => Ok({let t = Term::As(
                   self.unparse_ast(scope,fp,e,span)?, //term
-                  self.unparse_ast_typ(tt)? //type
+                  self.unparse_ast_type(tt)? //type
                ); self.push_term(t, &span)}),
             }
          },
@@ -969,6 +634,32 @@ impl TLC {
             }
             Ok(e)
          },
+         Rule::compare_term => {
+            let mut es = p.into_inner();
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [compare_term.1]"),span)?;
+            while let Some(op) = es.next() {
+               let op = op.into_inner().concat();
+               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [compare_term.2]"),span)?;
+               e = {let t = Term::App(
+                  self.push_term(Term::Ident(op),span),
+                  self.push_term(Term::Tuple(vec![e,d]),span),
+               ); self.push_term(t,&span)};
+            }
+            Ok(e)
+         },
+         Rule::logical_term => {
+            let mut es = p.into_inner();
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [logical_term.1]"),span)?;
+            while let Some(op) = es.next() {
+               let op = op.into_inner().concat();
+               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [logical_term.2]"),span)?;
+               e = {let t = Term::App(
+                  self.push_term(Term::Ident(op),span),
+                  self.push_term(Term::Tuple(vec![e,d]),span),
+               ); self.push_term(t,&span)};
+            }
+            Ok(e)
+         },
          Rule::tuple_term => {
             let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e,span).expect("TLC Grammar Error in rule [tuple_term]"))
                       .collect::<Vec<TermId>>();
@@ -986,25 +677,27 @@ impl TLC {
             let mut implies = None;
             let mut tiks = Vec::new();
             let mut typedef = Vec::new();
-            let mut kind = None;
+            let mut kinds = Vec::new();
+            let mut props = Vec::new();
+            let mut constructors = Vec::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::typname => { t=e.into_inner().concat(); },
                Rule::normal => { normal=true; },
                Rule::typ_inf_kind => {
                   let mut typ = "".to_string();
                   let mut inf = None;
-                  let mut kind = None;
+                  let mut kind = Kind::Nil;
                   for tik in e.into_inner() { match tik.as_rule() {
                      Rule::typvar => { typ = tik.into_inner().concat(); },
-                     Rule::typ   => { inf   = Some(self.unparse_ast_typ(tik)?); },
-                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(tik)?); },
+                     Rule::typ   => { inf   = Some(self.unparse_ast_type(tik)?); },
+                     Rule::kind   => { kind   = self.unparse_ast_kind(tik)?; },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                   tiks.push((typ,inf,kind));
                },
-               Rule::typ => { implies = Some(self.unparse_ast_typ(e)?); },
+               Rule::typ => { implies = Some(self.unparse_ast_type(e)?); },
                Rule::typedef => {
-                  let struct_typ = Typ::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Typ::Ident(t.clone(),Vec::new())).collect::<Vec<Typ>>());
+                  let struct_typ = Type::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Type::Ident(t.clone(),Vec::new())).collect::<Vec<Type>>());
                   for tdb in e.into_inner() {
                      let mut tbs = tdb.into_inner();
                      let tbl = tbs.concat();
@@ -1021,39 +714,82 @@ impl TLC {
                               Rule::key_typ => {
                                  let mut kts = tc.into_inner();
                                  let ki = kts.next().expect("TLC Grammar Error in rule [typedef.3]").into_inner().concat();
-                                 let kt = self.unparse_ast_typ(kts.next().expect("TLC Grammar Error in rule [typedef.4]"))?;
+                                 let kt = self.unparse_ast_type(kts.next().expect("TLC Grammar Error in rule [typedef.4]"))?;
                                  self.scopes[scope.id].children.push((
                                     format!(".{}",ki.clone()),
                                     Vec::new(),
-                                    Typ::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
+                                    Type::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
                                  ));
                                  tcrows.push((ki,kt));
                               },
                               rule => panic!("unexpected constructor_typedef rule: {:?}", rule)
                            }}
+                           constructors.push(tcname.clone());
                            typedef.push( Typedef::Constructor(tcname,tcrows) );
                         },
                         rule => panic!("unexpected typedef rule: {:?}", rule)
                      }
                   }
                },
-               Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); },
+               Rule::kind => { kinds.push(self.unparse_ast_kind(e)?); },
+               Rule::typ_invariant => {
+                  let mut itks = Vec::new();
+                  let mut assm = None;
+                  let mut prop = TermId { id:0 };
+                  for tip in e.into_inner() { match tip.as_rule() {
+                     Rule::ident_typ_kind => {
+                        let mut idn = None;
+                        let mut inf = None;
+                        let mut kind = Kind::Nil;
+                        for itk in tip.into_inner() { match itk.as_rule() {
+                           Rule::ident => { idn = Some(itk.into_inner().concat()); },
+                           Rule::typ   => { inf   = Some(self.unparse_ast_type(itk)?); },
+                           Rule::kind   => { kind   = self.unparse_ast_kind(itk)?; },
+                           rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
+                        }}
+                        itks.push((idn,inf,kind));
+                     },
+                     Rule::assume => { assm = Some(self.unparse_ast(scope,fp,tip,span)?); }
+                     Rule::term => { prop = self.unparse_ast(scope,fp,tip,span)?; }
+                     rule => panic!("unexpected typ_invariant rule: {:?}", rule)
+                  }}
+                  props.push(Invariant {
+                     itks: itks,
+                     assm: assm,
+                     prop: prop,
+                  });
+               },
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
+            let kinds = if kinds.len()==0 { Kind::Nil
+            } else if kinds.len()==1 { kinds[0].clone()
+            } else { Kind::And(kinds) };
             if normal {
-               self.type_is_normal.insert(Typ::Ident(t.clone(),Vec::new()));
-               if let Some(ref kind) = kind {
-                  self.kind_is_normal.insert(kind.clone());
+               if constructors.len()==0 {
+                  //constructors are preferred normal forms
+                  self.type_is_normal.insert(Type::Ident(t.clone(),Vec::new()));
+               }
+               for k in kinds.flatten().iter() {
+                  if k == &self.term_kind { continue; } //Term is never normal
+                  self.kind_is_normal.insert(k.clone());
                }
             }
             self.typedef_index.insert(t.clone(), self.rules.len());
+            for c in constructors.iter() {
+               if normal {
+                  self.type_is_normal.insert(Type::Ident(c.clone(),Vec::new()));
+               }
+               if &t==c { continue; } //constructor has same name as type
+               self.typedef_index.insert(c.clone(), self.rules.len());
+            }
             self.rules.push(TypeRule::Typedef(
                t,
                normal,
                tiks,
                implies,
                typedef,
-               kind,
+               kinds,
+               props,
                span.clone()
             ));
             Ok(TermId { id:0 })
@@ -1072,26 +808,26 @@ impl TLC {
          },
          
          Rule::forall_stmt => {
-            let mut quants: Vec<(Option<String>,Option<Typ>,Option<Kind>)> = Vec::new();
+            let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
             let mut inference  = None;
             let mut term = None;
-            let mut kind = None;
+            let mut kind = self.term_kind.clone();
             for e in p.into_inner() { match e.as_rule() {
                Rule::ident_typ_kind => {
                   let mut ident = None;
                   let mut typ = None;
-                  let mut kind = None;
+                  let mut kind = Kind::Nil;
                   for itk in e.into_inner() { match itk.as_rule() {
                      Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                     Rule::typ   => { typ   = Some(self.unparse_ast_typ(itk)?); },
-                     Rule::kind   => { kind   = Some(self.unparse_ast_kind(itk)?); },
+                     Rule::typ   => { typ   = Some(self.unparse_ast_type(itk)?); },
+                     Rule::kind   => { kind   = self.unparse_ast_kind(itk)?; },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                   quants.push((ident, typ, kind));
                },
                Rule::inference => { inference = Some(self.unparse_ast_inference(e)?); }
                Rule::term => { term = Some(self.unparse_ast(scope,fp,e,span)?); }
-               Rule::kind => { kind = Some(self.unparse_ast_kind(e)?); }
+               Rule::kind => { kind = self.unparse_ast_kind(e)?; }
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
             self.push_forall(
@@ -1115,7 +851,7 @@ impl TLC {
                  "".to_string(),
                  vec![quants.clone()],
                  Some(t),
-                 Typ::Any,
+                 Type::Any,
                  self.term_kind.clone(),
                ),&span))
             } else {
@@ -1131,94 +867,85 @@ impl TLC {
       let mut b = None;
       for e in p.into_inner() { match e.as_rule() {
          Rule::typ => {
-            if a.is_none() { a = Some(self.unparse_ast_typ(e)?); }
-            else { b = Some(self.unparse_ast_typ(e)?); }
+            if a.is_none() { a = Some(self.unparse_ast_type(e)?); }
+            else { b = Some(self.unparse_ast_type(e)?); }
          },
          rule => panic!("unexpected inference rule: {:?}", rule)
       }}
       if a.is_none() { panic!("TLC Grammar Error in rule [inference]") }
-      else if b.is_none() { Ok(Inference::Typ(a.unwrap())) }
+      else if b.is_none() { Ok(Inference::Type(a.unwrap())) }
       else { Ok(Inference::Imply(a.unwrap(), b.unwrap())) }
    }
-   pub fn unparse_ast_typ(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Typ,Error> {
+   pub fn unparse_ast_type(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Type,Error> {
       match p.as_rule() {
          Rule::typname => {
             let name = p.into_inner().concat();
-            Ok(Typ::Ident(name,Vec::new()))
+            Ok(Type::Ident(name,Vec::new()))
          },
-         Rule::typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
+         Rule::typ => self.unparse_ast_type(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
          Rule::ident_typ => {
             let mut ps = p.into_inner();
             let tn = ps.next().expect("TLC Grammar Error in rule [ident_typ.1]").into_inner().concat();
-            let tps = ps.map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Typ>>();
-            Ok(Typ::Ident(tn,tps))
+            let tps = ps.map(|e|self.unparse_ast_type(e).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Type>>();
+            Ok(Type::Ident(tn,tps))
          },
-         Rule::atom_typ => self.unparse_ast_typ(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
-         Rule::any_typ => Ok(Typ::Any),
+         Rule::atom_typ => self.unparse_ast_type(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
+         Rule::any_typ => Ok(Type::Any),
          Rule::paren_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [paren_typ]"))
-                      .collect::<Vec<Typ>>();
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(e).expect("TLC Grammar Error in rule [paren_typ]"))
+                      .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
             } else {
-               Ok(Typ::Tuple(ts))
+               Ok(Type::Tuple(ts))
             }
          },
          Rule::arrow_typ => {
             let mut ts = p.into_inner();
-            let mut t = self.unparse_ast_typ(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
+            let mut t = self.unparse_ast_type(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
             for tr in ts {
-               t = Typ::Arrow(
+               t = Type::Arrow(
                   Box::new(t),
-                  Box::new(self.unparse_ast_typ(tr)?)
+                  Box::new(self.unparse_ast_type(tr)?)
                );
             }
             Ok(t)
          },
          Rule::suffix_typ => {
             let mut ts = p.into_inner();
-            let t = self.unparse_ast_typ(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
+            let t = self.unparse_ast_type(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
             //for t in ts {
                //TODO parameterized types and bracketed types
             //}
             Ok(t)
          },
          Rule::ratio_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [ratio_typ.1]"))
-                      .collect::<Vec<Typ>>();
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(e).expect("TLC Grammar Error in rule [ratio_typ.1]"))
+                      .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
             } else if ts.len()==2 {
-               Ok(Typ::Ratio(Box::new(ts[0].clone()),Box::new(ts[1].clone())))
+               Ok(Type::Ratio(Box::new(ts[0].clone()),Box::new(ts[1].clone())))
             } else {
                panic!("TLC Grammar Error in rule [ratio_typ.2]")
             }
          },
          Rule::product_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [or_typ]"))
-                      .collect::<Vec<Typ>>();
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(e).expect("TLC Grammar Error in rule [or_typ]"))
+                      .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
             } else {
-               Ok(Typ::Product(ts))
-            }
-         },
-         Rule::or_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [or_typ]"))
-                      .collect::<Vec<Typ>>();
-            if ts.len()==1 {
-               Ok(ts[0].clone())
-            } else {
-               Ok(Typ::Or(ts))
+               Ok(Type::Product(ts))
             }
          },
          Rule::and_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_typ(e).expect("TLC Grammar Error in rule [and_typ]"))
-                      .collect::<Vec<Typ>>();
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(e).expect("TLC Grammar Error in rule [and_typ]"))
+                      .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
             } else {
-               Ok(Typ::And(ts))
+               Ok(Type::And(ts))
             }
          },
          rule => panic!("unexpected typ rule: {:?}", rule)
@@ -1240,7 +967,7 @@ impl TLC {
          rule => panic!("unexpected kind rule: {:?}", rule)
       }
    }
-   pub fn sanitycheck(&mut self) -> Result<(),Error> {
+   pub fn sanityck(&mut self) -> Result<(),Error> {
       for (ri,r) in self.rows.iter().enumerate() {
          if ri==0 { continue; } //first row is nullary and not sane
          if !r.typ.is_concrete() {
@@ -1271,20 +998,40 @@ impl TLC {
       }
       Ok(())
    }
-   pub fn bound_implied(&self, tt: &Typ, span: &Span) -> Result<(),Error> {
+   pub fn soundck(&self, tt: &Type, span: &Span) -> Result<(),Error> {
       match tt {
-         Typ::Any => Ok(()),
-         Typ::Or(_ts) => Ok(()),
-         Typ::Arrow(p,b) => { self.bound_implied(p,span)?; self.bound_implied(b,span)?; Ok(()) },
-         Typ::Ratio(p,b) => { self.bound_implied(p,span)?; self.bound_implied(b,span)?; Ok(()) },
-         Typ::And(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
-         Typ::Tuple(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
-         Typ::Product(ts) => { for tc in ts.iter() { self.bound_implied(tc,span)?; } Ok(()) },
-         Typ::Ident(tn,ts) => {
+         Type::Any => Ok(()),
+         Type::Arrow(p,b) => { self.soundck(p,span)?; self.soundck(b,span)?; Ok(()) },
+         Type::Ratio(p,b) => { self.soundck(p,span)?; self.soundck(b,span)?; Ok(()) },
+         Type::And(ts) => {
+            for tc in ts.iter() { self.soundck(tc,span)?; }
+
+            //check that multiple constructors of the same type are not present
+            let mut uq: HashSet<Type> = HashSet::new();
+            let mut nuq: HashSet<String> = HashSet::new();
+            for tc in ts.iter() {
+            if let Type::Ident(tn,_ts) = tc {
+               if let Some((bt,_,_)) = self.constructors.get(tn) {
+                  if uq.contains(bt) && !nuq.contains(tn) { return Err(Error {
+                     kind: "Type Error".to_string(),
+                     rule: format!("multiple type constructors of type {:?} are present in type {:?}", bt, tt),
+                     span: span.clone(),
+                     snippet: "".to_string()
+                  }) }
+                  uq.insert(bt.clone());
+                  nuq.insert(tn.clone());
+               }
+            }}
+
+            Ok(())
+         },
+         Type::Tuple(ts) => { for tc in ts.iter() { self.soundck(tc,span)?; } Ok(()) },
+         Type::Product(ts) => { for tc in ts.iter() { self.soundck(tc,span)?; } Ok(()) },
+         Type::Ident(tn,ts) => {
             if ts.len()==0 { return Ok(()); }
             if !tt.is_concrete() { return Ok(()); }
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,_tk,_) = &self.rules[*ti] {
+            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,_tk,_props,_) = &self.rules[*ti] {
             if ts.len()==itks.len() {
                for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,itks) {
                   if let Some(bt) = bt {
@@ -1297,123 +1044,148 @@ impl TLC {
          },
       }
    }
-   pub fn extend_implied(&self, tt: &Typ) -> Typ {
+   pub fn extend_implied(&self, tt: &Type) -> Type {
       match tt {
-         Typ::Any => tt.clone(),
-         Typ::Or(_ts) => tt.clone(),
-         Typ::Arrow(p,b) => Typ::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
-         Typ::Ratio(p,b) => Typ::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
-         Typ::Ident(tn,ts) => {
+         Type::Any => tt.clone(),
+         Type::Arrow(p,b) => Type::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
+         Type::Ratio(p,b) => Type::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
+         Type::Ident(tn,ts) => {
+            let mut implies = Vec::new();
+
+            //lookup typedefs
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,implies,_td,_tk,_) = &self.rules[*ti] {
+            if let TypeRule::Typedef(_tn,_norm,itks,imp,_td,_tk,_props,_) = &self.rules[*ti] {
             if ts.len()==itks.len() {
-               let implies = if let Some(it) = implies {
-                  match it {
-                     Typ::And(its) => its.clone(),
-                     i => vec![i.clone()],
+               if let Some(it) = imp {
+                  match it.clone() {
+                     Type::And(mut its) => { implies.append(&mut its); },
+                     i => { implies.push(i); },
                   }
-               } else { Vec::new() };
-               if implies.len()==0 { return tt.clone(); }
-               let mut ats = Vec::new();
-               ats.push(tt.clone());
-               //TODO: substitute type variables in implied types
-               ats.append(&mut implies.clone());
-               return Typ::And(ats);
+               }
             }}}
-            tt.clone()
+
+            //lookup constructors
+            if let Some((bt,_ps,_kts)) = self.constructors.get(tn) {
+               implies.push(bt.clone());
+            }
+
+            if implies.len()==0 { return tt.clone(); }
+            let mut ats = Vec::new();
+            ats.push(tt.clone());
+            //TODO: substitute type variables in implied types
+            ats.append(&mut implies.clone());
+            Type::And(ats).normalize()
          },
-         Typ::And(ts) => {
+         Type::And(ts) => {
             let mut ats = Vec::new();
             for tc in ts.iter() {
                let ct = self.extend_implied(tc);
-               if let Typ::And(mut cts) = ct {
+               if let Type::And(mut cts) = ct {
                   ats.append(&mut cts);
                } else {
                   ats.push(ct);
                }
             }
-            Typ::And(ats)
+            Type::And(ats)
          },
-         Typ::Tuple(ts) => Typ::Tuple(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Typ>>()),
-         Typ::Product(ts) => Typ::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Typ>>()),
+         Type::Tuple(ts) => Type::Tuple(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
+         Type::Product(ts) => Type::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
       }
    }
-   pub fn kindsof(&self, kinds:&mut Vec<(Typ,Kind)>, tt:&Typ) {
+   pub fn kindsof(&self, kinds:&mut Vec<(Type,Kind)>, tt:&Type) {
       match tt {
-         Typ::Any => {},
-         Typ::Ident(_t,_ts) => {
+         Type::Any => {},
+         Type::Ident(_t,_ts) => {
             for (ot,_ok) in kinds.iter() {
                if ot==tt { return; } //type is already kinded
             }
             kinds.push((tt.clone(), self.kindof(tt)));
          },
-         Typ::Or(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
-         Typ::And(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
-         Typ::Tuple(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
-         Typ::Product(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
-         Typ::Arrow(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
-         Typ::Ratio(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
+         Type::And(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
+         Type::Tuple(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
+         Type::Product(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
+         Type::Arrow(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
+         Type::Ratio(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
       }
    }
-   pub fn kindof(&self, tt:&Typ) -> Kind {
+   pub fn kindof(&self, tt:&Type) -> Kind {
       match tt {
-         Typ::Any => Kind::Nil,
-         Typ::Ident(tn,ts) => {
+         Type::Any => Kind::Nil,
+         Type::Ident(tn,ts) => {
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,tk,_) = &self.rules[*ti] {
+            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,k,_props,_) = &self.rules[*ti] {
             if ts.len()==itks.len() {
-               return tk.clone().unwrap_or(self.term_kind.clone());
+               if k==&Kind::Nil { return self.term_kind.clone(); }
+               else { return k.clone(); }
             }}}
             Kind::Nil
          },
-         Typ::Or(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
-         Typ::And(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
-         Typ::Tuple(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
-         Typ::Product(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
-         Typ::Arrow(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) }
-         Typ::Ratio(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) }
+         Type::And(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
+         Type::Tuple(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
+         Type::Product(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
+         Type::Arrow(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) }
+         Type::Ratio(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) }
       }
    }
-   pub fn is_normal(&self, tt:&Typ) -> bool {
+   pub fn is_knormal(&self, k:&Kind) -> bool {
+      let ks = k.flatten();
+      ks.iter().any(|kf| self.kind_is_normal.contains(kf))
+   }
+   pub fn is_normal(&self, tt:&Type) -> bool {
       match tt {
-         Typ::Any => false,
-         Typ::Or(_ts) => false,
-         Typ::And(_ts) => false,
-         Typ::Ident(tn,ts) => self.type_is_normal.contains(&Typ::Ident(tn.clone(),Vec::new())) &&
+         Type::Any => false,
+         Type::And(ts) => ts.iter().any(|ct|self.is_normal(ct)),
+         Type::Ident(tn,ts) => self.type_is_normal.contains(&Type::Ident(tn.clone(),Vec::new())) &&
                               ts.iter().all(|ct|self.is_normal(ct)),
-         Typ::Tuple(ts) => ts.iter().all(|ct|self.is_normal(ct)),
-         Typ::Product(ts) => ts.iter().all(|ct|self.is_normal(ct)),
-         Typ::Arrow(p,b) => self.is_normal(p) && self.is_normal(b),
-         Typ::Ratio(p,b) => self.is_normal(p) && self.is_normal(b),
+         Type::Tuple(ts) => ts.iter().all(|ct|self.is_normal(ct)),
+         Type::Product(ts) => ts.iter().all(|ct|self.is_normal(ct)),
+         Type::Arrow(p,b) => self.is_normal(p) && self.is_normal(b),
+         Type::Ratio(p,b) => self.is_normal(p) && self.is_normal(b),
       }
    }
-   pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Typ>, span: &Span) -> Result<Typ,Error> {
+   pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Type>, span: &Span) -> Result<Type,Error> {
       if let Some(scope) = scope {
+         let mut candidates = Vec::new();
          let mut matches = Vec::new();
          let ref sc = self.scopes[scope.id];
-         for (tn,tkts,tt) in sc.children.iter() {
+         for (tn,_tkts,tt) in sc.children.iter() {
             if tn==v {
+               candidates.push(tt.clone());
                if let Some(it) = implied {
-                  //if tt => it
-                  if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,it,span) {
-                     matches.push(rt.clone());
+                  match tt {
+                     Type::Arrow(_p,_b) => {
+                        //if it => tt
+                        if let Ok(rt) = self.unify(&it,tt,span) {
+                           matches.push(rt.clone());
+                        }
+                     },
+                     _ => {
+                        //if tt => it
+                        if let Ok(rt) = self.unify(tt,&it,span) {
+                           matches.push(rt.clone());
+                        }
+                     },
                   }
                } else {
                   matches.push(tt.clone());
                }
             }
          }
-         if matches.len()>1 { Err(Error {
+         if matches.len()>1 {
+            //it is OK for multiple functions to match
+            Ok(Type::And(matches).normalize())
+         } else if matches.len()==1 {
+            Ok(matches[0].clone())
+         } else if candidates.len() > 0 { Err(Error {
             kind: "Type Error".to_string(),
-            rule: format!("variable found in scope is ambiguous: {:?} matches {}",
-                     implied.clone().unwrap_or(Typ::Any),
-                     matches.iter().map(|t|format!("{:?}",t))
-                            .collect::<Vec<String>>().join(" | ") ),
+            rule: format!("variable {}: {:?} did not match any candidate {}",
+                     v,
+                     implied.clone().unwrap_or(Type::Any),
+                     candidates.iter().map(|t|format!("{:?}",t))
+                               .collect::<Vec<String>>().join(" | ") ),
             span: span.clone(),
             snippet: "".to_string()
-         }) } else if matches.len()==1 {
-            Ok(matches[0].clone())
-         } else {
+         }) } else {
             self.typeof_var(&sc.parent.clone(), v, implied, span)
          }
       } else { Err(Error {
@@ -1450,13 +1222,13 @@ impl TLC {
          _ => panic!("TODO untype term: {}", self.print_term(t))
       }
    }
-   pub fn typecheck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Typ>) -> Result<(),Error> {
+   pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
             let mut last_typ = self.nil_type.clone();
             for e in es.iter() {
-               self.typecheck(Some(sid), *e, None)?;
+               self.typeck(Some(sid), *e, None)?;
                last_typ = self.rows[e.id].typ.clone();
             }
             self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?;
@@ -1464,39 +1236,45 @@ impl TLC {
          Term::Tuple(es) => {
             let mut ts = Vec::new();
             for e in es.iter() {
-               self.typecheck(scope, *e, None)?;
+               self.typeck(scope, *e, None)?;
                ts.push(self.rows[e.id].typ.clone());
             }
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &Typ::Tuple(ts), &self.rows[t.id].span)?;
+            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &Type::Tuple(ts), &self.rows[t.id].span)?;
          },
          Term::Let(s,v,_ps,b,rt,_rk) => {
             if v=="" {
                //term is untyped
                self.untyped(t);
             } else if let Some(ref b) = b {
-               self.typecheck(Some(s), *b, Some(rt.clone()))?;
+               self.typeck(Some(s), *b, Some(rt.clone()))?;
                self.rows[t.id].typ = self.bottom_type.clone();
             } else {
                self.rows[t.id].typ = self.bottom_type.clone();
             }
-            self.bound_implied(&rt,&self.rows[t.id].span)?;
+            self.soundck(&rt,&self.rows[t.id].span)?;
          },
          Term::Ascript(x,tt) => {
-            self.typecheck(scope.clone(), x, Some(tt.clone()))?;
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &self.rows[x.id].typ, &self.rows[t.id].span)?;
+            self.typeck(scope.clone(), x, Some(tt.clone()))?;
+            self.rows[t.id].typ = self.unify(&self.rows[x.id].typ, &tt, &self.rows[t.id].span)?;
          },
          Term::As(x,into) => {
-            self.typecheck(scope.clone(), x, None)?;
-            let into_kind = self.kindof(&into);
+            self.typeck(scope.clone(), x, None)?;
+            let into_kind = self.kindof(&into).first();
             if let Ok(nt) = self.unify(&self.rows[x.id].typ, &into, &self.rows[t.id].span) {
                //if cast is already satisfied, do nothing
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
-               if self.kind_is_normal.contains(&into_kind) {
-                  let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
+               if self.is_knormal(&into_kind) {
+                  eprintln!("typeof(x) = {:?}", &self.rows[x.id].typ);
+
+                  let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ)
+                                       .remove(&into_kind.as_type());
                   let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
 
+                  eprintln!("l_only = {:?}", &l_only);
+
                   while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
+
                      let mut num_collector = Vec::new();
                      let mut den_collector = Vec::new();
                      let (numerator,denominator) = l_only.project_ratio();
@@ -1506,10 +1284,10 @@ impl TLC {
                            continue;
                         }
 
-                        if let Typ::Ident(nn,_nns) = n {
+                        if let Type::Ident(nn,_nns) = n {
                         if let Some(ti) = self.typedef_index.get(nn) {
-                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
-                        let it = implies.clone().unwrap_or(Typ::Any);
+                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
+                        let it = implies.clone().unwrap_or(Type::Any);
                         if self.is_normal(&it) {
                            let (inum, iden) = it.project_ratio();
                            num_collector.append(&mut inum.clone());
@@ -1522,9 +1300,8 @@ impl TLC {
                         if let Some(tis) = self.foralls_index.get(&mnt) {
                         for ti in tis.iter() { if !found {
                         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-                           let kinds = Vec::new();
                            let mut subs = Vec::new();
-                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &n, &self.rows[t.id].span) {
+                           if let Ok(_) = lt.unify_impl(&mut subs, &n) {
                               let srt = rt.substitute(&subs);
                               if self.is_normal(&srt) {
                                  let (inum, iden) = srt.project_ratio();
@@ -1549,10 +1326,10 @@ impl TLC {
                            den_collector.push(d.clone());
                            continue;
                         }
-                        if let Typ::Ident(dn,_dns) = d {
+                        if let Type::Ident(dn,_dns) = d {
                         if let Some(ti) = self.typedef_index.get(dn) {
-                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
-                        let it = implies.clone().unwrap_or(Typ::Any);
+                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
+                        let it = implies.clone().unwrap_or(Type::Any);
                         if self.is_normal(&it) {
                            let (inum, iden) = it.project_ratio();
                            num_collector.append(&mut iden.clone());
@@ -1565,9 +1342,8 @@ impl TLC {
                         if let Some(tis) = self.foralls_index.get(&mdt) {
                         for ti in tis.iter() { if !found {
                         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-                           let kinds = Vec::new();
                            let mut subs = Vec::new();
-                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &d, &self.rows[t.id].span) {
+                           if let Ok(_) = lt.unify_impl(&mut subs, &d) {
                               let srt = rt.substitute(&subs);
                               if self.is_normal(&srt) {
                                  let (inum, iden) = srt.project_ratio();
@@ -1588,19 +1364,19 @@ impl TLC {
                         })
                      }
                      let num = if num_collector.len()==0 {
-                        Typ::Tuple(Vec::new())
+                        Type::Tuple(Vec::new())
                      } else if num_collector.len()==1 {
                         num_collector[0].clone()
                      } else {
-                        Typ::Product(num_collector)
+                        Type::Product(num_collector)
                      };
                      let r_only = if den_collector.len()==0 {
                         num
                      } else if den_collector.len()==1 {
-                        Typ::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
+                        Type::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
                      } else {
-                        let den = Typ::Product(den_collector);
-                        Typ::Ratio(Box::new(num),Box::new(den))
+                        let den = Type::Product(den_collector);
+                        Type::Ratio(Box::new(num),Box::new(den))
                      };
                      if l_only==r_only { break; }
                      else { l_only = r_only; }
@@ -1618,10 +1394,10 @@ impl TLC {
                         }
 
                         //if Into part implies a normal, replace part with implied
-                        if let Typ::Ident(nn,_nns) = n {
+                        if let Type::Ident(nn,_nns) = n {
                         if let Some(ti) = self.typedef_index.get(nn) {
-                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
-                        let it = implies.clone().unwrap_or(Typ::Any);
+                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
+                        let it = implies.clone().unwrap_or(Type::Any);
                         if self.is_normal(&it) {
                            let (inum, iden) = it.project_ratio();
                            num_collector.append(&mut inum.clone());
@@ -1635,9 +1411,8 @@ impl TLC {
                         if let Some(tis) = self.foralls_index.get(&mnt) {
                         for ti in tis.iter() { if !found {
                         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-                           let kinds = Vec::new();
                            let mut subs = Vec::new();
-                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &n, &self.rows[t.id].span) {
+                           if let Ok(_) = lt.unify_impl(&mut subs, &n) {
                               let srt = rt.substitute(&subs);
                               let (inum, iden) = srt.project_ratio();
                               num_collector.append(&mut inum.clone());
@@ -1663,10 +1438,10 @@ impl TLC {
                         }
 
                         //if Into part implies a normal, replace part with implied
-                        if let Typ::Ident(dn,_dns) = d {
+                        if let Type::Ident(dn,_dns) = d {
                         if let Some(ti) = self.typedef_index.get(dn) {
-                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_span) = &self.rules[*ti] {
-                        let it = implies.clone().unwrap_or(Typ::Any);
+                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
+                        let it = implies.clone().unwrap_or(Type::Any);
                         if self.is_normal(&it) {
                            let (inum, iden) = it.project_ratio();
                            num_collector.append(&mut iden.clone());
@@ -1680,9 +1455,8 @@ impl TLC {
                         if let Some(tis) = self.foralls_index.get(&mnt) {
                         for ti in tis.iter() { if !found {
                         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-                           let kinds = Vec::new();
                            let mut subs = Vec::new();
-                           if let Ok(_) = unify_impl(&kinds, &mut subs, &lt, &d, &self.rows[t.id].span) {
+                           if let Ok(_) = lt.unify_impl(&mut subs, &d) {
                               let srt = rt.substitute(&subs);
                               let (inum, iden) = srt.project_ratio();
                               num_collector.append(&mut iden.clone());
@@ -1702,30 +1476,31 @@ impl TLC {
                      }
 
                      let num = if num_collector.len()==0 {
-                        Typ::Tuple(Vec::new())
+                        Type::Tuple(Vec::new())
                      } else if num_collector.len()==1 {
                         num_collector[0].clone()
                      } else {
-                        Typ::Product(num_collector)
+                        Type::Product(num_collector)
                      };
                      let b_only = if den_collector.len()==0 {
                         num
                      } else if den_collector.len()==1 {
-                        Typ::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
+                        Type::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
                      } else {
-                        let den = Typ::Product(den_collector);
-                        Typ::Ratio(Box::new(num),Box::new(den))
+                        let den = Type::Product(den_collector);
+                        Type::Ratio(Box::new(num),Box::new(den))
                      };
 
                      self.unify(&l_only, &b_only, &self.rows[t.id].span)?;
                      l_only = into.clone();
                   }
 
-                  self.rows[t.id].typ = self.unify(&into,&l_only,&self.rows[t.id].span)?.and(&l_alts);
+                  //quod erat demonstrandum
+                  self.rows[t.id].typ = self.unify(&l_only,&into,&self.rows[t.id].span)?.and(&l_alts);
                } else {
                   let mut accept = false;
                   for tr in self.rules.iter() { match tr {
-                     TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,tk,_) if tk.clone().unwrap_or(self.term_kind.clone())==into_kind => {
+                     TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,k,_) if k==&into_kind => {
                         if let Ok(lt) = self.unify(&self.rows[x.id].typ, lt, &self.rows[t.id].span) {
                         if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span) {
                            //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
@@ -1752,9 +1527,8 @@ impl TLC {
             }
          },
          Term::Ident(x) => {
-            let span = self.rows[t.id].span.clone();
-            let xt = self.typeof_var(&scope, &x, &implied, &span)?;
-            //typeof(x) => t.typ
+            let xt = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span)?;
+            //typeof(x:Implied) => t.typ
             self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
          },
          Term::Value(x) => {
@@ -1784,9 +1558,7 @@ impl TLC {
                }
                //if any non Term typ is implied, introduce it here
                let ri = self.remove_kinded(&self.term_kind, &i);
-               if self.bottom_type!=ri {
-                  self.rows[t.id].typ = self.rows[t.id].typ.and(&ri);
-               }
+               self.rows[t.id].typ = self.rows[t.id].typ.and(&ri);
             } else {
                return Err(Error {
                   kind: "Type Error".to_string(),
@@ -1799,31 +1571,26 @@ impl TLC {
          Term::App(g,x) => {
             //covariant, contravariant matters here
             //unify(lt,rt) means lt => rt, not always rt => lt
-            self.typecheck(scope.clone(), x, None)?;
-            self.typecheck(scope.clone(), g, Some(
-               Typ::Arrow(Box::new(self.rows[x.id].typ.clone()),
-                          Box::new(Typ::Any))
+            self.typeck(scope.clone(), x, None)?;
+            self.typeck(scope.clone(), g, Some(
+               Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
+                          Box::new(Type::Any))
             ))?;
             self.rows[x.id].typ = self.unify(&self.rows[x.id].typ, &self.rows[g.id].typ.expects(), &self.rows[x.id].span)?;
             self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &self.rows[g.id].typ.returns(), &self.rows[t.id].span)?;
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.iter() {
-               self.typecheck(scope.clone(), *v, None)?;
+               self.typeck(scope.clone(), *v, None)?;
             }
-            let mut found = false;
-            for (tt, tname,_tpars,_tkvs) in self.constructors.iter() {
-               if &cname==tname {
-                  self.rows[t.id].typ = self.unify(
-                     &self.rows[t.id].typ,
-                     &tt,
-                     &self.rows[t.id].span
-                  )?;
-                  found = true;
-                  break;
-               }
-            }
-            if !found { return Err(Error {
+            if let Some((tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
+               self.rows[t.id].typ = self.unify(
+                  &self.rows[t.id].typ,
+                  &tt,
+                  &self.rows[t.id].span
+               )?;
+               self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::Ident(cname.clone(),Vec::new())).normalize();
+            } else { return Err(Error {
                kind: "Type Error".to_string(),
                rule: format!("type constructor, none found for: {}", self.print_term(t)),
                span: self.rows[t.id].span.clone(),
@@ -1834,35 +1601,21 @@ impl TLC {
       if let Some(ref i) = implied {
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
       };
-      self.bound_implied(&self.rows[t.id].typ,&self.rows[t.id].span)?;
+      self.soundck(&self.rows[t.id].typ, &self.rows[t.id].span)?;
       Ok(())
    }
-   pub fn unify(&self, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
-      self.unify_with_kinds(&Vec::new(), lt, rt, span)
-   }
-   pub fn unify_with_kinds(&self, kinds: &Vec<(Typ,Kind)>, lt: &Typ, rt: &Typ, span: &Span) -> Result<Typ,Error> {
-      let mut kinds = kinds.clone();
-      self.kindsof(&mut kinds, lt);
-      self.kindsof(&mut kinds, rt);
+   pub fn unify(&self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
       //lt => rt
       let mut lt = self.extend_implied(lt); lt = lt.normalize();
       let mut rt = rt.clone(); rt = rt.normalize();
-      let mut subs = Vec::new();
-      let r = unify_impl(&kinds, &mut subs, &lt, &rt, span);
-      subs.sort();
-      subs.dedup();
-      let mut tt = if let Ok(tt) = r {
-         tt.substitute(&subs)
+      if let Ok(tt) = lt.unify(&rt) {
+         Ok(tt)
       } else { return Err(Error {
          kind: "Type Error".to_string(),
-         rule: format!("failed unification {:?} (x) {:?} with {}",lt,rt,
-                  kinds.iter().map(|(t,k)|format!("{:?}::{:?}",t,k))
-                       .collect::<Vec<String>>().join("; ")),
+         rule: format!("failed unification {:?} (x) {:?}",lt,rt),
          span: span.clone(),
          snippet: "".to_string(),
-      }) };
-      tt = tt.normalize();
-      Ok(tt)
+      }) }
    }
 
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {

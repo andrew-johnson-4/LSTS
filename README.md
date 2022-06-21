@@ -23,17 +23,6 @@ Unit is a Kind separate from Term. Unit typing adds a check for dimension analys
 
 LSTS does not ensure against all forms of logical errors, however it does complain about some famous ones. 
 
-    /* Curry's Paradox */
-    
-    type A; forall :B. A => B
-    //reject: (A,B) do not share a domain (Term,Nil)
-
-    type A; forall :B::Term. A => B
-    //accept: (A,B) share a domain (Term,Term)
-    
-    type A; forall :B. A => B :: Term
-    //accept: (A,B) must share a domain (Term,Term)
-    
     /* The square root of 2 is irrational */
 
     let $"/"(x:X, y:Y): X/Y;
@@ -46,3 +35,11 @@ LSTS does not ensure against all forms of logical errors, however it does compla
     square(sqrt_of_two) * square(q): Pt*Pt; //2 * q*q = p*p
     square(p) / square(sqrt_of_two): Qt*Qt; //p*p / 2 = q*q
     p / square(sqrt_of_two) : ?/();         //2 is a factor of p
+
+    /* Infinitude of primes */
+
+    import "number_theory.tlc";
+
+    let primes:Prime[];           //assume there are a finite number of primes
+    let p = primes.product() + 1; //let p be the product of all primes + 1
+    forall d:primes. p%d == 1;    //p mod d, forall d in primes list, is 1
