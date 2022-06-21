@@ -255,12 +255,17 @@ impl TLC {
          Type::And(ts) => ts.clone(),
          tt => vec![tt.clone()],
       };
+      let mut ats = Vec::new();
       for t in ts.iter() {
-         if k==&self.kindof(t) {
-            return t.clone();
+         if self.kindof(t).has(k) {
+            ats.push(t.clone());
          }
       }
-      self.bottom_type.clone()
+      if ats.len()==1 {
+         ats[0].clone()
+      } else {
+         Type::And(ats)
+      }
    }
    pub fn remove_kinded(&self, k: &Kind, t: &Type) -> Type {
       let ts = match t {
@@ -1147,9 +1152,19 @@ impl TLC {
             if tn==v {
                candidates.push(tt.clone());
                if let Some(it) = implied {
-                  //if tt => it
-                  if let Ok(rt) = self.unify(tt,&it,span) {
-                     matches.push(rt.clone());
+                  match tt {
+                     Type::Arrow(_p,_b) => {
+                        //if it => tt
+                        if let Ok(rt) = self.unify(&it,tt,span) {
+                           matches.push(rt.clone());
+                        }
+                     },
+                     _ => {
+                        //if tt => it
+                        if let Ok(rt) = self.unify(tt,&it,span) {
+                           matches.push(rt.clone());
+                        }
+                     },
                   }
                } else {
                   matches.push(tt.clone());
@@ -1244,7 +1259,7 @@ impl TLC {
          },
          Term::As(x,into) => {
             self.typeck(scope.clone(), x, None)?;
-            let into_kind = self.kindof(&into);
+            let into_kind = self.kindof(&into).first();
             if let Ok(nt) = self.unify(&self.rows[x.id].typ, &into, &self.rows[t.id].span) {
                //if cast is already satisfied, do nothing
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
@@ -1254,6 +1269,7 @@ impl TLC {
                   let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
 
                   while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
+
                      let mut num_collector = Vec::new();
                      let mut den_collector = Vec::new();
                      let (numerator,denominator) = l_only.project_ratio();

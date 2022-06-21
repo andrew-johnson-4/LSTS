@@ -38,5 +38,11 @@ impl Kind {
          _ => vec![self.clone()],
       }
    }
+   pub fn first(&self) -> Kind {
+      match self {
+         Kind::And(ks) => ks[0].clone(),
+         _ => self.clone()
+      }
+   }
 }
 
