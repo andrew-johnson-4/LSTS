@@ -1265,8 +1265,12 @@ impl TLC {
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
             } else {
                if self.is_knormal(&into_kind) {
+                  eprintln!("typeof(x) = {:?}", &self.rows[x.id].typ);
+
                   let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
                   let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
+
+                  eprintln!("l_only = {:?}", &l_only);
 
                   while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
 

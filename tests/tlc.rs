@@ -111,12 +111,12 @@ fn check_kinded_parametric_polymorphism() {
    //unification is kind sensitive
    tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:Ab::Term); let f(x:Bc::BKind); let x:Ab; f(x)").unwrap();
    tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:Ab::Term); let f(x:Bc::BKind); let x:Bc; f(x)").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:Ab::Term); let f(x:Bc::BKind); let x:Ab+Bc; f(x)").unwrap_err(); //ambiguous
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:Ab::Term); let f(x:Bc::BKind); let x:Ab+Bc; f(x)").unwrap(); //Permitted to match multiple
 
    //parameters can be inferred by kind
    tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab; f(x)").unwrap();
    tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Bc; f(x)").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab+Bc; f(x)").unwrap(); //not ambiguous
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab+Bc; f(x)").unwrap(); //Permitted to match multiple
 }
 
 #[test]

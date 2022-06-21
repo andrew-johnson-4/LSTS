@@ -216,7 +216,7 @@ impl Type {
    }
    pub fn unify(&self, other: &Type) -> Result<Type,()> {
       let mut subs = Vec::new();
-      self.unify_impl(&mut subs, other)
+      self.unify_impl(&mut subs, other).map(|tt|tt.normalize())
    }
    pub fn unify_impl(&self, subs: &mut Vec<(Type,Type)>, rt: &Type) -> Result<Type,()> {
       //lt => rt
