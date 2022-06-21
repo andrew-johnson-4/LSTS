@@ -1,5 +1,5 @@
 //: Definition of prelude types and kinds
-type normal Boolean = True | False ::Term + Boolean; //dual kinded type
+type Boolean = True | False ::Term + Boolean; //dual kinded type
 type Number;   //Marker trait for numbers. Require declaration to prevent accidental shadowing.
 type Integer   : Number = /^[0-9][_0-9]*([eE][_0-9]+)?$/; //This is how subtyping relations are defined.
 type Real      : Number = /^[0-9][_.0-9]*([eE][-]?[_0-9]+)?$/;

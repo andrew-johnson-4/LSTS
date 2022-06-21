@@ -1893,7 +1893,6 @@ impl TLC {
                //if any non Term typ is implied, introduce it here
                let ri = self.remove_kinded(&self.term_kind, &i);
                self.rows[t.id].typ = self.rows[t.id].typ.and(&ri);
-               eprintln!("value '{}' type is {:?} with implied {:?}", x, &self.rows[t.id].typ, &i);
             } else {
                return Err(Error {
                   kind: "Type Error".to_string(),

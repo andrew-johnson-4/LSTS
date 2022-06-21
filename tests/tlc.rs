@@ -21,10 +21,10 @@ fn parse_simplytyped() {
    tlc.parse("let a: A; let a: B").unwrap();
    tlc.parse("let a: A; let b: A").unwrap();
    tlc.parse("let f()").unwrap();
-   tlc.parse("let f(a)").unwrap();
-   tlc.parse("let f(a,b)").unwrap();
-   tlc.parse("let f(a: A)").unwrap();
-   tlc.parse("let f(a: A::Term)").unwrap();
+   tlc.parse("let f(a:A)").unwrap();
+   tlc.parse("let f(a:A,b:B)").unwrap();
+   tlc.parse("let f(a:A)").unwrap();
+   tlc.parse("let f(a:A::Term)").unwrap();
    tlc.parse("let f():A").unwrap();
    tlc.parse("let f()::Term").unwrap();
    tlc.parse("type A").unwrap();
@@ -116,7 +116,7 @@ fn check_kinded_parametric_polymorphism() {
    //parameters can be inferred by kind
    tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab; f(x)").unwrap();
    tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Bc; f(x)").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab+Bc; f(x)").unwrap_err(); //ambiguous
+   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab+Bc; f(x)").unwrap(); //not ambiguous
 }
 
 #[test]
