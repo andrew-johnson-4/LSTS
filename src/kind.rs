@@ -1,3 +1,4 @@
+use crate::typ::Type;
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Kind {
@@ -42,6 +43,13 @@ impl Kind {
       match self {
          Kind::And(ks) => ks[0].clone(),
          _ => self.clone()
+      }
+   }
+   pub fn as_type(&self) -> Type {
+      match self {
+         Kind::Nil => Type::Tuple(Vec::new()),
+         Kind::Simple(kn,ks) => Type::Ident(kn.clone(),ks.iter().map(|kc|kc.as_type()).collect::<Vec<Type>>()),
+         Kind::And(ks) => Type::And(ks.iter().map(|kc|kc.as_type()).collect::<Vec<Type>>()),
       }
    }
 }

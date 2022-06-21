@@ -189,6 +189,18 @@ impl Type {
          tt => tt.clone(),
       }
    }
+   pub fn remove(&self, x:&Type) -> Type {
+      if self == x { return Type::And(Vec::new()); }
+      match self {
+         Type::Any => Type::Any,
+         Type::Arrow(p,b) => Type::Arrow(Box::new(p.remove(x)),Box::new(b.remove(x))),
+         Type::Ratio(p,b) => Type::Ratio(Box::new(p.remove(x)),Box::new(b.remove(x))),
+         Type::Ident(tn,ts) => Type::Ident(tn.clone(),ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
+         Type::And(ts) => Type::And(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
+         Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
+         Type::Product(ts) => Type::Product(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
+      }.normalize()
+   }
    pub fn substitute(&self, subs:&Vec<(Type,Type)>) -> Type {
       for (lt,rt) in subs.iter() {
          if self==lt { return rt.clone(); }

@@ -1267,7 +1267,8 @@ impl TLC {
                if self.is_knormal(&into_kind) {
                   eprintln!("typeof(x) = {:?}", &self.rows[x.id].typ);
 
-                  let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ);
+                  let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ)
+                                       .remove(&into_kind.as_type());
                   let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
 
                   eprintln!("l_only = {:?}", &l_only);

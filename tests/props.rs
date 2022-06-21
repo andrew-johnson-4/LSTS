@@ -11,14 +11,11 @@ fn check_boolean() {
    tlc.check(Some(si), "False:False").unwrap();
    tlc.check(Some(si), "False:True").unwrap_err();
 
-   /*
    tlc.check(Some(si), "not(True) as False").unwrap();
    tlc.check(Some(si), "not(True) as True").unwrap_err();
    tlc.check(Some(si), "not(False) as False").unwrap_err();
    tlc.check(Some(si), "not(False) as True").unwrap();
-   */
 
-   /*
    tlc.check(Some(si), "True && True as True").unwrap();
    tlc.check(Some(si), "True && False as True").unwrap_err();
    tlc.check(Some(si), "False && True as True").unwrap_err();
@@ -36,7 +33,6 @@ fn check_boolean() {
    tlc.check(Some(si), "True || False as False").unwrap_err();
    tlc.check(Some(si), "False || True as False").unwrap_err();
    tlc.check(Some(si), "False || False as False").unwrap();
-   */
 }
 
 #[test]
