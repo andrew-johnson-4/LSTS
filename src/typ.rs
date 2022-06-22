@@ -333,6 +333,16 @@ impl Type {
             }
             Ok(Type::Tuple(ts))
          },
+
+         (Type::Constant(lc),Type::Constant(rc)) => {
+            if lc.id == rc.id {
+               //unify_impl is only capable of comparing term equality
+               //constants need to reduce to actually be the SAME term
+               Ok(Type::Constant(*lc))
+            } else {
+               Err(())
+            }
+         },
          _ => Err(()),
       }
    }
@@ -353,7 +363,7 @@ impl std::fmt::Debug for Type {
            Type::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
            Type::Arrow(p,b) => write!(f, "({:?})=>({:?})", p, b),
            Type::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
-           Type::Constant(c) => write!(f, "[term#{}]", c.id),
+           Type::Constant(c) => write!(f, "{{term#{}}}", c.id),
         }
     }
 }
