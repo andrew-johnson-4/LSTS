@@ -24,12 +24,14 @@ pub struct TLC {
    pub typedef_index: HashMap<String,usize>,
    pub foralls_index: HashMap<Type,Vec<usize>>,
    pub foralls_rev_index: HashMap<Type,Vec<usize>>,
+   pub constant_index: HashMap<Constant,TermId>,
    pub term_kind: Kind,
    pub constant_kind: Kind,
    pub nil_type: Type,
    pub bottom_type: Type,
 }
 
+#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Constant {
    Integer(i64)
 }
@@ -165,6 +167,7 @@ impl TLC {
          foralls_index: HashMap::new(),
          foralls_rev_index: HashMap::new(),
          typedef_index: HashMap::new(),
+         constant_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
          term_kind: Kind::Simple("Term".to_string(),Vec::new()),
@@ -255,7 +258,7 @@ impl TLC {
          tt => vec![tt.clone()],
       };
       //remove T :: K
-      let ts = ts.into_iter().filter(|ct|!self.kindof(ct).has(k)).collect::<Vec<Type>>();
+      let ts = ts.into_iter().filter(|ct|ct!=&Type::Any&&!self.kindof(ct).has(k)).collect::<Vec<Type>>();
       Type::And(ts)
    }
 
@@ -410,16 +413,38 @@ impl TLC {
       }, &span));
       self.unparse_ast(file_scope, fp, p, &span)
    }
+   pub fn push_constant(&mut self, c: &Constant, t: TermId) -> TermId {
+      if let Some(ci) = self.constant_index.get(c) {
+         *ci
+      } else {
+         self.constant_index.insert(c.clone(),t);
+         t
+      }
+   }
    pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
       let index = self.rows.len();
+      let ti = TermId { id: index };
+      let tt = match &term {
+         Term::Value(ct) => {
+            if ct.chars().all(|c| c.is_ascii_digit()) {
+               if let Ok(ci) = ct.parse::<i64>() {
+                  let ci = Constant::Integer(ci);
+                  let ci = self.push_constant(&ci, ti);
+                  Type::And(vec![Type::Any,Type::Constant(ci)])
+               } else { Type::Any }
+            } else {
+               Type::Any
+            }
+         }, _ => Type::Any,
+      };
       self.rows.push(Row {
          term: term,
-         typ: Type::Any,
+         typ: tt,
          kind: self.term_kind.clone(),
          span: span.clone(),
          constant: None,
       });
-      TermId { id: index }
+      ti
    }
    pub fn push_scope(&mut self, scope: Scope, _span: &Span) -> ScopeId {
       let index = self.scopes.len();
@@ -1603,12 +1628,14 @@ impl TLC {
             for (pat,re) in self.regexes.iter() {
                if pat==&ki { //Term kinded is not []
                   r = Some(re);
-                  self.rows[t.id].typ = self.unify(pat, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+                  let alt_t = self.remove_kinded(&self.term_kind, &self.rows[t.id].typ);
+                  self.rows[t.id].typ = self.unify(pat, &ki, &self.rows[t.id].span)?.and(&alt_t);
                   break;
                }
                else if self.bottom_type==ki && re.is_match(&x) { //Term kinded is []
                   r = Some(re);
-                  self.rows[t.id].typ = self.unify(pat, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+                  let alt_t = self.remove_kinded(&self.term_kind, &self.rows[t.id].typ);
+                  self.rows[t.id].typ = self.unify(pat, &ki, &self.rows[t.id].span)?.and(&alt_t);
                   break;
                }
             }
@@ -1695,6 +1722,7 @@ impl TLC {
       let typedef_index_l = self.typedef_index.clone();
       let foralls_index_l = self.foralls_index.clone();
       let foralls_rev_index_l = self.foralls_rev_index.clone();
+      let constant_index_l = self.constant_index.clone();
 
       let r = self.compile_str(globals, src);
 
@@ -1708,6 +1736,7 @@ impl TLC {
       self.typedef_index = typedef_index_l;
       self.foralls_index = foralls_index_l;
       self.foralls_rev_index = foralls_rev_index_l;
+      self.constant_index = constant_index_l;
 
       r?; Ok(())
    }
