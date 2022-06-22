@@ -932,7 +932,8 @@ impl TLC {
          Rule::dep_typ => {
             let t = self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span)?;
             self.untyped(t);
-            self.guard_varnames(t); //convert all varnames to "var#{term.id}"
+            let mut guard_names = HashMap::new();
+            self.guard_varnames(&mut guard_names, t); //convert all varnames to "var#{term.id}"
             Ok(Type::Constant(t))
          }
          rule => panic!("unexpected typ rule: {:?}", rule)
@@ -1465,38 +1466,42 @@ impl TLC {
       Ok(l_only)
    }
 
-   pub fn guard_varnames(&mut self, t: TermId) {
+   pub fn guard_varnames(&mut self, table: &mut HashMap<String,String>, t: TermId) {
       match self.rows[t.id].term.clone() {
-         Term::Ident(_) => {
-            self.rows[t.id].term = Term::Ident(format!("var#{}", t.id));
+         Term::Ident(tn) => {
+            if let Some(vn) = table.get(&tn) {
+               self.rows[t.id].term = Term::Ident(vn.clone());
+            } else {
+               self.rows[t.id].term = Term::Ident(format!("var#{}", t.id));
+            }
          },
          Term::Value(_) => {},
          Term::Block(_sid,es) => {
             for e in es.into_iter() {
-               self.guard_varnames(e);
+               self.guard_varnames(table,e);
             }
          },
          Term::Tuple(es) => {
             for e in es.into_iter() {
-               self.guard_varnames(e);
+               self.guard_varnames(table,e);
             }
          },
          Term::Let(_,_,_,_,_,_) => {
             panic!("TODO: guard_varnames in Let term")
          },
          Term::App(g,x) => {
-            self.guard_varnames(g);
-            self.guard_varnames(x);
+            self.guard_varnames(table,g);
+            self.guard_varnames(table,x);
          },
          Term::Ascript(t,_tt) => {
-            self.guard_varnames(t);
+            self.guard_varnames(table,t);
          },
          Term::As(t,_tt) => {
-            self.guard_varnames(t);
+            self.guard_varnames(table,t);
          },
          Term::Constructor(_c,kts) => {
             for (_k,t) in kts.into_iter() {
-               self.guard_varnames(t);
+               self.guard_varnames(table,t);
             }
          },
       }
