@@ -25,6 +25,7 @@ pub struct TLC {
    pub foralls_index: HashMap<Type,Vec<usize>>,
    pub foralls_rev_index: HashMap<Type,Vec<usize>>,
    pub term_kind: Kind,
+   pub constant_kind: Kind,
    pub nil_type: Type,
    pub bottom_type: Type,
 }
@@ -167,6 +168,7 @@ impl TLC {
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
          term_kind: Kind::Simple("Term".to_string(),Vec::new()),
+         constant_kind: Kind::Simple("Constant".to_string(),Vec::new()),
          nil_type: Type::Tuple(Vec::new()),
          bottom_type: Type::And(Vec::new()),
       }
@@ -1116,7 +1118,7 @@ impl TLC {
          Type::Product(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil},
          Type::Arrow(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) },
          Type::Ratio(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) },
-         Type::Constant(_) => Kind::Nil,
+         Type::Constant(_) => self.constant_kind.clone(),
       }
    }
    pub fn is_knormal(&self, k:&Kind) -> bool {
@@ -1621,6 +1623,7 @@ impl TLC {
                }
                //if any non Term typ is implied, introduce it here
                let ri = self.remove_kinded(&self.term_kind, &i);
+               let ri = self.remove_kinded(&self.constant_kind, &ri);
                self.rows[t.id].typ = self.rows[t.id].typ.and(&ri);
             } else {
                return Err(Error {
