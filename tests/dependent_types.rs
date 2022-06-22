@@ -13,6 +13,7 @@ fn check_constant_numbers() {
    tlc.check(Some(si), "1: [0]").unwrap_err();
 
    tlc.check(Some(si), "-0: [0]").unwrap();
+   tlc.check(Some(si), "-0: [-0]").unwrap();
    tlc.check(Some(si), "-1: [-1]").unwrap();
    tlc.check(Some(si), "-2: [-2]").unwrap();
    tlc.check(Some(si), "-2: [2]").unwrap_err();

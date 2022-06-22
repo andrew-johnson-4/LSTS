@@ -35,6 +35,13 @@ pub struct TLC {
 pub enum Constant {
    Integer(i64)
 }
+impl std::fmt::Debug for Constant {
+   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      match self {
+        Constant::Integer(i) => write!(f, "{}", i),
+      }
+   }
+}
 
 pub struct Row {
    pub term: Term,
@@ -414,29 +421,43 @@ impl TLC {
       self.unparse_ast(file_scope, fp, p, &span)
    }
    pub fn push_constant(&mut self, c: &Constant, t: TermId) -> TermId {
-      if let Some(ci) = self.constant_index.get(c) {
-         *ci
+      if let Some(ct) = self.constant_index.get(c) {
+         *ct
       } else {
          self.constant_index.insert(c.clone(),t);
          t
       }
    }
-   pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
-      let index = self.rows.len();
-      let ti = TermId { id: index };
-      let tt = match &term {
+   pub fn push_dep_type(&mut self, term: &Term, ti: TermId) -> Type {
+      match term {
          Term::Value(ct) => {
-            if ct.chars().all(|c| c.is_ascii_digit()) {
-               if let Ok(ci) = ct.parse::<i64>() {
-                  let ci = Constant::Integer(ci);
-                  let ci = self.push_constant(&ci, ti);
-                  Type::And(vec![Type::Any,Type::Constant(ci)])
-               } else { Type::Any }
+            if let Ok(ci) = ct.parse::<i64>() {
+               let ci = Constant::Integer(ci);
+               let ci = self.push_constant(&ci, ti);
+               Type::Constant(ci)
+            } else {
+               Type::Constant(ti)
+            }
+         }, _ => Type::Constant(ti),
+      }
+   }
+   pub fn push_term_type(&mut self, term: &Term, ti: TermId) -> Type {
+      match term {
+         Term::Value(ct) => {
+            if let Ok(ci) = ct.parse::<i64>() {
+               let ci = Constant::Integer(ci);
+               let ci = self.push_constant(&ci, ti);
+               Type::And(vec![Type::Any,Type::Constant(ci)])
             } else {
                Type::Any
             }
          }, _ => Type::Any,
-      };
+      }
+   }
+   pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
+      let index = self.rows.len();
+      let ti = TermId { id: index };
+      let tt = self.push_term_type(&term, ti);
       self.rows.push(Row {
          term: term,
          typ: tt,
@@ -961,7 +982,8 @@ impl TLC {
             self.untyped(t);
             let mut guard_names = HashMap::new();
             self.guard_varnames(&mut guard_names, t); //convert all varnames to "var#{term.id}"
-            Ok(Type::Constant(t))
+            let ct = self.push_dep_type(&self.rows[t.id].term.clone(), t);  //check if type is constant
+            Ok(ct)
          }
          rule => panic!("unexpected typ rule: {:?}", rule)
       }
