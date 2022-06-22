@@ -932,6 +932,7 @@ impl TLC {
          Rule::dep_typ => {
             let t = self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span)?;
             self.untyped(t);
+            self.guard_varnames(t); //convert all varnames to "var#{term.id}"
             Ok(Type::Constant(t))
          }
          rule => panic!("unexpected typ rule: {:?}", rule)
@@ -1463,6 +1464,44 @@ impl TLC {
 
       Ok(l_only)
    }
+
+   pub fn guard_varnames(&mut self, t: TermId) {
+      match self.rows[t.id].term.clone() {
+         Term::Ident(_) => {
+            self.rows[t.id].term = Term::Ident(format!("var#{}", t.id));
+         },
+         Term::Value(_) => {},
+         Term::Block(_sid,es) => {
+            for e in es.into_iter() {
+               self.guard_varnames(e);
+            }
+         },
+         Term::Tuple(es) => {
+            for e in es.into_iter() {
+               self.guard_varnames(e);
+            }
+         },
+         Term::Let(_,_,_,_,_,_) => {
+            panic!("TODO: guard_varnames in Let term")
+         },
+         Term::App(g,x) => {
+            self.guard_varnames(g);
+            self.guard_varnames(x);
+         },
+         Term::Ascript(t,_tt) => {
+            self.guard_varnames(t);
+         },
+         Term::As(t,_tt) => {
+            self.guard_varnames(t);
+         },
+         Term::Constructor(_c,kts) => {
+            for (_k,t) in kts.into_iter() {
+               self.guard_varnames(t);
+            }
+         },
+      }
+   }
+
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
