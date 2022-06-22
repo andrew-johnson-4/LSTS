@@ -1472,7 +1472,9 @@ impl TLC {
             if let Some(vn) = table.get(&tn) {
                self.rows[t.id].term = Term::Ident(vn.clone());
             } else {
-               self.rows[t.id].term = Term::Ident(format!("var#{}", t.id));
+               let nn = format!("var#{}", t.id);
+               table.insert(tn.clone(), nn.clone());
+               self.rows[t.id].term = Term::Ident(nn);
             }
          },
          Term::Value(_) => {},
