@@ -160,24 +160,34 @@ forall u:Yocto<U>::Unit. Yocto<U> => U = 1000000000000000000000000 * u :: Unit;
 //let deltavCs: Integer+Hertz = 9_192_631_770: Integer+Hertz;        //caesium hyperfine frequency
 
 //: Unit Math
-let pos(x:X::Unit):X::Unit;                     //pos
-let neg(x:X::Unit):X::Unit;                     //neg
-let $"+"(x:X::Unit, y:X::Unit):X::Unit;         //add
-let $"-"(x:X::Unit, y:X::Unit):X::Unit;         //sub
-let $"*"(x:X::Unit, y:Y::Unit):X*Y::Unit;       //mul
-let $"*"(x:Number::Term, y:Y::Unit):Y::Unit;    //mul constant
-let $"*"(x:X::Unit, y:Number::Term):X::Unit;    //mul constant
-let $"/"(x:X::Unit, y:Y::Unit):X/Y::Unit;       //div
-let $"/"(x:Number::Term, y:Y::Unit):()/Y::Unit; //div constant
-let $"/"(x:X::Unit, y:Number::Term):X::Unit;    //div constant
+let pos(x:X::Unit)             :X   ::Unit; //pos
+let neg(x:X::Unit)             :X   ::Unit; //neg
+let $"+"(x:X::Unit, y:X::Unit) :X   ::Unit; //add
+let $"-"(x:X::Unit, y:X::Unit) :X   ::Unit; //sub
+let $"*"(x:X::Unit, y:Y::Unit) :X*Y ::Unit; //mul
+let $"*"(x:Number, y:Y::Unit)  :Y   ::Unit; //mul constant
+let $"*"(x:X::Unit, y:Number)  :X   ::Unit; //mul constant
+let $"/"(x:X::Unit, y:Y::Unit) :X/Y ::Unit; //div
+let $"/"(x:Number, y:Y::Unit)  :()/Y::Unit; //div constant
+let $"/"(x:X::Unit, y:Number)  :X   ::Unit; //div constant
 
 //: Constant Math
-let pos([x]+Number): [x]+Number;                //pos
-let neg([x]+Number): [-x]+Number;               //neg
-let $"+"([x]+Number, [y]+Number): [x+y]+Number; //add
-let $"-"([x]+Number, [y]+Number): [x-y]+Number; //sub
-let $"*"([x]+Number, [y]+Number): [x*y]+Number; //mul
-let $"/"([x]+Number, [y]+Number): [x/y]+Number; //div
+let pos([x]): [x]           ; //pos
+let neg([x]): [x]           ; //neg
+let $"+"([x], [y]): [x+y]   ; //add
+let $"-"([x], [y]): [x-y]   ; //sub
+let $"*"([x], [y]): [x*y]   ; //mul
+let $"/"([x], [y]): [x/y]   ; //div
+let $"%"([x], [y]): [x%y]   ; //mod
+let not([x]): [not(x)]      ; //not
+let $"&&"([x], [y]): [x&&y] ; //and
+let $"||"([x], [y]): [x||y] ; //or
+let $"<"([x], [y]): [x<y]   ; //less than
+let $"<="([x], [y]): [x<=y] ; //less than or equal
+let $">"([x], [y]): [x>y]   ; //greater than
+let $">="([x], [y]): [x>=y] ; //greater than or equal
+let $"=="([x], [y]): [x==y] ; //equal
+let $"!="([x], [y]): [x!=y] ; //not equal
 
 //: Boolean Proof Objects
 type And<A:Boolean, B:Boolean>: Boolean ::Boolean;

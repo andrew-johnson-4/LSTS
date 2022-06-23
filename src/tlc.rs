@@ -1722,6 +1722,7 @@ impl TLC {
    }
 
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
+      eprintln!("typeck {}", self.print_term(t));
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
@@ -1880,6 +1881,7 @@ impl TLC {
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &i, &self.rows[t.id].span.clone())?;
       };
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
+      eprintln!("end typeck {}", self.print_term(t));
       Ok(())
    }
    pub fn unify(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
@@ -1888,7 +1890,9 @@ impl TLC {
       let mut rt = rt.clone(); rt = rt.normalize();
       self.reduce_type(&mut lt); //reduce constant expressions in dependent types
       self.reduce_type(&mut rt);
+      eprintln!("unify {:?} (x) {:?}", lt, rt);
       if let Ok(tt) = lt.unify(&rt) {
+         eprintln!("unify {:?} (x) {:?} yields {:?}", &lt, &rt, &tt);
          Ok(tt)
       } else { return Err(Error {
          kind: "Type Error".to_string(),
