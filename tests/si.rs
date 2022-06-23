@@ -1,6 +1,5 @@
 use lsts::tlc::TLC;
 
-/*
 #[test]
 fn check_constant_literals() {
    let mut tlc = TLC::new();
@@ -112,9 +111,7 @@ fn check_tik_i() {
    tlc.check(Some(si), "let xy: Point2D<Integer>").unwrap();
    tlc.check(Some(si), "let xy: Point2D<Boolean>").unwrap_err();
 }
-*/
 
-/*
 #[test]
 fn check_unit_math() {
    let mut tlc = TLC::new();
@@ -141,9 +138,7 @@ fn check_unit_math() {
    //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Metre").unwrap();
    //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Second").unwrap_err();
 }
-*/
 
-/*
 #[test]
 fn check_type_cast() {
    let mut tlc = TLC::new();
@@ -244,4 +239,3 @@ fn check_imperial_conversion() {
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Mile/Minute").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Watt/Minute").unwrap_err();
 }
-*/

@@ -329,13 +329,12 @@ impl TLC {
             self.kinds_of(kinds,b);
          },
          Type::Ident(cn,_) => {
-            if kinds.iter().any(|(t,k)| t==tt) { return; }
+            if kinds.iter().any(|(t,_k)| t==tt) { return; }
             if let Some(ti) = self.typedef_index.get(cn) {
             if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,k,_props,_) = &self.rules[*ti] {
                kinds.push((tt.clone(), k.clone()));
             }}
          },
-         _ => panic!("TODO: kinds_of {:?}", tt)
       }
    }
    pub fn kind_of(&self, tt: &Type) -> Kind {
@@ -354,7 +353,7 @@ impl TLC {
 
       //check logical consistency of foralls
       for rule in self.rules.clone().iter() { match rule {
-         TypeRule::Forall(qs,inf,_t,k,sp) => {
+         TypeRule::Forall(_qs,_inf,_t,_k,_sp) => {
             /* domain check hasn't been working for a while
                just comment it out until the topic comes up again
                TODO: add some motivating examples and tests for domain checks
@@ -1859,8 +1858,7 @@ impl TLC {
             }
          },
          Term::Ident(x) => {
-            let xt = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span.clone())?;
-            self.rows[t.id].typ = xt; //Type can be narrowed through lookup unification
+            self.rows[t.id].typ = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span.clone())?;
          },
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { self.bottom_type.clone() };
@@ -1931,6 +1929,11 @@ impl TLC {
                snippet: "".to_string()
             }) }
          },
+      };
+      if let Some(Type::Arrow(_,_)) = implied {
+         //arrow types can be narrowed through unification, which voids the implied unification check
+      } else if let Some(implied) = implied {
+         self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
       };
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
