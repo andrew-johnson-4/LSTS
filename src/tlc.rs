@@ -301,6 +301,43 @@ impl TLC {
       self.sanityck()?;
       Ok(ast)
    }
+   pub fn kinds_of(&self, kinds: &mut Vec<(Type,Kind)>, tt: &Type) {
+      match tt {
+         Type::Any => {},
+         Type::Constant(_) => {},
+         Type::And(ts) => {
+            for ct in ts.iter() {
+               self.kinds_of(kinds,ct);
+            }
+         },
+         Type::Product(ts) => {
+            for ct in ts.iter() {
+               self.kinds_of(kinds,ct);
+            }
+         },
+         Type::Tuple(ts) => {
+            for ct in ts.iter() {
+               self.kinds_of(kinds,ct);
+            }
+         },
+         Type::Arrow(p,b) => {
+            self.kinds_of(kinds,p);
+            self.kinds_of(kinds,b);
+         },
+         Type::Ratio(p,b) => {
+            self.kinds_of(kinds,p);
+            self.kinds_of(kinds,b);
+         },
+         Type::Ident(cn,_) => {
+            if kinds.iter().any(|(t,k)| t==tt) { return; }
+            if let Some(ti) = self.typedef_index.get(cn) {
+            if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,k,_props,_) = &self.rules[*ti] {
+               kinds.push((tt.clone(), k.clone()));
+            }}
+         },
+         _ => panic!("TODO: kinds_of {:?}", tt)
+      }
+   }
    pub fn kind_of(&self, tt: &Type) -> Kind {
       let tn = match tt {
          Type::Ident(cn,_cts) => cn.clone(),
@@ -311,6 +348,7 @@ impl TLC {
          return k.clone();
       }}
       Kind::Nil //undefined types have Nil kind
+                //this is the equivalent of NaN for kinds, and is thus not very useful
    }
    pub fn compile_rules(&mut self, _docname:&str) -> Result<(),Error> {
 
@@ -1221,19 +1259,22 @@ impl TLC {
          let mut matches = Vec::new();
          let ref sc = self.scopes[scope.id].clone();
          for (tn,tkts,tt) in sc.children.iter() {
+            //tkts only contains kinds for Type tt
             if tn==v {
                candidates.push(tt.clone());
                if let Some(it) = implied {
+                  let mut tkts = tkts.clone();
+                  self.kinds_of(&mut tkts, it);
                   match tt {
                      Type::Arrow(_p,_b) => {
                         //if it => tt
-                        if let Ok(rt) = self.unify_with_kinds(tkts,&it,tt,span) {
+                        if let Ok(rt) = self.unify_with_kinds(&tkts,&it,tt,span) {
                            matches.push(rt.clone());
                         }
                      },
                      _ => {
                         //if tt => it
-                        if let Ok(rt) = self.unify_with_kinds(tkts,tt,&it,span) {
+                        if let Ok(rt) = self.unify_with_kinds(&tkts,tt,&it,span) {
                            matches.push(rt.clone());
                         }
                      },

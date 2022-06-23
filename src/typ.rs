@@ -249,7 +249,20 @@ impl Type {
       let lt = self;
       //substitution can't change the kind of a type, so kinds doesn't need to be mutable
       //unification will always reject if types are not the same Kind
-      if lt.kind(kinds) != rt.kind(kinds) { return Err(()); }
+      if !lt.kind(kinds).has(&rt.kind(kinds)) {
+         //an And Type on the left can narrow to unify
+         match lt {
+            Type::And(lts) => {
+               for ct in lts.iter() {
+                  if let Ok(ut) = ct.unify_impl(kinds,subs,rt) {
+                     return Ok(ut);
+                  }
+               }
+            }, _ => {},
+         }
+         eprintln!("reject unification {:?}::{:?} (x) {:?}::{:?}", lt, lt.kind(kinds), rt, rt.kind(kinds));
+         return Err(());
+      }
       match (lt,rt) {
          //wildcard match
          (Type::Any,r) => Ok(r.substitute(subs)),
