@@ -570,7 +570,7 @@ impl TLC {
             let ident  = self.into_ident(ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat());
             let mut pars: Vec<Vec<(Option<String>,Option<Type>,Kind)>> = Vec::new();
             let mut rt = self.bottom_type.clone();
-            let mut rk = Kind::Nil;
+            let mut rk = self.term_kind.clone();
             let mut t  = None;
             for e in ps { match e.as_rule() {
                Rule::let_stmt_par => {
@@ -578,7 +578,7 @@ impl TLC {
                   for itkse in e.into_inner() {
                      let mut ident = None;
                      let mut typ   = None;
-                     let mut kind  = Kind::Nil;
+                     let mut kind  = self.term_kind.clone();
                      for itk in itkse.into_inner() { match itk.as_rule() {
                         Rule::ident => { ident = Some(itk.into_inner().concat()); },
                         Rule::typ   => { typ   = Some(self.unparse_ast_type(scope,fp,itk,span)?); },
@@ -1220,20 +1220,20 @@ impl TLC {
          let mut candidates = Vec::new();
          let mut matches = Vec::new();
          let ref sc = self.scopes[scope.id].clone();
-         for (tn,_tkts,tt) in sc.children.iter() {
+         for (tn,tkts,tt) in sc.children.iter() {
             if tn==v {
                candidates.push(tt.clone());
                if let Some(it) = implied {
                   match tt {
                      Type::Arrow(_p,_b) => {
                         //if it => tt
-                        if let Ok(rt) = self.unify(&it,tt,span) {
+                        if let Ok(rt) = self.unify_with_kinds(tkts,&it,tt,span) {
                            matches.push(rt.clone());
                         }
                      },
                      _ => {
                         //if tt => it
-                        if let Ok(rt) = self.unify(tt,&it,span) {
+                        if let Ok(rt) = self.unify_with_kinds(tkts,tt,&it,span) {
                            matches.push(rt.clone());
                         }
                      },
@@ -1461,8 +1461,9 @@ impl TLC {
          if let Some(tis) = self.foralls_index.get(&mnt) {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+            let kinds = Vec::new();
             let mut subs = Vec::new();
-            if let Ok(_) = lt.unify_impl(&mut subs, &n) {
+            if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &n) {
                let srt = rt.substitute(&subs);
                if self.is_normal(&srt) {
                   let (inum, iden) = srt.project_ratio();
@@ -1514,8 +1515,9 @@ impl TLC {
          if let Some(tis) = self.foralls_index.get(&mdt) {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+            let kinds = Vec::new();
             let mut subs = Vec::new();
-            if let Ok(_) = lt.unify_impl(&mut subs, &d) {
+            if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &d) {
                let srt = rt.substitute(&subs);
                if self.is_normal(&srt) {
                   let (inum, iden) = srt.project_ratio();
@@ -1588,8 +1590,9 @@ impl TLC {
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+               let kinds = Vec::new();
                let mut subs = Vec::new();
-               if let Ok(_) = lt.unify_impl(&mut subs, &n) {
+               if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &n) {
                   let srt = rt.substitute(&subs);
                   let (inum, iden) = srt.project_ratio();
                   num_collector.append(&mut inum.clone());
@@ -1633,8 +1636,9 @@ impl TLC {
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+               let kinds = Vec::new();
                let mut subs = Vec::new();
-               if let Ok(_) = lt.unify_impl(&mut subs, &d) {
+               if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &d) {
                   let srt = rt.substitute(&subs);
                   let (inum, iden) = srt.project_ratio();
                   num_collector.append(&mut iden.clone());
@@ -1883,12 +1887,16 @@ impl TLC {
       Ok(())
    }
    pub fn unify(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+      let kinds = Vec::new();
+      self.unify_with_kinds(&kinds, lt, rt, span)
+   }
+   pub fn unify_with_kinds(&mut self, kinds: &Vec<(Type,Kind)>, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
       //lt => rt
       let mut lt = self.extend_implied(lt); lt = lt.normalize();
       let mut rt = rt.clone(); rt = rt.normalize();
       self.reduce_type(&mut lt); //reduce constant expressions in dependent types
       self.reduce_type(&mut rt);
-      if let Ok(tt) = lt.unify(&rt) {
+      if let Ok(tt) = lt.unify(kinds, &rt) {
          Ok(tt)
       } else { return Err(Error {
          kind: "Type Error".to_string(),
