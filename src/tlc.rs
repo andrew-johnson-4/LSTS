@@ -34,12 +34,18 @@ pub struct TLC {
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Constant {
-   Integer(i64)
+   Integer(i64),
+   Op(String),
+   Tuple(Vec<Constant>),
 }
 impl std::fmt::Debug for Constant {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
       match self {
         Constant::Integer(i) => write!(f, "{}", i),
+        Constant::Op(op) => write!(f, "{}", op),
+        Constant::Tuple(ts) => write!(f, "({})", ts.iter()
+           .map(|t|format!("{:?}",t)).collect::<Vec<String>>()
+           .join(",") ),
       }
    }
 }
@@ -432,6 +438,21 @@ impl TLC {
    pub fn parse_constant(&self, c: &str) -> Option<Constant> {
       if c=="False" { Some(Constant::Integer(0))
       } else if c=="True" { Some(Constant::Integer(1))
+      } else if c=="pos" { Some(Constant::Op(c.to_string()))
+      } else if c=="neg" { Some(Constant::Op(c.to_string()))
+      } else if c=="+" { Some(Constant::Op(c.to_string()))
+      } else if c=="-" { Some(Constant::Op(c.to_string()))
+      } else if c=="*" { Some(Constant::Op(c.to_string()))
+      } else if c=="/" { Some(Constant::Op(c.to_string()))
+      } else if c=="%" { Some(Constant::Op(c.to_string()))
+      } else if c=="==" { Some(Constant::Op(c.to_string()))
+      } else if c=="!=" { Some(Constant::Op(c.to_string()))
+      } else if c=="<" { Some(Constant::Op(c.to_string()))
+      } else if c=="<=" { Some(Constant::Op(c.to_string()))
+      } else if c==">" { Some(Constant::Op(c.to_string()))
+      } else if c==">=" { Some(Constant::Op(c.to_string()))
+      } else if c=="&&" { Some(Constant::Op(c.to_string()))
+      } else if c=="||" { Some(Constant::Op(c.to_string()))
       } else if let Ok(ci) = c.parse::<i64>() { Some(Constant::Integer(ci))
       } else { None }
    }
@@ -1290,13 +1311,36 @@ impl TLC {
                return Some(c);
             };
          },
-         Term::Constructor(cn,_fts) => {
+         Term::Constructor(cn,ref mut _fts) => {
             if let Some(c) = self.parse_constant(&cn) {
                t.id = self.push_constant(&c, *t).id;
                return Some(c);
             };
          },
-         _ => {},
+         Term::Ident(g) => {
+            if let Some(c) = self.parse_constant(&g) {
+               t.id = self.push_constant(&c, *t).id;
+               return Some(c);
+            };
+         },
+         Term::App(ref mut g,ref mut x) => {
+            let gc = self.untyped_eval(g);
+            let xc = self.untyped_eval(x);
+            match (gc,xc) {
+               (Some(Constant::Op(uop)),Some(Constant::Integer(x))) => {
+                  let x = if uop=="pos" { x }
+                     else if uop=="neg" { -x }
+                     else { panic!("unexpected unary operator {}", uop) };
+                  let c = Constant::Integer(x);
+                  t.id = self.push_constant(&c, *t).id;
+                  return Some(c);
+               }, (Some(gc),Some(xc)) => {
+                  panic!("TODO: apply {:?} ( {:?} )", gc, xc);
+               },
+               _ => {},
+            }
+         },
+         _ => panic!("TODO: untyped eval {}", self.print_term(*t)),
       };
       None
    }
@@ -1586,7 +1630,9 @@ impl TLC {
    pub fn guard_varnames(&mut self, table: &mut HashMap<String,String>, t: TermId) {
       match self.rows[t.id].term.clone() {
          Term::Ident(tn) => {
-            if let Some(vn) = table.get(&tn) {
+            if ["pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
+               //pass
+            } else if let Some(vn) = table.get(&tn) {
                self.rows[t.id].term = Term::Ident(vn.clone());
             } else {
                let nn = format!("var#{}", t.id);
