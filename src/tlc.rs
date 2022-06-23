@@ -430,7 +430,9 @@ impl TLC {
       }
    }
    pub fn parse_constant(&self, c: &str) -> Option<Constant> {
-      if let Ok(ci) = c.parse::<i64>() { Some(Constant::Integer(ci))
+      if c=="False" { Some(Constant::Integer(0))
+      } else if c=="True" { Some(Constant::Integer(1))
+      } else if let Ok(ci) = c.parse::<i64>() { Some(Constant::Integer(ci))
       } else { None }
    }
    pub fn push_dep_type(&mut self, term: &Term, ti: TermId) -> Type {
@@ -1242,8 +1244,8 @@ impl TLC {
    }
    pub fn reduce_type(&mut self, tt: &mut Type) {
       match tt {
-         Type::Constant(mut c) => {
-            self.untyped_eval(&mut c);
+         Type::Constant(ref mut c) => {
+            self.untyped_eval(c);
          },
          Type::Any => {},
          Type::Ident(_tn,tps) => {
@@ -1276,14 +1278,27 @@ impl TLC {
          },
       }
    }
-   pub fn untyped_eval(&mut self, t: &mut TermId) {
+   pub fn untyped_eval(&mut self, t: &mut TermId) -> Option<Constant> {
       //reduce constant expressions in untyped context
       //designed for use inside of dependent type signatures
 
-      panic!("TODO: reduce constant expressions in dependent types");
-
-      //evaluation can change the t.id of a term to the canonical t.id of a constant
-      t.id = t.id;
+      match self.rows[t.id].term.clone() {
+         //evaluation can change the t.id of a term to the canonical t.id of a constant
+         Term::Value(v) => {
+            if let Some(c) = self.parse_constant(&v) {
+               t.id = self.push_constant(&c, *t).id;
+               return Some(c);
+            };
+         },
+         Term::Constructor(cn,_fts) => {
+            if let Some(c) = self.parse_constant(&cn) {
+               t.id = self.push_constant(&c, *t).id;
+               return Some(c);
+            };
+         },
+         _ => {},
+      };
+      None
    }
    pub fn untyped(&mut self, t: TermId) {
       self.rows[t.id].typ = self.bottom_type.clone();
