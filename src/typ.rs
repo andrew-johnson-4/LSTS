@@ -249,6 +249,24 @@ impl Type {
       let lt = self;
       //substitution can't change the kind of a type, so kinds doesn't need to be mutable
       //unification will always reject if types are not the same Kind
+      if lt==&Type::Any {
+         //an Any Type on the left takes precedence in unification regardles of Kind
+         let rk = rt.kind(kinds);
+         match rt.substitute(subs) {
+            Type::And(rts) => {
+               //possibly need to narrow type after unification
+               let mut acc = Vec::new();
+               for ct in rts.iter() {
+                  if rk.has(&ct.kind(kinds)) {
+                     acc.push(ct.clone());
+                  }
+               }
+               //it is OK for ? to unify with {}
+               if acc.len()==1 { return Ok(acc[0].clone());
+               } else { return Ok(Type::And(acc)); }
+            }, tt => { return Ok(tt) },
+         }
+      }
       if !lt.kind(kinds).has(&rt.kind(kinds)) {
          //an And Type on the left can narrow to unify
          match lt {
@@ -260,7 +278,6 @@ impl Type {
                }
             }, _ => {},
          }
-         eprintln!("reject unification {:?}::{:?} (x) {:?}::{:?}", lt, lt.kind(kinds), rt, rt.kind(kinds));
          return Err(());
       }
       match (lt,rt) {

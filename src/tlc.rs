@@ -355,6 +355,9 @@ impl TLC {
       //check logical consistency of foralls
       for rule in self.rules.clone().iter() { match rule {
          TypeRule::Forall(qs,inf,_t,k,sp) => {
+            /* domain check hasn't been working for a while
+               just comment it out until the topic comes up again
+               TODO: add some motivating examples and tests for domain checks
             //check if domain is explicit
             if k != &Kind::Nil { continue; }
 
@@ -386,6 +389,7 @@ impl TLC {
                   snippet: format!("{:?}", rule),
                })
             }
+            */
          },
          TypeRule::Typedef(tn,_norm,_itks,_implies,tds,_tks,props,_span) => {
             for td in tds.iter() { match td {
@@ -783,7 +787,7 @@ impl TLC {
                Rule::typ_inf_kind => {
                   let mut typ = "".to_string();
                   let mut inf = None;
-                  let mut kind = Kind::Nil;
+                  let mut kind = self.term_kind.clone();
                   for tik in e.into_inner() { match tik.as_rule() {
                      Rule::typvar => { typ = tik.into_inner().concat(); },
                      Rule::typ   => { inf   = Some(self.unparse_ast_type(scope,fp,tik,span)?); },
@@ -837,7 +841,7 @@ impl TLC {
                      Rule::ident_typ_kind => {
                         let mut idn = None;
                         let mut inf = None;
-                        let mut kind = Kind::Nil;
+                        let mut kind = self.term_kind.clone();
                         for itk in tip.into_inner() { match itk.as_rule() {
                            Rule::ident => { idn = Some(itk.into_inner().concat()); },
                            Rule::typ   => { inf   = Some(self.unparse_ast_type(scope,fp,itk,span)?); },
@@ -858,7 +862,7 @@ impl TLC {
                },
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
-            let kinds = if kinds.len()==0 { Kind::Nil
+            let kinds = if kinds.len()==0 { self.term_kind.clone()
             } else if kinds.len()==1 { kinds[0].clone()
             } else { Kind::And(kinds) };
             if normal {
@@ -913,7 +917,7 @@ impl TLC {
                Rule::ident_typ_kind => {
                   let mut ident = None;
                   let mut typ = None;
-                  let mut kind = Kind::Nil;
+                  let mut kind = self.term_kind.clone();
                   for itk in e.into_inner() { match itk.as_rule() {
                      Rule::ident => { ident = Some(itk.into_inner().concat()); },
                      Rule::typ   => { typ   = Some(self.unparse_ast_type(scope,fp,itk,span)?); },
@@ -1803,7 +1807,7 @@ impl TLC {
             } else {
                self.rows[t.id].typ = self.bottom_type.clone();
             }
-            self.soundck(&rt,&self.rows[t.id].span.clone())?;
+            self.soundck(&rt, &self.rows[t.id].span.clone())?;
          },
          Term::Ascript(x,tt) => {
             self.typeck(scope.clone(), x, Some(tt.clone()))?;
@@ -1856,8 +1860,7 @@ impl TLC {
          },
          Term::Ident(x) => {
             let xt = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span.clone())?;
-            //typeof(x:Implied) => t.typ
-            self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
+            self.rows[t.id].typ = xt; //Type can be narrowed through lookup unification
          },
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { self.bottom_type.clone() };
@@ -1928,9 +1931,6 @@ impl TLC {
                snippet: "".to_string()
             }) }
          },
-      };
-      if let Some(ref i) = implied {
-         self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &i, &self.rows[t.id].span.clone())?;
       };
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
