@@ -34,6 +34,7 @@ pub struct TLC {
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Constant {
+   NaN,
    Integer(i64),
    Op(String),
    Tuple(Vec<Constant>),
@@ -41,6 +42,7 @@ pub enum Constant {
 impl std::fmt::Debug for Constant {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
       match self {
+        Constant::NaN => write!(f, "NaN"),
         Constant::Integer(i) => write!(f, "{}", i),
         Constant::Op(op) => write!(f, "{}", op),
         Constant::Tuple(ts) => write!(f, "({})", ts.iter()
@@ -436,8 +438,10 @@ impl TLC {
       }
    }
    pub fn parse_constant(&self, c: &str) -> Option<Constant> {
-      if c=="False" { Some(Constant::Integer(0))
+      if c=="NaN" { Some(Constant::NaN)
       } else if c=="True" { Some(Constant::Integer(1))
+      } else if c=="False" { Some(Constant::Integer(0))
+      } else if c=="not" { Some(Constant::Op(c.to_string()))
       } else if c=="pos" { Some(Constant::Op(c.to_string()))
       } else if c=="neg" { Some(Constant::Op(c.to_string()))
       } else if c=="+" { Some(Constant::Op(c.to_string()))
@@ -1330,7 +1334,36 @@ impl TLC {
                (Some(Constant::Op(uop)),Some(Constant::Integer(x))) => {
                   let x = if uop=="pos" { x }
                      else if uop=="neg" { -x }
+                     else if uop=="not" { if x==0 {1} else {0} }
                      else { panic!("unexpected unary operator {}", uop) };
+                  let c = Constant::Integer(x);
+                  t.id = self.push_constant(&c, *t).id;
+                  return Some(c);
+               }, (Some(Constant::Op(bop)),
+                   Some(Constant::Tuple(ps))) if ps.len()==2 => {
+                  let a = if let Constant::Integer(a) = ps[0] { a
+                  } else { return None; };
+                  let b = if let Constant::Integer(b) = ps[1] { b
+                  } else { return None; };
+                  if b==0 && (bop=="/" || bop=="%") {
+                     let c = Constant::NaN;
+                     t.id = self.push_constant(&c, *t).id;
+                     return Some(c);
+                  }
+                  let x = if bop=="+" { a + b }
+                     else if bop=="-" { a - b }
+                     else if bop=="*" { a * b }
+                     else if bop=="/" { a / b }
+                     else if bop=="%" { a % b }
+                     else if bop=="<"  { if a < b {1} else {0} }
+                     else if bop=="<=" { if a <= b {1} else {0} }
+                     else if bop==">"  { if a > b {1} else {0} }
+                     else if bop==">=" { if a >= b {1} else {0} }
+                     else if bop=="==" { if a == b {1} else {0} }
+                     else if bop=="!=" { if a != b {1} else {0} }
+                     else if bop=="&&" { if a==1 && b==1 {1} else {0} }
+                     else if bop=="||" { if a==1 || b==1 {1} else {0} }
+                     else { panic!("unexpected binary operator {}", bop) };
                   let c = Constant::Integer(x);
                   t.id = self.push_constant(&c, *t).id;
                   return Some(c);
@@ -1338,6 +1371,22 @@ impl TLC {
                   panic!("TODO: apply {:?} ( {:?} )", gc, xc);
                },
                _ => {},
+            }
+         },
+         Term::Tuple(ref mut ts) => {
+            let mut all_const = true;
+            let mut consts = Vec::new();
+            for tc in ts.iter_mut() {
+               if let Some(cc) = self.untyped_eval(tc) {
+                  consts.push(cc);
+               } else {
+                  all_const = false;
+               }
+            }
+            if all_const {
+               let tsc = Constant::Tuple(consts);
+               t.id = self.push_constant(&tsc, *t).id;
+               return Some(tsc);
             }
          },
          _ => panic!("TODO: untyped eval {}", self.print_term(*t)),
@@ -1630,7 +1679,7 @@ impl TLC {
    pub fn guard_varnames(&mut self, table: &mut HashMap<String,String>, t: TermId) {
       match self.rows[t.id].term.clone() {
          Term::Ident(tn) => {
-            if ["pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
+            if ["not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
                //pass
             } else if let Some(vn) = table.get(&tn) {
                self.rows[t.id].term = Term::Ident(vn.clone());
