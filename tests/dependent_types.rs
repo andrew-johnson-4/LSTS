@@ -12,6 +12,15 @@ fn check_constant_numbers() {
    tlc.check(Some(si), "0: [2]").unwrap_err();
    tlc.check(Some(si), "1: [0]").unwrap_err();
 
+   //true and false are encoded as binary integers
+   //there is no truthiness of booleans, only exact equality
+   tlc.check(Some(si), "0: [False]").unwrap();
+   tlc.check(Some(si), "0: [True]").unwrap_err();
+   tlc.check(Some(si), "1: [False]").unwrap_err();
+   tlc.check(Some(si), "1: [True]").unwrap();
+   tlc.check(Some(si), "2: [False]").unwrap_err();
+   tlc.check(Some(si), "2: [True]").unwrap_err();
+	
    tlc.check(Some(si), "-0: [0]").unwrap();
    tlc.check(Some(si), "-0: [-0]").unwrap();
    tlc.check(Some(si), "-1: [-1]").unwrap();

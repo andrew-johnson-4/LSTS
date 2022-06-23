@@ -428,12 +428,17 @@ impl TLC {
          t
       }
    }
+   pub fn parse_constant(&self, c: &str) -> Option<Constant> {
+      if c=="True" { Some(Constant::Integer(1))
+      } else if c=="False" { Some(Constant::Integer(0))
+      } else if let Ok(ci) = c.parse::<i64>() { Some(Constant::Integer(ci))
+      } else { None }
+   }
    pub fn push_dep_type(&mut self, term: &Term, ti: TermId) -> Type {
       match term {
          Term::Value(ct) => {
-            if let Ok(ci) = ct.parse::<i64>() {
-               let ci = Constant::Integer(ci);
-               let ci = self.push_constant(&ci, ti);
+            if let Some(c) = self.parse_constant(ct) {
+               let ci = self.push_constant(&c, ti);
                Type::Constant(ci)
             } else {
                Type::Constant(ti)
@@ -444,9 +449,8 @@ impl TLC {
    pub fn push_term_type(&mut self, term: &Term, ti: TermId) -> Type {
       match term {
          Term::Value(ct) => {
-            if let Ok(ci) = ct.parse::<i64>() {
-               let ci = Constant::Integer(ci);
-               let ci = self.push_constant(&ci, ti);
+            if let Some(c) = self.parse_constant(ct) {
+               let ci = self.push_constant(&c, ti);
                Type::And(vec![Type::Any,Type::Constant(ci)])
             } else {
                Type::Any
@@ -1260,6 +1264,11 @@ impl TLC {
          },
          Term::Ascript(x,_tt) => {
             self.untyped(x);
+         },
+         Term::Constructor(_cn,fts) => {
+            for (_f,ft) in fts.iter() {
+               self.untyped(*ft);
+            }
          },
          _ => panic!("TODO untype term: {}", self.print_term(t))
       }
