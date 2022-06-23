@@ -6,7 +6,7 @@ pub struct ScopeId {
    pub id: usize,
 }
 
-//does not implement Clone because scopes are uniquely identified by their id
+#[derive(Clone)]
 pub struct Scope {
    pub parent: Option<ScopeId>,
    pub children: Vec<(String,Vec<(Type,Kind)>,Type)>,

@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::collections::{HashSet,HashMap};
 use std::path::Path;
 use pest::Parser;
@@ -17,7 +18,7 @@ pub struct TLC {
    pub rows: Vec<Row>,
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
-   pub regexes: Vec<(Type,Regex)>,
+   pub regexes: Vec<(Type,Rc<Regex>)>,
    pub constructors: HashMap<String,(Type,Vec<Type>,Vec<(String,Type)>)>,
    pub type_is_normal: HashSet<Type>,
    pub kind_is_normal: HashSet<Kind>,
@@ -53,7 +54,7 @@ pub struct Row {
 
 #[derive(Clone)]
 pub struct Span {
-   pub filename: String,
+   pub filename: Rc<String>,
    pub offset_start: usize,
    pub offset_end: usize,
    pub linecol_start: (usize,usize),
@@ -159,7 +160,7 @@ impl TLC {
             typ: Type::Tuple(Vec::new()), //typeof(NULL) is () not []
             kind: Kind::Nil,
             span: Span {
-               filename:"".to_string(),
+               filename: Rc::new("".to_string()),
                offset_start: 0,
                offset_end: 0,
                linecol_start: (0,0),
@@ -344,7 +345,7 @@ impl TLC {
             for td in tds.iter() { match td {
                Typedef::Regex(pat) => {
                   if let Ok(r) = Regex::new(&pat[1..pat.len()-1]) {
-                     self.regexes.push((Type::Ident(tn.clone(),Vec::new()),r));
+                     self.regexes.push((Type::Ident(tn.clone(),Vec::new()),Rc::new(r)));
                   } else {
                      panic!("typedef regex rejected: {}", pat);
                   }
@@ -393,7 +394,7 @@ impl TLC {
              kind: "Parse Error".to_string(),
              rule: rule,
              span: Span {
-                filename:docname.to_string(),
+                filename: Rc::new(docname.to_string()),
                 offset_start: istart,
                 offset_end: iend,
                 linecol_start: start,
@@ -408,7 +409,7 @@ impl TLC {
    pub fn unparse_file(&mut self, scope:Option<ScopeId>, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<TermId,Error> {
       let p = ps.peek().unwrap();
       let span = Span {
-         filename: fp.to_string(),
+         filename: Rc::new(fp.to_string()),
          linecol_start: p.as_span().start_pos().line_col(),
          linecol_end: p.as_span().end_pos().line_col(),
          offset_start: p.as_span().start(),
@@ -429,9 +430,7 @@ impl TLC {
       }
    }
    pub fn parse_constant(&self, c: &str) -> Option<Constant> {
-      if c=="True" { Some(Constant::Integer(1))
-      } else if c=="False" { Some(Constant::Integer(0))
-      } else if let Ok(ci) = c.parse::<i64>() { Some(Constant::Integer(ci))
+      if let Ok(ci) = c.parse::<i64>() { Some(Constant::Integer(ci))
       } else { None }
    }
    pub fn push_dep_type(&mut self, term: &Term, ti: TermId) -> Type {
@@ -1039,7 +1038,7 @@ impl TLC {
       }
       Ok(())
    }
-   pub fn soundck(&self, tt: &Type, span: &Span) -> Result<(),Error> {
+   pub fn soundck(&mut self, tt: &Type, span: &Span) -> Result<(),Error> {
       match tt {
          Type::Any => Ok(()),
          Type::Arrow(p,b) => { self.soundck(p,span)?; self.soundck(b,span)?; Ok(()) },
@@ -1072,7 +1071,7 @@ impl TLC {
             if ts.len()==0 { return Ok(()); }
             if !tt.is_concrete() { return Ok(()); }
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,_tk,_props,_) = &self.rules[*ti] {
+            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,_tk,_props,_) = &self.rules[*ti].clone() {
             if ts.len()==itks.len() {
                for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,itks) {
                   if let Some(bt) = bt {
@@ -1189,11 +1188,11 @@ impl TLC {
          Type::Constant(_) => true,
       }
    }
-   pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Type>, span: &Span) -> Result<Type,Error> {
+   pub fn typeof_var(&mut self, scope: &Option<ScopeId>, v: &str, implied: &Option<Type>, span: &Span) -> Result<Type,Error> {
       if let Some(scope) = scope {
          let mut candidates = Vec::new();
          let mut matches = Vec::new();
-         let ref sc = self.scopes[scope.id];
+         let ref sc = self.scopes[scope.id].clone();
          for (tn,_tkts,tt) in sc.children.iter() {
             if tn==v {
                candidates.push(tt.clone());
@@ -1240,6 +1239,51 @@ impl TLC {
          span: span.clone(),
          snippet: "".to_string()
       }) }
+   }
+   pub fn reduce_type(&mut self, tt: &mut Type) {
+      match tt {
+         Type::Constant(mut c) => {
+            self.untyped_eval(&mut c);
+         },
+         Type::Any => {},
+         Type::Ident(_tn,tps) => {
+            for mut tp in tps.iter_mut() {
+               self.reduce_type(&mut tp);
+            }
+         },
+         Type::And(ts) => {
+            for mut ct in ts.iter_mut() {
+               self.reduce_type(&mut ct);
+            }
+         },
+         Type::Tuple(ts) => {
+            for mut ct in ts.iter_mut() {
+               self.reduce_type(&mut ct);
+            }
+         },
+         Type::Product(ts) => {
+            for mut ct in ts.iter_mut() {
+               self.reduce_type(&mut ct);
+            }
+         },
+         Type::Arrow(ref mut p, ref mut b) => {
+            self.reduce_type(p);
+            self.reduce_type(b);
+         },
+         Type::Ratio(ref mut p, ref mut b) => {
+            self.reduce_type(p);
+            self.reduce_type(b);
+         },
+      }
+   }
+   pub fn untyped_eval(&mut self, t: &mut TermId) {
+      //reduce constant expressions in untyped context
+      //designed for use inside of dependent type signatures
+
+      panic!("TODO: reduce constant expressions in dependent types");
+
+      //evaluation can change the t.id of a term to the canonical t.id of a constant
+      t.id = t.id;
    }
    pub fn untyped(&mut self, t: TermId) {
       self.rows[t.id].typ = self.bottom_type.clone();
@@ -1400,7 +1444,7 @@ impl TLC {
          Type::Ratio(Box::new(num),Box::new(den))
       })
    }
-   pub fn cast_into_kind(&self, mut l_only: Type, into: &Type, span: &Span) -> Result<Type,Error> {
+   pub fn cast_into_kind(&mut self, mut l_only: Type, into: &Type, span: &Span) -> Result<Type,Error> {
 
       while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
          l_only = self.cast_normal(&l_only, span)?;
@@ -1576,7 +1620,7 @@ impl TLC {
                self.typeck(Some(sid), *e, None)?;
                last_typ = self.rows[e.id].typ.clone();
             }
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?;
+            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &last_typ, &self.rows[t.id].span.clone())?;
          },
          Term::Tuple(es) => {
             let mut ts = Vec::new();
@@ -1584,7 +1628,7 @@ impl TLC {
                self.typeck(scope, *e, None)?;
                ts.push(self.rows[e.id].typ.clone());
             }
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &Type::Tuple(ts), &self.rows[t.id].span)?;
+            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &Type::Tuple(ts), &self.rows[t.id].span.clone())?;
          },
          Term::Let(s,v,_ps,b,rt,_rk) => {
             if v=="" {
@@ -1596,34 +1640,34 @@ impl TLC {
             } else {
                self.rows[t.id].typ = self.bottom_type.clone();
             }
-            self.soundck(&rt,&self.rows[t.id].span)?;
+            self.soundck(&rt,&self.rows[t.id].span.clone())?;
          },
          Term::Ascript(x,tt) => {
             self.typeck(scope.clone(), x, Some(tt.clone()))?;
-            self.rows[t.id].typ = self.unify(&self.rows[x.id].typ, &tt, &self.rows[t.id].span)?;
+            self.rows[t.id].typ = self.unify(&self.rows[x.id].typ.clone(), &tt, &self.rows[t.id].span.clone())?;
          },
          Term::As(x,into) => {
             self.typeck(scope.clone(), x, None)?;
             let into_kind = self.kindof(&into).first();
-            if let Ok(nt) = self.unify(&self.rows[x.id].typ, &into, &self.rows[t.id].span) {
+            if let Ok(nt) = self.unify(&self.rows[x.id].typ.clone(), &into, &self.rows[t.id].span.clone()) {
                //if cast is already satisfied, do nothing
-               self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+               self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
             } else {
                if self.is_knormal(&into_kind) {
-                  let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ)
+                  let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ.clone())
                                    .remove(&into_kind.as_type());
-                  let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
+                  let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ.clone());
 
-                  let l_only = self.cast_into_kind(l_only, &into, &self.rows[t.id].span)?;
+                  let l_only = self.cast_into_kind(l_only, &into, &self.rows[t.id].span.clone())?;
 
                   //quod erat demonstrandum
-                  self.rows[t.id].typ = self.unify(&l_only,&into,&self.rows[t.id].span)?.and(&l_alts);
+                  self.rows[t.id].typ = self.unify(&l_only,&into,&self.rows[t.id].span.clone())?.and(&l_alts);
                } else {
                   let mut accept = false;
-                  for tr in self.rules.iter() { match tr {
+                  for tr in self.rules.clone().iter() { match tr {
                      TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,k,_) if k==&into_kind => {
-                        if let Ok(lt) = self.unify(&self.rows[x.id].typ, lt, &self.rows[t.id].span) {
-                        if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span) {
+                        if let Ok(lt) = self.unify(&self.rows[x.id].typ.clone(), lt, &self.rows[t.id].span.clone()) {
+                        if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span.clone()) {
                            //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
                            //eliminate typeof(x) :: kindof(Into)
                            let l_narrowed = self.remove_kinded(&into_kind, &lt);
@@ -1648,25 +1692,25 @@ impl TLC {
             }
          },
          Term::Ident(x) => {
-            let xt = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span)?;
+            let xt = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span.clone())?;
             //typeof(x:Implied) => t.typ
-            self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+            self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { self.bottom_type.clone() };
             let ki = self.project_kinded(&self.term_kind, &i);
             let mut r = None;
-            for (pat,re) in self.regexes.iter() {
-               if pat==&ki { //Term kinded is not []
-                  r = Some(re);
+            for (pat,re) in self.regexes.clone().into_iter() {
+               if pat==ki { //Term kinded is not []
+                  r = Some(re.clone());
                   let alt_t = self.remove_kinded(&self.term_kind, &self.rows[t.id].typ);
-                  self.rows[t.id].typ = self.unify(pat, &ki, &self.rows[t.id].span)?.and(&alt_t);
+                  self.rows[t.id].typ = self.unify(&pat, &ki, &self.rows[t.id].span.clone())?.and(&alt_t);
                   break;
                }
                else if self.bottom_type==ki && re.is_match(&x) { //Term kinded is []
-                  r = Some(re);
+                  r = Some(re.clone());
                   let alt_t = self.remove_kinded(&self.term_kind, &self.rows[t.id].typ);
-                  self.rows[t.id].typ = self.unify(pat, &ki, &self.rows[t.id].span)?.and(&alt_t);
+                  self.rows[t.id].typ = self.unify(&pat, &ki, &self.rows[t.id].span.clone())?.and(&alt_t);
                   break;
                }
             }
@@ -1700,18 +1744,18 @@ impl TLC {
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
-            self.rows[x.id].typ = self.unify(&self.rows[x.id].typ, &self.rows[g.id].typ.expects(), &self.rows[x.id].span)?;
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &self.rows[g.id].typ.returns(), &self.rows[t.id].span)?;
+            self.rows[x.id].typ = self.unify(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.expects(), &self.rows[x.id].span.clone())?;
+            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &self.rows[g.id].typ.returns(), &self.rows[t.id].span.clone())?;
          },
          Term::Constructor(cname,kvs) => {
-            for (_k,v) in kvs.iter() {
-               self.typeck(scope.clone(), *v, None)?;
+            for (_k,v) in kvs.clone().into_iter() {
+               self.typeck(scope.clone(), v, None)?;
             }
-            if let Some((tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
+            if let Some((ref tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
                self.rows[t.id].typ = self.unify(
-                  &self.rows[t.id].typ,
-                  &tt,
-                  &self.rows[t.id].span
+                  &self.rows[t.id].typ.clone(),
+                  &tt.clone(),
+                  &self.rows[t.id].span.clone()
                )?;
                self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::Ident(cname.clone(),Vec::new())).normalize();
             } else { return Err(Error {
@@ -1723,15 +1767,17 @@ impl TLC {
          },
       };
       if let Some(ref i) = implied {
-         self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
+         self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &i, &self.rows[t.id].span.clone())?;
       };
-      self.soundck(&self.rows[t.id].typ, &self.rows[t.id].span)?;
+      self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
    }
-   pub fn unify(&self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+   pub fn unify(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
       //lt => rt
       let mut lt = self.extend_implied(lt); lt = lt.normalize();
       let mut rt = rt.clone(); rt = rt.normalize();
+      self.reduce_type(&mut lt); //reduce constant expressions in dependent types
+      self.reduce_type(&mut rt);
       if let Ok(tt) = lt.unify(&rt) {
          Ok(tt)
       } else { return Err(Error {
