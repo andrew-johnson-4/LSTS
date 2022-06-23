@@ -27,7 +27,7 @@ normal = { "normal" }
 ident_typ_kind = { ident? ~ (":"? ~ typ) ~ ("::" ~ kind)? }
 typ_inf_kind = { typvar ~ (":" ~ typ)? ~ ("::" ~ kind)? }
 
-compare_chars = { "==" | "!=" | "<" | "<=" | ">" | ">=" }
+compare_chars = { "==" | "!=" | "<=" | "<" | ">=" | ">" }
 compare_op = { compare_chars }
 logical_chars = { "&&" | "||" }
 logical_op = { logical_chars }
