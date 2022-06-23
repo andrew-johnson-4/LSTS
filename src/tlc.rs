@@ -1248,13 +1248,21 @@ impl TLC {
             Ok(Type::And(matches).normalize())
          } else if matches.len()==1 {
             Ok(matches[0].clone())
-         } else if candidates.len() > 0 { Err(Error {
+         } else if candidates.len() > 0 {
+            let mut tkts = Vec::new();
+            for (_,tks,_) in sc.children.iter() {
+               tkts.append(&mut tks.clone());
+            }
+            let tkts = tkts.into_iter().map(|(t,k)| format!("{:?}::{:?}",t,k))
+                           .collect::<Vec<String>>().join("; ");
+         Err(Error {
             kind: "Type Error".to_string(),
-            rule: format!("variable {}: {:?} did not match any candidate {}",
+            rule: format!("variable {}: {:?} did not match any candidate {} with {}",
                      v,
                      implied.clone().unwrap_or(Type::Any),
                      candidates.iter().map(|t|format!("{:?}",t))
-                               .collect::<Vec<String>>().join(" | ") ),
+                               .collect::<Vec<String>>().join(" | "),
+                     tkts ),
             span: span.clone(),
             snippet: "".to_string()
          }) } else {
