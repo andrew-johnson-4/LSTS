@@ -358,12 +358,12 @@ impl std::fmt::Debug for Type {
               if ts.len()==0 { write!(f, "{}", t) }
               else { write!(f, "{}<{}>", t, ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ) }
            }
-           Type::And(ts) => write!(f, "[{}]", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("+") ),
+           Type::And(ts) => write!(f, "{{{}}}", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("+") ),
            Type::Tuple(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ),
            Type::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
            Type::Arrow(p,b) => write!(f, "({:?})=>({:?})", p, b),
            Type::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
-           Type::Constant(c) => write!(f, "{{term#{}}}", c.id),
+           Type::Constant(c) => write!(f, "[term#{}]", c.id),
         }
     }
 }
