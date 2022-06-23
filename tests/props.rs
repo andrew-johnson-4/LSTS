@@ -36,6 +36,67 @@ fn check_boolean() {
 }
 
 #[test]
+fn check_complex_predicates() {
+   let mut tlc = TLC::new();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+
+   //Boolean Proofs
+   tlc.check(Some(si), "True && True && True as True").unwrap();
+   tlc.check(Some(si), "True && True && False as True").unwrap_err();
+   tlc.check(Some(si), "True && False && True as True").unwrap_err();
+   tlc.check(Some(si), "True && False && False as True").unwrap_err();
+   tlc.check(Some(si), "False && True && True as True").unwrap_err();
+   tlc.check(Some(si), "False && True && False as True").unwrap_err();
+   tlc.check(Some(si), "False && False && True as True").unwrap_err();
+   tlc.check(Some(si), "False && False && False as True").unwrap_err();
+
+   tlc.check(Some(si), "True && True && True as False").unwrap_err();
+   tlc.check(Some(si), "True && True && False as False").unwrap();
+   tlc.check(Some(si), "True && False && True as False").unwrap();
+   tlc.check(Some(si), "True && False && False as False").unwrap();
+   tlc.check(Some(si), "False && True && True as False").unwrap();
+   tlc.check(Some(si), "False && True && False as False").unwrap();
+   tlc.check(Some(si), "False && False && True as False").unwrap();
+   tlc.check(Some(si), "False && False && False as False").unwrap();
+
+   tlc.check(Some(si), "True || True || True as True").unwrap();
+   tlc.check(Some(si), "True || True || False as True").unwrap();
+   tlc.check(Some(si), "True || False || True as True").unwrap();
+   tlc.check(Some(si), "True || False || False as True").unwrap();
+   tlc.check(Some(si), "False || True || True as True").unwrap();
+   tlc.check(Some(si), "False || True || False as True").unwrap();
+   tlc.check(Some(si), "False || False || True as True").unwrap();
+   tlc.check(Some(si), "False || False || False as True").unwrap_err();
+
+   tlc.check(Some(si), "True || True || True as False").unwrap_err();
+   tlc.check(Some(si), "True || True || False as False").unwrap_err();
+   tlc.check(Some(si), "True || False || True as False").unwrap_err();
+   tlc.check(Some(si), "True || False || False as False").unwrap_err();
+   tlc.check(Some(si), "False || True || True as False").unwrap_err();
+   tlc.check(Some(si), "False || True || False as False").unwrap_err();
+   tlc.check(Some(si), "False || False || True as False").unwrap_err();
+   tlc.check(Some(si), "False || False || False as False").unwrap();
+
+   tlc.check(Some(si), "not(True) && True as True").unwrap_err();
+   tlc.check(Some(si), "not(True) && False as True").unwrap_err();
+   tlc.check(Some(si), "not(False) && True as True").unwrap();
+   tlc.check(Some(si), "not(False) && False as True").unwrap_err();
+   tlc.check(Some(si), "not(True) && True as False").unwrap();
+   tlc.check(Some(si), "not(True) && False as False").unwrap();
+   tlc.check(Some(si), "not(False) && True as False").unwrap_err();
+   tlc.check(Some(si), "not(False) && False as False").unwrap();
+
+   tlc.check(Some(si), "not(True) || True as True").unwrap();
+   tlc.check(Some(si), "not(True) || False as True").unwrap_err();
+   tlc.check(Some(si), "not(False) || True as True").unwrap();
+   tlc.check(Some(si), "not(False) || False as True").unwrap();
+   tlc.check(Some(si), "not(True) || True as False").unwrap_err();
+   tlc.check(Some(si), "not(True) || False as False").unwrap();
+   tlc.check(Some(si), "not(False) || True as False").unwrap_err();
+   tlc.check(Some(si), "not(False) || False as False").unwrap_err();
+}
+
+#[test]
 fn check_contradictions() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();

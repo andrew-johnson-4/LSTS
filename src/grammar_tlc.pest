@@ -57,10 +57,11 @@ term = { as_term }
 assume = { term }
 
 ident_typ = { typname ~ ("<" ~ typ ~ ("," ~ typ)* ~ ">")? }
-any_typ = { "?" }
+any_typ   = { "?" }
 paren_typ = { "(" ~ (typ ~ ("," ~ typ)*)? ~ ")" }
 brack_typ = { "[" ~ (typ ~ ("," ~ typ)*)? ~ "]" }
-atom_typ  = { any_typ | paren_typ | ident_typ }
+dep_typ   = { "[" ~ term ~ "]" }
+atom_typ  = { any_typ | paren_typ | ident_typ | dep_typ }
 suffix_typ = { atom_typ ~ brack_typ* }
 product_typ = { suffix_typ ~ ("*" ~ suffix_typ)* }
 ratio_typ = { product_typ ~ ("/" ~ product_typ)? }

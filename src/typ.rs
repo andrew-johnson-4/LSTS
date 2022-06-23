@@ -1,3 +1,4 @@
+use crate::term::TermId;
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Type {
@@ -8,6 +9,7 @@ pub enum Type {
    Tuple(Vec<Type>),   //Tuple is order-sensitive, Nil is the empty tuple
    Product(Vec<Type>), //Product is order-insensitive
    Ratio(Box<Type>,Box<Type>),
+   Constant(TermId),
 }
 
 impl Type {
@@ -43,6 +45,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
+         Type::Constant(c) => Type::Constant(*c)
       }
    }
    pub fn and(&self, other:&Type) -> Type {
@@ -98,7 +101,7 @@ impl Type {
                nv.append(&mut tt.vars());
             }
             nv
-         }
+         },
          Type::Arrow(p,b) => { let mut pv=p.vars(); pv.append(&mut b.vars()); pv },
          Type::Ratio(p,b) => { let mut pv=p.vars(); pv.append(&mut b.vars()); pv },
          Type::And(ts) => {
@@ -107,21 +110,22 @@ impl Type {
                nv.append(&mut tt.vars());
             }
             nv
-         }
+         },
          Type::Tuple(ts) => {
             let mut nv = Vec::new();
             for tt in ts.iter() {
                nv.append(&mut tt.vars());
             }
             nv
-         }
+         },
          Type::Product(ts) => {
             let mut nv = Vec::new();
             for tt in ts.iter() {
                nv.append(&mut tt.vars());
             }
             nv
-         }
+         },
+         Type::Constant(_) => vec![]
       }
    }
    pub fn simplify_ratio(&self) -> Type {
@@ -199,6 +203,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
+         Type::Constant(c) => Type::Constant(*c)
       }.normalize()
    }
    pub fn substitute(&self, subs:&Vec<(Type,Type)>) -> Type {
@@ -213,6 +218,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
+         Type::Constant(c) => Type::Constant(*c)
       }
    }
    pub fn is_concrete(&self) -> bool {
@@ -224,6 +230,7 @@ impl Type {
          Type::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom Typee is also concrete
          Type::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
+         Type::Constant(_) => true,
       }
    }
    pub fn unify(&self, other: &Type) -> Result<Type,()> {
@@ -326,6 +333,16 @@ impl Type {
             }
             Ok(Type::Tuple(ts))
          },
+
+         (Type::Constant(lc),Type::Constant(rc)) => {
+            if lc.id == rc.id {
+               //unify_impl is only capable of comparing term equality
+               //constants need to reduce to actually be the SAME term
+               Ok(Type::Constant(*lc))
+            } else {
+               Err(())
+            }
+         },
          _ => Err(()),
       }
    }
@@ -346,6 +363,7 @@ impl std::fmt::Debug for Type {
            Type::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
            Type::Arrow(p,b) => write!(f, "({:?})=>({:?})", p, b),
            Type::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
+           Type::Constant(c) => write!(f, "{{term#{}}}", c.id),
         }
     }
 }

@@ -1,9 +1,12 @@
+use std::rc::Rc;
 use std::collections::{HashSet,HashMap};
 use std::path::Path;
 use pest::Parser;
 use pest::iterators::{Pair,Pairs};
 use pest::error::{ErrorVariant,InputLocation,LineColLocation};
 use regex::Regex;
+use crate::term::{Term,TermId};
+use crate::scope::{Scope,ScopeId};
 use crate::typ::Type;
 use crate::kind::Kind;
 
@@ -15,16 +18,38 @@ pub struct TLC {
    pub rows: Vec<Row>,
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
-   pub regexes: Vec<(Type,Regex)>,
+   pub regexes: Vec<(Type,Rc<Regex>)>,
    pub constructors: HashMap<String,(Type,Vec<Type>,Vec<(String,Type)>)>,
    pub type_is_normal: HashSet<Type>,
    pub kind_is_normal: HashSet<Kind>,
    pub typedef_index: HashMap<String,usize>,
    pub foralls_index: HashMap<Type,Vec<usize>>,
    pub foralls_rev_index: HashMap<Type,Vec<usize>>,
+   pub constant_index: HashMap<Constant,TermId>,
    pub term_kind: Kind,
+   pub constant_kind: Kind,
    pub nil_type: Type,
    pub bottom_type: Type,
+}
+
+#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
+pub enum Constant {
+   NaN,
+   Integer(i64),
+   Op(String),
+   Tuple(Vec<Constant>),
+}
+impl std::fmt::Debug for Constant {
+   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      match self {
+        Constant::NaN => write!(f, "NaN"),
+        Constant::Integer(i) => write!(f, "{}", i),
+        Constant::Op(op) => write!(f, "{}", op),
+        Constant::Tuple(ts) => write!(f, "({})", ts.iter()
+           .map(|t|format!("{:?}",t)).collect::<Vec<String>>()
+           .join(",") ),
+      }
+   }
 }
 
 pub struct Row {
@@ -32,11 +57,12 @@ pub struct Row {
    pub typ: Type,
    pub kind: Kind,
    pub span: Span,
+   pub constant: Option<Constant>,
 }
 
 #[derive(Clone)]
 pub struct Span {
-   pub filename: String,
+   pub filename: Rc<String>,
    pub offset_start: usize,
    pub offset_end: usize,
    pub linecol_start: (usize,usize),
@@ -54,16 +80,6 @@ impl std::fmt::Debug for Error {
         write!(f, "\n{}, expected {}, in {} --> {},{}\n{}\n", self.kind, self.rule, self.span.filename,
                self.span.linecol_start.0, self.span.linecol_start.1, self.snippet)
     }
-}
-
-#[derive(Clone, Copy)]
-pub struct ScopeId {
-   pub id: usize,
-}
-//does not implement Clone because scopes are uniquely identified by their id
-pub struct Scope {
-   pub parent: Option<ScopeId>,
-   pub children: Vec<(String,Vec<(Type,Kind)>,Type)>,
 }
 
 #[derive(Clone)]
@@ -143,24 +159,6 @@ impl std::fmt::Debug for TypeRule {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct TermId {
-   pub id: usize,
-}
-//does not implement Clone because terms are uniquely identified by their id
-#[derive(Clone)] //clone seems to be needed to deconflict mutable borrows :(
-pub enum Term {
-   Ident(String),
-   Value(String),
-   App(TermId,TermId),
-   Let(ScopeId,String,Vec<Vec<(Option<String>,Option<Type>,Kind)>>,Option<TermId>,Type,Kind),
-   Tuple(Vec<TermId>),
-   Block(ScopeId,Vec<TermId>),
-   Ascript(TermId,Type),
-   As(TermId,Type),
-   Constructor(String,Vec<(String,TermId)>),
-}
-
 impl TLC {
    pub fn new() -> TLC {
       TLC {
@@ -170,12 +168,13 @@ impl TLC {
             typ: Type::Tuple(Vec::new()), //typeof(NULL) is () not []
             kind: Kind::Nil,
             span: Span {
-               filename:"".to_string(),
+               filename: Rc::new("".to_string()),
                offset_start: 0,
                offset_end: 0,
                linecol_start: (0,0),
                linecol_end: (0,0),
             },
+            constant: None,
          }],
          rules: Vec::new(),
          scopes: Vec::new(),
@@ -184,9 +183,11 @@ impl TLC {
          foralls_index: HashMap::new(),
          foralls_rev_index: HashMap::new(),
          typedef_index: HashMap::new(),
+         constant_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
          term_kind: Kind::Simple("Term".to_string(),Vec::new()),
+         constant_kind: Kind::Simple("Constant".to_string(),Vec::new()),
          nil_type: Type::Tuple(Vec::new()),
          bottom_type: Type::And(Vec::new()),
       }
@@ -273,7 +274,7 @@ impl TLC {
          tt => vec![tt.clone()],
       };
       //remove T :: K
-      let ts = ts.into_iter().filter(|ct|!self.kindof(ct).has(k)).collect::<Vec<Type>>();
+      let ts = ts.into_iter().filter(|ct|ct!=&Type::Any&&!self.kindof(ct).has(k)).collect::<Vec<Type>>();
       Type::And(ts)
    }
 
@@ -352,7 +353,7 @@ impl TLC {
             for td in tds.iter() { match td {
                Typedef::Regex(pat) => {
                   if let Ok(r) = Regex::new(&pat[1..pat.len()-1]) {
-                     self.regexes.push((Type::Ident(tn.clone(),Vec::new()),r));
+                     self.regexes.push((Type::Ident(tn.clone(),Vec::new()),Rc::new(r)));
                   } else {
                      panic!("typedef regex rejected: {}", pat);
                   }
@@ -401,7 +402,7 @@ impl TLC {
              kind: "Parse Error".to_string(),
              rule: rule,
              span: Span {
-                filename:docname.to_string(),
+                filename: Rc::new(docname.to_string()),
                 offset_start: istart,
                 offset_end: iend,
                 linecol_start: start,
@@ -416,7 +417,7 @@ impl TLC {
    pub fn unparse_file(&mut self, scope:Option<ScopeId>, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<TermId,Error> {
       let p = ps.peek().unwrap();
       let span = Span {
-         filename: fp.to_string(),
+         filename: Rc::new(fp.to_string()),
          linecol_start: p.as_span().start_pos().line_col(),
          linecol_end: p.as_span().end_pos().line_col(),
          offset_start: p.as_span().start(),
@@ -428,15 +429,73 @@ impl TLC {
       }, &span));
       self.unparse_ast(file_scope, fp, p, &span)
    }
+   pub fn push_constant(&mut self, c: &Constant, t: TermId) -> TermId {
+      if let Some(ct) = self.constant_index.get(c) {
+         *ct
+      } else {
+         self.constant_index.insert(c.clone(),t);
+         t
+      }
+   }
+   pub fn parse_constant(&self, c: &str) -> Option<Constant> {
+      if c=="NaN" { Some(Constant::NaN)
+      } else if c=="True" { Some(Constant::Integer(1))
+      } else if c=="False" { Some(Constant::Integer(0))
+      } else if c=="not" { Some(Constant::Op(c.to_string()))
+      } else if c=="pos" { Some(Constant::Op(c.to_string()))
+      } else if c=="neg" { Some(Constant::Op(c.to_string()))
+      } else if c=="+" { Some(Constant::Op(c.to_string()))
+      } else if c=="-" { Some(Constant::Op(c.to_string()))
+      } else if c=="*" { Some(Constant::Op(c.to_string()))
+      } else if c=="/" { Some(Constant::Op(c.to_string()))
+      } else if c=="%" { Some(Constant::Op(c.to_string()))
+      } else if c=="==" { Some(Constant::Op(c.to_string()))
+      } else if c=="!=" { Some(Constant::Op(c.to_string()))
+      } else if c=="<" { Some(Constant::Op(c.to_string()))
+      } else if c=="<=" { Some(Constant::Op(c.to_string()))
+      } else if c==">" { Some(Constant::Op(c.to_string()))
+      } else if c==">=" { Some(Constant::Op(c.to_string()))
+      } else if c=="&&" { Some(Constant::Op(c.to_string()))
+      } else if c=="||" { Some(Constant::Op(c.to_string()))
+      } else if let Ok(ci) = c.parse::<i64>() { Some(Constant::Integer(ci))
+      } else { None }
+   }
+   pub fn push_dep_type(&mut self, term: &Term, ti: TermId) -> Type {
+      match term {
+         Term::Value(ct) => {
+            if let Some(c) = self.parse_constant(ct) {
+               let ci = self.push_constant(&c, ti);
+               Type::Constant(ci)
+            } else {
+               Type::Constant(ti)
+            }
+         }, _ => Type::Constant(ti),
+      }
+   }
+   pub fn push_term_type(&mut self, term: &Term, ti: TermId) -> Type {
+      match term {
+         Term::Value(ct) => {
+            if let Some(c) = self.parse_constant(ct) {
+               let ci = self.push_constant(&c, ti);
+               Type::And(vec![Type::Any,Type::Constant(ci)])
+            } else {
+               Type::Any
+            }
+         }, _ => Type::Any,
+      }
+   }
    pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
       let index = self.rows.len();
+      let ti = TermId { id: index };
+      let tt = self.push_term_type(&term, ti);
       self.rows.push(Row {
          term: term,
-         typ: Type::Any,
+         typ: tt,
          kind: self.term_kind.clone(),
          span: span.clone(),
+         constant: None,
       });
-      TermId { id: index }
+      ti
    }
    pub fn push_scope(&mut self, scope: Scope, _span: &Span) -> ScopeId {
       let index = self.scopes.len();
@@ -522,16 +581,16 @@ impl TLC {
                      let mut kind  = Kind::Nil;
                      for itk in itkse.into_inner() { match itk.as_rule() {
                         Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                        Rule::typ   => { typ   = Some(self.unparse_ast_type(itk)?); },
-                        Rule::kind   => { kind = self.unparse_ast_kind(itk)?; },
+                        Rule::typ   => { typ   = Some(self.unparse_ast_type(scope,fp,itk,span)?); },
+                        Rule::kind   => { kind = self.unparse_ast_kind(scope,fp,itk,span)?; },
                         rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                      }}
                      itks.push((ident,typ,kind));
                   }
                   pars.push(itks);
                },
-               Rule::typ => { rt = self.unparse_ast_type(e)?; },
-               Rule::kind => { rk = self.unparse_ast_kind(e)?; },
+               Rule::typ => { rt = self.unparse_ast_type(scope,fp,e,span)?; },
+               Rule::kind => { rk = self.unparse_ast_kind(scope,fp,e,span)?; },
                Rule::term => { t = Some(self.unparse_ast(scope,fp,e,span)?); },
                rule => panic!("unexpected let_stmt rule: {:?}", rule),
             }}
@@ -573,7 +632,7 @@ impl TLC {
                None => self.unparse_ast(scope,fp,e,span),
                Some(tt) => Ok({let t = Term::Ascript(
                   self.unparse_ast(scope,fp,e,span)?, //term
-                  self.unparse_ast_type(tt)? //type
+                  self.unparse_ast_type(scope,fp,tt,span)? //type
                ); self.push_term(t, &span)}),
             }
          },
@@ -584,7 +643,7 @@ impl TLC {
                None => self.unparse_ast(scope,fp,e,span),
                Some(tt) => Ok({let t = Term::As(
                   self.unparse_ast(scope,fp,e,span)?, //term
-                  self.unparse_ast_type(tt)? //type
+                  self.unparse_ast_type(scope,fp,tt,span)? //type
                ); self.push_term(t, &span)}),
             }
          },
@@ -689,13 +748,13 @@ impl TLC {
                   let mut kind = Kind::Nil;
                   for tik in e.into_inner() { match tik.as_rule() {
                      Rule::typvar => { typ = tik.into_inner().concat(); },
-                     Rule::typ   => { inf   = Some(self.unparse_ast_type(tik)?); },
-                     Rule::kind   => { kind   = self.unparse_ast_kind(tik)?; },
+                     Rule::typ   => { inf   = Some(self.unparse_ast_type(scope,fp,tik,span)?); },
+                     Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,tik,span)?; },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                   tiks.push((typ,inf,kind));
                },
-               Rule::typ => { implies = Some(self.unparse_ast_type(e)?); },
+               Rule::typ => { implies = Some(self.unparse_ast_type(scope,fp,e,span)?); },
                Rule::typedef => {
                   let struct_typ = Type::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Type::Ident(t.clone(),Vec::new())).collect::<Vec<Type>>());
                   for tdb in e.into_inner() {
@@ -714,7 +773,7 @@ impl TLC {
                               Rule::key_typ => {
                                  let mut kts = tc.into_inner();
                                  let ki = kts.next().expect("TLC Grammar Error in rule [typedef.3]").into_inner().concat();
-                                 let kt = self.unparse_ast_type(kts.next().expect("TLC Grammar Error in rule [typedef.4]"))?;
+                                 let kt = self.unparse_ast_type(scope,fp,kts.next().expect("TLC Grammar Error in rule [typedef.4]"),span)?;
                                  self.scopes[scope.id].children.push((
                                     format!(".{}",ki.clone()),
                                     Vec::new(),
@@ -731,7 +790,7 @@ impl TLC {
                      }
                   }
                },
-               Rule::kind => { kinds.push(self.unparse_ast_kind(e)?); },
+               Rule::kind => { kinds.push(self.unparse_ast_kind(scope,fp,e,span)?); },
                Rule::typ_invariant => {
                   let mut itks = Vec::new();
                   let mut assm = None;
@@ -743,8 +802,8 @@ impl TLC {
                         let mut kind = Kind::Nil;
                         for itk in tip.into_inner() { match itk.as_rule() {
                            Rule::ident => { idn = Some(itk.into_inner().concat()); },
-                           Rule::typ   => { inf   = Some(self.unparse_ast_type(itk)?); },
-                           Rule::kind   => { kind   = self.unparse_ast_kind(itk)?; },
+                           Rule::typ   => { inf   = Some(self.unparse_ast_type(scope,fp,itk,span)?); },
+                           Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,itk,span)?; },
                            rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                         }}
                         itks.push((idn,inf,kind));
@@ -819,15 +878,15 @@ impl TLC {
                   let mut kind = Kind::Nil;
                   for itk in e.into_inner() { match itk.as_rule() {
                      Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                     Rule::typ   => { typ   = Some(self.unparse_ast_type(itk)?); },
-                     Rule::kind   => { kind   = self.unparse_ast_kind(itk)?; },
+                     Rule::typ   => { typ   = Some(self.unparse_ast_type(scope,fp,itk,span)?); },
+                     Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,itk,span)?; },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                   quants.push((ident, typ, kind));
                },
-               Rule::inference => { inference = Some(self.unparse_ast_inference(e)?); }
+               Rule::inference => { inference = Some(self.unparse_ast_inference(scope,fp,e,span)?); }
                Rule::term => { term = Some(self.unparse_ast(scope,fp,e,span)?); }
-               Rule::kind => { kind = self.unparse_ast_kind(e)?; }
+               Rule::kind => { kind = self.unparse_ast_kind(scope,fp,e,span)?; }
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
             self.push_forall(
@@ -862,13 +921,13 @@ impl TLC {
          rule => panic!("unexpected expr rule: {:?}", rule)
       }
    }
-   pub fn unparse_ast_inference(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Inference,Error> {
+   pub fn unparse_ast_inference(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Inference,Error> {
       let mut a = None;
       let mut b = None;
       for e in p.into_inner() { match e.as_rule() {
          Rule::typ => {
-            if a.is_none() { a = Some(self.unparse_ast_type(e)?); }
-            else { b = Some(self.unparse_ast_type(e)?); }
+            if a.is_none() { a = Some(self.unparse_ast_type(scope,fp,e,span)?); }
+            else { b = Some(self.unparse_ast_type(scope,fp,e,span)?); }
          },
          rule => panic!("unexpected inference rule: {:?}", rule)
       }}
@@ -876,23 +935,23 @@ impl TLC {
       else if b.is_none() { Ok(Inference::Type(a.unwrap())) }
       else { Ok(Inference::Imply(a.unwrap(), b.unwrap())) }
    }
-   pub fn unparse_ast_type(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Type,Error> {
+   pub fn unparse_ast_type(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Type,Error> {
       match p.as_rule() {
          Rule::typname => {
             let name = p.into_inner().concat();
             Ok(Type::Ident(name,Vec::new()))
          },
-         Rule::typ => self.unparse_ast_type(p.into_inner().next().expect("TLC Grammar Error in rule [typ]")),
+         Rule::typ => self.unparse_ast_type(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [typ]"),span),
          Rule::ident_typ => {
             let mut ps = p.into_inner();
             let tn = ps.next().expect("TLC Grammar Error in rule [ident_typ.1]").into_inner().concat();
-            let tps = ps.map(|e|self.unparse_ast_type(e).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Type>>();
+            let tps = ps.map(|e|self.unparse_ast_type(scope,fp,e,span).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Type>>();
             Ok(Type::Ident(tn,tps))
          },
-         Rule::atom_typ => self.unparse_ast_type(p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]")),
+         Rule::atom_typ => self.unparse_ast_type(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]"),span),
          Rule::any_typ => Ok(Type::Any),
          Rule::paren_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(e).expect("TLC Grammar Error in rule [paren_typ]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(scope,fp,e,span).expect("TLC Grammar Error in rule [paren_typ]"))
                       .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
@@ -902,25 +961,25 @@ impl TLC {
          },
          Rule::arrow_typ => {
             let mut ts = p.into_inner();
-            let mut t = self.unparse_ast_type(ts.next().expect("TLC Grammar Error in rule [arrow_typ]"))?;
+            let mut t = self.unparse_ast_type(scope,fp,ts.next().expect("TLC Grammar Error in rule [arrow_typ]"),span)?;
             for tr in ts {
                t = Type::Arrow(
                   Box::new(t),
-                  Box::new(self.unparse_ast_type(tr)?)
+                  Box::new(self.unparse_ast_type(scope,fp,tr,span)?)
                );
             }
             Ok(t)
          },
          Rule::suffix_typ => {
             let mut ts = p.into_inner();
-            let t = self.unparse_ast_type(ts.next().expect("TLC Grammar Error in rule [suffix_typ]"))?;
+            let t = self.unparse_ast_type(scope,fp,ts.next().expect("TLC Grammar Error in rule [suffix_typ]"),span)?;
             //for t in ts {
                //TODO parameterized types and bracketed types
             //}
             Ok(t)
          },
          Rule::ratio_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(e).expect("TLC Grammar Error in rule [ratio_typ.1]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(scope,fp,e,span).expect("TLC Grammar Error in rule [ratio_typ.1]"))
                       .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
@@ -931,7 +990,7 @@ impl TLC {
             }
          },
          Rule::product_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(e).expect("TLC Grammar Error in rule [or_typ]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(scope,fp,e,span).expect("TLC Grammar Error in rule [or_typ]"))
                       .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
@@ -940,7 +999,7 @@ impl TLC {
             }
          },
          Rule::and_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(e).expect("TLC Grammar Error in rule [and_typ]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(scope,fp,e,span).expect("TLC Grammar Error in rule [and_typ]"))
                       .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
@@ -948,17 +1007,25 @@ impl TLC {
                Ok(Type::And(ts))
             }
          },
+         Rule::dep_typ => {
+            let t = self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span)?;
+            self.untyped(t);
+            let mut guard_names = HashMap::new();
+            self.guard_varnames(&mut guard_names, t); //convert all varnames to "var#{term.id}"
+            let ct = self.push_dep_type(&self.rows[t.id].term.clone(), t);  //check if type is constant
+            Ok(ct)
+         }
          rule => panic!("unexpected typ rule: {:?}", rule)
       }
    }
-   pub fn unparse_ast_kind(&mut self, p: Pair<crate::tlc::Rule>) -> Result<Kind,Error> {
+   pub fn unparse_ast_kind(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Kind,Error> {
       match p.as_rule() {
          Rule::kind => {
             let mut name = "Nil".to_string();
             let mut kinds = Vec::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::kindname => { name = e.into_inner().concat(); },
-               Rule::kind  => { kinds.push(self.unparse_ast_kind(e)?); },
+               Rule::kind  => { kinds.push(self.unparse_ast_kind(scope,fp,e,span)?); },
                rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
             }}
             if name=="Nil" { Ok(Kind::Nil) }
@@ -998,7 +1065,7 @@ impl TLC {
       }
       Ok(())
    }
-   pub fn soundck(&self, tt: &Type, span: &Span) -> Result<(),Error> {
+   pub fn soundck(&mut self, tt: &Type, span: &Span) -> Result<(),Error> {
       match tt {
          Type::Any => Ok(()),
          Type::Arrow(p,b) => { self.soundck(p,span)?; self.soundck(b,span)?; Ok(()) },
@@ -1031,7 +1098,7 @@ impl TLC {
             if ts.len()==0 { return Ok(()); }
             if !tt.is_concrete() { return Ok(()); }
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,_tk,_props,_) = &self.rules[*ti] {
+            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,_tk,_props,_) = &self.rules[*ti].clone() {
             if ts.len()==itks.len() {
                for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,itks) {
                   if let Some(bt) = bt {
@@ -1042,6 +1109,7 @@ impl TLC {
             }}}
             Ok(())
          },
+         Type::Constant(_) => Ok(()),
       }
    }
    pub fn extend_implied(&self, tt: &Type) -> Type {
@@ -1090,6 +1158,7 @@ impl TLC {
          },
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
+         Type::Constant(c) => Type::Constant(*c)
       }
    }
    pub fn kindsof(&self, kinds:&mut Vec<(Type,Kind)>, tt:&Type) {
@@ -1106,6 +1175,7 @@ impl TLC {
          Type::Product(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
          Type::Arrow(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
          Type::Ratio(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
+         Type::Constant(_) => {}
       }
    }
    pub fn kindof(&self, tt:&Type) -> Kind {
@@ -1120,11 +1190,12 @@ impl TLC {
             }}}
             Kind::Nil
          },
-         Type::And(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
-         Type::Tuple(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
-         Type::Product(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil}
-         Type::Arrow(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) }
-         Type::Ratio(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) }
+         Type::And(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil},
+         Type::Tuple(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil},
+         Type::Product(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil},
+         Type::Arrow(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) },
+         Type::Ratio(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) },
+         Type::Constant(_) => self.constant_kind.clone(),
       }
    }
    pub fn is_knormal(&self, k:&Kind) -> bool {
@@ -1141,13 +1212,14 @@ impl TLC {
          Type::Product(ts) => ts.iter().all(|ct|self.is_normal(ct)),
          Type::Arrow(p,b) => self.is_normal(p) && self.is_normal(b),
          Type::Ratio(p,b) => self.is_normal(p) && self.is_normal(b),
+         Type::Constant(_) => true,
       }
    }
-   pub fn typeof_var(&self, scope: &Option<ScopeId>, v: &str, implied: &Option<Type>, span: &Span) -> Result<Type,Error> {
+   pub fn typeof_var(&mut self, scope: &Option<ScopeId>, v: &str, implied: &Option<Type>, span: &Span) -> Result<Type,Error> {
       if let Some(scope) = scope {
          let mut candidates = Vec::new();
          let mut matches = Vec::new();
-         let ref sc = self.scopes[scope.id];
+         let ref sc = self.scopes[scope.id].clone();
          for (tn,_tkts,tt) in sc.children.iter() {
             if tn==v {
                candidates.push(tt.clone());
@@ -1195,6 +1267,132 @@ impl TLC {
          snippet: "".to_string()
       }) }
    }
+   pub fn reduce_type(&mut self, tt: &mut Type) {
+      match tt {
+         Type::Constant(ref mut c) => {
+            self.untyped_eval(c);
+         },
+         Type::Any => {},
+         Type::Ident(_tn,tps) => {
+            for mut tp in tps.iter_mut() {
+               self.reduce_type(&mut tp);
+            }
+         },
+         Type::And(ts) => {
+            for mut ct in ts.iter_mut() {
+               self.reduce_type(&mut ct);
+            }
+         },
+         Type::Tuple(ts) => {
+            for mut ct in ts.iter_mut() {
+               self.reduce_type(&mut ct);
+            }
+         },
+         Type::Product(ts) => {
+            for mut ct in ts.iter_mut() {
+               self.reduce_type(&mut ct);
+            }
+         },
+         Type::Arrow(ref mut p, ref mut b) => {
+            self.reduce_type(p);
+            self.reduce_type(b);
+         },
+         Type::Ratio(ref mut p, ref mut b) => {
+            self.reduce_type(p);
+            self.reduce_type(b);
+         },
+      }
+   }
+   pub fn untyped_eval(&mut self, t: &mut TermId) -> Option<Constant> {
+      //reduce constant expressions in untyped context
+      //designed for use inside of dependent type signatures
+
+      match self.rows[t.id].term.clone() {
+         //evaluation can change the t.id of a term to the canonical t.id of a constant
+         Term::Value(v) => {
+            if let Some(c) = self.parse_constant(&v) {
+               t.id = self.push_constant(&c, *t).id;
+               return Some(c);
+            };
+         },
+         Term::Constructor(cn,ref mut _fts) => {
+            if let Some(c) = self.parse_constant(&cn) {
+               t.id = self.push_constant(&c, *t).id;
+               return Some(c);
+            };
+         },
+         Term::Ident(g) => {
+            if let Some(c) = self.parse_constant(&g) {
+               t.id = self.push_constant(&c, *t).id;
+               return Some(c);
+            };
+         },
+         Term::App(ref mut g,ref mut x) => {
+            let gc = self.untyped_eval(g);
+            let xc = self.untyped_eval(x);
+            match (gc,xc) {
+               (Some(Constant::Op(uop)),Some(Constant::Integer(x))) => {
+                  let x = if uop=="pos" { x }
+                     else if uop=="neg" { -x }
+                     else if uop=="not" { if x==0 {1} else {0} }
+                     else { panic!("unexpected unary operator {}", uop) };
+                  let c = Constant::Integer(x);
+                  t.id = self.push_constant(&c, *t).id;
+                  return Some(c);
+               }, (Some(Constant::Op(bop)),
+                   Some(Constant::Tuple(ps))) if ps.len()==2 => {
+                  let a = if let Constant::Integer(a) = ps[0] { a
+                  } else { return None; };
+                  let b = if let Constant::Integer(b) = ps[1] { b
+                  } else { return None; };
+                  if b==0 && (bop=="/" || bop=="%") {
+                     let c = Constant::NaN;
+                     t.id = self.push_constant(&c, *t).id;
+                     return Some(c);
+                  }
+                  let x = if bop=="+" { a + b }
+                     else if bop=="-" { a - b }
+                     else if bop=="*" { a * b }
+                     else if bop=="/" { a / b }
+                     else if bop=="%" { a % b }
+                     else if bop=="<"  { if a < b {1} else {0} }
+                     else if bop=="<=" { if a <= b {1} else {0} }
+                     else if bop==">"  { if a > b {1} else {0} }
+                     else if bop==">=" { if a >= b {1} else {0} }
+                     else if bop=="==" { if a == b {1} else {0} }
+                     else if bop=="!=" { if a != b {1} else {0} }
+                     else if bop=="&&" { if a==1 && b==1 {1} else {0} }
+                     else if bop=="||" { if a==1 || b==1 {1} else {0} }
+                     else { panic!("unexpected binary operator {}", bop) };
+                  let c = Constant::Integer(x);
+                  t.id = self.push_constant(&c, *t).id;
+                  return Some(c);
+               }, (Some(gc),Some(xc)) => {
+                  panic!("TODO: apply {:?} ( {:?} )", gc, xc);
+               },
+               _ => {},
+            }
+         },
+         Term::Tuple(ref mut ts) => {
+            let mut all_const = true;
+            let mut consts = Vec::new();
+            for tc in ts.iter_mut() {
+               if let Some(cc) = self.untyped_eval(tc) {
+                  consts.push(cc);
+               } else {
+                  all_const = false;
+               }
+            }
+            if all_const {
+               let tsc = Constant::Tuple(consts);
+               t.id = self.push_constant(&tsc, *t).id;
+               return Some(tsc);
+            }
+         },
+         _ => panic!("TODO: untyped eval {}", self.print_term(*t)),
+      };
+      None
+   }
    pub fn untyped(&mut self, t: TermId) {
       self.rows[t.id].typ = self.bottom_type.clone();
       match self.rows[t.id].term.clone() {
@@ -1219,9 +1417,310 @@ impl TLC {
          Term::Ascript(x,_tt) => {
             self.untyped(x);
          },
+         Term::Constructor(_cn,fts) => {
+            for (_f,ft) in fts.iter() {
+               self.untyped(*ft);
+            }
+         },
          _ => panic!("TODO untype term: {}", self.print_term(t))
       }
    }
+   pub fn cast_normal(&self, l_only: &Type, span: &Span) -> Result<Type,Error> {
+      let mut num_collector = Vec::new();
+      let mut den_collector = Vec::new();
+      let (numerator,denominator) = l_only.project_ratio();
+
+      for mut n in numerator.into_iter() {
+         if self.is_normal(&n) {
+            num_collector.push(n);
+            continue;
+         }
+
+         if let Type::Ident(nn,nns) = &n {
+            let mut nns = nns.clone();
+            for ni in 0..nns.len() {
+            if !self.is_normal(&nns[ni]) {
+               nns[ni] = self.cast_normal(&nns[ni], span)?;
+            }}
+            n = Type::Ident(nn.clone(),nns);
+         }
+
+         if let Type::Ident(nn,_nns) = &n {
+         if let Some(ti) = self.typedef_index.get(nn) {
+         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
+         let it = implies.clone().unwrap_or(Type::Any);
+         if self.is_normal(&it) {
+            let (inum, iden) = it.project_ratio();
+            num_collector.append(&mut inum.clone());
+            den_collector.append(&mut iden.clone());
+            continue;
+         }}}}
+
+         let mnt = n.mask();
+         let mut found = false;
+         if let Some(tis) = self.foralls_index.get(&mnt) {
+         for ti in tis.iter() { if !found {
+         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+            let mut subs = Vec::new();
+            if let Ok(_) = lt.unify_impl(&mut subs, &n) {
+               let srt = rt.substitute(&subs);
+               if self.is_normal(&srt) {
+                  let (inum, iden) = srt.project_ratio();
+                  num_collector.append(&mut inum.clone());
+                  den_collector.append(&mut iden.clone());
+                  found = true;
+                  continue;
+               }
+            }
+         }}}}
+         if found { continue; }
+
+         return Err(Error {
+            kind: "Type Error".to_string(),
+            rule: format!("could not normalize numerator type atom in cast {:?}", n),
+            span: span.clone(),
+            snippet: "".to_string()
+         })
+      }
+
+      for mut d in denominator.into_iter() {
+         if self.is_normal(&d) {
+            den_collector.push(d.clone());
+            continue;
+         }
+
+         if let Type::Ident(dn,dns) = &d {
+            let mut dns = dns.clone();
+            for ni in 0..dns.len() {
+            if !self.is_normal(&dns[ni]) {
+               dns[ni] = self.cast_normal(&dns[ni], span)?;
+            }}
+            d = Type::Ident(dn.clone(),dns);
+         }
+
+         if let Type::Ident(dn,_dns) = &d {
+         if let Some(ti) = self.typedef_index.get(dn) {
+         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
+         let it = implies.clone().unwrap_or(Type::Any);
+         if self.is_normal(&it) {
+            let (inum, iden) = it.project_ratio();
+            num_collector.append(&mut iden.clone());
+            den_collector.append(&mut inum.clone());
+            continue;
+         }}}}
+
+         let mdt = d.mask();
+         let mut found = false;
+         if let Some(tis) = self.foralls_index.get(&mdt) {
+         for ti in tis.iter() { if !found {
+         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+            let mut subs = Vec::new();
+            if let Ok(_) = lt.unify_impl(&mut subs, &d) {
+               let srt = rt.substitute(&subs);
+               if self.is_normal(&srt) {
+                  let (inum, iden) = srt.project_ratio();
+                  num_collector.append(&mut iden.clone());
+                  den_collector.append(&mut inum.clone());
+                  found = true;
+                  continue;
+               }
+            }
+         }}}}
+         if found { continue; }
+
+         return Err(Error {
+            kind: "Type Error".to_string(),
+            rule: format!("could not normalize denominator type atom in cast {:?}", d),
+            span: span.clone(),
+            snippet: "".to_string()
+         })
+      }
+
+      let num = if num_collector.len()==0 {
+         Type::Tuple(Vec::new())
+      } else if num_collector.len()==1 {
+         num_collector[0].clone()
+      } else {
+         Type::Product(num_collector)
+      };
+      Ok(if den_collector.len()==0 {
+         num
+      } else if den_collector.len()==1 {
+         Type::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
+      } else {
+         let den = Type::Product(den_collector);
+         Type::Ratio(Box::new(num),Box::new(den))
+      })
+   }
+   pub fn cast_into_kind(&mut self, mut l_only: Type, into: &Type, span: &Span) -> Result<Type,Error> {
+
+      while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
+         l_only = self.cast_normal(&l_only, span)?;
+      }
+
+      if !self.is_normal(&into) {
+         let mut num_collector = Vec::new();
+         let mut den_collector = Vec::new();
+         let (numerator,denominator) = into.project_ratio();
+
+         for n in numerator.iter() {
+            //if Into part is normal, do nothing
+            if self.is_normal(n) {
+               num_collector.push(n.clone());
+               continue;
+            }
+
+            //if Into part implies a normal, replace part with implied
+            if let Type::Ident(nn,_nns) = n {
+            if let Some(ti) = self.typedef_index.get(nn) {
+            if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
+            let it = implies.clone().unwrap_or(Type::Any);
+            if self.is_normal(&it) {
+               let (inum, iden) = it.project_ratio();
+               num_collector.append(&mut inum.clone());
+               den_collector.append(&mut iden.clone());
+               continue;
+            }}}}
+
+            //if Into part can cast into normal, replace part with cast
+            let mnt = n.mask();
+            let mut found = false;
+            if let Some(tis) = self.foralls_index.get(&mnt) {
+            for ti in tis.iter() { if !found {
+            if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+               let mut subs = Vec::new();
+               if let Ok(_) = lt.unify_impl(&mut subs, &n) {
+                  let srt = rt.substitute(&subs);
+                  let (inum, iden) = srt.project_ratio();
+                  num_collector.append(&mut inum.clone());
+                  den_collector.append(&mut iden.clone());
+                  found = true;
+                  continue;
+               }
+            }}}}
+            if found { continue; }
+
+            return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("could not denormalize numerator type atom in cast {:?}", n),
+               span: span.clone(),
+               snippet: "".to_string()
+            })
+         }
+
+         for d in denominator.iter() {
+            //if Into part is normal, do nothing
+            if self.is_normal(d) {
+               den_collector.push(d.clone());
+               continue;
+            }
+
+            //if Into part implies a normal, replace part with implied
+            if let Type::Ident(dn,_dns) = d {
+            if let Some(ti) = self.typedef_index.get(dn) {
+            if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
+            let it = implies.clone().unwrap_or(Type::Any);
+            if self.is_normal(&it) {
+               let (inum, iden) = it.project_ratio();
+               num_collector.append(&mut iden.clone());
+               den_collector.append(&mut inum.clone());
+               continue;
+            }}}}
+
+            //if Into part can cast into normal, replace part with cast
+            let mnt = d.mask();
+            let mut found = false;
+            if let Some(tis) = self.foralls_index.get(&mnt) {
+            for ti in tis.iter() { if !found {
+            if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+               let mut subs = Vec::new();
+               if let Ok(_) = lt.unify_impl(&mut subs, &d) {
+                  let srt = rt.substitute(&subs);
+                  let (inum, iden) = srt.project_ratio();
+                  num_collector.append(&mut iden.clone());
+                  den_collector.append(&mut inum.clone());
+                  found = true;
+                  continue;
+               }
+            }}}}
+            if found { continue; }
+
+            return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("could not denormalize denominator type atom in cast {:?}", d),
+               span: span.clone(),
+               snippet: "".to_string()
+            })
+         }
+
+         let num = if num_collector.len()==0 {
+            Type::Tuple(Vec::new())
+         } else if num_collector.len()==1 {
+            num_collector[0].clone()
+         } else {
+            Type::Product(num_collector)
+         };
+         let b_only = if den_collector.len()==0 {
+            num
+         } else if den_collector.len()==1 {
+            Type::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
+         } else {
+            let den = Type::Product(den_collector);
+            Type::Ratio(Box::new(num),Box::new(den))
+         };
+
+         self.unify(&l_only, &b_only, span)?;
+         l_only = into.clone();
+      }
+
+      Ok(l_only)
+   }
+
+   pub fn guard_varnames(&mut self, table: &mut HashMap<String,String>, t: TermId) {
+      match self.rows[t.id].term.clone() {
+         Term::Ident(tn) => {
+            if ["not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
+               //pass
+            } else if let Some(vn) = table.get(&tn) {
+               self.rows[t.id].term = Term::Ident(vn.clone());
+            } else {
+               let nn = format!("var#{}", t.id);
+               table.insert(tn.clone(), nn.clone());
+               self.rows[t.id].term = Term::Ident(nn);
+            }
+         },
+         Term::Value(_) => {},
+         Term::Block(_sid,es) => {
+            for e in es.into_iter() {
+               self.guard_varnames(table,e);
+            }
+         },
+         Term::Tuple(es) => {
+            for e in es.into_iter() {
+               self.guard_varnames(table,e);
+            }
+         },
+         Term::Let(_,_,_,_,_,_) => {
+            panic!("TODO: guard_varnames in Let term")
+         },
+         Term::App(g,x) => {
+            self.guard_varnames(table,g);
+            self.guard_varnames(table,x);
+         },
+         Term::Ascript(t,_tt) => {
+            self.guard_varnames(table,t);
+         },
+         Term::As(t,_tt) => {
+            self.guard_varnames(table,t);
+         },
+         Term::Constructor(_c,kts) => {
+            for (_k,t) in kts.into_iter() {
+               self.guard_varnames(table,t);
+            }
+         },
+      }
+   }
+
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
@@ -1231,7 +1730,7 @@ impl TLC {
                self.typeck(Some(sid), *e, None)?;
                last_typ = self.rows[e.id].typ.clone();
             }
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &last_typ, &self.rows[t.id].span)?;
+            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &last_typ, &self.rows[t.id].span.clone())?;
          },
          Term::Tuple(es) => {
             let mut ts = Vec::new();
@@ -1239,7 +1738,7 @@ impl TLC {
                self.typeck(scope, *e, None)?;
                ts.push(self.rows[e.id].typ.clone());
             }
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &Type::Tuple(ts), &self.rows[t.id].span)?;
+            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &Type::Tuple(ts), &self.rows[t.id].span.clone())?;
          },
          Term::Let(s,v,_ps,b,rt,_rk) => {
             if v=="" {
@@ -1251,258 +1750,34 @@ impl TLC {
             } else {
                self.rows[t.id].typ = self.bottom_type.clone();
             }
-            self.soundck(&rt,&self.rows[t.id].span)?;
+            self.soundck(&rt,&self.rows[t.id].span.clone())?;
          },
          Term::Ascript(x,tt) => {
             self.typeck(scope.clone(), x, Some(tt.clone()))?;
-            self.rows[t.id].typ = self.unify(&self.rows[x.id].typ, &tt, &self.rows[t.id].span)?;
+            self.rows[t.id].typ = self.unify(&self.rows[x.id].typ.clone(), &tt, &self.rows[t.id].span.clone())?;
          },
          Term::As(x,into) => {
             self.typeck(scope.clone(), x, None)?;
             let into_kind = self.kindof(&into).first();
-            if let Ok(nt) = self.unify(&self.rows[x.id].typ, &into, &self.rows[t.id].span) {
+            if let Ok(nt) = self.unify(&self.rows[x.id].typ.clone(), &into, &self.rows[t.id].span.clone()) {
                //if cast is already satisfied, do nothing
-               self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+               self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
             } else {
                if self.is_knormal(&into_kind) {
-                  eprintln!("typeof(x) = {:?}", &self.rows[x.id].typ);
+                  let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ.clone())
+                                   .remove(&into_kind.as_type());
+                  let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ.clone());
 
-                  let mut l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ)
-                                       .remove(&into_kind.as_type());
-                  let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ);
-
-                  eprintln!("l_only = {:?}", &l_only);
-
-                  while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
-
-                     let mut num_collector = Vec::new();
-                     let mut den_collector = Vec::new();
-                     let (numerator,denominator) = l_only.project_ratio();
-                     for n in numerator.iter() {
-                        if self.is_normal(n) {
-                           num_collector.push(n.clone());
-                           continue;
-                        }
-
-                        if let Type::Ident(nn,_nns) = n {
-                        if let Some(ti) = self.typedef_index.get(nn) {
-                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
-                        let it = implies.clone().unwrap_or(Type::Any);
-                        if self.is_normal(&it) {
-                           let (inum, iden) = it.project_ratio();
-                           num_collector.append(&mut inum.clone());
-                           den_collector.append(&mut iden.clone());
-                           continue;
-                        }}}}
-
-                        let mnt = n.mask();
-                        let mut found = false;
-                        if let Some(tis) = self.foralls_index.get(&mnt) {
-                        for ti in tis.iter() { if !found {
-                        if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-                           let mut subs = Vec::new();
-                           if let Ok(_) = lt.unify_impl(&mut subs, &n) {
-                              let srt = rt.substitute(&subs);
-                              if self.is_normal(&srt) {
-                                 let (inum, iden) = srt.project_ratio();
-                                 num_collector.append(&mut inum.clone());
-                                 den_collector.append(&mut iden.clone());
-                                 found = true;
-                                 continue;
-                              }
-                           }
-                        }}}}
-                        if found { continue; }
-
-                        return Err(Error {
-                           kind: "Type Error".to_string(),
-                           rule: format!("could not normalize numerator type atom in cast {:?}", n),
-                           span: self.rows[t.id].span.clone(),
-                           snippet: "".to_string()
-                        })
-                     }
-                     for d in denominator.iter() {
-                        if self.is_normal(d) {
-                           den_collector.push(d.clone());
-                           continue;
-                        }
-                        if let Type::Ident(dn,_dns) = d {
-                        if let Some(ti) = self.typedef_index.get(dn) {
-                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
-                        let it = implies.clone().unwrap_or(Type::Any);
-                        if self.is_normal(&it) {
-                           let (inum, iden) = it.project_ratio();
-                           num_collector.append(&mut iden.clone());
-                           den_collector.append(&mut inum.clone());
-                           continue;
-                        }}}}
-
-                        let mdt = d.mask();
-                        let mut found = false;
-                        if let Some(tis) = self.foralls_index.get(&mdt) {
-                        for ti in tis.iter() { if !found {
-                        if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-                           let mut subs = Vec::new();
-                           if let Ok(_) = lt.unify_impl(&mut subs, &d) {
-                              let srt = rt.substitute(&subs);
-                              if self.is_normal(&srt) {
-                                 let (inum, iden) = srt.project_ratio();
-                                 num_collector.append(&mut iden.clone());
-                                 den_collector.append(&mut inum.clone());
-                                 found = true;
-                                 continue;
-                              }
-                           }
-                        }}}}
-                        if found { continue; }
-
-                        return Err(Error {
-                           kind: "Type Error".to_string(),
-                           rule: format!("could not normalize denominator type atom in cast {:?}", d),
-                           span: self.rows[t.id].span.clone(),
-                           snippet: "".to_string()
-                        })
-                     }
-                     let num = if num_collector.len()==0 {
-                        Type::Tuple(Vec::new())
-                     } else if num_collector.len()==1 {
-                        num_collector[0].clone()
-                     } else {
-                        Type::Product(num_collector)
-                     };
-                     let r_only = if den_collector.len()==0 {
-                        num
-                     } else if den_collector.len()==1 {
-                        Type::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
-                     } else {
-                        let den = Type::Product(den_collector);
-                        Type::Ratio(Box::new(num),Box::new(den))
-                     };
-                     if l_only==r_only { break; }
-                     else { l_only = r_only; }
-                  }
-
-                  if !self.is_normal(&into) {
-                     let mut num_collector = Vec::new();
-                     let mut den_collector = Vec::new();
-                     let (numerator,denominator) = into.project_ratio();
-                     for n in numerator.iter() {
-                        //if Into part is normal, do nothing
-                        if self.is_normal(n) {
-                           num_collector.push(n.clone());
-                           continue;
-                        }
-
-                        //if Into part implies a normal, replace part with implied
-                        if let Type::Ident(nn,_nns) = n {
-                        if let Some(ti) = self.typedef_index.get(nn) {
-                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
-                        let it = implies.clone().unwrap_or(Type::Any);
-                        if self.is_normal(&it) {
-                           let (inum, iden) = it.project_ratio();
-                           num_collector.append(&mut inum.clone());
-                           den_collector.append(&mut iden.clone());
-                           continue;
-                        }}}}
-
-                        //if Into part can cast into normal, replace part with cast
-                        let mnt = n.mask();
-                        let mut found = false;
-                        if let Some(tis) = self.foralls_index.get(&mnt) {
-                        for ti in tis.iter() { if !found {
-                        if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-                           let mut subs = Vec::new();
-                           if let Ok(_) = lt.unify_impl(&mut subs, &n) {
-                              let srt = rt.substitute(&subs);
-                              let (inum, iden) = srt.project_ratio();
-                              num_collector.append(&mut inum.clone());
-                              den_collector.append(&mut iden.clone());
-                              found = true;
-                              continue;
-                           }
-                        }}}}
-                        if found { continue; }
-
-                        return Err(Error {
-                           kind: "Type Error".to_string(),
-                           rule: format!("could not denormalize numerator type atom in cast {:?}", n),
-                           span: self.rows[t.id].span.clone(),
-                           snippet: "".to_string()
-                        })
-                     }
-                     for d in denominator.iter() {
-                        //if Into part is normal, do nothing
-                        if self.is_normal(d) {
-                           den_collector.push(d.clone());
-                           continue;
-                        }
-
-                        //if Into part implies a normal, replace part with implied
-                        if let Type::Ident(dn,_dns) = d {
-                        if let Some(ti) = self.typedef_index.get(dn) {
-                        if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
-                        let it = implies.clone().unwrap_or(Type::Any);
-                        if self.is_normal(&it) {
-                           let (inum, iden) = it.project_ratio();
-                           num_collector.append(&mut iden.clone());
-                           den_collector.append(&mut inum.clone());
-                           continue;
-                        }}}}
-
-                        //if Into part can cast into normal, replace part with cast
-                        let mnt = d.mask();
-                        let mut found = false;
-                        if let Some(tis) = self.foralls_index.get(&mnt) {
-                        for ti in tis.iter() { if !found {
-                        if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-                           let mut subs = Vec::new();
-                           if let Ok(_) = lt.unify_impl(&mut subs, &d) {
-                              let srt = rt.substitute(&subs);
-                              let (inum, iden) = srt.project_ratio();
-                              num_collector.append(&mut iden.clone());
-                              den_collector.append(&mut inum.clone());
-                              found = true;
-                              continue;
-                           }
-                        }}}}
-                        if found { continue; }
-
-                        return Err(Error {
-                           kind: "Type Error".to_string(),
-                           rule: format!("could not denormalize denominator type atom in cast {:?}", d),
-                           span: self.rows[t.id].span.clone(),
-                           snippet: "".to_string()
-                        })
-                     }
-
-                     let num = if num_collector.len()==0 {
-                        Type::Tuple(Vec::new())
-                     } else if num_collector.len()==1 {
-                        num_collector[0].clone()
-                     } else {
-                        Type::Product(num_collector)
-                     };
-                     let b_only = if den_collector.len()==0 {
-                        num
-                     } else if den_collector.len()==1 {
-                        Type::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
-                     } else {
-                        let den = Type::Product(den_collector);
-                        Type::Ratio(Box::new(num),Box::new(den))
-                     };
-
-                     self.unify(&l_only, &b_only, &self.rows[t.id].span)?;
-                     l_only = into.clone();
-                  }
+                  let l_only = self.cast_into_kind(l_only, &into, &self.rows[t.id].span.clone())?;
 
                   //quod erat demonstrandum
-                  self.rows[t.id].typ = self.unify(&l_only,&into,&self.rows[t.id].span)?.and(&l_alts);
+                  self.rows[t.id].typ = self.unify(&l_only,&into,&self.rows[t.id].span.clone())?.and(&l_alts);
                } else {
                   let mut accept = false;
-                  for tr in self.rules.iter() { match tr {
+                  for tr in self.rules.clone().iter() { match tr {
                      TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,k,_) if k==&into_kind => {
-                        if let Ok(lt) = self.unify(&self.rows[x.id].typ, lt, &self.rows[t.id].span) {
-                        if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span) {
+                        if let Ok(lt) = self.unify(&self.rows[x.id].typ.clone(), lt, &self.rows[t.id].span.clone()) {
+                        if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span.clone()) {
                            //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
                            //eliminate typeof(x) :: kindof(Into)
                            let l_narrowed = self.remove_kinded(&into_kind, &lt);
@@ -1527,23 +1802,25 @@ impl TLC {
             }
          },
          Term::Ident(x) => {
-            let xt = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span)?;
+            let xt = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span.clone())?;
             //typeof(x:Implied) => t.typ
-            self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+            self.rows[t.id].typ = self.unify(&xt, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { self.bottom_type.clone() };
             let ki = self.project_kinded(&self.term_kind, &i);
             let mut r = None;
-            for (pat,re) in self.regexes.iter() {
-               if pat==&ki { //Term kinded is not []
-                  r = Some(re);
-                  self.rows[t.id].typ = self.unify(pat, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+            for (pat,re) in self.regexes.clone().into_iter() {
+               if pat==ki { //Term kinded is not []
+                  r = Some(re.clone());
+                  let alt_t = self.remove_kinded(&self.term_kind, &self.rows[t.id].typ);
+                  self.rows[t.id].typ = self.unify(&pat, &ki, &self.rows[t.id].span.clone())?.and(&alt_t);
                   break;
                }
                else if self.bottom_type==ki && re.is_match(&x) { //Term kinded is []
-                  r = Some(re);
-                  self.rows[t.id].typ = self.unify(pat, &self.rows[t.id].typ, &self.rows[t.id].span)?;
+                  r = Some(re.clone());
+                  let alt_t = self.remove_kinded(&self.term_kind, &self.rows[t.id].typ);
+                  self.rows[t.id].typ = self.unify(&pat, &ki, &self.rows[t.id].span.clone())?.and(&alt_t);
                   break;
                }
             }
@@ -1558,6 +1835,7 @@ impl TLC {
                }
                //if any non Term typ is implied, introduce it here
                let ri = self.remove_kinded(&self.term_kind, &i);
+               let ri = self.remove_kinded(&self.constant_kind, &ri);
                self.rows[t.id].typ = self.rows[t.id].typ.and(&ri);
             } else {
                return Err(Error {
@@ -1576,18 +1854,18 @@ impl TLC {
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
-            self.rows[x.id].typ = self.unify(&self.rows[x.id].typ, &self.rows[g.id].typ.expects(), &self.rows[x.id].span)?;
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &self.rows[g.id].typ.returns(), &self.rows[t.id].span)?;
+            self.rows[x.id].typ = self.unify(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.expects(), &self.rows[x.id].span.clone())?;
+            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &self.rows[g.id].typ.returns(), &self.rows[t.id].span.clone())?;
          },
          Term::Constructor(cname,kvs) => {
-            for (_k,v) in kvs.iter() {
-               self.typeck(scope.clone(), *v, None)?;
+            for (_k,v) in kvs.clone().into_iter() {
+               self.typeck(scope.clone(), v, None)?;
             }
-            if let Some((tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
+            if let Some((ref tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
                self.rows[t.id].typ = self.unify(
-                  &self.rows[t.id].typ,
-                  &tt,
-                  &self.rows[t.id].span
+                  &self.rows[t.id].typ.clone(),
+                  &tt.clone(),
+                  &self.rows[t.id].span.clone()
                )?;
                self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::Ident(cname.clone(),Vec::new())).normalize();
             } else { return Err(Error {
@@ -1599,15 +1877,17 @@ impl TLC {
          },
       };
       if let Some(ref i) = implied {
-         self.rows[t.id].typ = self.unify(&self.rows[t.id].typ, &i, &self.rows[t.id].span)?;
+         self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &i, &self.rows[t.id].span.clone())?;
       };
-      self.soundck(&self.rows[t.id].typ, &self.rows[t.id].span)?;
+      self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
    }
-   pub fn unify(&self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+   pub fn unify(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
       //lt => rt
       let mut lt = self.extend_implied(lt); lt = lt.normalize();
       let mut rt = rt.clone(); rt = rt.normalize();
+      self.reduce_type(&mut lt); //reduce constant expressions in dependent types
+      self.reduce_type(&mut rt);
       if let Ok(tt) = lt.unify(&rt) {
          Ok(tt)
       } else { return Err(Error {
@@ -1629,6 +1909,7 @@ impl TLC {
       let typedef_index_l = self.typedef_index.clone();
       let foralls_index_l = self.foralls_index.clone();
       let foralls_rev_index_l = self.foralls_rev_index.clone();
+      let constant_index_l = self.constant_index.clone();
 
       let r = self.compile_str(globals, src);
 
@@ -1642,6 +1923,7 @@ impl TLC {
       self.typedef_index = typedef_index_l;
       self.foralls_index = foralls_index_l;
       self.foralls_rev_index = foralls_rev_index_l;
+      self.constant_index = constant_index_l;
 
       r?; Ok(())
    }
