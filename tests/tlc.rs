@@ -141,3 +141,16 @@ fn check_products_and_ratios() {
    tlc.check(None, "type At; let a: At/At*At; a:?/()").unwrap_err();
 }
 
+#[test]
+fn check_functions() {
+   let mut tlc = TLC::new();
+
+   //function application is narrowly typed
+   tlc.check(None, "type Aa::Ka; type Bb; let f(X::Ka):X; let x: Aa+Bb; f(x): Aa").unwrap();
+   tlc.check(None, "type Aa::Ka; type Bb; let f(X::Ka):X; let x: Aa+Bb; f(x): Bb").unwrap_err();
+
+   //default kind is Term
+   //there is no Any kind
+   tlc.check(None, "type Aa::Ka; type Bb; let f(X):X; let x: Aa+Bb; f(x): Aa").unwrap_err();
+   tlc.check(None, "type Aa::Ka; type Bb; let f(X):X; let x: Aa+Bb; f(x): Bb").unwrap();
+}
