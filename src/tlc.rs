@@ -1285,7 +1285,6 @@ impl TLC {
                   self.kinds_of(&mut tkts, it);
                   match tt {
                      Type::Arrow(_p,_b) => {
-                        eprintln!("pre-unify arrow {:?} (x) {:?}", &it, tt);
                         //if it => tt
                         if let Ok(rt) = self.unify_with_kinds(&tkts,&it,tt,span) {
                            matches.push(rt.clone());
@@ -1394,12 +1393,17 @@ impl TLC {
                t.id = self.push_constant(&c, *t).id;
                return Some(c);
             }
-            eprintln!("untyped eval variable {}", g);
+            if let Some((_gn,gid)) = g.split_once('#') {
+               //if t.id has somehow diverged from gid, swap
+               //this should not happen, but it does because invariants are not enforced
+               if let Ok(gid) = gid.parse::<u64>() {
+                  t.id = gid as usize;
+               }
+            }
             for (k,v) in subs.iter() {
                if let Type::Constant(_kv,kt) = k {
                if let Type::Constant(_vv,vt) = v {
                if kt.id == t.id {
-                  eprintln!("untyped eval variable found substitution {} -> {}", t.id, vt.id);
                   t.id = vt.id;
                   return self.maybe_constant(*t);
                }}}
@@ -1960,7 +1964,6 @@ impl TLC {
       };
       if let Some(Type::Arrow(_,_)) = implied {
          //arrow types can be narrowed through unification, which voids the implied unification check
-         eprintln!("typeck arrow: {:?}", self.rows[t.id].typ);
       } else if let Some(implied) = implied {
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
       };

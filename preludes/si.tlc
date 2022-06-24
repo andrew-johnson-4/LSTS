@@ -173,7 +173,7 @@ let $"/"(x:X::Unit, y:Number)  :X   ::Unit; //div constant
 
 //: Constant Math
 let pos([x]): [x]           ; //pos
-let neg([x]): [x]           ; //neg
+let neg([x]): [-x]          ; //neg
 let $"+"([x], [y]): [x+y]   ; //add
 let $"-"([x], [y]): [x-y]   ; //sub
 let $"*"([x], [y]): [x*y]   ; //mul
