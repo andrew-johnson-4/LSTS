@@ -208,20 +208,6 @@ let not(x:X+Boolean): Boolean + Not<X>;
 let $"&&"(x:X+Boolean, y:Y+Boolean): Boolean + And<X,Y>;
 let $"||"(x:X+Boolean, y:Y+Boolean): Boolean + Or<X,Y>;
 
-/*
-//: Numerical Proof Objects
-type Negative<A:Number>;
-type Plus<A:Number, B:Number>;
-type Minus<A:Number, B:Number>;
-type Times<A:Number, B:Number>;
-type Divided<A:Number, B:Number>;
-type Modulo<A:Number, B:Number>;
-
-type Equals<A:Number, B:Number>: Boolean;
-type NotEquals<A:Number, B:Number>: Boolean;
-type GreaterThan<A:Number, B:Number>: Boolean;
-type LessThan<A:Number, B:Number>: Boolean;
-
-//: Compound Proof Objects
-type Prime:Integer where d:Prime, n:Integer if (n>1: True). (d%n != 0: True);
-*/
+//: Dependent Types
+type Prime:Integer
+     where d:Prime, n:Integer if(n>1 && d!=n). d%n != 0;
