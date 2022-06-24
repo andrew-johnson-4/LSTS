@@ -210,4 +210,4 @@ let $"||"(x:X+Boolean, y:Y+Boolean): Boolean + Or<X,Y>;
 
 //: Dependent Types
 type Prime:Integer
-     where d:Prime, n:Integer if(n>1 && d!=n). d%n != 0;
+     where d:Prime, n:Integer if (n>1 && d!=n). d%n != 0;
