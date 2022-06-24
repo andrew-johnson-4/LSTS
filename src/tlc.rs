@@ -625,6 +625,7 @@ impl TLC {
             let mut rt = self.bottom_type.clone();
             let mut rk = self.term_kind.clone();
             let mut t  = None;
+            let mut dept = HashMap::new();
             for e in ps { match e.as_rule() {
                Rule::let_stmt_par => {
                   let mut itks = Vec::new();
@@ -634,7 +635,7 @@ impl TLC {
                      let mut kind  = self.term_kind.clone();
                      for itk in itkse.into_inner() { match itk.as_rule() {
                         Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                        Rule::typ   => { typ   = Some(self.unparse_ast_type(scope,fp,itk,span)?); },
+                        Rule::typ   => { typ   = Some(self.unparse_ast_type(&mut dept,scope,fp,itk,span)?); },
                         Rule::kind   => { kind = self.unparse_ast_kind(scope,fp,itk,span)?; },
                         rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                      }}
@@ -642,7 +643,7 @@ impl TLC {
                   }
                   pars.push(itks);
                },
-               Rule::typ => { rt = self.unparse_ast_type(scope,fp,e,span)?; },
+               Rule::typ => { rt = self.unparse_ast_type(&mut dept,scope,fp,e,span)?; },
                Rule::kind => { rk = self.unparse_ast_kind(scope,fp,e,span)?; },
                Rule::term => { t = Some(self.unparse_ast(scope,fp,e,span)?); },
                rule => panic!("unexpected let_stmt rule: {:?}", rule),
@@ -685,7 +686,7 @@ impl TLC {
                None => self.unparse_ast(scope,fp,e,span),
                Some(tt) => Ok({let t = Term::Ascript(
                   self.unparse_ast(scope,fp,e,span)?, //term
-                  self.unparse_ast_type(scope,fp,tt,span)? //type
+                  self.unparse_ast_type(&mut HashMap::new(),scope,fp,tt,span)? //type
                ); self.push_term(t, &span)}),
             }
          },
@@ -696,7 +697,7 @@ impl TLC {
                None => self.unparse_ast(scope,fp,e,span),
                Some(tt) => Ok({let t = Term::As(
                   self.unparse_ast(scope,fp,e,span)?, //term
-                  self.unparse_ast_type(scope,fp,tt,span)? //type
+                  self.unparse_ast_type(&mut HashMap::new(),scope,fp,tt,span)? //type
                ); self.push_term(t, &span)}),
             }
          },
@@ -792,6 +793,7 @@ impl TLC {
             let mut kinds = Vec::new();
             let mut props = Vec::new();
             let mut constructors = Vec::new();
+            let mut dept = HashMap::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::typname => { t=e.into_inner().concat(); },
                Rule::normal => { normal=true; },
@@ -801,13 +803,13 @@ impl TLC {
                   let mut kind = self.term_kind.clone();
                   for tik in e.into_inner() { match tik.as_rule() {
                      Rule::typvar => { typ = tik.into_inner().concat(); },
-                     Rule::typ   => { inf   = Some(self.unparse_ast_type(scope,fp,tik,span)?); },
+                     Rule::typ   => { inf   = Some(self.unparse_ast_type(&mut dept,scope,fp,tik,span)?); },
                      Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,tik,span)?; },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                   tiks.push((typ,inf,kind));
                },
-               Rule::typ => { implies = Some(self.unparse_ast_type(scope,fp,e,span)?); },
+               Rule::typ => { implies = Some(self.unparse_ast_type(&mut dept,scope,fp,e,span)?); },
                Rule::typedef => {
                   let struct_typ = Type::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Type::Ident(t.clone(),Vec::new())).collect::<Vec<Type>>());
                   for tdb in e.into_inner() {
@@ -826,7 +828,7 @@ impl TLC {
                               Rule::key_typ => {
                                  let mut kts = tc.into_inner();
                                  let ki = kts.next().expect("TLC Grammar Error in rule [typedef.3]").into_inner().concat();
-                                 let kt = self.unparse_ast_type(scope,fp,kts.next().expect("TLC Grammar Error in rule [typedef.4]"),span)?;
+                                 let kt = self.unparse_ast_type(&mut dept,scope,fp,kts.next().expect("TLC Grammar Error in rule [typedef.4]"),span)?;
                                  self.scopes[scope.id].children.push((
                                     format!(".{}",ki.clone()),
                                     Vec::new(),
@@ -855,7 +857,7 @@ impl TLC {
                         let mut kind = self.term_kind.clone();
                         for itk in tip.into_inner() { match itk.as_rule() {
                            Rule::ident => { idn = Some(itk.into_inner().concat()); },
-                           Rule::typ   => { inf   = Some(self.unparse_ast_type(scope,fp,itk,span)?); },
+                           Rule::typ   => { inf   = Some(self.unparse_ast_type(&mut dept,scope,fp,itk,span)?); },
                            Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,itk,span)?; },
                            rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                         }}
@@ -924,6 +926,7 @@ impl TLC {
             let mut inference  = None;
             let mut term = None;
             let mut kind = self.term_kind.clone();
+            let mut dept = HashMap::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::ident_typ_kind => {
                   let mut ident = None;
@@ -931,7 +934,7 @@ impl TLC {
                   let mut kind = self.term_kind.clone();
                   for itk in e.into_inner() { match itk.as_rule() {
                      Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                     Rule::typ   => { typ   = Some(self.unparse_ast_type(scope,fp,itk,span)?); },
+                     Rule::typ   => { typ   = Some(self.unparse_ast_type(&mut dept,scope,fp,itk,span)?); },
                      Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,itk,span)?; },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
@@ -977,10 +980,11 @@ impl TLC {
    pub fn unparse_ast_inference(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Inference,Error> {
       let mut a = None;
       let mut b = None;
+      let mut dept = HashMap::new();
       for e in p.into_inner() { match e.as_rule() {
          Rule::typ => {
-            if a.is_none() { a = Some(self.unparse_ast_type(scope,fp,e,span)?); }
-            else { b = Some(self.unparse_ast_type(scope,fp,e,span)?); }
+            if a.is_none() { a = Some(self.unparse_ast_type(&mut dept,scope,fp,e,span)?); }
+            else { b = Some(self.unparse_ast_type(&mut dept,scope,fp,e,span)?); }
          },
          rule => panic!("unexpected inference rule: {:?}", rule)
       }}
@@ -988,23 +992,23 @@ impl TLC {
       else if b.is_none() { Ok(Inference::Type(a.unwrap())) }
       else { Ok(Inference::Imply(a.unwrap(), b.unwrap())) }
    }
-   pub fn unparse_ast_type(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Type,Error> {
+   pub fn unparse_ast_type(&mut self, dept: &mut HashMap<String,TermId>, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Type,Error> {
       match p.as_rule() {
          Rule::typname => {
             let name = p.into_inner().concat();
             Ok(Type::Ident(name,Vec::new()))
          },
-         Rule::typ => self.unparse_ast_type(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [typ]"),span),
+         Rule::typ => self.unparse_ast_type(dept,scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [typ]"),span),
          Rule::ident_typ => {
             let mut ps = p.into_inner();
             let tn = ps.next().expect("TLC Grammar Error in rule [ident_typ.1]").into_inner().concat();
-            let tps = ps.map(|e|self.unparse_ast_type(scope,fp,e,span).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Type>>();
+            let tps = ps.map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Type>>();
             Ok(Type::Ident(tn,tps))
          },
-         Rule::atom_typ => self.unparse_ast_type(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]"),span),
+         Rule::atom_typ => self.unparse_ast_type(dept,scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]"),span),
          Rule::any_typ => Ok(Type::Any),
          Rule::paren_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(scope,fp,e,span).expect("TLC Grammar Error in rule [paren_typ]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [paren_typ]"))
                       .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
@@ -1014,25 +1018,25 @@ impl TLC {
          },
          Rule::arrow_typ => {
             let mut ts = p.into_inner();
-            let mut t = self.unparse_ast_type(scope,fp,ts.next().expect("TLC Grammar Error in rule [arrow_typ]"),span)?;
+            let mut t = self.unparse_ast_type(dept,scope,fp,ts.next().expect("TLC Grammar Error in rule [arrow_typ]"),span)?;
             for tr in ts {
                t = Type::Arrow(
                   Box::new(t),
-                  Box::new(self.unparse_ast_type(scope,fp,tr,span)?)
+                  Box::new(self.unparse_ast_type(dept,scope,fp,tr,span)?)
                );
             }
             Ok(t)
          },
          Rule::suffix_typ => {
             let mut ts = p.into_inner();
-            let t = self.unparse_ast_type(scope,fp,ts.next().expect("TLC Grammar Error in rule [suffix_typ]"),span)?;
+            let t = self.unparse_ast_type(dept,scope,fp,ts.next().expect("TLC Grammar Error in rule [suffix_typ]"),span)?;
             //for t in ts {
                //TODO parameterized types and bracketed types
             //}
             Ok(t)
          },
          Rule::ratio_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(scope,fp,e,span).expect("TLC Grammar Error in rule [ratio_typ.1]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [ratio_typ.1]"))
                       .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
@@ -1043,7 +1047,7 @@ impl TLC {
             }
          },
          Rule::product_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(scope,fp,e,span).expect("TLC Grammar Error in rule [or_typ]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [or_typ]"))
                       .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
@@ -1052,7 +1056,7 @@ impl TLC {
             }
          },
          Rule::and_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(scope,fp,e,span).expect("TLC Grammar Error in rule [and_typ]"))
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [and_typ]"))
                       .collect::<Vec<Type>>();
             if ts.len()==1 {
                Ok(ts[0].clone())
@@ -1063,8 +1067,7 @@ impl TLC {
          Rule::dep_typ => {
             let mut t = self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span)?;
             self.untyped(t);
-            let mut unify_names = HashMap::new();
-            self.unify_varnames(&mut unify_names, &mut t); //convert all varnames to "var#{term.id}" and give identical vars the same id
+            self.unify_varnames(dept,&mut t); //convert all varnames to "var#{term.id}" and give identical vars the same id
             let ct = self.push_dep_type(&self.rows[t.id].term.clone(), t);  //check if type is constant
             Ok(ct)
          }
@@ -1755,48 +1758,48 @@ impl TLC {
       Ok(l_only)
    }
 
-   pub fn unify_varnames(&mut self, table: &mut HashMap<String,TermId>, t: &mut TermId) {
+   pub fn unify_varnames(&mut self, dept: &mut HashMap<String,TermId>, t: &mut TermId) {
       match self.rows[t.id].term.clone() {
          Term::Ident(tn) => {
             if ["not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
                //pass
-            } else if let Some(v) = table.get(&tn) {
+            } else if let Some(v) = dept.get(&tn) {
                let nn = format!("var#{}", v.id);
                self.rows[t.id].term = Term::Ident(nn);
                t.id = v.id; //clobber the namespace
             } else {
                let nn = format!("var#{}", t.id);
-               table.insert(tn.clone(), *t);
+               dept.insert(tn.clone(), *t);
                self.rows[t.id].term = Term::Ident(nn);
             }
          },
          Term::Value(_) => {},
          Term::Block(_sid,ref mut es) => {
             for e in es.iter_mut() {
-               self.unify_varnames(table,e);
+               self.unify_varnames(dept,e);
             }
          },
          Term::Tuple(ref mut es) => {
             for e in es.iter_mut() {
-               self.unify_varnames(table,e);
+               self.unify_varnames(dept,e);
             }
          },
          Term::Let(_,_,_,_,_,_) => {
             panic!("TODO: unify_varnames in Let term")
          },
          Term::App(ref mut g,ref mut x) => {
-            self.unify_varnames(table,g);
-            self.unify_varnames(table,x);
+            self.unify_varnames(dept,g);
+            self.unify_varnames(dept,x);
          },
          Term::Ascript(ref mut t,_tt) => {
-            self.unify_varnames(table,t);
+            self.unify_varnames(dept,t);
          },
          Term::As(ref mut t,_tt) => {
-            self.unify_varnames(table,t);
+            self.unify_varnames(dept,t);
          },
          Term::Constructor(_c,ref mut kts) => {
             for (_k,t) in kts.iter_mut() {
-               self.unify_varnames(table,t);
+               self.unify_varnames(dept,t);
             }
          },
       }
