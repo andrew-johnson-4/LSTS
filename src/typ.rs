@@ -374,24 +374,17 @@ impl Type {
          },
 
          (Type::Constant(lv,lc),Type::Constant(rv,rc)) => {
-            eprintln!("unify constants {}{} (x) {}{}",
-                      if *lv {"'"} else {""}, lc.id, 
-                      if *rv {"'"} else {""}, rc.id);
             if lc.id == rc.id {
                //unify_impl is only capable of comparing term equality
                //constants need to reduce to actually be the SAME term
-               eprintln!("same, accept");
                Ok(Type::Constant(*lv, *lc))
             } else if *lv {
-               eprintln!("left is var, accept right");
                subs.push((lt.clone(), rt.clone()));
                Ok(rt.clone())
             } else if *rv {
-               eprintln!("right is var, accept left");
                subs.push((rt.clone(), lt.clone()));
                Ok(lt.clone())
             } else {
-               eprintln!("reject constant unification");
                Err(())
             }
          },
