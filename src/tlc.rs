@@ -26,6 +26,7 @@ pub struct TLC {
    pub foralls_index: HashMap<Type,Vec<usize>>,
    pub foralls_rev_index: HashMap<Type,Vec<usize>>,
    pub constant_index: HashMap<Constant,TermId>,
+   pub tconstant_index: HashMap<TermId,Constant>,
    pub term_kind: Kind,
    pub constant_kind: Kind,
    pub nil_type: Type,
@@ -184,6 +185,7 @@ impl TLC {
          foralls_rev_index: HashMap::new(),
          typedef_index: HashMap::new(),
          constant_index: HashMap::new(),
+         tconstant_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
          term_kind: Kind::Simple("Term".to_string(),Vec::new()),
@@ -470,11 +472,19 @@ impl TLC {
       }, &span));
       self.unparse_ast(file_scope, fp, p, &span)
    }
+   pub fn maybe_constant(&self, t: TermId) -> Option<Constant> {
+      if let Some(c) = self.tconstant_index.get(&t) {
+         Some(c.clone())
+      } else {
+         None
+      }
+   }
    pub fn push_constant(&mut self, c: &Constant, t: TermId) -> TermId {
       if let Some(ct) = self.constant_index.get(c) {
          *ct
       } else {
          self.constant_index.insert(c.clone(),t);
+         self.tconstant_index.insert(t,c.clone());
          t
       }
    }
@@ -1051,10 +1061,10 @@ impl TLC {
             }
          },
          Rule::dep_typ => {
-            let t = self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span)?;
+            let mut t = self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span)?;
             self.untyped(t);
-            let mut guard_names = HashMap::new();
-            self.guard_varnames(&mut guard_names, t); //convert all varnames to "var#{term.id}"
+            let mut unify_names = HashMap::new();
+            self.unify_varnames(&mut unify_names, &mut t); //convert all varnames to "var#{term.id}" and give identical vars the same id
             let ct = self.push_dep_type(&self.rows[t.id].term.clone(), t);  //check if type is constant
             Ok(ct)
          }
@@ -1272,6 +1282,7 @@ impl TLC {
                   self.kinds_of(&mut tkts, it);
                   match tt {
                      Type::Arrow(_p,_b) => {
+                        eprintln!("pre-unify arrow {:?} (x) {:?}", &it, tt);
                         //if it => tt
                         if let Ok(rt) = self.unify_with_kinds(&tkts,&it,tt,span) {
                            matches.push(rt.clone());
@@ -1379,7 +1390,17 @@ impl TLC {
             if let Some(c) = self.parse_constant(&g) {
                t.id = self.push_constant(&c, *t).id;
                return Some(c);
-            };
+            }
+            eprintln!("untyped eval variable {}", g);
+            for (k,v) in subs.iter() {
+               if let Type::Constant(_kv,kt) = k {
+               if let Type::Constant(_vv,vt) = v {
+               if kt.id == t.id {
+                  eprintln!("untyped eval variable found substitution {} -> {}", t.id, vt.id);
+                  t.id = vt.id;
+                  return self.maybe_constant(*t);
+               }}}
+            }
          },
          Term::App(ref mut g,ref mut x) => {
             let gc = self.untyped_eval(subs,g);
@@ -1734,46 +1755,48 @@ impl TLC {
       Ok(l_only)
    }
 
-   pub fn guard_varnames(&mut self, table: &mut HashMap<String,String>, t: TermId) {
+   pub fn unify_varnames(&mut self, table: &mut HashMap<String,TermId>, t: &mut TermId) {
       match self.rows[t.id].term.clone() {
          Term::Ident(tn) => {
             if ["not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
                //pass
-            } else if let Some(vn) = table.get(&tn) {
-               self.rows[t.id].term = Term::Ident(vn.clone());
+            } else if let Some(v) = table.get(&tn) {
+               let nn = format!("var#{}", v.id);
+               self.rows[t.id].term = Term::Ident(nn);
+               t.id = v.id; //clobber the namespace
             } else {
                let nn = format!("var#{}", t.id);
-               table.insert(tn.clone(), nn.clone());
+               table.insert(tn.clone(), *t);
                self.rows[t.id].term = Term::Ident(nn);
             }
          },
          Term::Value(_) => {},
-         Term::Block(_sid,es) => {
-            for e in es.into_iter() {
-               self.guard_varnames(table,e);
+         Term::Block(_sid,ref mut es) => {
+            for e in es.iter_mut() {
+               self.unify_varnames(table,e);
             }
          },
-         Term::Tuple(es) => {
-            for e in es.into_iter() {
-               self.guard_varnames(table,e);
+         Term::Tuple(ref mut es) => {
+            for e in es.iter_mut() {
+               self.unify_varnames(table,e);
             }
          },
          Term::Let(_,_,_,_,_,_) => {
-            panic!("TODO: guard_varnames in Let term")
+            panic!("TODO: unify_varnames in Let term")
          },
-         Term::App(g,x) => {
-            self.guard_varnames(table,g);
-            self.guard_varnames(table,x);
+         Term::App(ref mut g,ref mut x) => {
+            self.unify_varnames(table,g);
+            self.unify_varnames(table,x);
          },
-         Term::Ascript(t,_tt) => {
-            self.guard_varnames(table,t);
+         Term::Ascript(ref mut t,_tt) => {
+            self.unify_varnames(table,t);
          },
-         Term::As(t,_tt) => {
-            self.guard_varnames(table,t);
+         Term::As(ref mut t,_tt) => {
+            self.unify_varnames(table,t);
          },
-         Term::Constructor(_c,kts) => {
-            for (_k,t) in kts.into_iter() {
-               self.guard_varnames(table,t);
+         Term::Constructor(_c,ref mut kts) => {
+            for (_k,t) in kts.iter_mut() {
+               self.unify_varnames(table,t);
             }
          },
       }
@@ -1934,6 +1957,7 @@ impl TLC {
       };
       if let Some(Type::Arrow(_,_)) = implied {
          //arrow types can be narrowed through unification, which voids the implied unification check
+         eprintln!("typeck arrow: {:?}", self.rows[t.id].typ);
       } else if let Some(implied) = implied {
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
       };
@@ -1974,6 +1998,7 @@ impl TLC {
       let foralls_index_l = self.foralls_index.clone();
       let foralls_rev_index_l = self.foralls_rev_index.clone();
       let constant_index_l = self.constant_index.clone();
+      let tconstant_index_l = self.tconstant_index.clone();
 
       let r = self.compile_str(globals, src);
 
@@ -1988,6 +2013,7 @@ impl TLC {
       self.foralls_index = foralls_index_l;
       self.foralls_rev_index = foralls_rev_index_l;
       self.constant_index = constant_index_l;
+      self.tconstant_index = tconstant_index_l;
 
       r?; Ok(())
    }
