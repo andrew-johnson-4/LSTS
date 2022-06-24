@@ -304,7 +304,7 @@ impl TLC {
    pub fn kinds_of(&self, kinds: &mut Vec<(Type,Kind)>, tt: &Type) {
       match tt {
          Type::Any => {},
-         Type::Constant(_) => {},
+         Type::Constant(_,_) => {},
          Type::And(ts) => {
             for ct in ts.iter() {
                self.kinds_of(kinds,ct);
@@ -506,11 +506,13 @@ impl TLC {
          Term::Value(ct) => {
             if let Some(c) = self.parse_constant(ct) {
                let ci = self.push_constant(&c, ti);
-               Type::Constant(ci)
+               Type::Constant(false, ci)
             } else {
-               Type::Constant(ti)
+               Type::Constant(false, ti)
             }
-         }, _ => Type::Constant(ti),
+         }, Term::Ident(_) => {
+            Type::Constant(true, ti)
+         }, _ => Type::Constant(false, ti),
       }
    }
    pub fn push_term_type(&mut self, term: &Term, ti: TermId) -> Type {
@@ -518,7 +520,7 @@ impl TLC {
          Term::Value(ct) => {
             if let Some(c) = self.parse_constant(ct) {
                let ci = self.push_constant(&c, ti);
-               Type::And(vec![Type::Any,Type::Constant(ci)])
+               Type::And(vec![Type::Any,Type::Constant(false, ci)])
             } else {
                Type::Any
             }
@@ -1150,7 +1152,7 @@ impl TLC {
             }}}
             Ok(())
          },
-         Type::Constant(_) => Ok(()),
+         Type::Constant(_,_) => Ok(()),
       }
    }
    pub fn extend_implied(&self, tt: &Type) -> Type {
@@ -1199,7 +1201,7 @@ impl TLC {
          },
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
-         Type::Constant(c) => Type::Constant(*c)
+         Type::Constant(v,c) => Type::Constant(*v,*c)
       }
    }
    pub fn kindsof(&self, kinds:&mut Vec<(Type,Kind)>, tt:&Type) {
@@ -1216,7 +1218,7 @@ impl TLC {
          Type::Product(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
          Type::Arrow(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
          Type::Ratio(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
-         Type::Constant(_) => {}
+         Type::Constant(_,_) => { kinds.push((tt.clone(),self.constant_kind.clone())); }
       }
    }
    pub fn kindof(&self, tt:&Type) -> Kind {
@@ -1236,7 +1238,7 @@ impl TLC {
          Type::Product(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil},
          Type::Arrow(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) },
          Type::Ratio(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) },
-         Type::Constant(_) => self.constant_kind.clone(),
+         Type::Constant(_,_) => self.constant_kind.clone(),
       }
    }
    pub fn is_knormal(&self, k:&Kind) -> bool {
@@ -1253,7 +1255,7 @@ impl TLC {
          Type::Product(ts) => ts.iter().all(|ct|self.is_normal(ct)),
          Type::Arrow(p,b) => self.is_normal(p) && self.is_normal(b),
          Type::Ratio(p,b) => self.is_normal(p) && self.is_normal(b),
-         Type::Constant(_) => true,
+         Type::Constant(_,_) => true,
       }
    }
    pub fn typeof_var(&mut self, scope: &Option<ScopeId>, v: &str, implied: &Option<Type>, span: &Span) -> Result<Type,Error> {
@@ -1319,43 +1321,43 @@ impl TLC {
          snippet: "".to_string()
       }) }
    }
-   pub fn reduce_type(&mut self, tt: &mut Type) {
+   pub fn reduce_type(&mut self, subs: &Vec<(Type,Type)>, tt: &mut Type) {
       match tt {
-         Type::Constant(ref mut c) => {
-            self.untyped_eval(c);
+         Type::Constant(_v, ref mut c) => {
+            self.untyped_eval(subs, c);
          },
          Type::Any => {},
          Type::Ident(_tn,tps) => {
             for mut tp in tps.iter_mut() {
-               self.reduce_type(&mut tp);
+               self.reduce_type(subs, &mut tp);
             }
          },
          Type::And(ts) => {
             for mut ct in ts.iter_mut() {
-               self.reduce_type(&mut ct);
+               self.reduce_type(subs, &mut ct);
             }
          },
          Type::Tuple(ts) => {
             for mut ct in ts.iter_mut() {
-               self.reduce_type(&mut ct);
+               self.reduce_type(subs, &mut ct);
             }
          },
          Type::Product(ts) => {
             for mut ct in ts.iter_mut() {
-               self.reduce_type(&mut ct);
+               self.reduce_type(subs, &mut ct);
             }
          },
          Type::Arrow(ref mut p, ref mut b) => {
-            self.reduce_type(p);
-            self.reduce_type(b);
+            self.reduce_type(subs, p);
+            self.reduce_type(subs, b);
          },
          Type::Ratio(ref mut p, ref mut b) => {
-            self.reduce_type(p);
-            self.reduce_type(b);
+            self.reduce_type(subs, p);
+            self.reduce_type(subs, b);
          },
       }
    }
-   pub fn untyped_eval(&mut self, t: &mut TermId) -> Option<Constant> {
+   pub fn untyped_eval(&mut self, subs: &Vec<(Type,Type)>, t: &mut TermId) -> Option<Constant> {
       //reduce constant expressions in untyped context
       //designed for use inside of dependent type signatures
 
@@ -1380,8 +1382,8 @@ impl TLC {
             };
          },
          Term::App(ref mut g,ref mut x) => {
-            let gc = self.untyped_eval(g);
-            let xc = self.untyped_eval(x);
+            let gc = self.untyped_eval(subs,g);
+            let xc = self.untyped_eval(subs,x);
             match (gc,xc) {
                (Some(Constant::Op(uop)),Some(Constant::Integer(x))) => {
                   let x = if uop=="pos" { x }
@@ -1429,7 +1431,7 @@ impl TLC {
             let mut all_const = true;
             let mut consts = Vec::new();
             for tc in ts.iter_mut() {
-               if let Some(cc) = self.untyped_eval(tc) {
+               if let Some(cc) = self.untyped_eval(subs,tc) {
                   consts.push(cc);
                } else {
                   all_const = false;
@@ -1946,10 +1948,12 @@ impl TLC {
       //lt => rt
       let mut lt = self.extend_implied(lt); lt = lt.normalize();
       let mut rt = rt.clone(); rt = rt.normalize();
-      self.reduce_type(&mut lt); //reduce constant expressions in dependent types
-      self.reduce_type(&mut rt);
-      if let Ok(tt) = lt.unify(kinds, &rt) {
-         Ok(tt)
+      let mut subs = Vec::new();
+      self.reduce_type(&subs, &mut lt); //reduce constant expressions in dependent types
+      self.reduce_type(&subs, &mut rt);
+      if let Ok(ref mut tt) = lt.unify(kinds, &mut subs, &rt) {
+         self.reduce_type(&subs, tt);
+         Ok(tt.clone())
       } else { return Err(Error {
          kind: "Type Error".to_string(),
          rule: format!("failed unification {:?} (x) {:?}",lt,rt),

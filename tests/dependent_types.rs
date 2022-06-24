@@ -130,7 +130,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(si), "let x:[0%0]; x: [0]").unwrap_err();
 }
 
-/*
 #[test]
 fn check_variable_substitution() {
    let mut tlc = TLC::new();
@@ -203,4 +202,3 @@ fn check_variable_substitution() {
    tlc.check(Some(si), "0%1: [NaN]").unwrap_err();
    tlc.check(Some(si), "0%0: [0]").unwrap_err();
 }
-*/
