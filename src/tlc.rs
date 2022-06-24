@@ -1316,9 +1316,10 @@ impl TLC {
             Ok(matches[0].clone())
          } else if candidates.len() > 0 {
             let mut tkts = Vec::new();
-            for (_,tks,_) in sc.children.iter() {
+            for (tn,tks,_) in sc.children.iter() {
+            if tn==v {
                tkts.append(&mut tks.clone());
-            }
+            }}
             let tkts = tkts.into_iter().map(|(t,k)| format!("{:?}::{:?}",t,k))
                            .collect::<Vec<String>>().join("; ");
          Err(Error {
