@@ -36,6 +36,18 @@ impl Type {
          tt => (vec![tt.clone()], Vec::new())
       }
    }
+   pub fn is_constant(&self) -> bool {
+      match self {
+         Type::Constant(_,_) => true,
+         _ => false,
+      }
+   }
+   pub fn term_id(&self) -> TermId {
+      match self {
+         Type::Constant(_,t) => *t,
+         _ => TermId { id: 0 },
+      }
+   }
    pub fn mask(&self) -> Type {
       match self {
          Type::Any => Type::Any,

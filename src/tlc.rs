@@ -672,6 +672,8 @@ impl TLC {
                };
                ft = Type::Arrow(Box::new(pt),Box::new(ft));
             }
+            self.reduce_type(&Vec::new(), &mut ft, span); //destructively reduce constants in type
+            ft = ft.normalize();
             self.scopes[scope.id].children.push((ident.clone(), fkts, ft));
             let inner_scope = self.push_scope(Scope {
                parent: Some(scope),
@@ -1279,20 +1281,25 @@ impl TLC {
          for (tn,tkts,tt) in sc.children.iter() {
             //tkts only contains kinds for Type tt
             if tn==v {
+               //as a last resort, reduce candidate types here
+               //this action really belongs somewhere else upstream
+               let mut tt = tt.clone();
+               self.reduce_type(&Vec::new(), &mut tt, span);
+
                candidates.push(tt.clone());
                if let Some(it) = implied {
                   let mut tkts = tkts.clone();
                   self.kinds_of(&mut tkts, it);
-                  match tt {
+                  match tt.clone() {
                      Type::Arrow(_p,_b) => {
                         //if it => tt
-                        if let Ok(rt) = self.unify_with_kinds(&tkts,&it,tt,span) {
+                        if let Ok(rt) = self.unify_with_kinds(&tkts,&it,&tt,span) {
                            matches.push(rt.clone());
                         }
                      },
                      _ => {
                         //if tt => it
-                        if let Ok(rt) = self.unify_with_kinds(&tkts,tt,&it,span) {
+                        if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&it,span) {
                            matches.push(rt.clone());
                         }
                      },
@@ -1334,7 +1341,7 @@ impl TLC {
          snippet: "".to_string()
       }) }
    }
-   pub fn reduce_type(&mut self, subs: &Vec<(Type,Type)>, tt: &mut Type) {
+   pub fn reduce_type(&mut self, subs: &Vec<(Type,Type)>, tt: &mut Type, span: &Span) {
       match tt {
          Type::Constant(_v, ref mut c) => {
             self.untyped_eval(subs, c);
@@ -1342,31 +1349,48 @@ impl TLC {
          Type::Any => {},
          Type::Ident(_tn,tps) => {
             for mut tp in tps.iter_mut() {
-               self.reduce_type(subs, &mut tp);
+               self.reduce_type(subs, &mut tp, span);
             }
          },
          Type::And(ts) => {
             for mut ct in ts.iter_mut() {
-               self.reduce_type(subs, &mut ct);
+               self.reduce_type(subs, &mut ct, span);
+            }
+            if ts.clone().iter().filter(|tt| tt.is_constant()).count() > 1 {
+               let dept = ts.clone().into_iter().filter(|tt| tt.is_constant()).collect::<Vec<Type>>();
+               let mut trad = ts.clone().into_iter().filter(|tt| !tt.is_constant()).collect::<Vec<Type>>();
+               let mut d1 = dept[0].clone();
+               for d2 in &dept[1..] {
+                  let t = Term::App(
+                     self.push_term(Term::Ident("&&".to_string()),span),
+                     self.push_term(Term::Tuple(vec![d1.term_id(),d2.term_id()]),span),
+                  );
+                  let t = self.push_term(t, span);
+                  self.untyped(t);
+                  d1 = Type::Constant(false, t);
+               }
+               ts.clear();
+               ts.push(d1);
+               ts.append(&mut trad);
             }
          },
          Type::Tuple(ts) => {
             for mut ct in ts.iter_mut() {
-               self.reduce_type(subs, &mut ct);
+               self.reduce_type(subs, &mut ct, span);
             }
          },
          Type::Product(ts) => {
             for mut ct in ts.iter_mut() {
-               self.reduce_type(subs, &mut ct);
+               self.reduce_type(subs, &mut ct, span);
             }
          },
          Type::Arrow(ref mut p, ref mut b) => {
-            self.reduce_type(subs, p);
-            self.reduce_type(subs, b);
+            self.reduce_type(subs, p, span);
+            self.reduce_type(subs, b, span);
          },
          Type::Ratio(ref mut p, ref mut b) => {
-            self.reduce_type(subs, p);
-            self.reduce_type(subs, b);
+            self.reduce_type(subs, p, span);
+            self.reduce_type(subs, b, span);
          },
       }
    }
@@ -1976,14 +2000,17 @@ impl TLC {
    }
    pub fn unify_with_kinds(&mut self, kinds: &Vec<(Type,Kind)>, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
       //lt => rt
-      let mut lt = self.extend_implied(lt); lt = lt.normalize();
-      let mut rt = rt.clone(); rt = rt.normalize();
       let mut subs = Vec::new();
-      self.reduce_type(&subs, &mut lt); //reduce constant expressions in dependent types
-      self.reduce_type(&subs, &mut rt);
+      let mut lt = self.extend_implied(lt);
+      self.reduce_type(&subs, &mut lt, span); //reduce constant expressions in dependent types
+      lt = lt.normalize();
+      let mut rt = rt.clone();
+      self.reduce_type(&subs, &mut rt, span);
+      rt = rt.normalize();
       if let Ok(ref mut tt) = lt.unify(kinds, &mut subs, &rt) {
-         self.reduce_type(&subs, tt);
-         Ok(tt.clone())
+         self.reduce_type(&subs, tt, span);
+         let tt = tt.normalize();
+         Ok(tt)
       } else { return Err(Error {
          kind: "Type Error".to_string(),
          rule: format!("failed unification {:?} (x) {:?}",lt,rt),
