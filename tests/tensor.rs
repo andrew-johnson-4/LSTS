@@ -11,6 +11,9 @@ fn check_tensor_syntax() {
    tlc.check(Some(si), "let a:Number[1][]").unwrap();
    tlc.check(Some(si), "let a:Number[][2]").unwrap();
    tlc.check(Some(si), "let a:Number[][2]").unwrap();
-   tlc.check(Some(si), "let a:Number[?]").unwrap_err();
-   tlc.check(Some(si), "let a:Number[()]").unwrap_err();
+
+   tlc.check(Some(si), "let a:Number[1]; a.length==0: [True]").unwrap_err();
+   tlc.check(Some(si), "let a:Number[1]; a.length==0: [False]").unwrap();
+   tlc.check(Some(si), "let a:Number[1]; a.length==1: [True]").unwrap();
+   tlc.check(Some(si), "let a:Number[1]; a.length==1: [False]").unwrap_err();
 }
