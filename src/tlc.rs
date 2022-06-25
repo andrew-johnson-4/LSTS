@@ -337,8 +337,12 @@ impl TLC {
             }
          },
          Type::Product(ts) => {
+            let kl = kinds.len();
             for ct in ts.iter() {
                self.kinds_of(kinds,ct);
+            }
+            if kinds.len()>kl {
+               kinds.push((tt.clone(), kinds[kinds.len()-1].1.clone()));
             }
          },
          Type::Tuple(ts) => {
@@ -351,8 +355,12 @@ impl TLC {
             self.kinds_of(kinds,b);
          },
          Type::Ratio(p,b) => {
+            let kl = kinds.len();
             self.kinds_of(kinds,p);
             self.kinds_of(kinds,b);
+            if kinds.len()>kl {
+               kinds.push((tt.clone(), kinds[kinds.len()-1].1.clone()));
+            }
          },
          Type::Ident(cn,_) => {
             if kinds.iter().any(|(t,_k)| t==tt) { return; }
@@ -362,18 +370,6 @@ impl TLC {
             }}
          },
       }
-   }
-   pub fn kind_of(&self, tt: &Type) -> Kind {
-      let tn = match tt {
-         Type::Ident(cn,_cts) => cn.clone(),
-         _ => "".to_string(),
-      };
-      if let Some(ti) = self.typedef_index.get(&tn) {
-      if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,k,_props,_) = &self.rules[*ti] {
-         return k.clone();
-      }}
-      Kind::Nil //undefined types have Nil kind
-                //this is the equivalent of NaN for kinds, and is thus not very useful
    }
    pub fn compile_rules(&mut self, _docname:&str) -> Result<(),Error> {
 
@@ -1242,23 +1238,6 @@ impl TLC {
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
          Type::Constant(v,c) => Type::Constant(*v,*c)
-      }
-   }
-   pub fn kindsof(&self, kinds:&mut Vec<(Type,Kind)>, tt:&Type) {
-      match tt {
-         Type::Any => {},
-         Type::Ident(_t,_ts) => {
-            for (ot,_ok) in kinds.iter() {
-               if ot==tt { return; } //type is already kinded
-            }
-            kinds.push((tt.clone(), self.kindof(tt)));
-         },
-         Type::And(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
-         Type::Tuple(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
-         Type::Product(ts) => {for t in ts.iter() { self.kindsof(kinds,t); }}
-         Type::Arrow(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
-         Type::Ratio(p,b) => { self.kindsof(kinds,p); self.kindsof(kinds,b); }
-         Type::Constant(_,_) => { kinds.push((tt.clone(),self.constant_kind.clone())); }
       }
    }
    pub fn kindof(&self, tt:&Type) -> Kind {
