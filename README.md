@@ -43,3 +43,12 @@ LSTS does not ensure against all forms of logical errors, however it does compla
     let primes:Prime[];           //assume there are a finite number of primes
     let p = primes.product() + 1; //let p be the product of all primes + 1
     forall d:primes. p%d == 1;    //p mod d, forall d in primes list, is 1
+    
+# Dependent Types
+
+LSTS natively supports dependent types, inhabiting the "Constant" Kind. Constant Types are just untyped Terms minus abstraction. This middle ground Term language allows us to describe many desirable scenarios while still keeping the type system Strongly Normalizing.
+
+    let x: [1 + 2 * 3]; x: [7];
+    
+    //constant folding is programmable
+    let f(x: [x], y: [y]): [2*x+y];
