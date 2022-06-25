@@ -13,7 +13,6 @@ fn check_tensor_syntax() {
    tlc.check(Some(si), "let a:Number[][2]").unwrap();
 }
 
-/*
 #[test]
 fn check_tensor_invariants() {
    let mut tlc = TLC::new();
@@ -24,4 +23,3 @@ fn check_tensor_invariants() {
    tlc.check(Some(si), "let a:Number[1]; a.length==1: [True]").unwrap();
    tlc.check(Some(si), "let a:Number[1]; a.length==1: [False]").unwrap_err();
 }
-*/
