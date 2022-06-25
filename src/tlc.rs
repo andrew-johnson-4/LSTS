@@ -194,6 +194,28 @@ impl TLC {
          bottom_type: Type::And(Vec::new()),
       }
    }
+   pub fn print_type(&self, kinds: &Vec<(Type,Kind)>, tt: &Type) -> String {
+       //Type Error, expected variable pos: Number did not match any candidate (X)=>(X) | (['term#317])=>(['term#317]) with X::Unit; ['term#317]::Term, in [string] --> 1,1
+      let ts = match tt {
+         Type::Any => format!("?"),
+         Type::Ident(t,ts) => {
+            if ts.len()==0 { format!("{}", t) }
+            else { format!("{}<{}>", t, ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join(",") ) }
+         }
+         Type::And(ts) => format!("{{{}}}", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join("+") ),
+         Type::Tuple(ts) => format!("({})", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join(",") ),
+         Type::Product(ts) => format!("({})", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join("*") ),
+         Type::Arrow(p,b) => format!("({})=>({})", self.print_type(kinds,p), self.print_type(kinds,b)),
+         Type::Ratio(n,d) => format!("({})/({})", self.print_type(kinds,n), self.print_type(kinds,d)),
+         Type::Constant(v,c) => format!("[{}]", self.print_term(*c)),
+      };
+      for (kt,k) in kinds.iter() {
+         if kt==tt {
+            return format!("{}::{:?}", ts, k);
+         }
+      };
+      ts
+   }
    pub fn print_scope(&self, s: ScopeId) -> String {
       let mut buf:String = format!("#{}{{\n", s.id);
       for (cn,pks,ct) in self.scopes[s.id].children.iter() {
@@ -1320,16 +1342,14 @@ impl TLC {
             if tn==v {
                tkts.append(&mut tks.clone());
             }}
-            let tkts = tkts.into_iter().map(|(t,k)| format!("{:?}::{:?}",t,k))
-                           .collect::<Vec<String>>().join("; ");
          Err(Error {
             kind: "Type Error".to_string(),
-            rule: format!("variable {}: {:?} did not match any candidate {} with {}",
+            rule: format!("variable {}: {:?} did not match any candidate {}",
                      v,
                      implied.clone().unwrap_or(Type::Any),
-                     candidates.iter().map(|t|format!("{:?}",t))
+                     candidates.iter().map(|t|self.print_type(&tkts,t))
                                .collect::<Vec<String>>().join(" | "),
-                     tkts ),
+                  ),
             span: span.clone(),
             snippet: "".to_string()
          }) } else {
