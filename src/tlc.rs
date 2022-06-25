@@ -36,6 +36,7 @@ pub struct TLC {
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Constant {
    NaN,
+   Boolean(bool),
    Integer(i64),
    Op(String),
    Tuple(Vec<Constant>),
@@ -44,6 +45,7 @@ impl std::fmt::Debug for Constant {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
       match self {
         Constant::NaN => write!(f, "NaN"),
+        Constant::Boolean(c) => write!(f, "{}", if *c {"True"} else {"False"}),
         Constant::Integer(i) => write!(f, "{}", i),
         Constant::Op(op) => write!(f, "{}", op),
         Constant::Tuple(ts) => write!(f, "({})", ts.iter()
@@ -512,8 +514,9 @@ impl TLC {
    }
    pub fn parse_constant(&self, c: &str) -> Option<Constant> {
       if c=="NaN" { Some(Constant::NaN)
-      } else if c=="True" { Some(Constant::Integer(1))
-      } else if c=="False" { Some(Constant::Integer(0))
+      } else if c=="True" { Some(Constant::Boolean(true))
+      } else if c=="False" { Some(Constant::Boolean(false))
+      } else if c=="if" { Some(Constant::Op(c.to_string()))
       } else if c=="not" { Some(Constant::Op(c.to_string()))
       } else if c=="pos" { Some(Constant::Op(c.to_string()))
       } else if c=="neg" { Some(Constant::Op(c.to_string()))
@@ -1458,16 +1461,32 @@ impl TLC {
             let gc = self.untyped_eval(subs,g);
             let xc = self.untyped_eval(subs,x);
             match (gc,xc) {
+               (Some(Constant::Op(uop)),Some(Constant::Boolean(x))) => {
+                  let x = if uop=="not" { !x }
+                     else { panic!("unexpected unary operator {}", uop) };
+                  let c = Constant::Boolean(x);
+                  t.id = self.push_constant(&c, *t).id;
+                  return Some(c);
+               },
                (Some(Constant::Op(uop)),Some(Constant::Integer(x))) => {
                   let x = if uop=="pos" { x }
                      else if uop=="neg" { -x }
-                     else if uop=="not" { if x==0 {1} else {0} }
                      else { panic!("unexpected unary operator {}", uop) };
                   let c = Constant::Integer(x);
                   t.id = self.push_constant(&c, *t).id;
                   return Some(c);
                }, (Some(Constant::Op(bop)),
                    Some(Constant::Tuple(ps))) if ps.len()==2 => {
+                  match (&ps[0], &ps[1]) {
+                     (Constant::Boolean(a),Constant::Boolean(b)) => {
+                        let x = if bop=="&&" { *a && *b }
+                           else if bop=="||" { *a || *b }
+                           else { panic!("unexpected binary operator {}", bop) };
+                        let c = Constant::Boolean(x);
+                        t.id = self.push_constant(&c, *t).id;
+                        return Some(c);
+                     }, _ => {},
+                  };
                   let a = if let Constant::Integer(a) = ps[0] { a
                   } else { return None; };
                   let b = if let Constant::Integer(b) = ps[1] { b
@@ -1488,12 +1507,21 @@ impl TLC {
                      else if bop==">=" { if a >= b {1} else {0} }
                      else if bop=="==" { if a == b {1} else {0} }
                      else if bop=="!=" { if a != b {1} else {0} }
-                     else if bop=="&&" { if a==1 && b==1 {1} else {0} }
-                     else if bop=="||" { if a==1 || b==1 {1} else {0} }
                      else { panic!("unexpected binary operator {}", bop) };
                   let c = Constant::Integer(x);
                   t.id = self.push_constant(&c, *t).id;
                   return Some(c);
+               }, (Some(Constant::Op(top)),
+                   Some(Constant::Tuple(ps))) if ps.len()==3 => {
+                  let a = if let Constant::Boolean(a) = ps[0] { a
+                  } else { return None; };
+                  let b = ps[1].clone();
+                  let c = ps[2].clone();
+                  let x = if top=="if" && a { b }
+                     else if top=="if" && !a { c }
+                     else { panic!("unexpected ternary operator {}", top) };
+                  t.id = self.push_constant(&x, *t).id;
+                  return Some(x);
                }, (Some(gc),Some(xc)) => {
                   panic!("TODO: apply {:?} ( {:?} )", gc, xc);
                },
@@ -1810,7 +1838,7 @@ impl TLC {
    pub fn unify_varnames(&mut self, dept: &mut HashMap<String,TermId>, t: &mut TermId) {
       match self.rows[t.id].term.clone() {
          Term::Ident(tn) => {
-            if ["not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
+            if ["if","not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
                //pass
             } else if let Some(v) = dept.get(&tn) {
                let nn = format!("var#{}", v.id);
