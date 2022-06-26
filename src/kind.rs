@@ -28,6 +28,7 @@ impl std::fmt::Debug for Kind {
 
 impl Kind {
    pub fn has(&self, other: &Kind) -> bool {
+      if other == &Kind::Nil { return true; }
       let ls = self.flatten();
       let rs = other.flatten();
       rs.iter().all(|rk| ls.contains(rk))

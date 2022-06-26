@@ -254,22 +254,13 @@ impl Type {
       if let Some(k) = kinds.get(&self) {
          return k.clone();
       }
-      Kind::Simple("Term".to_string(), Vec::new())
+      Kind::Nil
    }
    pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
       //lt => rt
-      let lt = self;
+      let mut lt = self;
       if !lt.kind(kinds).has(&rt.kind(kinds)) {
-         //an And Type on the left can narrow to unify
-         match lt {
-            Type::And(lts) => {
-               for ct in lts.iter() {
-                  if let Ok(ut) = ct.unify_impl(kinds,subs,rt) {
-                     return Ok(ut);
-                  }
-               }
-            }, _ => {},
-         }
+         //assert kinds(lt) >= kinds(rt)
          return Err(());
       }
       match (lt,rt) {

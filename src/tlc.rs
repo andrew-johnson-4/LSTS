@@ -1316,18 +1316,10 @@ impl TLC {
                candidates.push(tt.clone());
                if let Some(it) = implied {
                   let mut tkts = tkts.clone();
+                  self.kinds_of(&mut tkts, &tt);
                   self.kinds_of(&mut tkts, it);
-                  match tt.clone() {
-                     Type::Arrow(_p,_b) => {
-                        if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&it,span) {
-                           matches.push(rt.clone());
-                        }
-                     },
-                     _ => {
-                        if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&it,span) {
-                           matches.push(rt.clone());
-                        }
-                     },
+                  if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&it,span) {
+                     matches.push(rt.clone());
                   }
                } else {
                   matches.push(tt.clone());
