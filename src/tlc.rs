@@ -196,7 +196,7 @@ impl TLC {
          bottom_type: Type::And(Vec::new()),
       }
    }
-   pub fn print_type(&self, kinds: &Vec<(Type,Kind)>, tt: &Type) -> String {
+   pub fn print_type(&self, kinds: &HashMap<Type,Kind>, tt: &Type) -> String {
       let ts = match tt {
          Type::Any => format!("?"),
          Type::Ident(t,ts) => {
@@ -210,12 +210,9 @@ impl TLC {
          Type::Ratio(n,d) => format!("({})/({})", self.print_type(kinds,n), self.print_type(kinds,d)),
          Type::Constant(_v,c) => format!("[{}]", self.print_term(*c)),
       };
-      for (kt,k) in kinds.iter() {
-         if kt==tt {
-            return format!("{}::{:?}", ts, k);
-         }
-      };
-      ts
+      if let Some(k) = kinds.get(tt) {
+         format!("{}::{:?}", ts, k)
+      } else { ts }
    }
    pub fn print_scope(&self, s: ScopeId) -> String {
       let mut buf:String = format!("#{}{{\n", s.id);
@@ -329,13 +326,20 @@ impl TLC {
    pub fn kinds_of(&self, kinds: &mut HashMap<Type,Kind>, tt: &Type) -> Option<Kind> {
       match tt {
          Type::Any => { None },
-         Type::Constant(_,_) => { None },
+         Type::Constant(_,_) => {
+            kinds.insert(tt.clone(), self.constant_kind.clone());
+            Some(self.constant_kind.clone())
+         },
          Type::And(ts) => {
-            let mut k = None;
+            let mut ks = Vec::new();
             for ct in ts.iter() {
-               k = self.kinds_of(kinds,ct);
+               if let Some(k) = self.kinds_of(kinds,ct) {
+                  ks.push(k.clone());
+               }
             };
-            k
+            if ks.len()==0 { Some(Kind::Nil)
+            } else if ks.len()==1 { Some(ks[0].clone())
+            } else { Some(Kind::And(ks)) }
          },
          Type::Product(ts) => {
             let mut k = None;
@@ -679,7 +683,7 @@ impl TLC {
             let mut children = Vec::new();
             for itks in pars.iter() {
                for (i,t,k) in itks.iter() {
-                  let t = t.clone().unwrap_or(self.bottom_type.clone());
+                  let t = t.clone().unwrap_or(self.bottom_type.clone()).normalize();
                   let mut ks = HashMap::new(); ks.insert(t.clone(),k.clone());
                   children.push((i.clone().unwrap_or("_".to_string()), ks, t.clone()));
                }
@@ -689,7 +693,7 @@ impl TLC {
             for itks in pars.iter().rev() {
                let mut ps = Vec::new();
                for (_i,t,k) in itks.iter() {
-                  let t = t.clone().unwrap_or(self.bottom_type.clone());
+                  let t = t.clone().unwrap_or(self.bottom_type.clone()).normalize();
                   fkts.insert(t.clone(),k.clone());
                   ps.push(t.clone());
                }
@@ -1332,16 +1336,18 @@ impl TLC {
          } else if matches.len()==1 {
             Ok(matches[0].clone())
          } else if candidates.len() > 0 {
-            let mut tkts = Vec::new();
+            let implied = implied.clone().unwrap_or(Type::Any);
+            let mut tkts = HashMap::new();
+            self.kinds_of(&mut tkts, &implied);
             for (tn,tks,_) in sc.children.iter() {
-            if tn==v {
+            if tn == v {
                tkts.extend(tks.clone().into_iter());
             }}
          Err(Error {
             kind: "Type Error".to_string(),
             rule: format!("variable {}: {} did not match any candidate {}",
                      v,
-                     self.print_type(&tkts, &implied.clone().unwrap_or(Type::Any)),
+                     self.print_type(&tkts, &implied),
                      candidates.iter().map(|t|self.print_type(&tkts,t))
                                .collect::<Vec<String>>().join(" | "),
                   ),
@@ -1875,6 +1881,7 @@ impl TLC {
    }
 
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
+      let implied = implied.map(|tt|tt.normalize());
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
