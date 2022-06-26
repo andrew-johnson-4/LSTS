@@ -333,13 +333,14 @@ impl TLC {
          Type::And(ts) => {
             let mut ks = Vec::new();
             for ct in ts.iter() {
-               if let Some(k) = self.kinds_of(kinds,ct) {
-                  ks.push(k.clone());
-               }
-            };
-            if ks.len()==0 { Some(Kind::Nil)
-            } else if ks.len()==1 { Some(ks[0].clone())
-            } else { Some(Kind::And(ks)) }
+            if let Some(k) = self.kinds_of(kinds,ct) {
+               ks.push(k.clone());
+            }};
+            let k = if ks.len()==0 { Kind::Nil
+            } else if ks.len()==1 { ks[0].clone()
+            } else { Kind::And(ks) };
+            kinds.insert(tt.clone(), k.clone());
+            Some(k)
          },
          Type::Product(ts) => {
             let mut k = None;
