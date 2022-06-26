@@ -1942,11 +1942,8 @@ impl TLC {
             self.soundck(&rt, &self.rows[t.id].span.clone())?;
          },
          Term::Ascript(x,tt) => {
-            eprintln!("ascript {} : {:?}", self.print_term(x), tt);
             self.typeck(scope.clone(), x, Some(tt.clone()))?;
-            eprintln!("ascript 2 {} : {:?}", self.print_term(x), tt);
             self.rows[t.id].typ = self.unify(&self.rows[x.id].typ.clone(), &tt, &self.rows[t.id].span.clone())?;
-            eprintln!("ascript 3 {} : {:?}", self.print_term(t), tt);
          },
          Term::As(x,into) => {
             self.typeck(scope.clone(), x, None)?;
