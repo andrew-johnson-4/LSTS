@@ -5,7 +5,6 @@ fn check_constant_equivalence() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
-   /*
    tlc.check(Some(si), "0: [0]").unwrap();
    tlc.check(Some(si), "1: [1]").unwrap();
    tlc.check(Some(si), "2: [2]").unwrap();
@@ -138,7 +137,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(si), "let x:[5%2]; x: [7]").unwrap_err();
    tlc.check(Some(si), "let x:[0%1]; x: [NaN]").unwrap_err();
    tlc.check(Some(si), "let x:[0%0]; x: [0]").unwrap_err();
-   */
 }
 
 #[test]
