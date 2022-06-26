@@ -541,7 +541,7 @@ impl TLC {
             } else {
                Type::Constant(false, ti)
             }
-         }, Term::Ident(_) => {
+         }, Term::Ident(v) => {
             Type::Constant(true, ti)
          }, _ => Type::Constant(false, ti),
       }
@@ -1052,10 +1052,21 @@ impl TLC {
          },
          Rule::suffix_typ => {
             let mut ts = p.into_inner();
-            let t = self.unparse_ast_type(dept,scope,fp,ts.next().expect("TLC Grammar Error in rule [suffix_typ]"),span)?;
-            //for t in ts {
-               //TODO parameterized types and bracketed types
-            //}
+            let mut t = self.unparse_ast_type(dept,scope,fp,ts.next().expect("TLC Grammar Error in rule [suffix_typ.1]"),span)?;
+            for bracketed in ts.rev() {
+               let mut dt = if let Some(br) = bracketed.into_inner().next() {
+                  self.unparse_ast(scope,fp,br,span)?
+               } else {
+                  self.push_term(Term::Ident("length".to_string()),span)
+               };
+               self.untyped(dt);
+               self.unify_varnames(dept,&mut dt);
+               let ct = self.push_dep_type(&self.rows[dt.id].term.clone(), dt);
+               t = Type::Ident("Tensor".to_string(), vec![
+                  t,
+                  ct
+               ]);
+            }
             Ok(t)
          },
          Rule::ratio_typ => {

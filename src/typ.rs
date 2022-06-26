@@ -243,7 +243,7 @@ impl Type {
          Type::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom Typee is also concrete
          Type::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
-         Type::Constant(v,_) => !v,
+         Type::Constant(v,_) => true,
       }
    }
    pub fn unify(&self, kinds: &Vec<(Type,Kind)>, subs: &mut Vec<(Type,Type)>, other: &Type) -> Result<Type,()> {

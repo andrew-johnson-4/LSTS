@@ -209,6 +209,8 @@ let $"&&"(x:X+Boolean, y:Y+Boolean): Boolean + And<X,Y>;
 let $"||"(x:X+Boolean, y:Y+Boolean): Boolean + Or<X,Y>;
 
 //: Tensor Types
+type Tensor<T::Term, X::Constant>;
+
 let .length(a: ?[]): Integer;
 let .length(a: ?[x]): [x];
 
