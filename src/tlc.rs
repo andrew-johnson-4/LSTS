@@ -2057,8 +2057,8 @@ impl TLC {
             }) }
          },
       };
-      if let Some(Type::Arrow(_,_)) = implied {
-         //arrow types can be narrowed through unification, which voids the implied unification check
+      if let Some(Type::Arrow(_ip,_ib)) = implied {
+        //TODO: covariant/contravariant sensitive implication
       } else if let Some(implied) = implied {
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
       };
