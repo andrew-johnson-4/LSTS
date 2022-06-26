@@ -361,9 +361,7 @@ impl Type {
                //unify_impl is only capable of comparing term equality
                //constants need to reduce to actually be the SAME term
                Ok(Type::Constant(*lv, *lc))
-            } else if *lv {
-               subs.insert(lt.clone(), rt.clone());
-               Ok(rt.clone())
+            //lhs constants shouldn't just unify with anything
             } else if *rv {
                subs.insert(rt.clone(), lt.clone());
                Ok(lt.clone())
