@@ -266,6 +266,13 @@ impl Type {
       match (lt,rt) {
          //wildcard match
          (l,Type::Any) => Ok(l.substitute(subs)),
+         (Type::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
+            for (sl,sr) in subs.clone().iter() {
+               if lt==sl { return sr.unify_impl(kinds,subs,lt); }
+            }
+            subs.insert(lt.clone(),rt.clone());
+            Ok(rt.clone())
+         },
          (lt,Type::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
                if rt==sl { return sr.unify_impl(kinds,subs,lt); }

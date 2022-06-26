@@ -325,7 +325,10 @@ impl TLC {
    }
    pub fn kinds_of(&self, kinds: &mut HashMap<Type,Kind>, tt: &Type) -> Option<Kind> {
       match tt {
-         Type::Any => { None },
+         Type::Any => {
+            kinds.insert(Type::Any, Kind::Nil);
+            Some(Kind::Nil)
+         },
          Type::Constant(_,_) => {
             kinds.insert(tt.clone(), self.constant_kind.clone());
             Some(self.constant_kind.clone())
@@ -1305,6 +1308,26 @@ impl TLC {
          Type::Constant(_,_) => true,
       }
    }
+   pub fn narrow(&self, kinds: &HashMap<Type,Kind>, projection: &Kind, tt: &Type) -> Type {
+      match tt {
+         Type::Any => Type::Any,
+         Type::Arrow(tp,tb) => { Type::Arrow(
+            Box::new(self.narrow(kinds,projection,tp)),
+            Box::new(self.narrow(kinds,projection,tb))
+         ) },
+         Type::And(ts) => {
+            let mut cts = Vec::new();
+            for ct in ts.iter() {
+            if let Some(ck) = kinds.get(ct) {
+            if ck.has(projection) {
+               cts.push(ct.clone());
+            }}}
+            if cts.len()==1 { cts[0].clone() }
+            else { Type::And(cts) }
+         },
+         _ => tt.clone(),
+      }
+   }
    pub fn typeof_var(&mut self, scope: &Option<ScopeId>, v: &str, implied: &Option<Type>, span: &Span) -> Result<Type,Error> {
       if let Some(scope) = scope {
          let mut candidates = Vec::new();
@@ -1317,13 +1340,22 @@ impl TLC {
                //this action really belongs somewhere else upstream
                let mut tt = tt.clone();
                self.reduce_type(&HashMap::new(), &mut tt, span);
+               let tt = self.extend_implied(&tt);
 
                candidates.push(tt.clone());
                if let Some(it) = implied {
                   let mut tkts = tkts.clone();
                   self.kinds_of(&mut tkts, &tt);
                   self.kinds_of(&mut tkts, it);
-                  if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&it,span) {
+                  let narrow_it = match &tt {
+                     Type::Arrow(tp,_tb) => { //implied type maybe need to be narrowed by kind
+                        if let Some(tk) = tkts.get(tp) {
+                           self.narrow(&tkts, tk, &it)
+                        } else { it.clone() }
+                     }, _ => { it.clone() },
+                  };
+                  eprintln!("try unify {} => {}", self.print_type(&tkts,&tt), self.print_type(&tkts,&narrow_it));
+                  if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&narrow_it,span) {
                      matches.push(rt.clone());
                   }
                } else {
@@ -1331,11 +1363,9 @@ impl TLC {
                }
             }
          }
-         if matches.len()>1 {
+         if matches.len()>0 {
             //it is OK for multiple functions to match
-            Ok(Type::And(matches).normalize())
-         } else if matches.len()==1 {
-            Ok(matches[0].clone())
+            Ok(self.extend_implied(&Type::And(matches)).normalize())
          } else if candidates.len() > 0 {
             let implied = implied.clone().unwrap_or(Type::Any);
             let mut tkts = HashMap::new();
