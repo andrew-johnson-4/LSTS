@@ -1307,13 +1307,11 @@ impl TLC {
                   self.kinds_of(&mut tkts, it);
                   match tt.clone() {
                      Type::Arrow(_p,_b) => {
-                        //if it => tt
-                        if let Ok(rt) = self.unify_with_kinds(&tkts,&it,&tt,span) {
+                        if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&it,span) {
                            matches.push(rt.clone());
                         }
                      },
                      _ => {
-                        //if tt => it
                         if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&it,span) {
                            matches.push(rt.clone());
                         }
@@ -1881,7 +1879,7 @@ impl TLC {
                self.typeck(Some(sid), *e, None)?;
                last_typ = self.rows[e.id].typ.clone();
             }
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &last_typ, &self.rows[t.id].span.clone())?;
+            self.rows[t.id].typ = self.unify(&last_typ, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Tuple(es) => {
             let mut ts = Vec::new();
@@ -1889,14 +1887,14 @@ impl TLC {
                self.typeck(scope, *e, None)?;
                ts.push(self.rows[e.id].typ.clone());
             }
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &Type::Tuple(ts), &self.rows[t.id].span.clone())?;
+            self.rows[t.id].typ = self.unify(&Type::Tuple(ts), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Let(s,v,_ps,b,rt,_rk) => {
             if v=="" {
                //term is untyped
                self.untyped(t);
             } else if let Some(ref b) = b {
-               self.typeck(Some(s), *b, Some(rt.clone()))?;
+               self.typeck(Some(s), *b, None)?;
                self.rows[t.id].typ = self.bottom_type.clone();
             } else {
                self.rows[t.id].typ = self.bottom_type.clone();
@@ -1918,7 +1916,6 @@ impl TLC {
                   let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ.clone())
                                    .remove(&into_kind.as_type());
                   let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ.clone());
-
                   let l_only = self.cast_into_kind(l_only, &into, &self.rows[t.id].span.clone())?;
 
                   //quod erat demonstrandum

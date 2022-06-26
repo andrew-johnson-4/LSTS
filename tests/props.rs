@@ -6,6 +6,7 @@ fn check_boolean() {
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //Boolean Proofs
+   /*
    tlc.check(Some(si), "True:True").unwrap();
    tlc.check(Some(si), "True:False").unwrap_err();
    tlc.check(Some(si), "False:False").unwrap();
@@ -33,6 +34,7 @@ fn check_boolean() {
    tlc.check(Some(si), "True || False as False").unwrap_err();
    tlc.check(Some(si), "False || True as False").unwrap_err();
    tlc.check(Some(si), "False || False as False").unwrap();
+   */
 }
 
 #[test]
@@ -41,6 +43,7 @@ fn check_complex_predicates() {
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    //Boolean Proofs
+   /*
    tlc.check(Some(si), "True && True && True as True").unwrap();
    tlc.check(Some(si), "True && True && False as True").unwrap_err();
    tlc.check(Some(si), "True && False && True as True").unwrap_err();
@@ -94,6 +97,7 @@ fn check_complex_predicates() {
    tlc.check(Some(si), "not(True) || False as False").unwrap();
    tlc.check(Some(si), "not(False) || True as False").unwrap_err();
    tlc.check(Some(si), "not(False) || False as False").unwrap_err();
+   */
 }
 
 #[test]

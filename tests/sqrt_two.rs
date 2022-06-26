@@ -1,5 +1,6 @@
 use lsts::tlc::TLC;
 
+/*
 #[test]
 fn check_sqrt_irrationality() {
    let mut tlc = TLC::new();
@@ -27,3 +28,4 @@ square(sqrt_of_two) * square(q): Pt*Pt; //2 * q*q = p*p
 square(p) / square(sqrt_of_two): Qt*Qt; //p*p / 2 = q*q
 "#).unwrap();
 }
+*/
