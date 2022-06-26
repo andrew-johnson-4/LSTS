@@ -2,12 +2,13 @@ WHITESPACE = _{ " " | "\n" }
 COMMENT = _{ ("/*" ~ (!"*/" ~ ANY)* ~ "*/") |
              ("//" ~ (!"\n" ~ ANY)*) }
 
-upper = { 'A'..'Z' }
-lower = { 'a'..'z' }
-lowerl = { 'a'..'z' | "_" }
-alpha = { 'a'..'z' | 'A'..'Z' }
-alphal = { 'a'..'z' | 'A'..'Z' | "_" }
-digit = { '0'..'9' }
+dot     = { "." }
+upper   = { 'A'..'Z' }
+lower   = { 'a'..'z' }
+lowerl  = { 'a'..'z' | "_" }
+alpha   = { 'a'..'z' | 'A'..'Z' }
+alphal  = { 'a'..'z' | 'A'..'Z' | "_" }
+digit   = { '0'..'9' }
 digital = { '0'..'9' | "_" | "." }
 alnum   = { 'a'..'z' | 'A'..'Z' | '0'..'9' }
 alnumop = { 'a'..'z' | 'A'..'Z' | '0'..'9' | "+" | "-" | "_" }
@@ -18,6 +19,7 @@ kindname   = ${ upper ~ alnum* }
 simplename = ${ alphal ~ (alphal | digit)* }
 quotedname = ${ "$\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 ident      = ${ !("as" | "if" | "else " | "let" | "forall" | "type" | "normal" | "where") ~ ((lowerl~alphal*) | quotedname) }
+lident     = ${ dot? ~ ident }
 esign      = ${ ("e"|"E") ~ ("+" | "-")? }
 numerical  = ${ digit ~ digital* ~ (esign ~ digital+)? }
 imaginary  = ${ "+" ~ numerical ~ "i" }
@@ -71,7 +73,7 @@ typ       = { and_typ }
 
 kind      = { kindname ~ ("<" ~ kind? ~ ("," ~ kind)* ~ ">")? }
 
-let_stmt = { "let" ~ ident ~ let_stmt_par? ~ (":" ~ typ)? ~ ("::" ~ kind)? ~ ("=" ~ term)? }
+let_stmt = { "let" ~ lident ~ let_stmt_par? ~ (":" ~ typ)? ~ ("::" ~ kind)? ~ ("=" ~ term)? }
 let_stmt_par = { "(" ~ ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ ")" }
 
 key_typ = { ident ~ ":" ~ typ }

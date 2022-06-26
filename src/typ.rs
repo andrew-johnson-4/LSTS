@@ -247,9 +247,6 @@ impl Type {
       }
    }
    pub fn unify(&self, kinds: &Vec<(Type,Kind)>, subs: &mut Vec<(Type,Type)>, other: &Type) -> Result<Type,()> {
-      eprintln!("unify {:?} (x) {:?} with {}", self, other,
-         kinds.iter().map(|(t,k)|format!("{:?}::{:?}",t,k))
-              .collect::<Vec<String>>().join("; ") );
       self.unify_impl(&kinds, subs, other).map(|tt|tt.normalize())
    }
    pub fn kind(&self, kinds: &Vec<(Type,Kind)>) -> Kind {
