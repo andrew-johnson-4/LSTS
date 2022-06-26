@@ -1229,7 +1229,6 @@ impl TLC {
             //lookup typedefs
             if let Some(ti) = self.typedef_index.get(tn) {
             if let TypeRule::Typedef(_tn,_norm,tiks,imp,_td,_tk,_props,_) = &self.rules[*ti] {
-               assert!( ts.len()==tiks.len() );
                for ((ot,_it,_k),st) in std::iter::zip(tiks.iter(), ts.iter()) {
                   subs.insert(Type::Ident(ot.clone(),Vec::new()), st.clone());
                }
@@ -1943,8 +1942,11 @@ impl TLC {
             self.soundck(&rt, &self.rows[t.id].span.clone())?;
          },
          Term::Ascript(x,tt) => {
+            eprintln!("ascript {} : {:?}", self.print_term(x), tt);
             self.typeck(scope.clone(), x, Some(tt.clone()))?;
+            eprintln!("ascript 2 {} : {:?}", self.print_term(x), tt);
             self.rows[t.id].typ = self.unify(&self.rows[x.id].typ.clone(), &tt, &self.rows[t.id].span.clone())?;
+            eprintln!("ascript 3 {} : {:?}", self.print_term(t), tt);
          },
          Term::As(x,into) => {
             self.typeck(scope.clone(), x, None)?;
@@ -2048,11 +2050,7 @@ impl TLC {
                self.typeck(scope.clone(), v, None)?;
             }
             if let Some((ref tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
-               self.rows[t.id].typ = self.unify(
-                  &self.rows[t.id].typ.clone(),
-                  &tt.clone(),
-                  &self.rows[t.id].span.clone()
-               )?;
+               self.rows[t.id].typ = tt.clone();
                self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::Ident(cname.clone(),Vec::new())).normalize();
             } else { return Err(Error {
                kind: "Type Error".to_string(),

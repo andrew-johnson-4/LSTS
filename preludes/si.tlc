@@ -163,16 +163,16 @@ forall u:Yocto<U>::Unit. Yocto<U> => U = 1000000000000000000000000 * u :: Unit;
 //let deltavCs: Integer+Hertz = 9_192_631_770: Integer+Hertz;        //caesium hyperfine frequency
 
 //: Unit Math
-//let pos(x:X::Unit)             :X   ::Unit; //pos
-//let neg(x:X::Unit)             :X   ::Unit; //neg
-//let $"+"(x:X::Unit, y:X::Unit) :X   ::Unit; //add
-//let $"-"(x:X::Unit, y:X::Unit) :X   ::Unit; //sub
-//let $"*"(x:X::Unit, y:Y::Unit) :X*Y ::Unit; //mul
-//let $"*"(x:Number, y:Y::Unit)  :Y   ::Unit; //mul constant
-//let $"*"(x:X::Unit, y:Number)  :X   ::Unit; //mul constant
-//let $"/"(x:X::Unit, y:Y::Unit) :X/Y ::Unit; //div
-//let $"/"(x:Number, y:Y::Unit)  :()/Y::Unit; //div constant
-//let $"/"(x:X::Unit, y:Number)  :X   ::Unit; //div constant
+let pos(x:X::Unit)             :X   ::Unit; //pos
+let neg(x:X::Unit)             :X   ::Unit; //neg
+let $"+"(x:X::Unit, y:X::Unit) :X   ::Unit; //add
+let $"-"(x:X::Unit, y:X::Unit) :X   ::Unit; //sub
+let $"*"(x:X::Unit, y:Y::Unit) :X*Y ::Unit; //mul
+let $"*"(x:Number, y:Y::Unit)  :Y   ::Unit; //mul constant
+let $"*"(x:X::Unit, y:Number)  :X   ::Unit; //mul constant
+let $"/"(x:X::Unit, y:Y::Unit) :X/Y ::Unit; //div
+let $"/"(x:Number, y:Y::Unit)  :()/Y::Unit; //div constant
+let $"/"(x:X::Unit, y:Number)  :X   ::Unit; //div constant
 
 //: Constant Math
 let pos([x]): [x]           ; //pos

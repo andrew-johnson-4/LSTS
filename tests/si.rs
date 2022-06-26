@@ -34,9 +34,6 @@ fn check_constant_literals() {
    tlc.check(Some(si), "True:Complex").unwrap_err();
 }
 
-/*
-
-
 #[test]
 fn check_project_kinded() {
    let mut tlc = TLC::new();
@@ -242,4 +239,3 @@ fn check_imperial_conversion() {
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Mile/Minute").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Watt/Minute").unwrap_err();
 }
-*/
