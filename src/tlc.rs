@@ -327,47 +327,55 @@ impl TLC {
       self.sanityck()?;
       Ok(ast)
    }
-   pub fn kinds_of(&self, kinds: &mut Vec<(Type,Kind)>, tt: &Type) {
+   pub fn kinds_of(&self, kinds: &mut HashMap<Type,Kind>, tt: &Type) -> Option<Kind> {
       match tt {
-         Type::Any => {},
-         Type::Constant(_,_) => {},
+         Type::Any => { None },
+         Type::Constant(_,_) => { None },
          Type::And(ts) => {
+            let mut k = None;
             for ct in ts.iter() {
-               self.kinds_of(kinds,ct);
-            }
+               k = self.kinds_of(kinds,ct);
+            };
+            k
          },
          Type::Product(ts) => {
-            let kl = kinds.len();
+            let mut k = None;
             for ct in ts.iter() {
-               self.kinds_of(kinds,ct);
+               k = self.kinds_of(kinds,ct);
+            };
+            if let Some(ref k) = k {
+               kinds.insert(tt.clone(), k.clone());
             }
-            if kinds.len()>kl {
-               kinds.push((tt.clone(), kinds[kinds.len()-1].1.clone()));
-            }
+            k
          },
          Type::Tuple(ts) => {
+            let mut k = None;
             for ct in ts.iter() {
-               self.kinds_of(kinds,ct);
+               k = self.kinds_of(kinds,ct);
             }
+            k
          },
          Type::Arrow(p,b) => {
             self.kinds_of(kinds,p);
-            self.kinds_of(kinds,b);
+            self.kinds_of(kinds,b)
          },
          Type::Ratio(p,b) => {
-            let kl = kinds.len();
-            self.kinds_of(kinds,p);
-            self.kinds_of(kinds,b);
-            if kinds.len()>kl {
-               kinds.push((tt.clone(), kinds[kinds.len()-1].1.clone()));
-            }
+                self.kinds_of(kinds,p);
+            let k = self.kinds_of(kinds,b);
+            if let Some(ref k) = k {
+               kinds.insert(tt.clone(), k.clone());
+            };
+            k
          },
          Type::Ident(cn,_) => {
-            if kinds.iter().any(|(t,_k)| t==tt) { return; }
+            if let Some(t) = kinds.get(tt) { return Some(t.clone()); }
+            let mut k = None;
             if let Some(ti) = self.typedef_index.get(cn) {
-            if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,k,_props,_) = &self.rules[*ti] {
-               kinds.push((tt.clone(), k.clone()));
+            if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,tk,_props,_) = &self.rules[*ti] {
+               kinds.insert(tt.clone(), tk.clone());
+               k = Some(tk.clone());
             }}
+            k
          },
       }
    }
@@ -673,17 +681,17 @@ impl TLC {
             for itks in pars.iter() {
                for (i,t,k) in itks.iter() {
                   let t = t.clone().unwrap_or(self.bottom_type.clone());
-                  let ks = vec![(t.clone(),k.clone())];
+                  let mut ks = HashMap::new(); ks.insert(t.clone(),k.clone());
                   children.push((i.clone().unwrap_or("_".to_string()), ks, t.clone()));
                }
             }
             let mut ft = rt.clone();
-            let mut fkts = Vec::new();
+            let mut fkts = HashMap::new();
             for itks in pars.iter().rev() {
                let mut ps = Vec::new();
                for (_i,t,k) in itks.iter() {
                   let t = t.clone().unwrap_or(self.bottom_type.clone());
-                  fkts.push((t.clone(),k.clone()));
+                  fkts.insert(t.clone(),k.clone());
                   ps.push(t.clone());
                }
                let pt = if ps.len()==1 {
@@ -693,7 +701,7 @@ impl TLC {
                };
                ft = Type::Arrow(Box::new(pt),Box::new(ft));
             }
-            self.reduce_type(&Vec::new(), &mut ft, span); //destructively reduce constants in type
+            self.reduce_type(&HashMap::new(), &mut ft, span); //destructively reduce constants in type
             ft = ft.normalize();
             self.scopes[scope.id].children.push((ident.clone(), fkts, ft));
             let inner_scope = self.push_scope(Scope {
@@ -854,7 +862,7 @@ impl TLC {
                                  let kt = self.unparse_ast_type(&mut dept,scope,fp,kts.next().expect("TLC Grammar Error in rule [typedef.4]"),span)?;
                                  self.scopes[scope.id].children.push((
                                     format!(".{}",ki.clone()),
-                                    Vec::new(),
+                                    HashMap::new(),
                                     Type::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
                                  ));
                                  tcrows.push((ki,kt));
@@ -978,7 +986,7 @@ impl TLC {
             if let Some(t) = term {
                let mut children = Vec::new();
                for (i,t,_k) in quants.iter() {
-                  children.push((i.clone().unwrap_or("_".to_string()), Vec::new(), t.clone().unwrap_or(self.bottom_type.clone())));
+                  children.push((i.clone().unwrap_or("_".to_string()), HashMap::new(), t.clone().unwrap_or(self.bottom_type.clone())));
                }
                let sid = self.push_scope(Scope {
                   parent: Some(scope),
@@ -1299,7 +1307,7 @@ impl TLC {
                //as a last resort, reduce candidate types here
                //this action really belongs somewhere else upstream
                let mut tt = tt.clone();
-               self.reduce_type(&Vec::new(), &mut tt, span);
+               self.reduce_type(&HashMap::new(), &mut tt, span);
 
                candidates.push(tt.clone());
                if let Some(it) = implied {
@@ -1331,7 +1339,7 @@ impl TLC {
             let mut tkts = Vec::new();
             for (tn,tks,_) in sc.children.iter() {
             if tn==v {
-               tkts.append(&mut tks.clone());
+               tkts.extend(tks.clone().into_iter());
             }}
          Err(Error {
             kind: "Type Error".to_string(),
@@ -1353,7 +1361,7 @@ impl TLC {
          snippet: "".to_string()
       }) }
    }
-   pub fn reduce_type(&mut self, subs: &Vec<(Type,Type)>, tt: &mut Type, span: &Span) {
+   pub fn reduce_type(&mut self, subs: &HashMap<Type,Type>, tt: &mut Type, span: &Span) {
       match tt {
          Type::Constant(_v, ref mut c) => {
             self.untyped_eval(subs, c);
@@ -1406,7 +1414,7 @@ impl TLC {
          },
       }
    }
-   pub fn untyped_eval(&mut self, subs: &Vec<(Type,Type)>, t: &mut TermId) -> Option<Constant> {
+   pub fn untyped_eval(&mut self, subs: &HashMap<Type,Type>, t: &mut TermId) -> Option<Constant> {
       //reduce constant expressions in untyped context
       //designed for use inside of dependent type signatures
 
@@ -1604,8 +1612,8 @@ impl TLC {
          if let Some(tis) = self.foralls_index.get(&mnt) {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-            let kinds = Vec::new();
-            let mut subs = Vec::new();
+            let kinds = HashMap::new();
+            let mut subs = HashMap::new();
             if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &n) {
                let srt = rt.substitute(&subs);
                if self.is_normal(&srt) {
@@ -1658,8 +1666,8 @@ impl TLC {
          if let Some(tis) = self.foralls_index.get(&mdt) {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-            let kinds = Vec::new();
-            let mut subs = Vec::new();
+            let kinds = HashMap::new();
+            let mut subs = HashMap::new();
             if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &d) {
                let srt = rt.substitute(&subs);
                if self.is_normal(&srt) {
@@ -1733,8 +1741,8 @@ impl TLC {
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-               let kinds = Vec::new();
-               let mut subs = Vec::new();
+               let kinds = HashMap::new();
+               let mut subs = HashMap::new();
                if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &n) {
                   let srt = rt.substitute(&subs);
                   let (inum, iden) = srt.project_ratio();
@@ -1779,8 +1787,8 @@ impl TLC {
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-               let kinds = Vec::new();
-               let mut subs = Vec::new();
+               let kinds = HashMap::new();
+               let mut subs = HashMap::new();
                if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &d) {
                   let srt = rt.substitute(&subs);
                   let (inum, iden) = srt.project_ratio();
@@ -2030,12 +2038,12 @@ impl TLC {
       Ok(())
    }
    pub fn unify(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
-      let kinds = Vec::new();
+      let kinds = HashMap::new();
       self.unify_with_kinds(&kinds, lt, rt, span)
    }
-   pub fn unify_with_kinds(&mut self, kinds: &Vec<(Type,Kind)>, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+   pub fn unify_with_kinds(&mut self, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
       //lt => rt
-      let mut subs = Vec::new();
+      let mut subs = HashMap::new();
       let mut lt = self.extend_implied(lt);
       self.reduce_type(&subs, &mut lt, span); //reduce constant expressions in dependent types
       lt = lt.normalize();

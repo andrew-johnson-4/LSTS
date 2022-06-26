@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::term::TermId;
 use crate::kind::Kind;
 
@@ -219,9 +220,9 @@ impl Type {
          Type::Constant(v,c) => Type::Constant(*v,*c)
       }.normalize()
    }
-   pub fn substitute(&self, subs:&Vec<(Type,Type)>) -> Type {
-      for (lt,rt) in subs.iter() {
-         if self==lt { return rt.clone(); }
+   pub fn substitute(&self, subs:&HashMap<Type,Type>) -> Type {
+      if let Some(st) = subs.get(self) {
+         return st.clone();
       }
       match self {
          Type::Any => Type::Any,
@@ -246,16 +247,16 @@ impl Type {
          Type::Constant(v,_) => true,
       }
    }
-   pub fn unify(&self, kinds: &Vec<(Type,Kind)>, subs: &mut Vec<(Type,Type)>, other: &Type) -> Result<Type,()> {
+   pub fn unify(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, other: &Type) -> Result<Type,()> {
       self.unify_impl(&kinds, subs, other).map(|tt|tt.normalize())
    }
-   pub fn kind(&self, kinds: &Vec<(Type,Kind)>) -> Kind {
-      for (kt,k) in kinds.iter() {
-         if self==kt { return k.clone(); }
+   pub fn kind(&self, kinds: &HashMap<Type,Kind>) -> Kind {
+      if let Some(k) = kinds.get(&self) {
+         return k.clone();
       }
       Kind::Simple("Term".to_string(), Vec::new())
    }
-   pub fn unify_impl(&self, kinds: &Vec<(Type,Kind)>, subs: &mut Vec<(Type,Type)>, rt: &Type) -> Result<Type,()> {
+   pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
       //lt => rt
       let lt = self;
       if !lt.kind(kinds).has(&rt.kind(kinds)) {
@@ -278,7 +279,7 @@ impl Type {
             for (sl,sr) in subs.clone().iter() {
                if rt==sl { return sr.unify_impl(kinds,subs,lt); }
             }
-            subs.push((rt.clone(),lt.clone()));
+            subs.insert(rt.clone(),lt.clone());
             Ok(lt.clone())
          },
 
@@ -363,10 +364,10 @@ impl Type {
                //constants need to reduce to actually be the SAME term
                Ok(Type::Constant(*lv, *lc))
             } else if *lv {
-               subs.push((lt.clone(), rt.clone()));
+               subs.insert(lt.clone(), rt.clone());
                Ok(rt.clone())
             } else if *rv {
-               subs.push((rt.clone(), lt.clone()));
+               subs.insert(rt.clone(), lt.clone());
                Ok(lt.clone())
             } else {
                Err(())
