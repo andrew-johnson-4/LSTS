@@ -197,7 +197,6 @@ impl TLC {
       }
    }
    pub fn print_type(&self, kinds: &Vec<(Type,Kind)>, tt: &Type) -> String {
-       //Type Error, expected variable pos: Number did not match any candidate (X)=>(X) | (['term#317])=>(['term#317]) with X::Unit; ['term#317]::Term, in [string] --> 1,1
       let ts = match tt {
          Type::Any => format!("?"),
          Type::Ident(t,ts) => {
@@ -1216,19 +1215,23 @@ impl TLC {
          Type::Arrow(p,b) => Type::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Type::Ratio(p,b) => Type::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Type::Ident(tn,ts) => {
-            let mut implies = Vec::new();
+            let mut implies: Vec<Type> = Vec::new();
+            let mut subs = HashMap::new();
 
             //lookup typedefs
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,imp,_td,_tk,_props,_) = &self.rules[*ti] {
-            if ts.len()==itks.len() {
+            if let TypeRule::Typedef(_tn,_norm,tiks,imp,_td,_tk,_props,_) = &self.rules[*ti] {
+               assert!( ts.len()==tiks.len() );
+               for ((ot,it,k),st) in std::iter::zip(tiks.iter(), ts.iter()) {
+                  subs.insert(Type::Ident(ot.clone(),Vec::new()), st.clone());
+               }
                if let Some(it) = imp {
                   match it.clone() {
                      Type::And(mut its) => { implies.append(&mut its); },
                      i => { implies.push(i); },
                   }
                }
-            }}}
+            }}
 
             //lookup constructors
             if let Some((bt,_ps,_kts)) = self.constructors.get(tn) {
@@ -1238,8 +1241,9 @@ impl TLC {
             if implies.len()==0 { return tt.clone(); }
             let mut ats = Vec::new();
             ats.push(tt.clone());
-            //TODO: substitute type variables in implied types
-            ats.append(&mut implies.clone());
+            for i in implies.iter() {
+               ats.push(i.substitute(&subs));
+            }
             Type::And(ats).normalize()
          },
          Type::And(ts) => {
@@ -1343,9 +1347,9 @@ impl TLC {
             }}
          Err(Error {
             kind: "Type Error".to_string(),
-            rule: format!("variable {}: {:?} did not match any candidate {}",
+            rule: format!("variable {}: {} did not match any candidate {}",
                      v,
-                     implied.clone().unwrap_or(Type::Any),
+                     self.print_type(&tkts, &implied.clone().unwrap_or(Type::Any)),
                      candidates.iter().map(|t|self.print_type(&tkts,t))
                                .collect::<Vec<String>>().join(" | "),
                   ),
