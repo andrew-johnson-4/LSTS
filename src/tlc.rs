@@ -1354,7 +1354,6 @@ impl TLC {
                         } else { it.clone() }
                      }, _ => { it.clone() },
                   };
-                  eprintln!("try unify {} => {}", self.print_type(&tkts,&tt), self.print_type(&tkts,&narrow_it));
                   if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&narrow_it,span) {
                      matches.push(rt.clone());
                   }
@@ -2035,14 +2034,14 @@ impl TLC {
             }
 	 },
          Term::App(g,x) => {
-            //covariant, contravariant matters here
             self.typeck(scope.clone(), x, None)?;
             self.typeck(scope.clone(), g, Some(
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
-            self.rows[x.id].typ = self.unify(&self.rows[g.id].typ.expects(), &self.rows[x.id].typ.clone(), &self.rows[x.id].span.clone())?;
-            self.rows[t.id].typ = self.unify(&self.rows[g.id].typ.returns(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
+            //covariant, contravariant matters here
+            self.rows[x.id].typ = self.unify(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.expects(), &self.rows[x.id].span.clone())?; //x => domain(f(x))
+            self.rows[t.id].typ = self.unify(&self.rows[g.id].typ.returns(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?; //range(f(x)) => f(x)
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
