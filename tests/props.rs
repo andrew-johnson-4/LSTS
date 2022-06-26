@@ -5,8 +5,8 @@ fn check_boolean() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
-   //Boolean Proofs
    /*
+   //Boolean Proofs
    tlc.check(Some(si), "True:True").unwrap();
    tlc.check(Some(si), "True:False").unwrap_err();
    tlc.check(Some(si), "False:False").unwrap();

@@ -556,7 +556,7 @@ impl TLC {
             } else {
                Type::Constant(false, ti)
             }
-         }, Term::Ident(v) => {
+         }, Term::Ident(_) => {
             Type::Constant(true, ti)
          }, _ => Type::Constant(false, ti),
       }
@@ -1230,7 +1230,7 @@ impl TLC {
             if let Some(ti) = self.typedef_index.get(tn) {
             if let TypeRule::Typedef(_tn,_norm,tiks,imp,_td,_tk,_props,_) = &self.rules[*ti] {
                assert!( ts.len()==tiks.len() );
-               for ((ot,it,k),st) in std::iter::zip(tiks.iter(), ts.iter()) {
+               for ((ot,_it,_k),st) in std::iter::zip(tiks.iter(), ts.iter()) {
                   subs.insert(Type::Ident(ot.clone(),Vec::new()), st.clone());
                }
                if let Some(it) = imp {

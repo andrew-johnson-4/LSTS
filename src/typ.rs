@@ -244,7 +244,7 @@ impl Type {
          Type::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom Typee is also concrete
          Type::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
-         Type::Constant(v,_) => true,
+         Type::Constant(_,_) => true,
       }
    }
    pub fn unify(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, other: &Type) -> Result<Type,()> {
@@ -258,7 +258,7 @@ impl Type {
    }
    pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
       //lt => rt
-      let mut lt = self;
+      let lt = self;
       if !lt.kind(kinds).has(&rt.kind(kinds)) {
          //assert kinds(lt) >= kinds(rt)
          return Err(());
