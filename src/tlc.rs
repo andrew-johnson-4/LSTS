@@ -1994,14 +1994,13 @@ impl TLC {
 	 },
          Term::App(g,x) => {
             //covariant, contravariant matters here
-            //unify(lt,rt) means lt => rt, not always rt => lt
             self.typeck(scope.clone(), x, None)?;
             self.typeck(scope.clone(), g, Some(
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
-            self.rows[x.id].typ = self.unify(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.expects(), &self.rows[x.id].span.clone())?;
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &self.rows[g.id].typ.returns(), &self.rows[t.id].span.clone())?;
+            self.rows[x.id].typ = self.unify(&self.rows[g.id].typ.expects(), &self.rows[x.id].typ.clone(), &self.rows[x.id].span.clone())?;
+            self.rows[t.id].typ = self.unify(&self.rows[g.id].typ.returns(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
