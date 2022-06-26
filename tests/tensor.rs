@@ -34,13 +34,11 @@ fn check_tensor_covariance() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
-   /*
    tlc.check(Some(si), "let a:Number[]; a: Tensor<Number,[1]>").unwrap_err();
    tlc.check(Some(si), "let a:Number[][]; a: Tensor<Tensor<Number,[1]>,?>").unwrap_err();
    tlc.check(Some(si), "let a:Number[][]; a: Tensor<Tensor<Number,?>,[1]>").unwrap_err();
    tlc.check(Some(si), "let a:Number[1][]; a: Tensor<Tensor<Number,[1]>,?>").unwrap_err();
    tlc.check(Some(si), "let a:Number[][1]; a: Tensor<Tensor<Number,?>,[1]>").unwrap_err();
-   */
 }
 
 #[test]
