@@ -1906,7 +1906,7 @@ impl TLC {
                //term is untyped
                self.untyped(t);
             } else if let Some(ref b) = b {
-               self.typeck(Some(s), *b, None)?;
+               self.typeck(Some(s), *b, Some(rt.clone()))?;
                self.rows[t.id].typ = self.bottom_type.clone();
             } else {
                self.rows[t.id].typ = self.bottom_type.clone();
