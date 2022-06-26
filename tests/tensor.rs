@@ -41,15 +41,15 @@ fn check_tensor_covariance() {
    tlc.check(Some(si), "let a:Number[][1]; a: Tensor<Tensor<Number,?>,[1]>").unwrap_err();
 }
 
+/*
 #[test]
 fn check_tensor_invariants() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
-   /*
    tlc.check(Some(si), "let a:Number[1]; a.length==0: [True]").unwrap_err();
    tlc.check(Some(si), "let a:Number[1]; a.length==0: [False]").unwrap();
    tlc.check(Some(si), "let a:Number[1]; a.length==1: [True]").unwrap();
    tlc.check(Some(si), "let a:Number[1]; a.length==1: [False]").unwrap_err();
-   */
 }
+*/

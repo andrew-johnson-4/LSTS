@@ -1,6 +1,5 @@
 use lsts::tlc::TLC;
 
-/*
 #[test]
 fn check_constant_literals() {
    let mut tlc = TLC::new();
@@ -34,6 +33,9 @@ fn check_constant_literals() {
    tlc.check(Some(si), "3.2+1i:Complex").unwrap();
    tlc.check(Some(si), "True:Complex").unwrap_err();
 }
+
+/*
+
 
 #[test]
 fn check_project_kinded() {

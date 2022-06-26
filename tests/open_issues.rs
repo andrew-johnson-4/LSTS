@@ -1,6 +1,6 @@
-use lsts::tlc::TLC;
 
 /*
+use lsts::tlc::TLC;
 #[test]
 fn check_unification_clobbering() {
    let mut tlc = TLC::new();
