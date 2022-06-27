@@ -12,8 +12,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(si), "0: [2]").unwrap_err();
    tlc.check(Some(si), "1: [0]").unwrap_err();
 
-   //true and false are encoded as binary integers
-   //there is no truthiness of booleans, only exact equality
    tlc.check(Some(si), "let x: [False]; x: [False]").unwrap();
    tlc.check(Some(si), "let x: [False]; x: [True]").unwrap_err();
    tlc.check(Some(si), "let x: [True]; x: [False]").unwrap_err();
