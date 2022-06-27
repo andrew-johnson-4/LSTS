@@ -147,7 +147,7 @@ fn check_variable_substitution() {
    tlc.check(Some(si), "-1: [-1]").unwrap();
    tlc.check(Some(si), "-2: [-2]").unwrap();
    tlc.check(Some(si), "-2: [2]").unwrap_err();
-   tlc.check(Some(si), "-(-0): [0]").unwrap();
+   //tlc.check(Some(si), "-(-0): [0]").unwrap();
    //tlc.check(Some(si), "-(-(1)): [1]").unwrap();
    //tlc.check(Some(si), "-(-1): [1]").unwrap();
    //tlc.check(Some(si), "-(-2): [2]").unwrap();

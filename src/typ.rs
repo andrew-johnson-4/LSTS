@@ -344,58 +344,52 @@ impl Type {
          },
 
          //conjunctive normal form takes precedence
-         (Type::And(lts),Type::And(rts)) => {
+         (_,Type::And(rts)) if rts.len()==0 => { Ok(rt.clone()) },
+         (Type::And(_lts),Type::And(rts)) => {
             //lt => rt
-            let mut lts = lts.clone();
+            let mut mts = Vec::new();
             for rt in rts.iter() {
                match lt.unify_impl_par(kinds,subs,rt,par) {
-                  Ok(Type::And(mut tts)) => { lts.append(&mut tts); },
-                  Ok(tt) => { lts.push(tt); },
+                  Ok(Type::And(mut tts)) => { mts.append(&mut tts); },
+                  Ok(tt) => { mts.push(tt); },
                   Err(()) => {},
                }
             }
-            lts.sort(); lts.dedup();
-            if lts.len()==0 { Err(()) }
-            else if lts.len()==1 { Ok(lts[0].clone()) }
-            else { Ok(Type::And(lts)) }
+            mts.sort(); mts.dedup();
+            if mts.len()==0 { Err(()) }
+            else if mts.len()==1 { Ok(mts[0].clone()) }
+            else { Ok(Type::And(mts)) }
          },
          (Type::And(lts),rt) => {
-            let mut lts = lts.clone();
-            lts.sort(); lts.dedup();
-            let mut accept = false;
-            for ltt in lts.clone().iter() {
+            let mut mts = Vec::new();
+            for ltt in lts.iter() {
                if let Ok(nt) = ltt.unify_impl_par(kinds,subs,rt,par) {
-                  accept = true;
                   match nt {
-                     Type::And(mut tts) => { lts.append(&mut tts); },
-                     tt => { lts.push(tt); },
+                     Type::And(mut tts) => { mts.append(&mut tts); },
+                     tt => { mts.push(tt); },
                   }
                }
             }
-            lts.sort(); lts.dedup();
-            if accept {
-               if lts.len()==1 { Ok(lts[0].clone()) }
-               else { Ok(Type::And(lts)) }
-            } else {
-               Err(())
-            }
+            mts.sort(); mts.dedup();
+            if mts.len()==0 { Err(()) }
+            else if mts.len()==1 { Ok(mts[0].clone()) }
+            else { Ok(Type::And(mts)) }
          },
          //implicit narrowing
          (lt,Type::And(rts)) => {
-            let mut rts = rts.clone();
-            rts.sort(); rts.dedup();
-            for rt in rts.clone().iter() {
+            let mut mts = Vec::new();
+            for rt in rts.iter() {
                if let Ok(nt) = lt.unify_impl_par(kinds,subs,rt,par) {
                   match nt {
-                     Type::And(mut tts) => { rts.append(&mut tts); },
-                     tt => { rts.push(tt); },
+                     Type::And(mut tts) => { mts.append(&mut tts); },
+                     tt => { mts.push(tt); },
                   }
                }
             }
-            rts.sort(); rts.dedup();
-            if rts.len()==0 { Err(()) }
-            else if rts.len()==1 { Ok(rts[0].clone()) }
-            else { Ok(Type::And(rts)) }
+            mts.sort(); mts.dedup();
+            if mts.len()==0 { Err(()) }
+            else if mts.len()==1 { Ok(mts[0].clone()) }
+            else { Ok(Type::And(mts)) }
          },
 
          //ratio Typees have next precedence
