@@ -292,12 +292,11 @@ impl Type {
    pub fn unify_impl_par(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type, par: IsParameter) -> Result<Type,()> {
       //lt => rt
       let lt = self;
-      eprintln!("unify impl.1");
-      if !lt.kind(kinds).has(&rt.kind(kinds)) {
+      if (par==IsParameter::Yes && !rt.kind(kinds).has(&lt.kind(kinds))) ||
+         (par!=IsParameter::Yes && !lt.kind(kinds).has(&rt.kind(kinds))) {
          //assert kinds(lt) >= kinds(rt)
          return Err(());
       }
-      eprintln!("unify impl.2");
       match (lt,rt) {
          //wildcard match
          //only unify left wildcards when they are returned from a function
@@ -349,6 +348,21 @@ impl Type {
                Err(())
             }
          },
+         //implicit narrowing
+         (lt,Type::And(rts)) => {
+            let mut rts = rts.clone();
+            for rt in rts.clone().iter() {
+               if let Ok(nt) = lt.unify_impl_par(kinds,subs,rt,par) {
+                  match nt {
+                     Type::And(mut tts) => { rts.append(&mut tts); },
+                     tt => { rts.push(tt); },
+                  }
+               }
+            }
+            if rts.len()==0 { Err(()) }
+            else if rts.len()==1 { Ok(rts[0].clone()) }
+            else { Ok(Type::And(rts)) }
+         },
 
          //ratio Typees have next precedence
          (Type::Ratio(pl,bl),Type::Ratio(pr,br)) => {
@@ -374,11 +388,8 @@ impl Type {
             Ok(Type::Ident(lv.clone(),tps))
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
-            eprintln!("try unify parameters {:?}::{:?} (x) {:?}::{:?}", pl, pl.kind(kinds), pr, pr.kind(kinds));
             let pt = pl.unify_impl_par(kinds,subs,pr,IsParameter::Yes)?;
-            eprintln!("try unify return {:?} (x) {:?}", bl, br);
             let bt = bl.unify_impl_par(kinds,subs,br,IsParameter::No)?;
-            eprintln!("unification result {:?} -> {:?}", pt, bt);
             Ok(Type::Arrow(Box::new(pt),Box::new(bt)))
          },
          (Type::Product(la),Type::Product(ra)) if la.len()==ra.len() => {
@@ -389,20 +400,14 @@ impl Type {
             Ok(Type::Product(ts))
          },
          (Type::Tuple(la),Type::Tuple(ra)) if la.len()==ra.len() => {
-            eprintln!("unify tuple.1");
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               eprintln!("unify tuple.2");
                ts.push(lt.unify_impl_par(kinds,subs,rt,par)?);
             }
-            eprintln!("unify tuple.3");
             Ok(Type::Tuple(ts))
          },
 
          (Type::Constant(lv,lc),Type::Constant(rv,rc)) => {
-            eprintln!("unify constants is_parameter={:?}, {:?} (x) {:?}",
-               par, lt, rt
-            );
             //unify_impl is only capable of comparing term equality
             //constants need to reduce to actually be the SAME term
             if lc.id == rc.id {
