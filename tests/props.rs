@@ -7,7 +7,7 @@ fn check_contradictions() {
 
    //Boolean Soundness
    //True and False are constructors of the Boolean type
-   //it is therefore unsound to have a term that is both :True and :False
+   //it is therefore unsound to have a term that is both True and False
    tlc.check(Some(si), "let a:True").unwrap();
    tlc.check(Some(si), "let a:False").unwrap();
    tlc.check(Some(si), "let a:True+False").unwrap_err();
