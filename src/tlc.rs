@@ -7,7 +7,7 @@ use pest::error::{ErrorVariant,InputLocation,LineColLocation};
 use regex::Regex;
 use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
-use crate::typ::Type;
+use crate::typ::{Type,IsParameter};
 use crate::kind::Kind;
 
 #[derive(Parser)]
@@ -208,7 +208,7 @@ impl TLC {
          Type::Product(ts) => format!("({})", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join("*") ),
          Type::Arrow(p,b) => format!("({})=>({})", self.print_type(kinds,p), self.print_type(kinds,b)),
          Type::Ratio(n,d) => format!("({})/({})", self.print_type(kinds,n), self.print_type(kinds,d)),
-         Type::Constant(v,c) => format!("[{}{}]", if *v {"'"} else {""}, self.print_term(*c)),
+         Type::Constant(v,c) => format!("[{}{}#{}]", if *v {"'"} else {""}, self.print_term(*c), c.id),
       };
       if let Some(k) = kinds.get(tt) {
          format!("{}::{:?}", ts, k)
@@ -1353,7 +1353,7 @@ impl TLC {
                         } else { it.clone() }
                      }, _ => { it.clone() },
                   };
-                  if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&narrow_it,span) {
+                  if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&narrow_it,span,IsParameter::Top) {
                      matches.push(rt.clone());
                   }
                } else {
@@ -1407,6 +1407,7 @@ impl TLC {
             for mut ct in ts.iter_mut() {
                self.reduce_type(subs, &mut ct, span);
             }
+            ts.sort(); ts.dedup();
             if ts.clone().iter().filter(|tt| tt.is_constant()).count() > 1 {
                let dept = ts.clone().into_iter().filter(|tt| tt.is_constant()).collect::<Vec<Type>>();
                let mut trad = ts.clone().into_iter().filter(|tt| !tt.is_constant()).collect::<Vec<Type>>();
@@ -1489,35 +1490,32 @@ impl TLC {
             let xc = self.untyped_eval(subs,x);
             match (gc,xc) {
                (Some(Constant::Op(uop)),Some(Constant::Boolean(x))) => {
-                  let x = if uop=="not" { !x }
-                     else { panic!("unexpected unary operator {}", uop) };
-                  let c = Constant::Boolean(x);
+                  let c = if uop=="not" { Constant::Boolean(!x) }
+                     else { Constant::NaN };
                   t.id = self.push_constant(&c, *t).id;
                   return Some(c);
                },
                (Some(Constant::Op(uop)),Some(Constant::Integer(x))) => {
-                  let x = if uop=="pos" { x }
-                     else if uop=="neg" { -x }
-                     else { panic!("unexpected unary operator {}", uop) };
-                  let c = Constant::Integer(x);
+                  let c = if uop=="pos" { Constant::Integer(x) }
+                     else if uop=="neg" { Constant::Integer(-x) }
+                     else { Constant::NaN };
                   t.id = self.push_constant(&c, *t).id;
                   return Some(c);
                }, (Some(Constant::Op(bop)),
                    Some(Constant::Tuple(ps))) if ps.len()==2 => {
                   match (&ps[0], &ps[1]) {
                      (Constant::Boolean(a),Constant::Boolean(b)) => {
-                        let x = if bop=="&&" { *a && *b }
-                           else if bop=="||" { *a || *b }
-                           else { panic!("unexpected binary operator {}", bop) };
-                        let c = Constant::Boolean(x);
+                        let c = if bop=="&&" { Constant::Boolean(*a && *b) }
+                           else if bop=="||" { Constant::Boolean(*a || *b) }
+                           else { Constant::NaN };
                         t.id = self.push_constant(&c, *t).id;
                         return Some(c);
                      }, _ => {},
                   };
                   let a = if let Constant::Integer(a) = ps[0] { a
-                  } else { return None; };
+                  } else { return Some(Constant::NaN); };
                   let b = if let Constant::Integer(b) = ps[1] { b
-                  } else { return None; };
+                  } else { return Some(Constant::NaN); };
                   if b==0 && (bop=="/" || bop=="%") {
                      let c = Constant::NaN;
                      t.id = self.push_constant(&c, *t).id;
@@ -1534,18 +1532,18 @@ impl TLC {
                      else if bop==">=" { Constant::Boolean(a >= b) }
                      else if bop=="==" { Constant::Boolean(a == b) }
                      else if bop=="!=" { Constant::Boolean(a != b) }
-                     else { panic!("unexpected binary operator {}", bop) };
+                     else { Constant::NaN };
                   t.id = self.push_constant(&c, *t).id;
                   return Some(c);
                }, (Some(Constant::Op(top)),
                    Some(Constant::Tuple(ps))) if ps.len()==3 => {
                   let a = if let Constant::Boolean(a) = ps[0] { a
-                  } else { return None; };
+                  } else { return Some(Constant::NaN); };
                   let b = ps[1].clone();
                   let c = ps[2].clone();
                   let x = if top=="if" && a { b }
                      else if top=="if" && !a { c }
-                     else { panic!("unexpected ternary operator {}", top) };
+                     else { Constant::NaN };
                   t.id = self.push_constant(&x, *t).id;
                   return Some(x);
                }, (Some(gc),Some(xc)) => {
@@ -2037,9 +2035,8 @@ impl TLC {
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
-            //covariant, contravariant matters here
-            self.rows[x.id].typ = self.unify(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.domain(), &self.rows[x.id].span.clone())?; //x => domain(f(x))
-            self.rows[t.id].typ = self.unify(&self.rows[g.id].typ.range(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?; //range(f(x)) => f(x)
+            self.rows[x.id].typ = self.unify_par(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.domain(), &self.rows[x.id].span.clone(), IsParameter::Yes)?; //x => domain(f(x))
+            self.rows[t.id].typ = self.unify_par(&self.rows[t.id].typ.clone(), &self.rows[g.id].typ.range(), &self.rows[t.id].span.clone(), IsParameter::No)?; //f(x) => range(f(x))
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
@@ -2062,12 +2059,17 @@ impl TLC {
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
    }
+   pub fn unify_par(&mut self, lt: &Type, rt: &Type, span: &Span, par: IsParameter) -> Result<Type,Error> {
+      let kinds = HashMap::new();
+      self.unify_with_kinds(&kinds, lt, rt, span, par)
+   }
    pub fn unify(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
       let kinds = HashMap::new();
-      self.unify_with_kinds(&kinds, lt, rt, span)
+      self.unify_with_kinds(&kinds, lt, rt, span, IsParameter::Top)
    }
-   pub fn unify_with_kinds(&mut self, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+   pub fn unify_with_kinds(&mut self, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type, span: &Span, par: IsParameter) -> Result<Type,Error> {
       //lt => rt
+      eprintln!("unify with kinds {} (x) {}", self.print_type(kinds,lt), self.print_type(kinds,rt));
       let mut subs = HashMap::new();
       let mut lt = self.extend_implied(lt);
       self.reduce_type(&subs, &mut lt, span); //reduce constant expressions in dependent types
@@ -2075,7 +2077,8 @@ impl TLC {
       let mut rt = rt.clone();
       self.reduce_type(&subs, &mut rt, span);
       rt = rt.normalize();
-      if let Ok(ref mut tt) = lt.unify(kinds, &mut subs, &rt) {
+      eprintln!("unify with kinds.2 {} (x) {}", self.print_type(kinds,&lt), self.print_type(kinds,&rt));
+      if let Ok(ref mut tt) = lt.unify_impl_par(kinds, &mut subs, &rt, par) {
          self.reduce_type(&subs, tt, span);
          let tt = tt.normalize();
          Ok(tt)

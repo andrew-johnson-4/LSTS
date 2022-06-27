@@ -87,16 +87,19 @@ impl Type {
          (Type::And(ls),Type::And(rs)) => {
             let mut ts = ls.clone();
             ts.append(&mut rs.clone());
+            ts.sort(); ts.dedup();
             Type::And(ts)
          },
          (Type::And(ls),r) => {
             let mut ts = ls.clone();
             ts.push(r.clone());
+            ts.sort(); ts.dedup();
             Type::And(ts)
          }
          (l,Type::And(rs)) => {
             let mut ts = rs.clone();
             ts.push(l.clone());
+            ts.sort(); ts.dedup();
             Type::And(ts)
          },
          (l,r) => {
@@ -316,8 +319,7 @@ impl Type {
    pub fn unify_impl_par(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type, par: IsParameter) -> Result<Type,()> {
       //lt => rt
       let lt = self;
-      if (par==IsParameter::Yes && !rt.kind(kinds).has(&lt.kind(kinds))) ||
-         (par!=IsParameter::Yes && !lt.kind(kinds).has(&rt.kind(kinds))) {
+      if par==IsParameter::Top && !lt.kind(kinds).has(&rt.kind(kinds)) {
          //assert kinds(lt) >= kinds(rt)
          return Err(());
       }
@@ -352,12 +354,14 @@ impl Type {
                   Err(()) => {},
                }
             }
+            lts.sort(); lts.dedup();
             if lts.len()==0 { Err(()) }
             else if lts.len()==1 { Ok(lts[0].clone()) }
             else { Ok(Type::And(lts)) }
          },
          (Type::And(lts),rt) => {
             let mut lts = lts.clone();
+            lts.sort(); lts.dedup();
             let mut accept = false;
             for ltt in lts.clone().iter() {
                if let Ok(nt) = ltt.unify_impl_par(kinds,subs,rt,par) {
@@ -368,6 +372,7 @@ impl Type {
                   }
                }
             }
+            lts.sort(); lts.dedup();
             if accept {
                if lts.len()==1 { Ok(lts[0].clone()) }
                else { Ok(Type::And(lts)) }
@@ -378,6 +383,7 @@ impl Type {
          //implicit narrowing
          (lt,Type::And(rts)) => {
             let mut rts = rts.clone();
+            rts.sort(); rts.dedup();
             for rt in rts.clone().iter() {
                if let Ok(nt) = lt.unify_impl_par(kinds,subs,rt,par) {
                   match nt {
@@ -386,6 +392,7 @@ impl Type {
                   }
                }
             }
+            rts.sort(); rts.dedup();
             if rts.len()==0 { Err(()) }
             else if rts.len()==1 { Ok(rts[0].clone()) }
             else { Ok(Type::And(rts)) }
