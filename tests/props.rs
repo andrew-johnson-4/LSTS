@@ -35,7 +35,9 @@ fn check_boolean() {
    tlc.check(Some(si), "False || True: False").unwrap_err();
    tlc.check(Some(si), "False || False: False").unwrap();
 }
+*/
 
+/*
 #[test]
 fn check_complex_predicates() {
    let mut tlc = TLC::new();
