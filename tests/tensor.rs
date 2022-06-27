@@ -18,7 +18,7 @@ fn check_tensor_sugar() {
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    tlc.check(Some(si), "let a:Number[]; a: Tensor<Number,?>").unwrap();
-   //tlc.check(Some(si), "let a:Number[]; a: Tensor<Number,[1]>").unwrap_err(); //this should fail, but deserves its own dedicated test cases
+   tlc.check(Some(si), "let a:Number[]; a: Tensor<Number,[1]>").unwrap_err();
    tlc.check(Some(si), "let a:Number[1]; a: Tensor<Number,[1]>").unwrap();
    tlc.check(Some(si), "let a:Number[1]; a: Tensor<Number,[2]>").unwrap_err();
    tlc.check(Some(si), "let a:Number[1][2]; a: Tensor<Tensor<Number,[2]>,[1]>").unwrap();
