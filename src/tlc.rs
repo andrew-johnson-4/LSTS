@@ -750,10 +750,20 @@ impl TLC {
             let mut es = p.into_inner();
             let ct = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [if_term.1]"),span)?;
             let tt = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [if_term.1]"),span)?;
-            if let Some(fe) = es.next() {
-               let _ft = self.unparse_ast(scope,fp,fe,span)?;
+            let ft = if let Some(fe) = es.next() {
+               self.unparse_ast(scope,fp,fe,span)?
+            } else {
+               self.push_term(Term::Block(scope,Vec::new()),span)
             };
-            Ok(ct)
+            let it = {let t = Term::App(
+               self.push_term(Term::Ident("if".to_string()),span),
+               self.push_term(Term::Tuple(vec![
+                  ct,
+                  tt,
+                  ft
+               ]),span),
+            ); self.push_term(t,span)};
+            Ok(it)
          }
          Rule::app_term => {
             let mut es = p.into_inner();
@@ -1461,6 +1471,11 @@ impl TLC {
 
       match self.rows[t.id].term.clone() {
          //evaluation can change the t.id of a term to the canonical t.id of a constant
+         Term::Block(_sid,es) if es.len()==0 => {
+            let c = Constant::NaN;
+            t.id = self.push_constant(&c, *t).id;
+            return Some(c);
+         },
          Term::Value(v) => {
             if let Some(c) = self.parse_constant(&v) {
                t.id = self.push_constant(&c, *t).id;
@@ -1546,13 +1561,13 @@ impl TLC {
                   return Some(c);
                }, (Some(Constant::Op(top)),
                    Some(Constant::Tuple(ps))) if ps.len()==3 => {
-                  let a = if let Constant::Boolean(a) = ps[0] { a
-                  } else { return Some(Constant::NaN); };
-                  let b = ps[1].clone();
-                  let c = ps[2].clone();
-                  let x = if top=="if" && a { b }
+                  let x = if let Constant::Boolean(a) = ps[0] {
+                     let b = ps[1].clone();
+                     let c = ps[2].clone();
+                          if top=="if" && a { b }
                      else if top=="if" && !a { c }
-                     else { Constant::NaN };
+                     else { Constant::NaN }
+                  } else { Constant::NaN };
                   t.id = self.push_constant(&x, *t).id;
                   return Some(x);
                }, (Some(gc),Some(xc)) => {

@@ -55,7 +55,7 @@ logical_term = { compare_term ~ (logical_op ~ compare_term)* }
 infix_term = { logical_term }
 ascript_term = { infix_term ~ (":" ~ typ)? }
 as_term = { ascript_term ~ ("as" ~ typ)? }
-if_term = { "if" ~ logical_term ~ "then" ~ as_term ~ ("else" ~ as_term)? }
+if_term = { "if" ~ logical_term ~ "then" ~ as_term ~ ("else" ~ term)? }
 term = { if_term | as_term }
 assume = { term }
 
