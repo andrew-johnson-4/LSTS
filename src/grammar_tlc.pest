@@ -55,7 +55,8 @@ logical_term = { compare_term ~ (logical_op ~ compare_term)* }
 infix_term = { logical_term }
 ascript_term = { infix_term ~ (":" ~ typ)? }
 as_term = { ascript_term ~ ("as" ~ typ)? }
-term = { as_term }
+if_term = { "if" ~ logical_term ~ "then" ~ as_term ~ ("else" ~ as_term)? }
+term = { if_term | as_term }
 assume = { term }
 
 ident_typ = { typname ~ ("<" ~ typ ~ ("," ~ typ)* ~ ">")? }
@@ -82,7 +83,7 @@ regex = { "/" ~ (!"/" ~ ANY)+ ~ "/" }
 typedef_branch = { regex | constructor_typedef }
 typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
 
-typ_invariant = { ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ ("if" ~ "(" ~ assume ~ ")")? ~ "." ~ term }
+typ_invariant = { ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ term }
 typ_stmt = { "type" ~ normal? ~ typname ~ ("<" ~ typ_inf_kind ~ ("," ~ typ_inf_kind)* ~ ">")? ~ (":" ~ typ)?
                     ~ ("=" ~ typedef)? ~ ("::" ~ kind ~ ("+" ~ kind)*)?
                     ~ ("where" ~ typ_invariant ~ ("and" ~ typ_invariant)*)? }

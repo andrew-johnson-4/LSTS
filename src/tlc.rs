@@ -746,6 +746,15 @@ impl TLC {
                ); self.push_term(t, &span)}),
             }
          },
+         Rule::if_term => {
+            let mut es = p.into_inner();
+            let ct = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [if_term.1]"),span)?;
+            let tt = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [if_term.1]"),span)?;
+            if let Some(fe) = es.next() {
+               let _ft = self.unparse_ast(scope,fp,fe,span)?;
+            };
+            Ok(ct)
+         }
          Rule::app_term => {
             let mut es = p.into_inner();
             let mut g = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [atom_term]"),span)?;
