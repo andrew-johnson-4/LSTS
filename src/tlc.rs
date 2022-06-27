@@ -2069,7 +2069,6 @@ impl TLC {
    }
    pub fn unify_with_kinds(&mut self, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type, span: &Span, par: IsParameter) -> Result<Type,Error> {
       //lt => rt
-      eprintln!("unify with kinds {} (x) {}", self.print_type(kinds,lt), self.print_type(kinds,rt));
       let mut subs = HashMap::new();
       let mut lt = self.extend_implied(lt);
       self.reduce_type(&subs, &mut lt, span); //reduce constant expressions in dependent types
@@ -2077,7 +2076,6 @@ impl TLC {
       let mut rt = rt.clone();
       self.reduce_type(&subs, &mut rt, span);
       rt = rt.normalize();
-      eprintln!("unify with kinds.2 {} (x) {}", self.print_type(kinds,&lt), self.print_type(kinds,&rt));
       if let Ok(ref mut tt) = lt.unify_impl_par(kinds, &mut subs, &rt, par) {
          self.reduce_type(&subs, tt, span);
          let tt = tt.normalize();

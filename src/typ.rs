@@ -319,8 +319,8 @@ impl Type {
    pub fn unify_impl_par(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type, par: IsParameter) -> Result<Type,()> {
       //lt => rt
       let lt = self;
-      if par==IsParameter::Top && !lt.kind(kinds).has(&rt.kind(kinds)) {
-         //assert kinds(lt) >= kinds(rt)
+      if (par==IsParameter::Top && !lt.kind(kinds).has(&rt.kind(kinds))) ||
+         (par==IsParameter::Yes && !rt.kind(kinds).has(&lt.kind(kinds))) {
          return Err(());
       }
       match (lt,rt) {
@@ -422,6 +422,10 @@ impl Type {
             Ok(Type::Ident(lv.clone(),tps))
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
+            if let Type::And(ref ps) = **pr {
+            if ps.len() == 0 {
+               return Err(());
+            }}
             let pt = pl.unify_impl_par(kinds,subs,pr,IsParameter::Yes)?;
             let bt = bl.unify_impl_par(kinds,subs,br,IsParameter::No)?;
             Ok(Type::Arrow(Box::new(pt),Box::new(bt)))
