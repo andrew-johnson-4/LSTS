@@ -14,12 +14,12 @@ fn check_constant_equivalence() {
 
    //true and false are encoded as binary integers
    //there is no truthiness of booleans, only exact equality
-   tlc.check(Some(si), "0: [False]").unwrap();
-   tlc.check(Some(si), "0: [True]").unwrap_err();
-   tlc.check(Some(si), "1: [False]").unwrap_err();
-   tlc.check(Some(si), "1: [True]").unwrap();
-   tlc.check(Some(si), "2: [False]").unwrap_err();
-   tlc.check(Some(si), "2: [True]").unwrap_err();
+   tlc.check(Some(si), "let x: [False]; x: [False]").unwrap();
+   tlc.check(Some(si), "let x: [False]; x: [True]").unwrap_err();
+   tlc.check(Some(si), "let x: [True]; x: [False]").unwrap_err();
+   tlc.check(Some(si), "let x: [True]; x: [True]").unwrap();
+   tlc.check(Some(si), "let x: [0]; x: [False]").unwrap_err();
+   tlc.check(Some(si), "let x: [1]; x: [True]").unwrap_err();
 
    tlc.check(Some(si), "let x:[-0]; x: [0]").unwrap();
    tlc.check(Some(si), "let x:[-0]; x: [-0]").unwrap();
@@ -35,6 +35,15 @@ fn check_constant_equivalence() {
    tlc.check(Some(si), "let x:[not(True)]; x: [False]").unwrap();
    tlc.check(Some(si), "let x:[not(False)]; x: [True]").unwrap();
    tlc.check(Some(si), "let x:[not(False)]; x: [False]").unwrap_err();
+
+   tlc.check(Some(si), r#"let x:[$"if"(True,1,False)]; x: [1]"#).unwrap();
+   tlc.check(Some(si), r#"let x:[$"if"(True,1,False)]; x: [True]"#).unwrap_err();
+   tlc.check(Some(si), r#"let x:[$"if"(True,2,False)]; x: [2]"#).unwrap();
+   tlc.check(Some(si), r#"let x:[$"if"(True,2,False)]; x: [3]"#).unwrap_err();
+   tlc.check(Some(si), r#"let x:[$"if"(False,1,False)]; x: [False]"#).unwrap();
+   tlc.check(Some(si), r#"let x:[$"if"(False,1,False)]; x: [0]"#).unwrap_err();
+   tlc.check(Some(si), r#"let x:[$"if"(False,1,True)]; x: [True]"#).unwrap();
+   tlc.check(Some(si), r#"let x:[$"if"(False,1,True)]; x: [-2]"#).unwrap_err();
 
    tlc.check(Some(si), "let x:[True && True && True]; x: [True]").unwrap();
    tlc.check(Some(si), "let x:[True && True && False]; x: [True]").unwrap_err();
@@ -202,4 +211,21 @@ fn check_variable_substitution() {
    tlc.check(Some(si), "5%2: [7]").unwrap_err();
    tlc.check(Some(si), "0%1: [NaN]").unwrap_err();
    tlc.check(Some(si), "0%0: [0]").unwrap_err();
+}
+
+#[test]
+fn check_implied_conjuctives() {
+   let mut tlc = TLC::new();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+
+   tlc.check(Some(si), "let x: [True] + [True]; x:[True]").unwrap();
+   tlc.check(Some(si), "let x: [True] + [False]; x:[True]").unwrap_err();
+   tlc.check(Some(si), "let x: [False] + [True]; x:[True]").unwrap_err();
+   tlc.check(Some(si), "let x: [False] + [False]; x:[True]").unwrap_err();
+
+   tlc.check(Some(si), "let x: [True] + [True]; x:[False]").unwrap_err();
+   tlc.check(Some(si), "let x: [True] + [False]; x:[False]").unwrap();
+   tlc.check(Some(si), "let x: [False] + [True]; x:[False]").unwrap();
+   tlc.check(Some(si), "let x: [False] + [False]; x:[False]").unwrap();
+
 }

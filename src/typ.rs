@@ -1,5 +1,22 @@
+use std::collections::HashMap;
 use crate::term::TermId;
 use crate::kind::Kind;
+
+#[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
+pub enum IsParameter {
+   Yes,
+   No,
+   Top,
+}
+impl std::fmt::Debug for IsParameter {
+   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      match self {
+         IsParameter::Yes => write!(f, "YES"),
+         IsParameter::No => write!(f, "NO"),
+         IsParameter::Top => write!(f, "TOP"),
+      }
+   }
+}
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Type {
@@ -34,6 +51,18 @@ impl Type {
             (tn, td)
          },
          tt => (vec![tt.clone()], Vec::new())
+      }
+   }
+   pub fn is_constant(&self) -> bool {
+      match self {
+         Type::Constant(_,_) => true,
+         _ => false,
+      }
+   }
+   pub fn term_id(&self) -> TermId {
+      match self {
+         Type::Constant(_,t) => *t,
+         _ => TermId { id: 0 },
       }
    }
    pub fn mask(&self) -> Type {
@@ -81,15 +110,43 @@ impl Type {
          _ => false
       }
    }
-   pub fn expects(&self) -> Type {
+   pub fn domain(&self) -> Type {
       match self {
          Type::Arrow(p,_b) => *p.clone(),
+         Type::And(ts) => {
+            let mut cts = Vec::new();
+            for ct in ts.iter() {
+               match ct.domain() {
+                  Type::And(mut cta) => {
+                     cts.append(&mut cta);
+                  }, ctr => {
+                     cts.push(ctr);
+                  }
+               }
+            }
+            if cts.len()==1 { cts[0].clone() }
+            else { Type::And(cts) }
+         },
          _ => Type::And(Vec::new()), //absurd
       }
    }
-   pub fn returns(&self) -> Type {
+   pub fn range(&self) -> Type {
       match self {
          Type::Arrow(_p,b) => *b.clone(),
+         Type::And(ts) => {
+            let mut cts = Vec::new();
+            for ct in ts.iter() {
+               match ct.range() {
+                  Type::And(mut cta) => {
+                     cts.append(&mut cta);
+                  }, ctr => {
+                     cts.push(ctr);
+                  }
+               }
+            }
+            if cts.len()==1 { cts[0].clone() }
+            else { Type::And(cts) }
+         },
          _ => Type::And(Vec::new()), //absurd
       }
    }
@@ -207,9 +264,9 @@ impl Type {
          Type::Constant(v,c) => Type::Constant(*v,*c)
       }.normalize()
    }
-   pub fn substitute(&self, subs:&Vec<(Type,Type)>) -> Type {
-      for (lt,rt) in subs.iter() {
-         if self==lt { return rt.clone(); }
+   pub fn substitute(&self, subs:&HashMap<Type,Type>) -> Type {
+      if let Some(st) = subs.get(self) {
+         return st.clone();
       }
       match self {
          Type::Any => Type::Any,
@@ -231,70 +288,46 @@ impl Type {
          Type::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom Typee is also concrete
          Type::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
-         Type::Constant(v,_) => !v,
+         Type::Constant(_,_) => true,
       }
    }
-   pub fn unify(&self, kinds: &Vec<(Type,Kind)>, subs: &mut Vec<(Type,Type)>, other: &Type) -> Result<Type,()> {
+   pub fn unify(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, other: &Type) -> Result<Type,()> {
       self.unify_impl(&kinds, subs, other).map(|tt|tt.normalize())
    }
-   pub fn kind(&self, kinds: &Vec<(Type,Kind)>) -> Kind {
-      for (kt,k) in kinds.iter() {
-         if self==kt { return k.clone(); }
+   pub fn kind(&self, kinds: &HashMap<Type,Kind>) -> Kind {
+      if let Some(k) = kinds.get(&self) {
+         return k.clone();
       }
-      Kind::Simple("Term".to_string(), Vec::new())
+      Kind::Nil
    }
-   pub fn unify_impl(&self, kinds: &Vec<(Type,Kind)>, subs: &mut Vec<(Type,Type)>, rt: &Type) -> Result<Type,()> {
+   pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
+      self.unify_impl_par(kinds,subs,rt,IsParameter::Top)
+   }
+   pub fn unify_impl_par(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type, par: IsParameter) -> Result<Type,()> {
       //lt => rt
       let lt = self;
-      //substitution can't change the kind of a type, so kinds doesn't need to be mutable
-      //unification will always reject if types are not the same Kind
-      if lt==&Type::Any {
-         //an Any Type on the left takes precedence in unification regardles of Kind
-         let rk = rt.kind(kinds);
-         match rt.substitute(subs) {
-            Type::And(rts) => {
-               //possibly need to narrow type after unification
-               let mut acc = Vec::new();
-               for ct in rts.iter() {
-                  if rk.has(&ct.kind(kinds)) {
-                     acc.push(ct.clone());
-                  }
-               }
-               //it is OK for ? to unify with {}
-               if acc.len()==1 { return Ok(acc[0].clone());
-               } else { return Ok(Type::And(acc)); }
-            }, tt => { return Ok(tt) },
-         }
-      }
-      if !lt.kind(kinds).has(&rt.kind(kinds)) {
-         //an And Type on the left can narrow to unify
-         match lt {
-            Type::And(lts) => {
-               for ct in lts.iter() {
-                  if let Ok(ut) = ct.unify_impl(kinds,subs,rt) {
-                     return Ok(ut);
-                  }
-               }
-            }, _ => {},
-         }
+      if (par==IsParameter::Yes && !rt.kind(kinds).has(&lt.kind(kinds))) ||
+         (par!=IsParameter::Yes && !lt.kind(kinds).has(&rt.kind(kinds))) {
+         //assert kinds(lt) >= kinds(rt)
          return Err(());
       }
       match (lt,rt) {
          //wildcard match
-         (Type::Any,r) => Ok(r.substitute(subs)),
+         //only unify left wildcards when they are returned from a function
+         (Type::Any,r) if par==IsParameter::No => Ok(r.substitute(subs)),
          (l,Type::Any) => Ok(l.substitute(subs)),
          (Type::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
-               if lt==sl { return sr.unify_impl(kinds,subs,rt); }
+               if lt==sl { return sr.unify_impl_par(kinds,subs,lt,par); }
             }
-            subs.push((lt.clone(),rt.clone()));
+            subs.insert(lt.clone(),rt.clone());
             Ok(rt.clone())
          },
          (lt,Type::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
-               if rt==sl { return sr.unify_impl(kinds,subs,lt); }
+               if rt==sl { return sr.unify_impl_par(kinds,subs,lt,par); }
             }
-            subs.push((rt.clone(),lt.clone()));
+            subs.insert(rt.clone(),lt.clone());
             Ok(lt.clone())
          },
 
@@ -303,7 +336,7 @@ impl Type {
             //lt => rt
             let mut lts = lts.clone();
             for rt in rts.iter() {
-               match lt.unify_impl(kinds,subs,rt)? {
+               match lt.unify_impl_par(kinds,subs,rt,par)? {
                   Type::And(mut tts) => { lts.append(&mut tts); },
                   tt => { lts.push(tt); },
                }
@@ -314,7 +347,7 @@ impl Type {
             let mut lts = lts.clone();
             let mut accept = false;
             for ltt in lts.clone().iter() {
-               if let Ok(nt) = ltt.unify_impl(kinds,subs,rt) {
+               if let Ok(nt) = ltt.unify_impl_par(kinds,subs,rt,par) {
                   accept = true;
                   match nt {
                      Type::And(mut tts) => { lts.append(&mut tts); },
@@ -329,17 +362,32 @@ impl Type {
                Err(())
             }
          },
+         //implicit narrowing
+         (lt,Type::And(rts)) => {
+            let mut rts = rts.clone();
+            for rt in rts.clone().iter() {
+               if let Ok(nt) = lt.unify_impl_par(kinds,subs,rt,par) {
+                  match nt {
+                     Type::And(mut tts) => { rts.append(&mut tts); },
+                     tt => { rts.push(tt); },
+                  }
+               }
+            }
+            if rts.len()==0 { Err(()) }
+            else if rts.len()==1 { Ok(rts[0].clone()) }
+            else { Ok(Type::And(rts)) }
+         },
 
          //ratio Typees have next precedence
          (Type::Ratio(pl,bl),Type::Ratio(pr,br)) => {
-            let pt = pl.unify_impl(kinds,subs,pr)?;
-            let bt = bl.unify_impl(kinds,subs,br)?;
+            let pt = pl.unify_impl_par(kinds,subs,pr,par)?;
+            let bt = bl.unify_impl_par(kinds,subs,br,par)?;
             Ok(Type::Ratio(Box::new(pt),Box::new(bt)))
          },
          (lt,Type::Ratio(pr,br)) => {
             match **br {
                Type::Tuple(ref bs) if bs.len()==0 => {
-                  lt.unify_impl(kinds,subs,pr)
+                  lt.unify_impl_par(kinds,subs,pr,par)
                }, _ => Err(())
             }
          },
@@ -349,40 +397,41 @@ impl Type {
          if lv==rv && lps.len()==rps.len() => {
             let mut tps = Vec::new();
             for (lp,rp) in std::iter::zip(lps,rps) {
-               tps.push(lp.unify_impl(kinds,subs,rp)?);
+               tps.push(lp.unify_impl_par(kinds,subs,rp,par)?);
             }
             Ok(Type::Ident(lv.clone(),tps))
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
-            let pt = pl.unify_impl(kinds,subs,pr)?;
-            let bt = bl.unify_impl(kinds,subs,br)?;
+            let pt = pl.unify_impl_par(kinds,subs,pr,IsParameter::Yes)?;
+            let bt = bl.unify_impl_par(kinds,subs,br,IsParameter::No)?;
             Ok(Type::Arrow(Box::new(pt),Box::new(bt)))
          },
          (Type::Product(la),Type::Product(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               ts.push(lt.unify_impl(kinds,subs,rt)?);
+               ts.push(lt.unify_impl_par(kinds,subs,rt,par)?);
             }
             Ok(Type::Product(ts))
          },
          (Type::Tuple(la),Type::Tuple(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               ts.push(lt.unify_impl(kinds,subs,rt)?);
+               ts.push(lt.unify_impl_par(kinds,subs,rt,par)?);
             }
             Ok(Type::Tuple(ts))
          },
 
          (Type::Constant(lv,lc),Type::Constant(rv,rc)) => {
+            //unify_impl is only capable of comparing term equality
+            //constants need to reduce to actually be the SAME term
             if lc.id == rc.id {
-               //unify_impl is only capable of comparing term equality
-               //constants need to reduce to actually be the SAME term
-               Ok(Type::Constant(*lv, *lc))
-            } else if *lv {
-               subs.push((lt.clone(), rt.clone()));
+               Ok(Type::Constant(*lv || *rv, *lc))
+            //only unify left constants when they parameterize a function
+            } else if par==IsParameter::Yes && *lv {
+               subs.insert(lt.clone(), rt.clone());
                Ok(rt.clone())
             } else if *rv {
-               subs.push((rt.clone(), lt.clone()));
+               subs.insert(rt.clone(), lt.clone());
                Ok(lt.clone())
             } else {
                Err(())
