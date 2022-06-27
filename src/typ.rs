@@ -314,7 +314,7 @@ impl Type {
       match (lt,rt) {
          //wildcard match
          //only unify left wildcards when they are returned from a function
-         (Type::Any,r) if par==IsParameter::No => Ok(r.substitute(subs)),
+         (Type::Any,r) if par!=IsParameter::Top => Ok(r.substitute(subs)),
          (l,Type::Any) => Ok(l.substitute(subs)),
          (Type::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
