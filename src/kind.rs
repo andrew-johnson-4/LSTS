@@ -27,6 +27,13 @@ impl std::fmt::Debug for Kind {
 }
 
 impl Kind {
+   pub fn and(mut ks: Vec<Kind>) -> Kind {
+      ks.sort();
+      ks.dedup();
+      if ks.len()==0 { Kind::Nil }
+      else if ks.len()==1 { ks[0].clone() }
+      else { Kind::And(ks) }
+   }
    pub fn has(&self, other: &Kind) -> bool {
       if other == &Kind::Nil { return true; }
       let ls = self.flatten();

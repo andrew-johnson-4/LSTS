@@ -2,6 +2,22 @@ use std::collections::HashMap;
 use crate::term::TermId;
 use crate::kind::Kind;
 
+#[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
+pub enum IsParameter {
+   Yes,
+   No,
+   Top,
+}
+impl std::fmt::Debug for IsParameter {
+   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      match self {
+         IsParameter::Yes => write!(f, "YES"),
+         IsParameter::No => write!(f, "NO"),
+         IsParameter::Top => write!(f, "TOP"),
+      }
+   }
+}
+
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Type {
    Any,
@@ -271,18 +287,21 @@ impl Type {
       Kind::Nil
    }
    pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
-      self.unify_impl_par(kinds,subs,rt,false)
+      self.unify_impl_par(kinds,subs,rt,IsParameter::Top)
    }
-   pub fn unify_impl_par(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type, par: bool) -> Result<Type,()> {
+   pub fn unify_impl_par(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type, par: IsParameter) -> Result<Type,()> {
       //lt => rt
       let lt = self;
+      eprintln!("unify impl.1");
       if !lt.kind(kinds).has(&rt.kind(kinds)) {
          //assert kinds(lt) >= kinds(rt)
          return Err(());
       }
+      eprintln!("unify impl.2");
       match (lt,rt) {
          //wildcard match
-         //Type::Any is not allowed on the right-hand-side
+         //only unify left wildcards when they are returned from a function
+         (Type::Any,r) if par==IsParameter::No => Ok(r.substitute(subs)),
          (l,Type::Any) => Ok(l.substitute(subs)),
          (Type::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
@@ -355,8 +374,11 @@ impl Type {
             Ok(Type::Ident(lv.clone(),tps))
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
-            let pt = pl.unify_impl_par(kinds,subs,pr,true)?;
-            let bt = bl.unify_impl_par(kinds,subs,br,false)?; //contravariant
+            eprintln!("try unify parameters {:?}::{:?} (x) {:?}::{:?}", pl, pl.kind(kinds), pr, pr.kind(kinds));
+            let pt = pl.unify_impl_par(kinds,subs,pr,IsParameter::Yes)?;
+            eprintln!("try unify return {:?} (x) {:?}", bl, br);
+            let bt = bl.unify_impl_par(kinds,subs,br,IsParameter::No)?;
+            eprintln!("unification result {:?} -> {:?}", pt, bt);
             Ok(Type::Arrow(Box::new(pt),Box::new(bt)))
          },
          (Type::Product(la),Type::Product(ra)) if la.len()==ra.len() => {
@@ -367,20 +389,26 @@ impl Type {
             Ok(Type::Product(ts))
          },
          (Type::Tuple(la),Type::Tuple(ra)) if la.len()==ra.len() => {
+            eprintln!("unify tuple.1");
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
+               eprintln!("unify tuple.2");
                ts.push(lt.unify_impl_par(kinds,subs,rt,par)?);
             }
+            eprintln!("unify tuple.3");
             Ok(Type::Tuple(ts))
          },
 
          (Type::Constant(lv,lc),Type::Constant(rv,rc)) => {
+            eprintln!("unify constants is_parameter={:?}, {:?} (x) {:?}",
+               par, lt, rt
+            );
+            //unify_impl is only capable of comparing term equality
+            //constants need to reduce to actually be the SAME term
             if lc.id == rc.id {
-               //unify_impl is only capable of comparing term equality
-               //constants need to reduce to actually be the SAME term
-               Ok(Type::Constant(*lv, *lc))
-            //lhs constants shouldn't just unify with anything
-            } else if par && *lv {
+               Ok(Type::Constant(*lv || *rv, *lc))
+            //only unify left constants when they parameterize a function
+            } else if par==IsParameter::Yes && *lv {
                subs.insert(lt.clone(), rt.clone());
                Ok(rt.clone())
             } else if *rv {

@@ -280,7 +280,7 @@ impl TLC {
       };
       let mut ats = Vec::new();
       for t in ts.iter() {
-         if self.kindof(t).has(k) {
+         if self.kind(t).has(k) {
             ats.push(t.clone());
          }
       }
@@ -296,7 +296,7 @@ impl TLC {
          tt => vec![tt.clone()],
       };
       //remove T :: K
-      let ts = ts.into_iter().filter(|ct|ct!=&Type::Any&&!self.kindof(ct).has(k)).collect::<Vec<Type>>();
+      let ts = ts.into_iter().filter(|ct|ct!=&Type::Any&&!self.kind(ct).has(k)).collect::<Vec<Type>>();
       Type::And(ts)
    }
 
@@ -341,7 +341,7 @@ impl TLC {
             }};
             let k = if ks.len()==0 { Kind::Nil
             } else if ks.len()==1 { ks[0].clone()
-            } else { Kind::And(ks) };
+            } else { Kind::and(ks) };
             kinds.insert(tt.clone(), k.clone());
             Some(k)
          },
@@ -407,7 +407,7 @@ impl TLC {
             }
             for it in inf.types().iter() {
                if !qs.iter().any(|(_i,t,_k)| &Some(it.clone())==t) {
-                  domains.push((it.clone(),self.kindof(it)));
+                  domains.push((it.clone(),self.kind(it)));
                }
             }
             domains.sort();
@@ -675,6 +675,10 @@ impl TLC {
                         Rule::kind   => { kind = self.unparse_ast_kind(scope,fp,itk,span)?; },
                         rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                      }}
+                     if let Some(tt) = &typ {
+                     if tt.is_constant() {
+                        kind = self.constant_kind.clone();
+                     }};
                      itks.push((ident,typ,kind));
                   }
                   pars.push(itks);
@@ -684,6 +688,9 @@ impl TLC {
                Rule::term => { t = Some(self.unparse_ast(scope,fp,e,span)?); },
                rule => panic!("unexpected let_stmt rule: {:?}", rule),
             }}
+            if rt.is_constant() {
+               rk = self.constant_kind.clone();
+            };
             let mut children = Vec::new();
             for itks in pars.iter() {
                for (i,t,k) in itks.iter() {
@@ -915,7 +922,7 @@ impl TLC {
             }}
             let kinds = if kinds.len()==0 { self.term_kind.clone()
             } else if kinds.len()==1 { kinds[0].clone()
-            } else { Kind::And(kinds) };
+            } else { Kind::and(kinds) };
             if normal {
                if constructors.len()==0 {
                   //constructors are preferred normal forms
@@ -976,6 +983,10 @@ impl TLC {
                      Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,itk,span)?; },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
+                  if let Some(tt) = &typ {
+                  if tt.is_constant() {
+                     kind = self.constant_kind.clone();
+                  }};
                   quants.push((ident, typ, kind));
                },
                Rule::inference => { inference = Some(self.unparse_ast_inference(scope,fp,e,span)?); }
@@ -1270,24 +1281,13 @@ impl TLC {
          Type::Constant(v,c) => Type::Constant(*v,*c)
       }
    }
-   pub fn kindof(&self, tt:&Type) -> Kind {
-      match tt {
-         Type::Any => Kind::Nil,
-         Type::Ident(tn,ts) => {
-            if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,k,_props,_) = &self.rules[*ti] {
-            if ts.len()==itks.len() {
-               if k==&Kind::Nil { return self.term_kind.clone(); }
-               else { return k.clone(); }
-            }}}
-            Kind::Nil
-         },
-         Type::And(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil},
-         Type::Tuple(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil},
-         Type::Product(ts) => {for t in ts.iter() { let k=self.kindof(t); if k!=Kind::Nil { return k; }}; Kind::Nil},
-         Type::Arrow(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) },
-         Type::Ratio(p,b) => { let k=self.kindof(p); if k!=Kind::Nil { return k; } self.kindof(b) },
-         Type::Constant(_,_) => self.constant_kind.clone(),
+   pub fn kind(&self, tt:&Type) -> Kind {
+      let mut kinds = HashMap::new();
+      self.kinds_of(&mut kinds,tt);
+      if let Some(k) = kinds.get(tt) {
+         k.clone()
+      } else {
+         panic!("kinds_of did not ascribe a kind for type {:?}", tt)
       }
    }
    pub fn is_knormal(&self, k:&Kind) -> bool {
@@ -1947,7 +1947,7 @@ impl TLC {
          },
          Term::As(x,into) => {
             self.typeck(scope.clone(), x, None)?;
-            let into_kind = self.kindof(&into).first();
+            let into_kind = self.kind(&into).first();
             if let Ok(nt) = self.unify(&self.rows[x.id].typ.clone(), &into, &self.rows[t.id].span.clone()) {
                //if cast is already satisfied, do nothing
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
