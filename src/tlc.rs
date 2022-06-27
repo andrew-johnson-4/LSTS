@@ -1523,19 +1523,18 @@ impl TLC {
                      t.id = self.push_constant(&c, *t).id;
                      return Some(c);
                   }
-                  let x = if bop=="+" { a + b }
-                     else if bop=="-" { a - b }
-                     else if bop=="*" { a * b }
-                     else if bop=="/" { a / b }
-                     else if bop=="%" { a % b }
-                     else if bop=="<"  { if a < b {1} else {0} }
-                     else if bop=="<=" { if a <= b {1} else {0} }
-                     else if bop==">"  { if a > b {1} else {0} }
-                     else if bop==">=" { if a >= b {1} else {0} }
-                     else if bop=="==" { if a == b {1} else {0} }
-                     else if bop=="!=" { if a != b {1} else {0} }
+                  let c = if bop=="+" { Constant::Integer(a + b) }
+                     else if bop=="-" { Constant::Integer(a - b) }
+                     else if bop=="*" { Constant::Integer(a * b) }
+                     else if bop=="/" { Constant::Integer(a / b) }
+                     else if bop=="%" { Constant::Integer(a % b) }
+                     else if bop=="<"  { Constant::Boolean(a < b) }
+                     else if bop=="<=" { Constant::Boolean(a <= b) }
+                     else if bop==">"  { Constant::Boolean(a > b) }
+                     else if bop==">=" { Constant::Boolean(a >= b) }
+                     else if bop=="==" { Constant::Boolean(a == b) }
+                     else if bop=="!=" { Constant::Boolean(a != b) }
                      else { panic!("unexpected binary operator {}", bop) };
-                  let c = Constant::Integer(x);
                   t.id = self.push_constant(&c, *t).id;
                   return Some(c);
                }, (Some(Constant::Op(top)),
