@@ -298,7 +298,17 @@ impl Type {
       if let Some(k) = kinds.get(&self) {
          return k.clone();
       }
-      Kind::Nil
+      match self {
+         Type::Constant(_,_) => Kind::Simple("Constant".to_string(),Vec::new()),
+         Type::And(ats) => {
+            let mut aks = Vec::new();
+            for at in ats.iter() {
+              aks.push(at.kind(kinds));
+            }
+            Kind::and(aks)
+         },
+         _ => Kind::Nil,
+      }
    }
    pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
       self.unify_impl_par(kinds,subs,rt,IsParameter::Top)
@@ -336,12 +346,15 @@ impl Type {
             //lt => rt
             let mut lts = lts.clone();
             for rt in rts.iter() {
-               match lt.unify_impl_par(kinds,subs,rt,par)? {
-                  Type::And(mut tts) => { lts.append(&mut tts); },
-                  tt => { lts.push(tt); },
+               match lt.unify_impl_par(kinds,subs,rt,par) {
+                  Ok(Type::And(mut tts)) => { lts.append(&mut tts); },
+                  Ok(tt) => { lts.push(tt); },
+                  Err(()) => {},
                }
             }
-            Ok(Type::And(lts))
+            if lts.len()==0 { Err(()) }
+            else if lts.len()==1 { Ok(lts[0].clone()) }
+            else { Ok(Type::And(lts)) }
          },
          (Type::And(lts),rt) => {
             let mut lts = lts.clone();

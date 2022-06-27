@@ -208,7 +208,7 @@ impl TLC {
          Type::Product(ts) => format!("({})", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join("*") ),
          Type::Arrow(p,b) => format!("({})=>({})", self.print_type(kinds,p), self.print_type(kinds,b)),
          Type::Ratio(n,d) => format!("({})/({})", self.print_type(kinds,n), self.print_type(kinds,d)),
-         Type::Constant(_v,c) => format!("[{}]", self.print_term(*c)),
+         Type::Constant(v,c) => format!("[{}{}]", if *v {"'"} else {""}, self.print_term(*c)),
       };
       if let Some(k) = kinds.get(tt) {
          format!("{}::{:?}", ts, k)
