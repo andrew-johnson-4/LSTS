@@ -198,6 +198,6 @@ let .length(a: ?[x]): [x];
 
 //: Dependent Types
 type Prime:Integer
-     where d:Prime. d>1
-     and d:Prime, n:Integer. d==n || d%n != 0;
+     where. self>1
+     and n:Integer. self==n || self%n != 0;
 
