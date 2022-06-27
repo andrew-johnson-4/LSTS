@@ -2039,8 +2039,8 @@ impl TLC {
                           Box::new(Type::Any))
             ))?;
             //covariant, contravariant matters here
-            self.rows[x.id].typ = self.unify(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.expects(), &self.rows[x.id].span.clone())?; //x => domain(f(x))
-            self.rows[t.id].typ = self.unify(&self.rows[g.id].typ.returns(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?; //range(f(x)) => f(x)
+            self.rows[x.id].typ = self.unify(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.domain(), &self.rows[x.id].span.clone())?; //x => domain(f(x))
+            self.rows[t.id].typ = self.unify(&self.rows[g.id].typ.range(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?; //range(f(x)) => f(x)
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
@@ -2057,11 +2057,9 @@ impl TLC {
             }) }
          },
       };
-      if let Some(Type::Arrow(_ip,_ib)) = implied {
-        //TODO: covariant/contravariant sensitive implication
-      } else if let Some(implied) = implied {
+      if let Some(implied) = implied {
          self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
-      };
+      }
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
    }

@@ -110,19 +110,33 @@ impl Type {
          _ => false
       }
    }
-   pub fn expects(&self) -> Type {
+   pub fn domain(&self) -> Type {
       match self {
          Type::Arrow(p,_b) => *p.clone(),
+         Type::And(ts) => {
+            let mut cts = Vec::new();
+            for ct in ts.iter() {
+               match ct.domain() {
+                  Type::And(mut cta) => {
+                     cts.append(&mut cta);
+                  }, ctr => {
+                     cts.push(ctr);
+                  }
+               }
+            }
+            if cts.len()==1 { cts[0].clone() }
+            else { Type::And(cts) }
+         },
          _ => Type::And(Vec::new()), //absurd
       }
    }
-   pub fn returns(&self) -> Type {
+   pub fn range(&self) -> Type {
       match self {
          Type::Arrow(_p,b) => *b.clone(),
          Type::And(ts) => {
             let mut cts = Vec::new();
             for ct in ts.iter() {
-               match ct.returns() {
+               match ct.range() {
                   Type::And(mut cta) => {
                      cts.append(&mut cta);
                   }, ctr => {
