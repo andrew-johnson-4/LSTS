@@ -52,3 +52,6 @@ LSTS natively supports dependent types, inhabiting the "Constant" Kind. Constant
     
     //constant folding is programmable
     let f(x: [x], y: [y]): [2*x+y];
+    
+    //algebraic substitution is allowed in dependent contexts
+    [if a%2==0 then 1 else 2]\[a%2|1] : [if 1==0 then 1 else 2] : [2]
