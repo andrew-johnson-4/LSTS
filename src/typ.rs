@@ -87,16 +87,19 @@ impl Type {
          (Type::And(ls),Type::And(rs)) => {
             let mut ts = ls.clone();
             ts.append(&mut rs.clone());
+            ts.sort(); ts.dedup();
             Type::And(ts)
          },
          (Type::And(ls),r) => {
             let mut ts = ls.clone();
             ts.push(r.clone());
+            ts.sort(); ts.dedup();
             Type::And(ts)
          }
          (l,Type::And(rs)) => {
             let mut ts = rs.clone();
             ts.push(l.clone());
+            ts.sort(); ts.dedup();
             Type::And(ts)
          },
          (l,r) => {
@@ -298,7 +301,17 @@ impl Type {
       if let Some(k) = kinds.get(&self) {
          return k.clone();
       }
-      Kind::Nil
+      match self {
+         Type::Constant(_,_) => Kind::Simple("Constant".to_string(),Vec::new()),
+         Type::And(ats) => {
+            let mut aks = Vec::new();
+            for at in ats.iter() {
+              aks.push(at.kind(kinds));
+            }
+            Kind::and(aks)
+         },
+         _ => Kind::Nil,
+      }
    }
    pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
       self.unify_impl_par(kinds,subs,rt,IsParameter::Top)
@@ -306,15 +319,14 @@ impl Type {
    pub fn unify_impl_par(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type, par: IsParameter) -> Result<Type,()> {
       //lt => rt
       let lt = self;
-      if (par==IsParameter::Yes && !rt.kind(kinds).has(&lt.kind(kinds))) ||
-         (par!=IsParameter::Yes && !lt.kind(kinds).has(&rt.kind(kinds))) {
-         //assert kinds(lt) >= kinds(rt)
+      if (par==IsParameter::Top && !lt.kind(kinds).has(&rt.kind(kinds))) ||
+         (par==IsParameter::Yes && !rt.kind(kinds).has(&lt.kind(kinds))) {
          return Err(());
       }
       match (lt,rt) {
          //wildcard match
          //only unify left wildcards when they are returned from a function
-         (Type::Any,r) if par==IsParameter::No => Ok(r.substitute(subs)),
+         (Type::Any,r) if par!=IsParameter::Top => Ok(r.substitute(subs)),
          (l,Type::Any) => Ok(l.substitute(subs)),
          (Type::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
@@ -332,50 +344,52 @@ impl Type {
          },
 
          //conjunctive normal form takes precedence
-         (Type::And(lts),Type::And(rts)) => {
+         (_,Type::And(rts)) if rts.len()==0 => { Ok(rt.clone()) },
+         (Type::And(_lts),Type::And(rts)) => {
             //lt => rt
-            let mut lts = lts.clone();
+            let mut mts = Vec::new();
             for rt in rts.iter() {
-               match lt.unify_impl_par(kinds,subs,rt,par)? {
-                  Type::And(mut tts) => { lts.append(&mut tts); },
-                  tt => { lts.push(tt); },
+               match lt.unify_impl_par(kinds,subs,rt,par) {
+                  Ok(Type::And(mut tts)) => { mts.append(&mut tts); },
+                  Ok(tt) => { mts.push(tt); },
+                  Err(()) => {},
                }
             }
-            Ok(Type::And(lts))
+            mts.sort(); mts.dedup();
+            if mts.len()==0 { Err(()) }
+            else if mts.len()==1 { Ok(mts[0].clone()) }
+            else { Ok(Type::And(mts)) }
          },
          (Type::And(lts),rt) => {
-            let mut lts = lts.clone();
-            let mut accept = false;
-            for ltt in lts.clone().iter() {
+            let mut mts = Vec::new();
+            for ltt in lts.iter() {
                if let Ok(nt) = ltt.unify_impl_par(kinds,subs,rt,par) {
-                  accept = true;
                   match nt {
-                     Type::And(mut tts) => { lts.append(&mut tts); },
-                     tt => { lts.push(tt); },
+                     Type::And(mut tts) => { mts.append(&mut tts); },
+                     tt => { mts.push(tt); },
                   }
                }
             }
-            if accept {
-               if lts.len()==1 { Ok(lts[0].clone()) }
-               else { Ok(Type::And(lts)) }
-            } else {
-               Err(())
-            }
+            mts.sort(); mts.dedup();
+            if mts.len()==0 { Err(()) }
+            else if mts.len()==1 { Ok(mts[0].clone()) }
+            else { Ok(Type::And(mts)) }
          },
          //implicit narrowing
          (lt,Type::And(rts)) => {
-            let mut rts = rts.clone();
-            for rt in rts.clone().iter() {
+            let mut mts = Vec::new();
+            for rt in rts.iter() {
                if let Ok(nt) = lt.unify_impl_par(kinds,subs,rt,par) {
                   match nt {
-                     Type::And(mut tts) => { rts.append(&mut tts); },
-                     tt => { rts.push(tt); },
+                     Type::And(mut tts) => { mts.append(&mut tts); },
+                     tt => { mts.push(tt); },
                   }
                }
             }
-            if rts.len()==0 { Err(()) }
-            else if rts.len()==1 { Ok(rts[0].clone()) }
-            else { Ok(Type::And(rts)) }
+            mts.sort(); mts.dedup();
+            if mts.len()==0 { Err(()) }
+            else if mts.len()==1 { Ok(mts[0].clone()) }
+            else { Ok(Type::And(mts)) }
          },
 
          //ratio Typees have next precedence
@@ -402,6 +416,10 @@ impl Type {
             Ok(Type::Ident(lv.clone(),tps))
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
+            if let Type::And(ref ps) = **pr {
+            if ps.len() == 0 {
+               return Err(());
+            }}
             let pt = pl.unify_impl_par(kinds,subs,pr,IsParameter::Yes)?;
             let bt = bl.unify_impl_par(kinds,subs,br,IsParameter::No)?;
             Ok(Type::Arrow(Box::new(pt),Box::new(bt)))
