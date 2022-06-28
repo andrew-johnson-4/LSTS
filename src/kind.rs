@@ -28,6 +28,7 @@ impl std::fmt::Debug for Kind {
 
 impl Kind {
    pub fn and(mut ks: Vec<Kind>) -> Kind {
+      ks.retain(|k| k != &Kind::Nil);
       ks.sort();
       ks.dedup();
       if ks.len()==0 { Kind::Nil }
