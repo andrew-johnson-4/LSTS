@@ -2101,6 +2101,7 @@ impl TLC {
          Term::Substitution(e,_a,_b) => {
             self.typeck(scope.clone(), e, None)?;
             //TODO: algebraic substition across all dependent types
+            self.rows[t.id].typ = self.rows[e.id].typ.clone();
          },
       };
       if let Some(implied) = implied {
