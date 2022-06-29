@@ -1952,9 +1952,22 @@ impl TLC {
       }
    }
    pub fn alpha_convert_type(&mut self, tt: &Type, lt: TermId, rt: TermId) -> Type {
-      todo!("alpha convert type")
+      match tt {
+         Type::Any => tt.clone(),
+         Type::Ident(_,_) => tt.clone(),
+         Type::Arrow(_,_) => tt.clone(), //the inner types here are guarded
+         Type::Constant(v,c) => Type::Constant(*v, self.alpha_convert_term(*c,lt,rt)),
+         Type::Ratio(nt,dt) => Type::Ratio(
+            Box::new(self.alpha_convert_type(nt,lt,rt)),
+            Box::new(self.alpha_convert_type(dt,lt,rt))
+         ),
+         Type::And(ts) => Type::And( ts.iter().map(|ct|self.alpha_convert_type(ct,lt,rt)).collect::<Vec<Type>>() ),
+         Type::Tuple(ts) => Type::Tuple( ts.iter().map(|ct|self.alpha_convert_type(ct,lt,rt)).collect::<Vec<Type>>() ),
+         Type::Product(ts) => Type::Product( ts.iter().map(|ct|self.alpha_convert_type(ct,lt,rt)).collect::<Vec<Type>>() ),
+      }
    }
    pub fn alpha_convert_term(&mut self, et: TermId, lt: TermId, rt: TermId) -> TermId {
+      eprintln!("[{}]\\[{}|{}]", self.print_term(et), self.print_term(lt), self.print_term(rt));
       todo!("alpha convert term")
    }
 
