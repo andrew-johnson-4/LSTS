@@ -240,6 +240,7 @@ impl TLC {
          Term::Constructor(cn,kvs) => {
             format!("{}{{{}}}", cn, kvs.iter().map(|(k,v)|format!("{}={}",k,self.print_term(*v))).collect::<Vec<String>>().join(","))
          },
+         Term::Substitution(e,a,b) => format!("{}\\[{}|{}]", self.print_term(*e), self.print_term(*a), self.print_term(*b)),
       }
    }
    pub fn push_forall(&mut self, quants: Vec<(Option<String>,Option<Type>,Kind)>,
@@ -794,6 +795,22 @@ impl TLC {
                e = {let t = Term::App(
                   self.push_term(Term::Ident(op),span),
                   self.push_term(Term::Tuple(vec![e,d]),span),
+               ); self.push_term(t,&span)};
+            }
+            Ok(e)
+         },
+         Rule::algebra_term => {
+            let mut es = p.into_inner();
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [algebra_term.1]"),span)?;
+            while let Some(a) = es.next() {
+               let mut a = self.unparse_ast(scope,fp,a,span)?;
+               self.untyped(a); self.unify_varnames(&mut HashMap::new(),&mut a);
+               let mut b = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [algebra_term.2]"),span)?;
+               self.untyped(b); self.unify_varnames(&mut HashMap::new(),&mut b);
+               e = {let t = Term::Substitution(
+                  e,
+                  a,
+                  b,
                ); self.push_term(t,&span)};
             }
             Ok(e)
@@ -1886,7 +1903,7 @@ impl TLC {
    pub fn unify_varnames(&mut self, dept: &mut HashMap<String,TermId>, t: &mut TermId) {
       match self.rows[t.id].term.clone() {
          Term::Ident(tn) => {
-            if ["if","not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
+            if ["self","if","not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
                //pass
             } else if let Some(v) = dept.get(&tn) {
                let nn = format!("var#{}", v.id);
@@ -1927,7 +1944,57 @@ impl TLC {
                self.unify_varnames(dept,t);
             }
          },
+         Term::Substitution(ref mut e,ref mut a,ref mut b) => {
+            self.unify_varnames(dept,e);
+            self.unify_varnames(dept,a);
+            self.unify_varnames(dept,b);
+         }
       }
+   }
+   pub fn are_terms_equal(&self, lt: TermId, rt: TermId) -> bool {
+      match (&self.rows[lt.id].term,&self.rows[rt.id].term) {
+         (Term::Ident(lv),Term::Ident(rv)) => lv==rv,
+         (Term::Value(lv),Term::Value(rv)) => lv==rv,
+         (Term::Constructor(lc,ls),Term::Constructor(rc,rs)) => lc==rc && ls.len()==0 && rs.len()==0,
+         (Term::App(lp,lb),Term::App(rp,rb)) => self.are_terms_equal(*lp,*rp) && self.are_terms_equal(*lb,*rb),
+         (Term::Tuple(ls),Term::Tuple(rs)) => ls.len()==rs.len() && std::iter::zip(ls,rs).all(|(lc,rc)|self.are_terms_equal(*lc,*rc)),
+         _ => false,
+      }
+   }
+   pub fn alpha_convert_type(&mut self, tt: &Type, lt: TermId, rt: TermId) -> Type {
+      match tt {
+         Type::Any => tt.clone(),
+         Type::Ident(_,_) => tt.clone(),
+         Type::Arrow(_,_) => tt.clone(), //the inner types here are guarded
+         Type::Constant(v,c) => Type::Constant(*v, self.alpha_convert_term(*c,lt,rt)),
+         Type::Ratio(nt,dt) => Type::Ratio(
+            Box::new(self.alpha_convert_type(nt,lt,rt)),
+            Box::new(self.alpha_convert_type(dt,lt,rt))
+         ),
+         Type::And(ts) => Type::And( ts.iter().map(|ct|self.alpha_convert_type(ct,lt,rt)).collect::<Vec<Type>>() ),
+         Type::Tuple(ts) => Type::Tuple( ts.iter().map(|ct|self.alpha_convert_type(ct,lt,rt)).collect::<Vec<Type>>() ),
+         Type::Product(ts) => Type::Product( ts.iter().map(|ct|self.alpha_convert_type(ct,lt,rt)).collect::<Vec<Type>>() ),
+      }
+   }
+   pub fn alpha_convert_term(&mut self, et: TermId, lt: TermId, rt: TermId) -> TermId {
+      if self.are_terms_equal(et,lt) {
+         self.rows[et.id].term = self.rows[rt.id].term.clone();
+         return et;
+      }
+      let mut mut_rec = Vec::new();
+      match &self.rows[et.id].term {
+         Term::App(ep,eb) => { mut_rec.push(*ep); mut_rec.push(*eb); }
+         Term::Tuple(es) => {
+            for ct in es.iter() {
+               mut_rec.push(*ct);
+            }
+         },
+         _ => {},
+      }
+      for rec in mut_rec.into_iter() {
+         self.alpha_convert_term(rec, lt, rt);
+      }
+      et
    }
 
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
@@ -2075,6 +2142,15 @@ impl TLC {
                span: self.rows[t.id].span.clone(),
                snippet: "".to_string()
             }) }
+         },
+         Term::Substitution(e,a,b) => {
+            self.typeck(scope.clone(), e, None)?;
+            let mut et = self.rows[e.id].typ.clone();
+            self.reduce_type(&HashMap::new(), &mut et, &self.rows[t.id].span.clone());
+            let mut et = self.alpha_convert_type(&et, a, b);
+            self.reduce_type(&HashMap::new(), &mut et, &self.rows[t.id].span.clone());
+            self.rows[e.id].typ = et.clone();
+            self.rows[t.id].typ = et.clone();
          },
       };
       if let Some(implied) = implied {
