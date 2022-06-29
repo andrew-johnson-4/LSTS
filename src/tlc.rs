@@ -1951,6 +1951,16 @@ impl TLC {
          }
       }
    }
+   pub fn are_terms_equal(&self, lt: TermId, rt: TermId) -> bool {
+      match (&self.rows[lt.id].term,&self.rows[rt.id].term) {
+         (Term::Ident(lv),Term::Ident(rv)) => lv==rv,
+         (Term::Value(lv),Term::Value(rv)) => lv==rv,
+         (Term::Constructor(lc,ls),Term::Constructor(rc,rs)) => lc==rc && ls.len()==0 && rs.len()==0,
+         (Term::App(lp,lb),Term::App(rp,rb)) => self.are_terms_equal(*lp,*rp) && self.are_terms_equal(*lb,*rb),
+         (Term::Tuple(ls),Term::Tuple(rs)) => ls.len()==rs.len() && std::iter::zip(ls,rs).all(|(lc,rc)|self.are_terms_equal(*lc,*rc)),
+         _ => false,
+      }
+   }
    pub fn alpha_convert_type(&mut self, tt: &Type, lt: TermId, rt: TermId) -> Type {
       match tt {
          Type::Any => tt.clone(),
@@ -1967,8 +1977,24 @@ impl TLC {
       }
    }
    pub fn alpha_convert_term(&mut self, et: TermId, lt: TermId, rt: TermId) -> TermId {
-      eprintln!("[{}]\\[{}|{}]", self.print_term(et), self.print_term(lt), self.print_term(rt));
-      todo!("alpha convert term")
+      if self.are_terms_equal(et,lt) {
+         self.rows[et.id].term = self.rows[rt.id].term.clone();
+         return et;
+      }
+      let mut mut_rec = Vec::new();
+      match &self.rows[et.id].term {
+         Term::App(ep,eb) => { mut_rec.push(*ep); mut_rec.push(*eb); }
+         Term::Tuple(es) => {
+            for ct in es.iter() {
+               mut_rec.push(*ct);
+            }
+         },
+         _ => {},
+      }
+      for rec in mut_rec.into_iter() {
+         self.alpha_convert_term(rec, lt, rt);
+      }
+      et
    }
 
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
