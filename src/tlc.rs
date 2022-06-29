@@ -1903,7 +1903,7 @@ impl TLC {
    pub fn unify_varnames(&mut self, dept: &mut HashMap<String,TermId>, t: &mut TermId) {
       match self.rows[t.id].term.clone() {
          Term::Ident(tn) => {
-            if ["if","not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
+            if ["self","if","not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
                //pass
             } else if let Some(v) = dept.get(&tn) {
                let nn = format!("var#{}", v.id);
@@ -1950,6 +1950,12 @@ impl TLC {
             self.unify_varnames(dept,b);
          }
       }
+   }
+   pub fn alpha_convert_type(&mut self, tt: &Type, lt: TermId, rt: TermId) -> Type {
+      todo!("alpha convert type")
+   }
+   pub fn alpha_convert_term(&mut self, et: TermId, lt: TermId, rt: TermId) -> TermId {
+      todo!("alpha convert term")
    }
 
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
@@ -2098,10 +2104,14 @@ impl TLC {
                snippet: "".to_string()
             }) }
          },
-         Term::Substitution(e,_a,_b) => {
+         Term::Substitution(e,a,b) => {
             self.typeck(scope.clone(), e, None)?;
-            //TODO: algebraic substition across all dependent types
-            self.rows[t.id].typ = self.rows[e.id].typ.clone();
+            let mut et = self.rows[e.id].typ.clone();
+            self.reduce_type(&HashMap::new(), &mut et, &self.rows[t.id].span.clone());
+            let mut et = self.alpha_convert_type(&et, a, b);
+            self.reduce_type(&HashMap::new(), &mut et, &self.rows[t.id].span.clone());
+            self.rows[e.id].typ = et.clone();
+            self.rows[t.id].typ = et.clone();
          },
       };
       if let Some(implied) = implied {
