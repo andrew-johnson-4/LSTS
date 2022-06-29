@@ -240,6 +240,7 @@ impl TLC {
          Term::Constructor(cn,kvs) => {
             format!("{}{{{}}}", cn, kvs.iter().map(|(k,v)|format!("{}={}",k,self.print_term(*v))).collect::<Vec<String>>().join(","))
          },
+         Term::Substitution(e,a,b) => format!("{}\\[{}|{}]", self.print_term(*e), self.print_term(*a), self.print_term(*b)),
       }
    }
    pub fn push_forall(&mut self, quants: Vec<(Option<String>,Option<Type>,Kind)>,
@@ -794,6 +795,22 @@ impl TLC {
                e = {let t = Term::App(
                   self.push_term(Term::Ident(op),span),
                   self.push_term(Term::Tuple(vec![e,d]),span),
+               ); self.push_term(t,&span)};
+            }
+            Ok(e)
+         },
+         Rule::algebra_term => {
+            let mut es = p.into_inner();
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [algebra_term.1]"),span)?;
+            while let Some(a) = es.next() {
+               let mut a = self.unparse_ast(scope,fp,a,span)?;
+               self.untyped(a); self.unify_varnames(&mut HashMap::new(),&mut a);
+               let mut b = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [algebra_term.2]"),span)?;
+               self.untyped(b); self.unify_varnames(&mut HashMap::new(),&mut b);
+               e = {let t = Term::Substitution(
+                  e,
+                  a,
+                  b,
                ); self.push_term(t,&span)};
             }
             Ok(e)
@@ -1927,6 +1944,11 @@ impl TLC {
                self.unify_varnames(dept,t);
             }
          },
+         Term::Substitution(ref mut e,ref mut a,ref mut b) => {
+            self.unify_varnames(dept,e);
+            self.unify_varnames(dept,a);
+            self.unify_varnames(dept,b);
+         }
       }
    }
 
@@ -2075,6 +2097,10 @@ impl TLC {
                span: self.rows[t.id].span.clone(),
                snippet: "".to_string()
             }) }
+         },
+         Term::Substitution(e,_a,_b) => {
+            self.typeck(scope.clone(), e, None)?;
+            //TODO: algebraic substition across all dependent types
          },
       };
       if let Some(implied) = implied {
