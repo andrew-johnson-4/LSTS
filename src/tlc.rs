@@ -2095,8 +2095,7 @@ impl TLC {
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { self.bottom_type.clone() };
             let ki = self.project_kinded(&self.term_kind, &i);
-            let alt_i = self.remove_kinded(&self.term_kind, &i);
-            let alt_i = self.remove_kinded(&self.constant_kind, &alt_i); //implied values are absurd
+            let alt_i = self.remove_kinded(&self.constant_kind, &i); //implied values are absurd
             let alt_i = alt_i.and(&self.push_dep_type(&Term::Value(x.clone()),t));
             let mut r = None;
             for (pat,re) in self.regexes.clone().into_iter() {
