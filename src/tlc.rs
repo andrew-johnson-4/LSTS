@@ -1522,20 +1522,16 @@ impl TLC {
                t.id = self.push_constant(&c, *t).id;
                return Some(c);
             }
-            if let Some((_gn,gid)) = g.split_once('#') {
-               //if t.id has somehow diverged from gid, swap
-               //this should not happen, but it does because invariants are not enforced
-               if let Ok(gid) = gid.parse::<u64>() {
-                  t.id = gid as usize;
-               }
-            }
             for (k,v) in subs.iter() {
                if let Type::Constant(_kv,kt) = k {
                if let Type::Constant(_vv,vt) = v {
-               if kt.id == t.id {
-                  t.id = vt.id;
-                  return self.maybe_constant(*t);
-               }}}
+                  //variable substitution
+                  if let Term::Ident(kg) = self.rows[kt.id].term.clone() {
+                  if g==kg {
+                     t.id = vt.id;
+                     return self.maybe_constant(*t);
+                  }}
+               }}
             }
          },
          Term::App(ref mut g,ref mut x) => {
@@ -2032,15 +2028,22 @@ impl TLC {
          _ => {},
       }
       for g in ground_types.iter() {
-      if let Type::Ident(tn,ts) = g {
+      if let Type::Ident(tn,_ts) = g {
       if let Some(ti) = self.typedef_index.get(tn) {
       if let TypeRule::Typedef(_cname,_normal,_tiks,_imp,_cons,_k,inv,_span) = &self.rules[*ti] {
-         for invariant in inv.iter() {
-            //pub itks: Vec<(Option<String>,Option<Type>,Kind)>,
-            //pub assm: Option<TermId>,
-            //pub prop: TermId,
-            //pub algs: TermId,
-            todo!("check invariants for type {}", tn)
+         for invariant in inv.clone().iter() {
+            let p = self.untyped_eval(&subs, &mut invariant.prop.clone());
+            let a = self.untyped_eval(&subs, &mut invariant.algs.clone());
+            if p.is_some() && p==a {
+               //pass
+            } else {
+               return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("invariant not satisfied {}: {} | {}", tn, self.print_term(invariant.prop), self.print_term(invariant.algs)),
+                  span: self.rows[t.id].span.clone(),
+                  snippet: "".to_string()
+               })
+            }
          }
       }}}}
       Ok(())
