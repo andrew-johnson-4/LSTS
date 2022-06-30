@@ -204,6 +204,9 @@ type Odd:Integer
      where. self%2 | 1;
 
 type Prime:Integer
+     //invariants are represented in Conjunctive Normal Form
+     //all invariants are ANDed together
+     //ORs go inside the invariant branches
      where. self>1
      and n:Integer. self==n || self%n != 0;
 
