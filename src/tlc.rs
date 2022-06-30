@@ -118,7 +118,7 @@ pub struct Invariant {
    pub itks: Vec<(Option<String>,Option<Type>,Kind)>,
    pub assm: Option<TermId>,
    pub prop: TermId,
-   pub algs: Option<TermId>,
+   pub algs: TermId,
 }
 
 #[derive(Clone)]
@@ -447,9 +447,7 @@ impl TLC {
                   self.untyped(assm);
                }
                self.untyped(p.prop);
-               if let Some(a) = p.algs {
-                  self.untyped(a);
-               }
+               self.untyped(p.algs);
             }
          },
       }}
@@ -959,6 +957,8 @@ impl TLC {
                      }
                      rule => panic!("unexpected typ_invariant rule: {:?}", rule)
                   }}
+                  let algs = if let Some(a) = algs { a }
+                  else { self.push_term(Term::Ident("True".to_string()),&span) };
                   props.push(Invariant {
                      itks: itks,
                      assm: assm,
