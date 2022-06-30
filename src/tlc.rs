@@ -2008,6 +2008,36 @@ impl TLC {
       }
       et
    }
+   pub fn check_invariants(&self, t: TermId) -> Result<(),Error> {
+      let mut ground_types = Vec::new();
+      match &self.rows[t.id].typ {
+         Type::Ident(tn,ts) => {
+            ground_types.push(Type::Ident(tn.clone(),ts.clone()));
+         },
+         Type::And(tcs) => {
+            for tc in tcs.iter() {
+            match tc {
+               Type::Ident(tn,ts) => {
+                  ground_types.push(Type::Ident(tn.clone(),ts.clone()));
+               }, _ => {},
+            }}
+         },
+         _ => {},
+      }
+      for g in ground_types.iter() {
+      if let Type::Ident(tn,ts) = g {
+      if let Some(ti) = self.typedef_index.get(tn) {
+      if let TypeRule::Typedef(_cname,_normal,_tiks,_imp,_cons,_k,inv,_span) = &self.rules[*ti] {
+         for invariant in inv.iter() {
+            //pub itks: Vec<(Option<String>,Option<Type>,Kind)>,
+            //pub assm: Option<TermId>,
+            //pub prop: TermId,
+            //pub algs: TermId,
+            todo!("check invariants for type {}", tn)
+         }
+      }}}}
+      Ok(())
+   }
 
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
@@ -2088,6 +2118,7 @@ impl TLC {
                   }
                }
             }
+            self.check_invariants(t)?;
          },
          Term::Ident(x) => {
             self.rows[t.id].typ = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span.clone())?;
@@ -2127,6 +2158,7 @@ impl TLC {
                   snippet: "".to_string()
                })
             }
+            self.check_invariants(t)?;
 	 },
          Term::App(g,x) => {
             self.typeck(scope.clone(), x, None)?;
