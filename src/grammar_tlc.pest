@@ -58,7 +58,6 @@ ascript_term = { algebra_term ~ (":" ~ typ)? }
 as_term = { ascript_term ~ ("as" ~ typ)? }
 if_term = { "if" ~ logical_term ~ "then" ~ as_term ~ ("else" ~ term)? }
 term = { if_term | as_term }
-assume = { term }
 
 ident_typ = { typname ~ ("<" ~ typ ~ ("," ~ typ)* ~ ">")? }
 any_typ   = { "?" }

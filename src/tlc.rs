@@ -116,7 +116,6 @@ pub enum Typedef {
 #[derive(Clone)]
 pub struct Invariant {
    pub itks: Vec<(Option<String>,Option<Type>,Kind)>,
-   pub assm: Option<TermId>,
    pub prop: TermId,
    pub algs: TermId,
 }
@@ -443,9 +442,6 @@ impl TLC {
                }
             }}
             for p in props.iter() {
-               if let Some(assm) = p.assm {
-                  self.untyped(assm);
-               }
                self.untyped(p.prop);
                self.untyped(p.algs);
             }
@@ -626,7 +622,6 @@ impl TLC {
          //passthrough rules
          Rule::stmt => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span),
          Rule::term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [term]"),span),
-         Rule::assume => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [assume]"),span),
          Rule::value_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [value_term]"),span),
          Rule::atom_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_term]"),span),
          Rule::prefix_term => {
@@ -931,7 +926,6 @@ impl TLC {
                Rule::kind => { kinds.push(self.unparse_ast_kind(scope,fp,e,span)?); },
                Rule::typ_invariant => {
                   let mut itks = Vec::new();
-                  let mut assm = None;
                   let mut prop = None;
                   let mut algs = None;
                   for tip in e.into_inner() { match tip.as_rule() {
@@ -947,7 +941,6 @@ impl TLC {
                         }}
                         itks.push((idn,inf,kind));
                      },
-                     Rule::assume => { assm = Some(self.unparse_ast(scope,fp,tip,span)?); }
                      Rule::term => {
                         if prop.is_none() {
                            prop = Some(self.unparse_ast(scope,fp,tip,span)?);
@@ -961,7 +954,6 @@ impl TLC {
                   else { self.push_term(Term::Ident("True".to_string()),&span) };
                   props.push(Invariant {
                      itks: itks,
-                     assm: assm,
                      prop: prop.expect("TLC Grammar Error in rule [typ_invariant]"),
                      algs: algs,
                   });
