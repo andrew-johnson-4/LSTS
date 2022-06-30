@@ -2095,18 +2095,19 @@ impl TLC {
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { self.bottom_type.clone() };
             let ki = self.project_kinded(&self.term_kind, &i);
+            let alt_i = self.remove_kinded(&self.term_kind, &i);
+            let alt_i = self.remove_kinded(&self.constant_kind, &alt_i); //implied values are absurd
+            let alt_i = alt_i.and(&self.push_dep_type(&Term::Value(x.clone()),t));
             let mut r = None;
             for (pat,re) in self.regexes.clone().into_iter() {
-               if pat==ki { //Term kinded is not []
+               if let Ok(nt) = self.unify(&ki,&pat,&self.rows[t.id].span.clone()) { //Term kinded is not []
                   r = Some(re.clone());
-                  let alt_t = self.remove_kinded(&self.term_kind, &self.rows[t.id].typ);
-                  self.rows[t.id].typ = self.unify(&pat, &ki, &self.rows[t.id].span.clone())?.and(&alt_t);
+                  self.rows[t.id].typ = nt.and(&alt_i);
                   break;
                }
-               else if self.bottom_type==ki && re.is_match(&x) { //Term kinded is []
+               else if ki==self.bottom_type && re.is_match(&x) { //Term kinded is []
                   r = Some(re.clone());
-                  let alt_t = self.remove_kinded(&self.term_kind, &self.rows[t.id].typ);
-                  self.rows[t.id].typ = self.unify(&pat, &ki, &self.rows[t.id].span.clone())?.and(&alt_t);
+                  self.rows[t.id].typ = pat.and(&alt_i);
                   break;
                }
             }
@@ -2119,10 +2120,6 @@ impl TLC {
                      snippet: "".to_string()
                   })
                }
-               //if any non Term typ is implied, introduce it here
-               let ri = self.remove_kinded(&self.term_kind, &i);
-               let ri = self.remove_kinded(&self.constant_kind, &ri);
-               self.rows[t.id].typ = self.rows[t.id].typ.and(&ri);
             } else {
                return Err(Error {
                   kind: "Type Error".to_string(),
