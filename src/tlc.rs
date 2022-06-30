@@ -989,6 +989,48 @@ impl TLC {
                if &t==c { continue; } //constructor has same name as type
                self.typedef_index.insert(c.clone(), self.rules.len());
             }
+            for inv in props.iter() {
+            if let Term::App(g,x) = &self.rows[inv.prop.id].term.clone() {
+            if let Term::Ident(gn) = &self.rows[g.id].term.clone() {
+               let mut xs = Vec::new();
+               let mut fkts = HashMap::new();
+               match &self.rows[x.id].term.clone() {
+                  Term::Tuple(ts) => {
+                     for ct in ts.iter() {
+                        if let Term::Ident(ctn) = &self.rows[ct.id].term.clone() {
+                        if ctn == "self" { //replace "self" in invariants with this type rule
+                           xs.push(Type::Ident(t.clone(),Vec::new()));
+                           fkts.insert(xs[xs.len()-1].clone(), self.term_kind.clone());
+                           continue;
+                        }}
+                        let ctt = self.rows[ct.id].term.clone();
+                        xs.push(self.push_dep_type(&ctt, *ct));
+                        fkts.insert(xs[xs.len()-1].clone(), self.constant_kind.clone());
+                     }
+                  }, pt => {
+                     let mut is_self = false;
+                     if let Term::Ident(ctn) = pt {
+                     if ctn == "self" { //replace "self" in invariants with this type rule
+                        xs.push(Type::Ident(t.clone(),Vec::new()));
+                        fkts.insert(xs[xs.len()-1].clone(), self.term_kind.clone());
+                        is_self = true;
+                     }}
+                     if !is_self {
+                        xs.push(self.push_dep_type(&pt, *x));
+                        fkts.insert(xs[xs.len()-1].clone(), self.constant_kind.clone());
+                     }
+                  }
+               }
+               let rt = self.push_dep_type(&self.rows[inv.algs.id].term.clone(), inv.algs);
+
+               let pt = if xs.len()==1 {
+                  xs[0].clone()
+               } else {
+                  Type::Tuple(xs)
+               };
+               let ft = Type::Arrow(Box::new(pt),Box::new(rt));
+               self.scopes[scope.id].children.push((gn.clone(), fkts, ft));
+            }}}
             self.rules.push(TypeRule::Typedef(
                t,
                normal,
@@ -1381,30 +1423,25 @@ impl TLC {
          let mut matches = Vec::new();
          let ref sc = self.scopes[scope.id].clone();
          for (tn,tkts,tt) in sc.children.iter() {
-            //tkts only contains kinds for Type tt
             if tn==v {
-               //as a last resort, reduce candidate types here
-               //this action really belongs somewhere else upstream
-               let mut tt = tt.clone();
-               self.reduce_type(&HashMap::new(), &mut tt, span);
-               let tt = self.extend_implied(&tt);
+               //match variable binding if
+               //1) binding is not an arrow
+               //2) implied => binding
 
                candidates.push(tt.clone());
+               if let Type::Arrow(tp,_tb) = &tt {
                if let Some(it) = implied {
                   let mut tkts = tkts.clone();
                   self.kinds_of(&mut tkts, &tt);
                   self.kinds_of(&mut tkts, it);
-                  let narrow_it = match &tt {
-                     Type::Arrow(tp,_tb) => { //implied type maybe need to be narrowed by kind
-                        if let Some(tk) = tkts.get(tp) {
-                           self.narrow(&tkts, tk, &it)
-                        } else { it.clone() }
-                     }, _ => { it.clone() },
-                  };
-                  if let Ok(rt) = self.unify_with_kinds(&tkts,&tt,&narrow_it,span,IsParameter::Top) {
+                  //implied type maybe need to be narrowed by kind
+                  let narrow_it = if let Some(tk) = tkts.get(tp) {
+                     self.narrow(&tkts, tk, &it)
+                  } else { it.clone() };
+                  if let Ok(rt) = self.unify_with_kinds(&tkts,&narrow_it,&tt,span,IsParameter::Top) {
                      matches.push(rt.clone());
                   }
-               } else {
+               }} else {
                   matches.push(tt.clone());
                }
             }
@@ -2204,7 +2241,14 @@ impl TLC {
          },
       };
       if let Some(implied) = implied {
-         self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
+         if let Type::Arrow(_p,_b) = implied {
+            //arrow unification can narrow the type signature of the arrow
+            //e.g.   {Integer+[1]} => ?
+            //yields [1]           => [2]
+            //this is ok
+         } else {
+            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
+         }
       }
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())

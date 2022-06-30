@@ -31,6 +31,24 @@ pub enum Type {
 }
 
 impl Type {
+   pub fn print(&self, kinds: &HashMap<Type,Kind>) -> String {
+      let ts = match self {
+         Type::Any => format!("?"),
+         Type::Ident(t,ts) => {
+            if ts.len()==0 { format!("{}", t) }
+            else { format!("{}<{}>", t, ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join(",") ) }
+         }
+         Type::And(ts) => format!("{{{}}}", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join("+") ),
+         Type::Tuple(ts) => format!("({})", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join(",") ),
+         Type::Product(ts) => format!("({})", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join("*") ),
+         Type::Arrow(p,b) => format!("({})=>({})", p.print(kinds), b.print(kinds)),
+         Type::Ratio(n,d) => format!("({})/({})", n.print(kinds), d.print(kinds)),
+         Type::Constant(v,c) => format!("[{}var#{}]", if *v {"'"} else {""}, c.id),
+      };
+      if let Some(k) = kinds.get(self) {
+         format!("{}::{:?}", ts, k)
+      } else { ts }
+   }
    pub fn project_ratio(&self) -> (Vec<Type>,Vec<Type>) {
        match self {
          Type::Ratio(p,b) => {
@@ -320,7 +338,7 @@ impl Type {
       //lt => rt
       let lt = self;
       if (par==IsParameter::Top && !lt.kind(kinds).has(&rt.kind(kinds))) ||
-         (par==IsParameter::Yes && !rt.kind(kinds).has(&lt.kind(kinds))) {
+         (par==IsParameter::Yes && !lt.kind(kinds).has(&rt.kind(kinds))) {
          return Err(());
       }
       match (lt,rt) {
@@ -364,22 +382,6 @@ impl Type {
             let mut mts = Vec::new();
             for ltt in lts.iter() {
                if let Ok(nt) = ltt.unify_impl_par(kinds,subs,rt,par) {
-                  match nt {
-                     Type::And(mut tts) => { mts.append(&mut tts); },
-                     tt => { mts.push(tt); },
-                  }
-               }
-            }
-            mts.sort(); mts.dedup();
-            if mts.len()==0 { Err(()) }
-            else if mts.len()==1 { Ok(mts[0].clone()) }
-            else { Ok(Type::And(mts)) }
-         },
-         //implicit narrowing
-         (lt,Type::And(rts)) => {
-            let mut mts = Vec::new();
-            for rt in rts.iter() {
-               if let Ok(nt) = lt.unify_impl_par(kinds,subs,rt,par) {
                   match nt {
                      Type::And(mut tts) => { mts.append(&mut tts); },
                      tt => { mts.push(tt); },

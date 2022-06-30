@@ -203,7 +203,7 @@ type Even:Integer
 type Odd:Integer
      where. self%2 | 1;
 
-type Prime:Integer
-     where. self>1
-     and n:Integer. self==n || self%n != 0;
+//type Prime:Integer
+//     where. self>1
+//     and n:Integer. self==n || self%n != 0;
 
