@@ -2008,8 +2008,13 @@ impl TLC {
       }
       et
    }
-   pub fn check_invariants(&self, t: TermId) -> Result<(),Error> {
+   pub fn check_invariants(&mut self, t: TermId) -> Result<(),Error> {
       let mut ground_types = Vec::new();
+      let mut subs = HashMap::new();
+      let self_term = Term::Ident("self".to_string());
+      let self_termid = self.push_term(self_term.clone(), &self.rows[t.id].span.clone());
+      self.untyped(self_termid);
+      let self_type = self.push_dep_type(&self_term, self_termid);
       match &self.rows[t.id].typ {
          Type::Ident(tn,ts) => {
             ground_types.push(Type::Ident(tn.clone(),ts.clone()));
@@ -2019,6 +2024,8 @@ impl TLC {
             match tc {
                Type::Ident(tn,ts) => {
                   ground_types.push(Type::Ident(tn.clone(),ts.clone()));
+               }, Type::Constant(v,ct) => {
+                  subs.insert(self_type.clone(), Type::Constant(*v,*ct));
                }, _ => {},
             }}
          },
