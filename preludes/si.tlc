@@ -197,6 +197,12 @@ let .length(a: ?[]): Integer;
 let .length(a: ?[x]): [x];
 
 //: Dependent Types
+type Even:Integer
+     where. self%2 | 0;
+
+type Odd:Integer
+     where. self%2 | 1;
+
 type Prime:Integer
      where. self>1
      and n:Integer. self==n || self%n != 0;

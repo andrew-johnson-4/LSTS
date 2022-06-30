@@ -118,6 +118,7 @@ pub struct Invariant {
    pub itks: Vec<(Option<String>,Option<Type>,Kind)>,
    pub assm: Option<TermId>,
    pub prop: TermId,
+   pub algs: Option<TermId>,
 }
 
 #[derive(Clone)]
@@ -446,6 +447,9 @@ impl TLC {
                   self.untyped(assm);
                }
                self.untyped(p.prop);
+               if let Some(a) = p.algs {
+                  self.untyped(a);
+               }
             }
          },
       }}
@@ -930,7 +934,8 @@ impl TLC {
                Rule::typ_invariant => {
                   let mut itks = Vec::new();
                   let mut assm = None;
-                  let mut prop = TermId { id:0 };
+                  let mut prop = None;
+                  let mut algs = None;
                   for tip in e.into_inner() { match tip.as_rule() {
                      Rule::ident_typ_kind => {
                         let mut idn = None;
@@ -945,13 +950,20 @@ impl TLC {
                         itks.push((idn,inf,kind));
                      },
                      Rule::assume => { assm = Some(self.unparse_ast(scope,fp,tip,span)?); }
-                     Rule::term => { prop = self.unparse_ast(scope,fp,tip,span)?; }
+                     Rule::term => {
+                        if prop.is_none() {
+                           prop = Some(self.unparse_ast(scope,fp,tip,span)?);
+                        } else {
+                           algs = Some(self.unparse_ast(scope,fp,tip,span)?);
+                        }
+                     }
                      rule => panic!("unexpected typ_invariant rule: {:?}", rule)
                   }}
                   props.push(Invariant {
                      itks: itks,
                      assm: assm,
-                     prop: prop,
+                     prop: prop.expect("TLC Grammar Error in rule [typ_invariant]"),
+                     algs: algs,
                   });
                },
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
