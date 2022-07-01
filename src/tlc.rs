@@ -208,7 +208,13 @@ impl TLC {
          Type::Product(ts) => format!("({})", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join("*") ),
          Type::Arrow(p,b) => format!("({})=>({})", self.print_type(kinds,p), self.print_type(kinds,b)),
          Type::Ratio(n,d) => format!("({})/({})", self.print_type(kinds,n), self.print_type(kinds,d)),
-         Type::Constant(v,c) => format!("[{}{}#{}]", if *v {"'"} else {""}, self.print_term(*c), c.id),
+         Type::Constant(v,c) => {
+            if let Some(ct) = self.tconstant_index.get(c) {
+               format!("[{}{:?}#{}]", if *v {"'"} else {""}, ct, c.id)
+            } else {
+               format!("[{}{}#{}]", if *v {"'"} else {""}, self.print_term(*c), c.id)
+            }
+         },
       };
       if let Some(k) = kinds.get(tt) {
          format!("{}::{:?}", ts, k)
@@ -784,17 +790,50 @@ impl TLC {
             Ok(g)
          },
          Rule::expr_term => {
+            //shunting yard algorithm to avoid recursion explosion
+            let precedence = |s:&str| { match s {
+               "^" => 1,
+               "*" => 2, "/" => 2, "%" => 2,
+               "+" => 3, "-" => 3,
+               "<" => 4, "<=" => 4, ">" => 4, ">=" => 4, "==" => 4, "!=" => 4,
+               "&&" => 5, "||" => 5,
+               op => panic!("unknown operator {:?}", op),
+            }};
             let mut es = p.into_inner();
-            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [expr_term.1]"),span)?;
+            let e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [expr_term.1]"),span)?;
+            let mut output_queue: Vec<TermId> = vec![e];
+            let mut operator_stack: Vec<String> = Vec::new();
+
             while let Some(op) = es.next() {
                let op = op.into_inner().concat();
+               while operator_stack.len()>0 && precedence(&operator_stack[operator_stack.len()-1])<precedence(&op) {
+                  let pop = operator_stack.pop().unwrap();
+                  let rt = output_queue.pop().unwrap();
+                  let lt = output_queue.pop().unwrap();
+                  let t = Term::App(
+                     self.push_term(Term::Ident(pop),span),
+                     self.push_term(Term::Tuple(vec![lt,rt]),span),
+                  );
+                  output_queue.push(self.push_term(t,span));
+               }
+               operator_stack.push(op);
+
                let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [expr_term.2]"),span)?;
-               e = {let t = Term::App(
-                  self.push_term(Term::Ident(op),span),
-                  self.push_term(Term::Tuple(vec![e,d]),span),
-               ); self.push_term(t,&span)};
+               output_queue.push(d);
             }
-            Ok(e)
+
+            while operator_stack.len()>0 {
+               let pop = operator_stack.pop().unwrap();
+               let rt = output_queue.pop().unwrap();
+               let lt = output_queue.pop().unwrap();
+               let t = Term::App(
+                  self.push_term(Term::Ident(pop),span),
+                  self.push_term(Term::Tuple(vec![lt,rt]),span),
+               );
+               output_queue.push(self.push_term(t,span));
+            }
+
+            Ok(output_queue.pop().unwrap())
          },
          Rule::tuple_term => {
             let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e,span).expect("TLC Grammar Error in rule [tuple_term]"))
@@ -1432,7 +1471,7 @@ impl TLC {
    }
    pub fn reduce_type(&mut self, subs: &HashMap<Type,Type>, tt: &mut Type, span: &Span) {
       match tt {
-         Type::Constant(_v, ref mut c) => {
+         Type::Constant(_v, c) => {
             self.untyped_eval(subs, c);
          },
          Type::Any => {},
@@ -2230,7 +2269,7 @@ impl TLC {
          Ok(tt)
       } else { return Err(Error {
          kind: "Type Error".to_string(),
-         rule: format!("failed unification {:?} (x) {:?}",lt,rt),
+         rule: format!("failed unification {} (x) {}", self.print_type(kinds,&lt), self.print_type(kinds,&rt)),
          span: span.clone(),
          snippet: "".to_string(),
       }) }

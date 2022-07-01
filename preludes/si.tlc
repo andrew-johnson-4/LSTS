@@ -182,7 +182,7 @@ let $"-"([x], [y]): [x-y]   ; //sub
 let $"*"([x], [y]): [x*y]   ; //mul
 let $"/"([x], [y]): [x/y]   ; //div
 let $"%"([x], [y]): [x%y]   ; //mod
-//let $"^"([x], [y]): [x^y]   ; //pow
+let $"^"([x], [y]): [x^y]   ; //pow
 let not([x]): [not(x)]      ; //not
 let $"&&"([x], [y]): [x&&y] ; //and
 let $"||"([x], [y]): [x||y] ; //or
