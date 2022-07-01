@@ -632,24 +632,25 @@ impl TLC {
          Rule::value_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [value_term]"),span),
          Rule::atom_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_term]"),span),
          Rule::prefix_term => {
-            let mut prefix = None;
+            let mut prefixes = Vec::new();
             let mut term = None;
             for pe in p.into_inner() { match pe.as_rule() {
                Rule::prefix_op => { match pe.into_inner().concat() {
-                  s if s=="+" => { prefix=Some("pos".to_string()); },
-                  s if s=="-" => { prefix=Some("neg".to_string()); },
+                  s if s=="+" => { prefixes.push("pos".to_string()); },
+                  s if s=="-" => { prefixes.push("neg".to_string()); },
                   s => panic!("TLC Grammar Error in rule [prefix_term.0] '{}'", s),
                }},
                Rule::atom_term => { term = Some(self.unparse_ast(scope,fp,pe,span)?); },
                _ => panic!("TLC Grammar Error in rule [prefix_term.1]")
             }}
-            match (prefix,term) {
-               (Some(prefix),Some(term)) => {
-                  let it = self.push_term(Term::Ident(prefix),&span);
-                  Ok(self.push_term(Term::App(it,term),&span))
-               },
-               (None,Some(term)) => Ok(term),
-               _ => panic!("TLC Grammar Error in rule [prefix_term.2]")
+            if let Some(mut t) = term {
+               for op in prefixes.iter().rev() {
+                  let f = self.push_term(Term::Ident(op.to_string()),span);
+                  t = self.push_term(Term::App(f,t),span);
+               }
+               Ok(t)
+            } else {
+               panic!("TLC Grammar Error in rule [prefix_term.2]")
             }
          },
 
