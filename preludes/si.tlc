@@ -182,6 +182,7 @@ let $"-"([x], [y]): [x-y]   ; //sub
 let $"*"([x], [y]): [x*y]   ; //mul
 let $"/"([x], [y]): [x/y]   ; //div
 let $"%"([x], [y]): [x%y]   ; //mod
+let $"^"([x], [y]): [x^y]   ; //pow
 let not([x]): [not(x)]      ; //not
 let $"&&"([x], [y]): [x&&y] ; //and
 let $"||"([x], [y]): [x||y] ; //or
@@ -197,7 +198,17 @@ let .length(a: ?[]): Integer;
 let .length(a: ?[x]): [x];
 
 //: Dependent Types
-type Prime:Integer
-     where. self>1
-     and n:Integer. self==n || self%n != 0;
+type Even:Integer
+     where. self%2 | 0;
 
+type Odd:Integer
+     where. self%2 | 1;
+
+type Prime:Integer
+     //invariants are represented in Conjunctive Normal Form
+     //all invariants are ANDed together
+     //ORs go inside the invariant branches
+
+     //Fermat, Leibniz, Euler elementary primality proof
+     where. self>1 //corollaries not necessary for primality proof
+     and a:Integer. a^(self-1)%self | 1;
