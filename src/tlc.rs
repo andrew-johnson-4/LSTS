@@ -799,41 +799,42 @@ impl TLC {
                "&&" => 5, "||" => 5,
                op => panic!("unknown operator {:?}", op),
             }};
+
             let mut es = p.into_inner();
             let e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [expr_term.1]"),span)?;
-            let mut output_queue: Vec<TermId> = vec![e];
-            let mut operator_stack: Vec<String> = Vec::new();
+
+            let mut values: Vec<TermId> = vec![e];
+            let mut operators: Vec<String> = Vec::new();
 
             while let Some(op) = es.next() {
                let op = op.into_inner().concat();
-               while operator_stack.len()>0 && precedence(&operator_stack[operator_stack.len()-1])<precedence(&op) {
-                  let pop = operator_stack.pop().unwrap();
-                  let rt = output_queue.pop().unwrap();
-                  let lt = output_queue.pop().unwrap();
+               while operators.len()>0 && precedence(&operators[operators.len()-1])<=precedence(&op) {
+                  let pop = operators.pop().unwrap();
+                  let rt = values.pop().unwrap();
+                  let lt = values.pop().unwrap();
                   let t = Term::App(
                      self.push_term(Term::Ident(pop),span),
                      self.push_term(Term::Tuple(vec![lt,rt]),span),
                   );
-                  output_queue.push(self.push_term(t,span));
+                  values.push(self.push_term(t,span));
                }
-               operator_stack.push(op);
+               operators.push(op);
 
                let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [expr_term.2]"),span)?;
-               output_queue.push(d);
+               values.push(d);
             }
-
-            while operator_stack.len()>0 {
-               let pop = operator_stack.pop().unwrap();
-               let rt = output_queue.pop().unwrap();
-               let lt = output_queue.pop().unwrap();
+            while operators.len()>0 {
+               let pop = operators.pop().unwrap();
+               let rt = values.pop().unwrap();
+               let lt = values.pop().unwrap();
                let t = Term::App(
                   self.push_term(Term::Ident(pop),span),
                   self.push_term(Term::Tuple(vec![lt,rt]),span),
                );
-               output_queue.push(self.push_term(t,span));
+               values.push(self.push_term(t,span));
             }
 
-            Ok(output_queue.pop().unwrap())
+            Ok(values.pop().unwrap())
          },
          Rule::tuple_term => {
             let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e,span).expect("TLC Grammar Error in rule [tuple_term]"))
