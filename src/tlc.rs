@@ -534,6 +534,7 @@ impl TLC {
       } else if c=="-" { Some(Constant::Op(c.to_string()))
       } else if c=="*" { Some(Constant::Op(c.to_string()))
       } else if c=="/" { Some(Constant::Op(c.to_string()))
+      } else if c=="^" { Some(Constant::Op(c.to_string()))
       } else if c=="%" { Some(Constant::Op(c.to_string()))
       } else if c=="==" { Some(Constant::Op(c.to_string()))
       } else if c=="!=" { Some(Constant::Op(c.to_string()))
@@ -595,6 +596,7 @@ impl TLC {
       else { n }
    }
    pub fn unparse_ast(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span:&Span) -> Result<TermId,Error> {
+      //eprintln!("unparse ast rule {:?}", p.as_rule());
       match p.as_rule() {
          //entry point rule
          Rule::file => {
@@ -783,6 +785,20 @@ impl TLC {
             }}
             Ok(g)
          },
+         /*
+         Rule::power_term => {
+            let mut es = p.into_inner();
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [power_term.1]"),span)?;
+            while let Some(_op) = es.next() {
+               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [power_term.2]"),span)?;
+               e = {let t = Term::App(
+                  self.push_term(Term::Ident("^".to_string()),span),
+                  self.push_term(Term::Tuple(vec![e,d]),span),
+               ); self.push_term(t,&span)};
+            }
+            Ok(e)
+         },
+         */
          Rule::divmul_term => {
             let mut es = p.into_inner();
             let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [divmul_term.1]"),span)?;
@@ -1604,6 +1620,7 @@ impl TLC {
                      else if bop=="*" { Constant::Integer(a * b) }
                      else if bop=="/" { Constant::Integer(a / b) }
                      else if bop=="%" { Constant::Integer(a % b) }
+                     else if bop=="^" { Constant::Integer(a.pow(b as u32)) }
                      else if bop=="<"  { Constant::Boolean(a < b) }
                      else if bop=="<=" { Constant::Boolean(a <= b) }
                      else if bop==">"  { Constant::Boolean(a > b) }

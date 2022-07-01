@@ -182,6 +182,7 @@ let $"-"([x], [y]): [x-y]   ; //sub
 let $"*"([x], [y]): [x*y]   ; //mul
 let $"/"([x], [y]): [x/y]   ; //div
 let $"%"([x], [y]): [x%y]   ; //mod
+//let $"^"([x], [y]): [x^y]   ; //pow
 let not([x]): [not(x)]      ; //not
 let $"&&"([x], [y]): [x&&y] ; //and
 let $"||"([x], [y]): [x||y] ; //or
@@ -207,6 +208,7 @@ type Prime:Integer
      //invariants are represented in Conjunctive Normal Form
      //all invariants are ANDed together
      //ORs go inside the invariant branches
-     where. self>1
-     and n:Integer. self==n || self%n != 0;
 
+     //Fermat, Leibniz, Euler elementary primality proof
+     where. self>1; //corollaries not necessary for primality proof
+     //and a:Integer. a^(self-1)%self | 1;
