@@ -38,7 +38,8 @@ divmul_op = { divmul_chars }
 addsub_chars = { "+" | "-" }
 addsub_op = { addsub_chars }
 prefix_op = { addsub_chars }
-power_op = { "^" }
+power_chars = { "^" }
+power_op = { power_chars }
 
 key_value = { ident ~ "=" ~ term }
 constructor = { typname ~ ("{" ~ (key_value ~ ("," ~ key_value)*)? ~ "}")? }
@@ -49,16 +50,11 @@ field_term = { "." ~ ident }
 tuple_term = { "(" ~ (term ~ ("," ~ term)*)? ~ ")" }
 atom_term  = { app_term }
 prefix_term = { prefix_op? ~ atom_term }
-//power_term = { prefix_term ~ (power_op ~ prefix_term)* }
-divmul_term = { prefix_term ~ (divmul_op ~ prefix_term)* }
-addsub_term = { divmul_term ~ (addsub_op ~ divmul_term)* }
-compare_term = { addsub_term ~ (compare_op ~ addsub_term)* }
-logical_term = { compare_term ~ (logical_op ~ compare_term)* }
-infix_term = { logical_term }
-algebra_term = { infix_term ~ ("\\" ~ "[" ~ term ~ "|" ~ term ~ "]")* }
+expr_term = { prefix_term ~ ((power_op | divmul_op | addsub_op | compare_op | logical_op) ~ prefix_term)* }
+algebra_term = { expr_term ~ ("\\" ~ "[" ~ expr_term ~ "|" ~ expr_term ~ "]")* }
 ascript_term = { algebra_term ~ (":" ~ typ)? }
 as_term = { ascript_term ~ ("as" ~ typ)? }
-if_term = { "if" ~ logical_term ~ "then" ~ as_term ~ ("else" ~ term)? }
+if_term = { "if" ~ expr_term ~ "then" ~ expr_term ~ ("else" ~ expr_term)? }
 term = { if_term | as_term }
 
 ident_typ = { typname ~ ("<" ~ typ ~ ("," ~ typ)* ~ ">")? }

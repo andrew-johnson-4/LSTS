@@ -596,7 +596,6 @@ impl TLC {
       else { n }
    }
    pub fn unparse_ast(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span:&Span) -> Result<TermId,Error> {
-      //eprintln!("unparse ast rule {:?}", p.as_rule());
       match p.as_rule() {
          //entry point rule
          Rule::file => {
@@ -647,7 +646,6 @@ impl TLC {
                _ => panic!("TLC Grammar Error in rule [prefix_term.2]")
             }
          },
-         Rule::infix_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [infix_term]"),span),
 
          //literal value rules
          Rule::ident => Ok(self.push_term(Term::Ident(self.into_ident(p.into_inner().concat())), &span)),
@@ -785,32 +783,27 @@ impl TLC {
             }}
             Ok(g)
          },
-         /*
-         Rule::power_term => {
+         Rule::expr_term => {
             let mut es = p.into_inner();
-            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [power_term.1]"),span)?;
-            while let Some(_op) = es.next() {
-               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [power_term.2]"),span)?;
-               e = {let t = Term::App(
-                  self.push_term(Term::Ident("^".to_string()),span),
-                  self.push_term(Term::Tuple(vec![e,d]),span),
-               ); self.push_term(t,&span)};
-            }
-            Ok(e)
-         },
-         */
-         Rule::divmul_term => {
-            let mut es = p.into_inner();
-            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [divmul_term.1]"),span)?;
+            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [expr_term.1]"),span)?;
             while let Some(op) = es.next() {
                let op = op.into_inner().concat();
-               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [divmul_term.2]"),span)?;
+               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [expr_term.2]"),span)?;
                e = {let t = Term::App(
                   self.push_term(Term::Ident(op),span),
                   self.push_term(Term::Tuple(vec![e,d]),span),
                ); self.push_term(t,&span)};
             }
             Ok(e)
+         },
+         Rule::tuple_term => {
+            let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e,span).expect("TLC Grammar Error in rule [tuple_term]"))
+                      .collect::<Vec<TermId>>();
+            if es.len()==1 {
+               Ok(es[0].clone())
+            } else {
+               Ok(self.push_term(Term::Tuple(es), &span))
+            }
          },
          Rule::algebra_term => {
             let mut es = p.into_inner();
@@ -827,54 +820,6 @@ impl TLC {
                ); self.push_term(t,&span)};
             }
             Ok(e)
-         },
-         Rule::addsub_term => {
-            let mut es = p.into_inner();
-            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [addsub_term.1]"),span)?;
-            while let Some(op) = es.next() {
-               let op = op.into_inner().concat();
-               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [addsub_term.2]"),span)?;
-               e = {let t = Term::App(
-                  self.push_term(Term::Ident(op),span),
-                  self.push_term(Term::Tuple(vec![e,d]),span),
-               ); self.push_term(t,&span)};
-            }
-            Ok(e)
-         },
-         Rule::compare_term => {
-            let mut es = p.into_inner();
-            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [compare_term.1]"),span)?;
-            while let Some(op) = es.next() {
-               let op = op.into_inner().concat();
-               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [compare_term.2]"),span)?;
-               e = {let t = Term::App(
-                  self.push_term(Term::Ident(op),span),
-                  self.push_term(Term::Tuple(vec![e,d]),span),
-               ); self.push_term(t,&span)};
-            }
-            Ok(e)
-         },
-         Rule::logical_term => {
-            let mut es = p.into_inner();
-            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [logical_term.1]"),span)?;
-            while let Some(op) = es.next() {
-               let op = op.into_inner().concat();
-               let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [logical_term.2]"),span)?;
-               e = {let t = Term::App(
-                  self.push_term(Term::Ident(op),span),
-                  self.push_term(Term::Tuple(vec![e,d]),span),
-               ); self.push_term(t,&span)};
-            }
-            Ok(e)
-         },
-         Rule::tuple_term => {
-            let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e,span).expect("TLC Grammar Error in rule [tuple_term]"))
-                      .collect::<Vec<TermId>>();
-            if es.len()==1 {
-               Ok(es[0].clone())
-            } else {
-               Ok(self.push_term(Term::Tuple(es), &span))
-            }
          },
 
          //inference rules
@@ -1957,7 +1902,7 @@ impl TLC {
    pub fn unify_varnames(&mut self, dept: &mut HashMap<String,TermId>, t: &mut TermId) {
       match self.rows[t.id].term.clone() {
          Term::Ident(tn) => {
-            if ["self","if","not","pos","neg","+","-","*","/","%","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
+            if ["self","if","not","pos","neg","+","-","*","/","%","^","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
                //pass
             } else if let Some(v) = dept.get(&tn) {
                let nn = format!("var#{}", v.id);

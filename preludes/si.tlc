@@ -210,5 +210,5 @@ type Prime:Integer
      //ORs go inside the invariant branches
 
      //Fermat, Leibniz, Euler elementary primality proof
-     where. self>1; //corollaries not necessary for primality proof
-     //and a:Integer. a^(self-1)%self | 1;
+     where. self>1 //corollaries not necessary for primality proof
+     and a:Integer. a^(self-1)%self | 1;
