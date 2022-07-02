@@ -632,24 +632,25 @@ impl TLC {
          Rule::value_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [value_term]"),span),
          Rule::atom_term => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_term]"),span),
          Rule::prefix_term => {
-            let mut prefix = None;
+            let mut prefixes = Vec::new();
             let mut term = None;
             for pe in p.into_inner() { match pe.as_rule() {
                Rule::prefix_op => { match pe.into_inner().concat() {
-                  s if s=="+" => { prefix=Some("pos".to_string()); },
-                  s if s=="-" => { prefix=Some("neg".to_string()); },
+                  s if s=="+" => { prefixes.push("pos".to_string()); },
+                  s if s=="-" => { prefixes.push("neg".to_string()); },
                   s => panic!("TLC Grammar Error in rule [prefix_term.0] '{}'", s),
                }},
                Rule::atom_term => { term = Some(self.unparse_ast(scope,fp,pe,span)?); },
                _ => panic!("TLC Grammar Error in rule [prefix_term.1]")
             }}
-            match (prefix,term) {
-               (Some(prefix),Some(term)) => {
-                  let it = self.push_term(Term::Ident(prefix),&span);
-                  Ok(self.push_term(Term::App(it,term),&span))
-               },
-               (None,Some(term)) => Ok(term),
-               _ => panic!("TLC Grammar Error in rule [prefix_term.2]")
+            if let Some(mut t) = term {
+               for op in prefixes.iter().rev() {
+                  let f = self.push_term(Term::Ident(op.to_string()),span);
+                  t = self.push_term(Term::App(f,t),span);
+               }
+               Ok(t)
+            } else {
+               panic!("TLC Grammar Error in rule [prefix_term.2]")
             }
          },
 
@@ -799,41 +800,42 @@ impl TLC {
                "&&" => 5, "||" => 5,
                op => panic!("unknown operator {:?}", op),
             }};
+
             let mut es = p.into_inner();
             let e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [expr_term.1]"),span)?;
-            let mut output_queue: Vec<TermId> = vec![e];
-            let mut operator_stack: Vec<String> = Vec::new();
+
+            let mut values: Vec<TermId> = vec![e];
+            let mut operators: Vec<String> = Vec::new();
 
             while let Some(op) = es.next() {
                let op = op.into_inner().concat();
-               while operator_stack.len()>0 && precedence(&operator_stack[operator_stack.len()-1])<precedence(&op) {
-                  let pop = operator_stack.pop().unwrap();
-                  let rt = output_queue.pop().unwrap();
-                  let lt = output_queue.pop().unwrap();
+               while operators.len()>0 && precedence(&operators[operators.len()-1])<=precedence(&op) {
+                  let pop = operators.pop().unwrap();
+                  let rt = values.pop().unwrap();
+                  let lt = values.pop().unwrap();
                   let t = Term::App(
                      self.push_term(Term::Ident(pop),span),
                      self.push_term(Term::Tuple(vec![lt,rt]),span),
                   );
-                  output_queue.push(self.push_term(t,span));
+                  values.push(self.push_term(t,span));
                }
-               operator_stack.push(op);
+               operators.push(op);
 
                let d = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [expr_term.2]"),span)?;
-               output_queue.push(d);
+               values.push(d);
             }
-
-            while operator_stack.len()>0 {
-               let pop = operator_stack.pop().unwrap();
-               let rt = output_queue.pop().unwrap();
-               let lt = output_queue.pop().unwrap();
+            while operators.len()>0 {
+               let pop = operators.pop().unwrap();
+               let rt = values.pop().unwrap();
+               let lt = values.pop().unwrap();
                let t = Term::App(
                   self.push_term(Term::Ident(pop),span),
                   self.push_term(Term::Tuple(vec![lt,rt]),span),
                );
-               output_queue.push(self.push_term(t,span));
+               values.push(self.push_term(t,span));
             }
 
-            Ok(output_queue.pop().unwrap())
+            Ok(values.pop().unwrap())
          },
          Rule::tuple_term => {
             let es = p.into_inner().map(|e|self.unparse_ast(scope,fp,e,span).expect("TLC Grammar Error in rule [tuple_term]"))
@@ -2034,6 +2036,43 @@ impl TLC {
       }
       et
    }
+   pub fn is_exhaustive(&mut self, t: TermId) -> Option<(TermId,TermId,TermId,TermId)> {
+      if let Term::App(or1,app1) = &self.rows[t.id].term {
+      if let Term::Ident(orop) = &self.rows[or1.id].term {
+      if orop=="||" {
+      if let Term::Tuple(app1s) = &self.rows[app1.id].term {
+      if app1s.len()==2 {
+         if let Term::App(or2,app2) = &self.rows[app1s[0].id].term {
+         if let Term::Ident(orop) = &self.rows[or2.id].term {
+         if orop=="||" {
+         if let Term::Tuple(app2s) = &self.rows[app2.id].term {
+         if app2s.len()==2 {
+            let prop = app1s[1];
+            if let Term::App(gt,gt1) = &self.rows[app2s[0].id].term {
+            if let Term::Ident(gtop) = &self.rows[gt.id].term {
+            if gtop==">" {
+            if let Term::Tuple(gt1s) = &self.rows[gt1.id].term {
+            if gt1s.len()==2 {
+               let lower_bounds = gt1s[0];
+               let lower_i = gt1s[1];
+               if let Term::App(gt,gt2) = &self.rows[app2s[1].id].term {
+               if let Term::Ident(gtop) = &self.rows[gt.id].term {
+               if gtop==">" {
+               if let Term::Tuple(gt2s) = &self.rows[gt2.id].term {
+               if gt2s.len()==2 {
+                  let upper_i = gt2s[0];
+                  let upper_bounds = gt2s[1];
+                  if let Term::Ident(i1) = &self.rows[lower_i.id].term {
+                  if let Term::Ident(i2) = &self.rows[upper_i.id].term {
+                  if i1==i2 {
+                     return Some((lower_bounds,lower_i,upper_bounds,prop));
+                  }}}
+               }}}}}
+            }}}}}
+         }}}}}
+      }}}}}
+      None
+   }
    pub fn check_invariants(&mut self, t: TermId) -> Result<(),Error> {
       let mut ground_types = Vec::new();
       let mut subs = HashMap::new();
@@ -2066,6 +2105,32 @@ impl TLC {
             let a = self.untyped_eval(&subs, &mut invariant.algs.clone());
             if p.is_some() && p==a {
                //pass
+            } else if let Some((mut low,i,mut high,prop)) = self.is_exhaustive(invariant.prop) {
+               if let Some(Constant::Integer(low)) = self.untyped_eval(&subs, &mut low) {
+               if let Some(Constant::Integer(high)) = self.untyped_eval(&subs, &mut high) {
+                  let i_type = self.push_dep_type(&self.rows[i.id].term.clone(), i);
+                  for ival in low..high+1 {
+                     let mut prop_mut = prop;
+
+                     let ic = Constant::Integer(ival);
+                     let it = self.push_constant(&ic, i);
+                     subs.insert(i_type.clone(), Type::Constant(false,it));
+
+                     if let Some(Constant::Boolean(true)) = self.untyped_eval(&subs, &mut prop_mut) {
+                        //pass
+                     } else {
+                        let st = subs.get(&self_type).unwrap_or(&Type::Any);
+                        return Err(Error {
+                           kind: "Type Error".to_string(),
+                           rule: format!("invariant not satisfied for self={}, {}={}: {}",
+                                 self.print_type(&HashMap::new(), st),
+                                 self.print_term(i), ival, self.print_term(prop)),
+                           span: self.rows[t.id].span.clone(),
+                           snippet: "".to_string()
+                        })
+                     }
+                  }
+               }}
             } else {
                return Err(Error {
                   kind: "Type Error".to_string(),

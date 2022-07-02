@@ -6,6 +6,10 @@ fn check_precedence() {
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
    tlc.check(Some(si), "3 / 1 ^ 2: [3]").unwrap();
+   tlc.check(Some(si), "3 / 1 + 2: [5]").unwrap();
+   tlc.check(Some(si), "3 / 1 * 2: [6]").unwrap();
+   tlc.check(Some(si), "3 / 1 * 2 + 2 - 1 % 2: [7]").unwrap();
+   tlc.check(Some(si), "3 / 1 * 2 + 2 - 1 * 2 % 3: [6]").unwrap();
 
    tlc.check(Some(si), "1^2: [1]").unwrap();
    tlc.check(Some(si), "1^2 / 3: [0]").unwrap();
