@@ -209,6 +209,11 @@ type Prime:Integer
      //all invariants are ANDed together
      //ORs go inside the invariant branches
 
+     where. self>1                                //quick bounds check
+     and a:Integer. 1<a && a<self && self%a!=0;   //exhaustive primality test
+     //and a:Integer. a==self && self%a==0
+     //and a:Integer. a>self && self%a!=0
+     //and a:Integer. 1>=a || self%a!=0;
+
+     //TODO Fermat's little theorem
      //Fermat, Leibniz, Euler elementary primality proof
-     where. self>1 //corollaries not necessary for primality proof
-     and a:Integer. a^(self-1)%self | 1;
