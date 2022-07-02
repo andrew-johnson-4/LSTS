@@ -2047,7 +2047,7 @@ impl TLC {
          if orop=="||" {
          if let Term::Tuple(app2s) = &self.rows[app2.id].term {
          if app2s.len()==2 {
-            let prop = app2s[1];
+            let prop = app1s[1];
             if let Term::App(gt,gt1) = &self.rows[app2s[0].id].term {
             if let Term::Ident(gtop) = &self.rows[gt.id].term {
             if gtop==">" {
@@ -2105,13 +2105,16 @@ impl TLC {
             let a = self.untyped_eval(&subs, &mut invariant.algs.clone());
             if p.is_some() && p==a {
                //pass
-            } else if let Some((low,i,high,prop)) = self.is_exhaustive(invariant.prop) {
-               todo!("iterate through exhaustive check {} <= {} <= {}. {}",
-                           self.print_term(low),
-                           self.print_term(i),
-                           self.print_term(high),
-                           self.print_term(prop), );
-
+            } else if let Some((mut low,i,mut high,prop)) = self.is_exhaustive(invariant.prop) {
+               if let Some(Constant::Integer(low)) = self.untyped_eval(&subs, &mut low) {
+               if let Some(Constant::Integer(high)) = self.untyped_eval(&subs, &mut high) {
+                  for ival in low..high+1 {
+                     todo!("iterate through exhaustive check {}={}. {}",
+                              self.print_term(i),
+                              ival,
+                              self.print_term(prop), );
+                  }
+               }}
             } else {
                return Err(Error {
                   kind: "Type Error".to_string(),
