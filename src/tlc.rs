@@ -2109,7 +2109,7 @@ impl TLC {
                if let Some(Constant::Integer(low)) = self.untyped_eval(&subs, &mut low) {
                if let Some(Constant::Integer(high)) = self.untyped_eval(&subs, &mut high) {
                   let i_type = self.push_dep_type(&self.rows[i.id].term.clone(), i);
-                  for ival in low..high+1 {
+                  for ival in low..=high {
                      let mut prop_mut = prop;
 
                      let ic = Constant::Integer(ival);
