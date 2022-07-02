@@ -2108,11 +2108,27 @@ impl TLC {
             } else if let Some((mut low,i,mut high,prop)) = self.is_exhaustive(invariant.prop) {
                if let Some(Constant::Integer(low)) = self.untyped_eval(&subs, &mut low) {
                if let Some(Constant::Integer(high)) = self.untyped_eval(&subs, &mut high) {
+                  let i_type = self.push_dep_type(&self.rows[i.id].term.clone(), i);
                   for ival in low..high+1 {
-                     todo!("iterate through exhaustive check {}={}. {}",
-                              self.print_term(i),
-                              ival,
-                              self.print_term(prop), );
+                     let mut prop_mut = prop;
+
+                     let ic = Constant::Integer(ival);
+                     let it = self.push_constant(&ic, i);
+                     subs.insert(i_type.clone(), Type::Constant(false,it));
+
+                     if let Some(Constant::Boolean(true)) = self.untyped_eval(&subs, &mut prop_mut) {
+                        //pass
+                     } else {
+                        let st = subs.get(&self_type).unwrap_or(&Type::Any);
+                        return Err(Error {
+                           kind: "Type Error".to_string(),
+                           rule: format!("invariant not satisfied for self={}, {}={}: {}",
+                                 self.print_type(&HashMap::new(), st),
+                                 self.print_term(i), ival, self.print_term(prop)),
+                           span: self.rows[t.id].span.clone(),
+                           snippet: "".to_string()
+                        })
+                     }
                   }
                }}
             } else {
