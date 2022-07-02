@@ -210,7 +210,7 @@ type Prime:Integer
      //ORs go inside the invariant branches
 
      where. self>1                                //quick bounds check
-     and a:Integer. 1<a && a<self && self%a!=0;   //exhaustive primality test
+     and a:Integer. 2>a || a>self-1 || self%a!=0; //exhaustive primality test
      //and a:Integer. a==self && self%a==0
      //and a:Integer. a>self && self%a!=0
      //and a:Integer. 1>=a || self%a!=0;
