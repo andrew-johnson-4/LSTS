@@ -2036,6 +2036,43 @@ impl TLC {
       }
       et
    }
+   pub fn is_exhaustive(&mut self, t: TermId) -> Option<(TermId,TermId,TermId,TermId)> {
+      if let Term::App(or1,app1) = &self.rows[t.id].term {
+      if let Term::Ident(orop) = &self.rows[or1.id].term {
+      if orop=="||" {
+      if let Term::Tuple(app1s) = &self.rows[app1.id].term {
+      if app1s.len()==2 {
+         if let Term::App(or2,app2) = &self.rows[app1s[0].id].term {
+         if let Term::Ident(orop) = &self.rows[or2.id].term {
+         if orop=="||" {
+         if let Term::Tuple(app2s) = &self.rows[app2.id].term {
+         if app2s.len()==2 {
+            let prop = app2s[1];
+            if let Term::App(gt,gt1) = &self.rows[app2s[0].id].term {
+            if let Term::Ident(gtop) = &self.rows[gt.id].term {
+            if gtop==">" {
+            if let Term::Tuple(gt1s) = &self.rows[gt1.id].term {
+            if gt1s.len()==2 {
+               let lower_bounds = gt1s[0];
+               let lower_i = gt1s[1];
+               if let Term::App(gt,gt2) = &self.rows[app2s[1].id].term {
+               if let Term::Ident(gtop) = &self.rows[gt.id].term {
+               if gtop==">" {
+               if let Term::Tuple(gt2s) = &self.rows[gt2.id].term {
+               if gt2s.len()==2 {
+                  let upper_i = gt2s[0];
+                  let upper_bounds = gt2s[1];
+                  if let Term::Ident(i1) = &self.rows[lower_i.id].term {
+                  if let Term::Ident(i2) = &self.rows[upper_i.id].term {
+                  if i1==i2 {
+                     return Some((lower_bounds,lower_i,upper_bounds,prop));
+                  }}}
+               }}}}}
+            }}}}}
+         }}}}}
+      }}}}}
+      None
+   }
    pub fn check_invariants(&mut self, t: TermId) -> Result<(),Error> {
       let mut ground_types = Vec::new();
       let mut subs = HashMap::new();
@@ -2068,6 +2105,13 @@ impl TLC {
             let a = self.untyped_eval(&subs, &mut invariant.algs.clone());
             if p.is_some() && p==a {
                //pass
+            } else if let Some((low,i,high,prop)) = self.is_exhaustive(invariant.prop) {
+               todo!("iterate through exhaustive check {} <= {} <= {}. {}",
+                           self.print_term(low),
+                           self.print_term(i),
+                           self.print_term(high),
+                           self.print_term(prop), );
+
             } else {
                return Err(Error {
                   kind: "Type Error".to_string(),
