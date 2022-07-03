@@ -1318,6 +1318,7 @@ impl TLC {
          Type::Arrow(p,b) => Type::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Type::Ratio(p,b) => Type::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Type::Ident(tn,ts) => {
+            let ts = ts.iter().map(|ct|self.extend_implied(ct)).collect::<Vec<Type>>();
             let mut implies: Vec<Type> = Vec::new();
             let mut subs = HashMap::new();
 
@@ -1328,7 +1329,7 @@ impl TLC {
                   subs.insert(Type::Ident(ot.clone(),Vec::new()), st.clone());
                }
                if let Some(it) = imp {
-                  match it.clone() {
+                  match self.extend_implied(it) {
                      Type::And(mut its) => { implies.append(&mut its); },
                      i => { implies.push(i); },
                   }
@@ -1340,12 +1341,12 @@ impl TLC {
                implies.push(bt.clone());
             }
 
-            if implies.len()==0 { return tt.clone(); }
             let mut ats = Vec::new();
-            ats.push(tt.clone());
+            ats.push(Type::Ident(tn.clone(),ts));
             for i in implies.iter() {
                ats.push(i.substitute(&subs));
             }
+
             Type::And(ats).normalize()
          },
          Type::And(ts) => {
