@@ -1234,6 +1234,11 @@ impl TLC {
             let ct = self.push_dep_type(&self.rows[t.id].term.clone(), t);  //check if type is constant
             Ok(ct)
          }
+         Rule::typeof_typ => {
+            let v = p.into_inner().concat();
+            let vt = self.typeof_var(&Some(scope), &v, &None, span)?;
+            Ok(vt)
+         },
          rule => panic!("unexpected typ rule: {:?}", rule)
       }
    }
