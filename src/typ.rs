@@ -331,12 +331,35 @@ impl Type {
          _ => Kind::Nil,
       }
    }
+   pub fn narrow(&self, kinds: &HashMap<Type,Kind>, k: &Kind) -> Type {
+      if !self.kind(kinds).has(k) { return Type::And(Vec::new()); } //nothing here to take
+      let tt = match self {
+         Type::And(ts) => {
+            let mut tcs = Vec::new();
+            for tc in ts.iter() {
+               match tc.narrow(kinds,k) {
+                  Type::And(acs) => {
+                     tcs.append(&mut acs.clone());
+                  }, ac => {
+                     tcs.push(ac.clone());
+                  }
+               }
+            }
+            if tcs.len()==1 { tcs[0].clone() }
+            else { Type::And(tcs) }
+         }
+         tt => tt.clone(),
+      };
+      eprintln!("narrow {} into {:?} yields {}", self.print(kinds), k, tt.print(kinds));
+      tt
+   }
    pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
       self.unify_impl_par(kinds,subs,rt,IsParameter::Top)
    }
    pub fn unify_impl_par(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type, par: IsParameter) -> Result<Type,()> {
       //lt => rt
       let lt = self;
+      //eprintln!("unify {} (x) {}", lt.print(kinds), rt.print(kinds));
       if (par==IsParameter::Top && !lt.kind(kinds).has(&rt.kind(kinds))) ||
          (par==IsParameter::Yes && !lt.kind(kinds).has(&rt.kind(kinds))) {
          return Err(());
@@ -348,15 +371,18 @@ impl Type {
          (l,Type::Any) => Ok(l.substitute(subs)),
          (Type::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
-               if lt==sl { return sr.unify_impl_par(kinds,subs,lt,par); }
+               if lt==sl { return rt.unify_impl_par(kinds,subs,sr,par); }
             }
+            let rt = rt.narrow(kinds, &lt.kind(kinds));
             subs.insert(lt.clone(),rt.clone());
             Ok(rt.clone())
          },
          (lt,Type::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
-               if rt==sl { return sr.unify_impl_par(kinds,subs,lt,par); }
+               eprintln!("try unify rhs parameter {} (x) {}", sr.print(kinds), lt.print(kinds));
+               if rt==sl { return lt.unify_impl_par(kinds,subs,sr,par); }
             }
+            let lt = lt.narrow(kinds, &rt.kind(kinds));
             subs.insert(rt.clone(),lt.clone());
             Ok(lt.clone())
          },
@@ -453,7 +479,9 @@ impl Type {
          (Type::Tuple(la),Type::Tuple(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
+               eprintln!("try unify tuple item {} (x) {}", lt.print(kinds), rt.print(kinds));
                ts.push(lt.unify_impl_par(kinds,subs,rt,par)?);
+               eprintln!("unified tuple item {} (x) {}", lt.print(kinds), rt.print(kinds));
             }
             Ok(Type::Tuple(ts))
          },

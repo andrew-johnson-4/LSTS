@@ -1447,7 +1447,9 @@ impl TLC {
                   let narrow_it = if let Some(tk) = tkts.get(tp) {
                      self.narrow(&tkts, tk, &it)
                   } else { it.clone() };
+                  eprintln!("try unify arrow {} (x) {}", self.print_type(&tkts,&narrow_it), self.print_type(&tkts,&tt));
                   if let Ok(rt) = self.unify_with_kinds(&tkts,&narrow_it,&tt,span,IsParameter::Top) {
+                     eprintln!("try unify arrow {} (x) {} yields {}", self.print_type(&tkts,&narrow_it), self.print_type(&tkts,&tt), self.print_type(&tkts,&rt));
                      matches.push(rt.clone());
                   }
                }} else {
