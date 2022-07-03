@@ -362,10 +362,13 @@ impl Type {
          (par==IsParameter::Yes && !lt.kind(kinds).has(&rt.kind(kinds))) {
          return Err(());
       }
+      match (lt,rt) { //Constants can only match other Constants
+         (Type::Constant(_,_),Type::Constant(_,_)) => {},
+         (Type::Constant(_,_),Type::Any) => {},
+         (Type::Constant(_,_),_) => { return Err(()); },
+         (_,_) => {},
+      }
       let vt = match (lt,rt) {
-         //wildcard failure
-         (Type::And(lts),_) if lts.len()==0 => { Err(()) },
-
          //wildcard match
          //only unify left wildcards when they are returned from a function
          (Type::Any,r) if par!=IsParameter::Top => Ok(r.substitute(subs)),
@@ -447,6 +450,14 @@ impl Type {
             let bt = bl.unify_impl_par(kinds,subs,br,par)?;
             Ok(Type::Ratio(Box::new(pt),Box::new(bt)))
          },
+         (lt,Type::Ratio(pr,br)) => {
+            //assert Nil divisor on rhs
+            match **br {
+               Type::Tuple(ref bs) if bs.len()==0 => {
+                  lt.unify_impl_par(kinds,subs,pr,par)
+               }, _ => { Err(()) }
+            }
+         },
 
          //everything else is a mixed bag
          (Type::Ident(lv,lps),Type::Ident(rv,rps))
@@ -499,9 +510,6 @@ impl Type {
          },
          _ => Err(()),
       };
-      if let Ok(ref vt) = vt {
-         eprintln!("unified {} (x) {} yields {}", lt.print(kinds), rt.print(kinds), vt.print(kinds));
-      }
       vt
    }
 
