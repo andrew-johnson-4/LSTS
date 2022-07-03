@@ -1507,6 +1507,7 @@ impl TLC {
                self.reduce_type(subs, &mut ct, span);
             }
             ts.sort(); ts.dedup();
+            /* TODO: complain if there are two conflicting constants for one value
             if ts.clone().iter().filter(|tt| tt.is_constant()).count() > 1 {
                let dept = ts.clone().into_iter().filter(|tt| tt.is_constant()).collect::<Vec<Type>>();
                let mut trad = ts.clone().into_iter().filter(|tt| !tt.is_constant()).collect::<Vec<Type>>();
@@ -1520,6 +1521,7 @@ impl TLC {
                ts.push(d1);
                ts.append(&mut trad);
             }
+            */
          },
          Type::Tuple(ts) => {
             for mut ct in ts.iter_mut() {

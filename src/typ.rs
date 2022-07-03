@@ -393,6 +393,23 @@ impl Type {
             else if mts.len()==1 { Ok(mts[0].clone()) }
             else { Ok(Type::And(mts)) }
          },
+         (lt,Type::And(rts)) => {
+            let mut mts = Vec::new();
+            for rt in rts.iter() {
+               if let Ok(nt) = lt.unify_impl_par(kinds,subs,rt,par) {
+                  match nt {
+                     Type::And(mut tts) => { mts.append(&mut tts); },
+                     tt => { mts.push(tt); },
+                  }
+               } else { //the rhs can't be narrowed here
+                  return Err(())
+               }
+            }
+            mts.sort(); mts.dedup();
+            if mts.len()==0 { Err(()) }
+            else if mts.len()==1 { Ok(mts[0].clone()) }
+            else { Ok(Type::And(mts)) }
+         }
 
          //ratio Typees have next precedence
          (Type::Ratio(pl,bl),Type::Ratio(pr,br)) => {
