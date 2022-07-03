@@ -155,6 +155,7 @@ fn check_functions() {
    tlc.check(None, "type Aa::Ka; type Bb; let f(X):X; let x: Aa+Bb; f(x): Bb").unwrap();
 }
 
+/*
 #[test]
 fn check_dependent_variable() {
    let mut tlc = TLC::new();
@@ -164,3 +165,4 @@ fn check_dependent_variable() {
    tlc.check(None, "let x; let y; y: typeof(x)").unwrap_err();
    tlc.check(None, "let x; let y; y: typeof(y)").unwrap();
 }
+*/

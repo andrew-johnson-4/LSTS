@@ -350,7 +350,6 @@ impl Type {
          }
          tt => tt.clone(),
       };
-      eprintln!("narrow {} into {:?} yields {}", self.print(kinds), k, tt.print(kinds));
       tt
    }
    pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
@@ -359,12 +358,14 @@ impl Type {
    pub fn unify_impl_par(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type, par: IsParameter) -> Result<Type,()> {
       //lt => rt
       let lt = self;
-      //eprintln!("unify {} (x) {}", lt.print(kinds), rt.print(kinds));
       if (par==IsParameter::Top && !lt.kind(kinds).has(&rt.kind(kinds))) ||
          (par==IsParameter::Yes && !lt.kind(kinds).has(&rt.kind(kinds))) {
          return Err(());
       }
-      match (lt,rt) {
+      let vt = match (lt,rt) {
+         //wildcard failure
+         (Type::And(lts),_) if lts.len()==0 => { Err(()) },
+
          //wildcard match
          //only unify left wildcards when they are returned from a function
          (Type::Any,r) if par!=IsParameter::Top => Ok(r.substitute(subs)),
@@ -379,7 +380,6 @@ impl Type {
          },
          (lt,Type::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
-               eprintln!("try unify rhs parameter {} (x) {}", sr.print(kinds), lt.print(kinds));
                if rt==sl { return lt.unify_impl_par(kinds,subs,sr,par); }
             }
             let lt = lt.narrow(kinds, &rt.kind(kinds));
@@ -394,6 +394,7 @@ impl Type {
             let mut mts = Vec::new();
             for rt in rts.iter() {
                match lt.unify_impl_par(kinds,subs,rt,par) {
+                  Ok(Type::Any) => {},
                   Ok(Type::And(mut tts)) => { mts.append(&mut tts); },
                   Ok(tt) => { mts.push(tt); },
                   Err(()) => {},
@@ -409,6 +410,7 @@ impl Type {
             for ltt in lts.iter() {
                if let Ok(nt) = ltt.unify_impl_par(kinds,subs,rt,par) {
                   match nt {
+                     Type::Any => {},
                      Type::And(mut tts) => { mts.append(&mut tts); },
                      tt => { mts.push(tt); },
                   }
@@ -479,9 +481,7 @@ impl Type {
          (Type::Tuple(la),Type::Tuple(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               eprintln!("try unify tuple item {} (x) {}", lt.print(kinds), rt.print(kinds));
                ts.push(lt.unify_impl_par(kinds,subs,rt,par)?);
-               eprintln!("unified tuple item {} (x) {}", lt.print(kinds), rt.print(kinds));
             }
             Ok(Type::Tuple(ts))
          },
@@ -503,7 +503,8 @@ impl Type {
             }
          },
          _ => Err(()),
-      }
+      };
+      vt
    }
 
 
