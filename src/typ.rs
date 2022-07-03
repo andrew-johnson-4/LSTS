@@ -369,6 +369,9 @@ impl Type {
          (_,_) => {},
       }
       let vt = match (lt,rt) {
+         //wildcard failure
+         (Type::And(lts),_) if lts.len()==0 => { Err(()) },
+
          //wildcard match
          //only unify left wildcards when they are returned from a function
          (Type::Any,r) if par!=IsParameter::Top => Ok(r.substitute(subs)),

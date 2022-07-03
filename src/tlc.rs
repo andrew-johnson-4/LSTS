@@ -668,7 +668,7 @@ impl TLC {
             let mut ps = p.into_inner();
             let ident  = self.into_ident(ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat());
             let mut pars: Vec<Vec<(Option<String>,Option<Type>,Kind)>> = Vec::new();
-            let mut rt = self.bottom_type.clone();
+            let mut rt = self.nil_type.clone();
             let mut rk = self.term_kind.clone();
             let mut t  = None;
             let mut dept = HashMap::new();
