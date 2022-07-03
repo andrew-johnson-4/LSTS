@@ -393,12 +393,14 @@ impl Type {
             //lt => rt
             let mut mts = Vec::new();
             for rt in rts.iter() {
+               let mtsl = mts.len();
                match lt.unify_impl_par(kinds,subs,rt,par) {
                   Ok(Type::Any) => {},
                   Ok(Type::And(mut tts)) => { mts.append(&mut tts); },
                   Ok(tt) => { mts.push(tt); },
                   Err(()) => {},
                }
+               if mts.len()==mtsl { return Err(()); }
             }
             mts.sort(); mts.dedup();
             if mts.len()==0 { Err(()) }
@@ -444,13 +446,6 @@ impl Type {
             let pt = pl.unify_impl_par(kinds,subs,pr,par)?;
             let bt = bl.unify_impl_par(kinds,subs,br,par)?;
             Ok(Type::Ratio(Box::new(pt),Box::new(bt)))
-         },
-         (lt,Type::Ratio(pr,br)) => {
-            match **br {
-               Type::Tuple(ref bs) if bs.len()==0 => {
-                  lt.unify_impl_par(kinds,subs,pr,par)
-               }, _ => Err(())
-            }
          },
 
          //everything else is a mixed bag
@@ -504,6 +499,9 @@ impl Type {
          },
          _ => Err(()),
       };
+      if let Ok(ref vt) = vt {
+         eprintln!("unified {} (x) {} yields {}", lt.print(kinds), rt.print(kinds), vt.print(kinds));
+      }
       vt
    }
 
