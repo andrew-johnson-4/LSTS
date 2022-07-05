@@ -12,9 +12,10 @@ pub mod tlc;
 pub mod typ;
 
 /// The Kind module provides abstractions over Kinds
-/// A Term may have multiple Kinds
-/// A Type has precisely one Kind
+/// A Term has at least the kind Term
+/// A Type has precisely one Kind unless that Type is an And
 /// A Kind can always be written as K1<K2,K3> for Kinds K1, K2, and K3
+/// There are three intrinsic Kinds: Nil, Term, and Constant
 pub mod kind;
 
 /// The Term module defines lambda calculus expressions
