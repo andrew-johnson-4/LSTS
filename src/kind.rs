@@ -1,5 +1,6 @@
 use crate::typ::Type;
 
+/// All Kinds are Simple Strings with optional Parameters.
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Kind {
    Nil,
