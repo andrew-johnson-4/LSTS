@@ -18,6 +18,19 @@ impl std::fmt::Debug for IsParameter {
    }
 }
 
+///Each Term has at least one Type.
+///
+///Types are composed of Atomic parts like Idents.
+///An Ident type has a name and possibly some parameters.
+///Atomic parts can be combined to form Compound parts like Arrows.
+///Compound parts are formed by some combination of Arrows, Tuples, Products, and Ratios.
+///At the Highest level a Compound type can be pluralized with an And to join it to other Compounds.
+///
+///And types are represented in Conjunctive-Normal-Form which requires the Ands to only occupy the
+///highest level of a type. Some basic typing algorithms may not work correctly if a type is not in
+///Conjunctive-Normal-Form.
+///
+///Subtyping is implemented with And types. An implication, A + A => B, may be rewritten as just A + B.
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Type {
    Any,
