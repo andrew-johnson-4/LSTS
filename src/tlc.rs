@@ -2216,8 +2216,7 @@ impl TLC {
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
             } else {
                if self.is_knormal(&into_kind) {
-                  let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ.clone())
-                                   .remove(&into_kind.as_type());
+                  let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ.clone());
                   let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ.clone());
                   let l_only = self.cast_into_kind(l_only, &into, &self.rows[t.id].span.clone())?;
 
