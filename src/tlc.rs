@@ -222,7 +222,7 @@ impl TLC {
    }
    pub fn print_scope(&self, s: ScopeId) -> String {
       let mut buf:String = format!("#{}{{\n", s.id);
-      for (cn,pks,ct) in self.scopes[s.id].children.iter() {
+      for (cn,pks,ct,_v) in self.scopes[s.id].children.iter() {
          buf += &format!("\t{}: {:?} with {}\n", cn, ct,
             pks.iter().map(|(p,k)|format!("{:?}::{:?}",p,k)).collect::<Vec<String>>().join(";"));
       }
@@ -366,6 +366,11 @@ impl TLC {
             let mut k = None;
             for ct in ts.iter() {
                k = self.kinds_of(kinds,ct);
+            }
+            if let Some(ref k) = k {
+               kinds.insert(tt.clone(), k.clone());
+            } else {
+               kinds.insert(tt.clone(), self.term_kind.clone());
             }
             k
          },
@@ -663,7 +668,7 @@ impl TLC {
             let mut ps = p.into_inner();
             let ident  = self.into_ident(ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat());
             let mut pars: Vec<Vec<(Option<String>,Option<Type>,Kind)>> = Vec::new();
-            let mut rt = self.bottom_type.clone();
+            let mut rt = self.nil_type.clone();
             let mut rk = self.term_kind.clone();
             let mut t  = None;
             let mut dept = HashMap::new();
@@ -701,7 +706,10 @@ impl TLC {
                for (i,t,k) in itks.iter() {
                   let t = t.clone().unwrap_or(self.bottom_type.clone()).normalize();
                   let mut ks = HashMap::new(); ks.insert(t.clone(),k.clone());
-                  children.push((i.clone().unwrap_or("_".to_string()), ks, t.clone()));
+                  let vn = i.clone().unwrap_or("_".to_string());
+                  let vt = self.push_term(Term::Ident(vn.clone()),span);
+                  self.untyped(vt);
+                  children.push((vn.clone(), ks, t.clone(), vt));
                }
             }
             let mut ft = rt.clone();
@@ -722,7 +730,9 @@ impl TLC {
             }
             self.reduce_type(&HashMap::new(), &mut ft, span); //destructively reduce constants in type
             ft = ft.normalize();
-            self.scopes[scope.id].children.push((ident.clone(), fkts, ft));
+            let vt = self.push_term(Term::Ident(ident.clone()), span);
+            self.untyped(vt);
+            self.scopes[scope.id].children.push((ident.clone(), fkts, ft, vt));
             let inner_scope = self.push_scope(Scope {
                parent: Some(scope),
                children: children,
@@ -909,10 +919,14 @@ impl TLC {
                                  let mut kts = tc.into_inner();
                                  let ki = kts.next().expect("TLC Grammar Error in rule [typedef.3]").into_inner().concat();
                                  let kt = self.unparse_ast_type(&mut dept,scope,fp,kts.next().expect("TLC Grammar Error in rule [typedef.4]"),span)?;
+                                 let vn = format!(".{}",ki.clone());
+                                 let vt = self.push_term(Term::Ident(vn.clone()),span);
+                                 self.untyped(vt);
                                  self.scopes[scope.id].children.push((
-                                    format!(".{}",ki.clone()),
+                                    vn,
                                     HashMap::new(),
                                     Type::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
+                                    vt
                                  ));
                                  tcrows.push((ki,kt));
                               },
@@ -1023,7 +1037,9 @@ impl TLC {
                   Type::Tuple(xs)
                };
                let ft = Type::Arrow(Box::new(pt),Box::new(rt));
-               self.scopes[scope.id].children.push((gn.clone(), fkts, ft));
+               let vt = self.push_term(Term::Ident(gn.clone()),span);
+               self.untyped(vt);
+               self.scopes[scope.id].children.push((gn.clone(), fkts, ft, vt));
             }}}
             self.rules.push(TypeRule::Typedef(
                t,
@@ -1088,7 +1104,10 @@ impl TLC {
             if let Some(t) = term {
                let mut children = Vec::new();
                for (i,t,_k) in quants.iter() {
-                  children.push((i.clone().unwrap_or("_".to_string()), HashMap::new(), t.clone().unwrap_or(self.bottom_type.clone())));
+                  let vn = i.clone().unwrap_or("_".to_string());
+                  let vt = self.push_term(Term::Ident(vn.clone()),span);
+                  self.untyped(vt);
+                  children.push((vn.clone(), HashMap::new(), t.clone().unwrap_or(self.bottom_type.clone()), vt));
                }
                let sid = self.push_scope(Scope {
                   parent: Some(scope),
@@ -1215,6 +1234,11 @@ impl TLC {
             let ct = self.push_dep_type(&self.rows[t.id].term.clone(), t);  //check if type is constant
             Ok(ct)
          }
+         Rule::typeof_typ => {
+            let v = p.into_inner().concat();
+            let vt = self.typeof_var(&Some(scope), &v, &None, span)?;
+            Ok(vt)
+         },
          rule => panic!("unexpected typ rule: {:?}", rule)
       }
    }
@@ -1318,6 +1342,7 @@ impl TLC {
          Type::Arrow(p,b) => Type::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Type::Ratio(p,b) => Type::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Type::Ident(tn,ts) => {
+            let ts = ts.iter().map(|ct|self.extend_implied(ct)).collect::<Vec<Type>>();
             let mut implies: Vec<Type> = Vec::new();
             let mut subs = HashMap::new();
 
@@ -1328,7 +1353,7 @@ impl TLC {
                   subs.insert(Type::Ident(ot.clone(),Vec::new()), st.clone());
                }
                if let Some(it) = imp {
-                  match it.clone() {
+                  match self.extend_implied(it) {
                      Type::And(mut its) => { implies.append(&mut its); },
                      i => { implies.push(i); },
                   }
@@ -1340,12 +1365,12 @@ impl TLC {
                implies.push(bt.clone());
             }
 
-            if implies.len()==0 { return tt.clone(); }
             let mut ats = Vec::new();
-            ats.push(tt.clone());
+            ats.push(Type::Ident(tn.clone(),ts));
             for i in implies.iter() {
                ats.push(i.substitute(&subs));
             }
+
             Type::And(ats).normalize()
          },
          Type::And(ts) => {
@@ -1416,7 +1441,7 @@ impl TLC {
          let mut candidates = Vec::new();
          let mut matches = Vec::new();
          let ref sc = self.scopes[scope.id].clone();
-         for (tn,tkts,tt) in sc.children.iter() {
+         for (tn,tkts,tt,vt) in sc.children.iter() {
             if tn==v {
                //match variable binding if
                //1) binding is not an arrow
@@ -1436,7 +1461,12 @@ impl TLC {
                      matches.push(rt.clone());
                   }
                }} else {
-                  matches.push(tt.clone());
+                  let kt = self.project_kinded(&self.constant_kind, tt);
+                  let tt = if kt==self.bottom_type {
+                     let vt = Type::Constant(false,*vt);
+                     tt.and(&vt)
+                  } else { tt.clone() };
+                  matches.push(tt);
                }
             }
          }
@@ -1447,7 +1477,7 @@ impl TLC {
             let implied = implied.clone().unwrap_or(Type::Any);
             let mut tkts = HashMap::new();
             self.kinds_of(&mut tkts, &implied);
-            for (tn,tks,_) in sc.children.iter() {
+            for (tn,tks,_,_) in sc.children.iter() {
             if tn == v {
                tkts.extend(tks.clone().into_iter());
             }}
@@ -1487,23 +1517,21 @@ impl TLC {
                self.reduce_type(subs, &mut ct, span);
             }
             ts.sort(); ts.dedup();
+            /* TODO: complain if there are two conflicting constants for one value
             if ts.clone().iter().filter(|tt| tt.is_constant()).count() > 1 {
                let dept = ts.clone().into_iter().filter(|tt| tt.is_constant()).collect::<Vec<Type>>();
                let mut trad = ts.clone().into_iter().filter(|tt| !tt.is_constant()).collect::<Vec<Type>>();
-               let mut d1 = dept[0].clone();
+               let d1 = dept[0].clone();
                for d2 in &dept[1..] {
-                  let t = Term::App(
-                     self.push_term(Term::Ident("&&".to_string()),span),
-                     self.push_term(Term::Tuple(vec![d1.term_id(),d2.term_id()]),span),
-                  );
-                  let t = self.push_term(t, span);
-                  self.untyped(t);
-                  d1 = Type::Constant(false, t);
+                  panic!("type has two conflicting dependent values: {}, {}",
+                         self.print_type(&HashMap::new(), &d1),
+                         self.print_type(&HashMap::new(), &d2));
                }
                ts.clear();
                ts.push(d1);
                ts.append(&mut trad);
             }
+            */
          },
          Type::Tuple(ts) => {
             for mut ct in ts.iter_mut() {
@@ -2170,9 +2198,9 @@ impl TLC {
                self.untyped(t);
             } else if let Some(ref b) = b {
                self.typeck(Some(s), *b, Some(rt.clone()))?;
-               self.rows[t.id].typ = self.bottom_type.clone();
+               self.rows[t.id].typ = self.nil_type.clone();
             } else {
-               self.rows[t.id].typ = self.bottom_type.clone();
+               self.rows[t.id].typ = self.nil_type.clone();
             }
             self.soundck(&rt, &self.rows[t.id].span.clone())?;
          },
@@ -2188,8 +2216,7 @@ impl TLC {
                self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
             } else {
                if self.is_knormal(&into_kind) {
-                  let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ.clone())
-                                   .remove(&into_kind.as_type());
+                  let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ.clone());
                   let l_alts = self.remove_kinded(&into_kind, &self.rows[x.id].typ.clone());
                   let l_only = self.cast_into_kind(l_only, &into, &self.rows[t.id].span.clone())?;
 

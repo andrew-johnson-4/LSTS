@@ -234,20 +234,3 @@ fn check_variable_substitution() {
    tlc.check(Some(si), "0%1: [NaN]").unwrap_err();
    tlc.check(Some(si), "0%0: [0]").unwrap_err();
 }
-
-#[test]
-fn check_implied_conjuctives() {
-   let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-
-   tlc.check(Some(si), "let x: [True] + [True]; x:[True]").unwrap();
-   tlc.check(Some(si), "let x: [True] + [False]; x:[True]").unwrap_err();
-   tlc.check(Some(si), "let x: [False] + [True]; x:[True]").unwrap_err();
-   tlc.check(Some(si), "let x: [False] + [False]; x:[True]").unwrap_err();
-
-   tlc.check(Some(si), "let x: [True] + [True]; x:[False]").unwrap_err();
-   tlc.check(Some(si), "let x: [True] + [False]; x:[False]").unwrap();
-   tlc.check(Some(si), "let x: [False] + [True]; x:[False]").unwrap();
-   tlc.check(Some(si), "let x: [False] + [False]; x:[False]").unwrap();
-
-}

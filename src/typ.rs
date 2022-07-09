@@ -18,6 +18,19 @@ impl std::fmt::Debug for IsParameter {
    }
 }
 
+///Each Term has at least one Type.
+///
+///Types are composed of Atomic parts like Idents.
+///An Ident type has a name and possibly some parameters.
+///Atomic parts can be combined to form Compound parts like Arrows.
+///Compound parts are formed by some combination of Arrows, Tuples, Products, and Ratios.
+///At the Highest level a Compound type can be pluralized with an And to join it to other Compounds.
+///
+///And types are represented in Conjunctive-Normal-Form which requires the Ands to only occupy the
+///highest level of a type. Some basic typing algorithms may not work correctly if a type is not in
+///Conjunctive-Normal-Form.
+///
+///Subtyping is implemented with And types. An implication, A + A => B, may be rewritten as just A + B.
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Type {
    Any,
@@ -331,6 +344,27 @@ impl Type {
          _ => Kind::Nil,
       }
    }
+   pub fn narrow(&self, kinds: &HashMap<Type,Kind>, k: &Kind) -> Type {
+      if !self.kind(kinds).has(k) { return Type::And(Vec::new()); } //nothing here to take
+      let tt = match self {
+         Type::And(ts) => {
+            let mut tcs = Vec::new();
+            for tc in ts.iter() {
+               match tc.narrow(kinds,k) {
+                  Type::And(acs) => {
+                     tcs.append(&mut acs.clone());
+                  }, ac => {
+                     tcs.push(ac.clone());
+                  }
+               }
+            }
+            if tcs.len()==1 { tcs[0].clone() }
+            else { Type::And(tcs) }
+         }
+         tt => tt.clone(),
+      };
+      tt
+   }
    pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
       self.unify_impl_par(kinds,subs,rt,IsParameter::Top)
    }
@@ -341,22 +375,33 @@ impl Type {
          (par==IsParameter::Yes && !lt.kind(kinds).has(&rt.kind(kinds))) {
          return Err(());
       }
-      match (lt,rt) {
+      match (lt,rt) { //Constants can only match other Constants
+         (Type::Constant(_,_),Type::Constant(_,_)) => {},
+         (Type::Constant(_,_),Type::Any) => {},
+         (Type::Constant(_,_),_) => { return Err(()); },
+         (_,_) => {},
+      }
+      let vt = match (lt,rt) {
+         //wildcard failure
+         (Type::And(lts),_) if lts.len()==0 => { Err(()) },
+
          //wildcard match
          //only unify left wildcards when they are returned from a function
          (Type::Any,r) if par!=IsParameter::Top => Ok(r.substitute(subs)),
          (l,Type::Any) => Ok(l.substitute(subs)),
          (Type::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
-               if lt==sl { return sr.unify_impl_par(kinds,subs,lt,par); }
+               if lt==sl { return rt.unify_impl_par(kinds,subs,sr,par); }
             }
+            let rt = rt.narrow(kinds, &lt.kind(kinds));
             subs.insert(lt.clone(),rt.clone());
             Ok(rt.clone())
          },
          (lt,Type::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
-               if rt==sl { return sr.unify_impl_par(kinds,subs,lt,par); }
+               if rt==sl { return lt.unify_impl_par(kinds,subs,sr,par); }
             }
+            let lt = lt.narrow(kinds, &rt.kind(kinds));
             subs.insert(rt.clone(),lt.clone());
             Ok(lt.clone())
          },
@@ -367,11 +412,14 @@ impl Type {
             //lt => rt
             let mut mts = Vec::new();
             for rt in rts.iter() {
+               let mtsl = mts.len();
                match lt.unify_impl_par(kinds,subs,rt,par) {
+                  Ok(Type::Any) => {},
                   Ok(Type::And(mut tts)) => { mts.append(&mut tts); },
                   Ok(tt) => { mts.push(tt); },
                   Err(()) => {},
                }
+               if mts.len()==mtsl { return Err(()); }
             }
             mts.sort(); mts.dedup();
             if mts.len()==0 { Err(()) }
@@ -383,6 +431,7 @@ impl Type {
             for ltt in lts.iter() {
                if let Ok(nt) = ltt.unify_impl_par(kinds,subs,rt,par) {
                   match nt {
+                     Type::Any => {},
                      Type::And(mut tts) => { mts.append(&mut tts); },
                      tt => { mts.push(tt); },
                   }
@@ -393,6 +442,23 @@ impl Type {
             else if mts.len()==1 { Ok(mts[0].clone()) }
             else { Ok(Type::And(mts)) }
          },
+         (lt,Type::And(rts)) => {
+            let mut mts = Vec::new();
+            for rt in rts.iter() {
+               if let Ok(nt) = lt.unify_impl_par(kinds,subs,rt,par) {
+                  match nt {
+                     Type::And(mut tts) => { mts.append(&mut tts); },
+                     tt => { mts.push(tt); },
+                  }
+               } else { //the rhs can't be narrowed here
+                  return Err(())
+               }
+            }
+            mts.sort(); mts.dedup();
+            if mts.len()==0 { Err(()) }
+            else if mts.len()==1 { Ok(mts[0].clone()) }
+            else { Ok(Type::And(mts)) }
+         }
 
          //ratio Typees have next precedence
          (Type::Ratio(pl,bl),Type::Ratio(pr,br)) => {
@@ -401,10 +467,11 @@ impl Type {
             Ok(Type::Ratio(Box::new(pt),Box::new(bt)))
          },
          (lt,Type::Ratio(pr,br)) => {
+            //assert Nil divisor on rhs
             match **br {
                Type::Tuple(ref bs) if bs.len()==0 => {
                   lt.unify_impl_par(kinds,subs,pr,par)
-               }, _ => Err(())
+               }, _ => { Err(()) }
             }
          },
 
@@ -458,7 +525,8 @@ impl Type {
             }
          },
          _ => Err(()),
-      }
+      };
+      vt
    }
 
 
