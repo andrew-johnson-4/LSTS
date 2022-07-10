@@ -76,12 +76,11 @@ pub struct Error {
    pub kind: String,
    pub rule: String,
    pub span: Span,
-   pub snippet: String,
 }
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\n{}, expected {}, in {} --> {},{}\n{}\n", self.kind, self.rule, self.span.filename,
-               self.span.linecol_start.0, self.span.linecol_start.1, self.snippet)
+        write!(f, "\n{}, expected {}, in {} --> {},{}\n", self.kind, self.rule, self.span.filename,
+               self.span.linecol_start.0, self.span.linecol_start.1)
     }
 }
 
@@ -434,7 +433,6 @@ impl TLC {
                      domains.iter().map(|(_t,k)|format!("{:?}",k)).collect::<Vec<String>>().join(",")
                   ),
                   span: sp.clone(),
-                  snippet: format!("{:?}", rule),
                })
             }
             */
@@ -496,8 +494,6 @@ impl TLC {
                 linecol_start: start,
                 linecol_end: end,
              },
-             snippet: if iend>istart { format!("\n{}", &src[istart..iend]) }
-                      else { format!(" {:?}", &src[istart..std::cmp::min(src.len(),istart+1)])}
           })
         }
       } 
@@ -1266,7 +1262,6 @@ impl TLC {
                kind: "Type Error".to_string(),
                rule: format!("inhabited type is not concrete: {:?}", r.typ),
                span: r.span.clone(),
-               snippet: "".to_string()
             })
          }
          let mut rvars = r.typ.vars();
@@ -1283,7 +1278,6 @@ impl TLC {
                kind: "Type Error".to_string(),
                rule: format!("inhabited type is not defined: {}", tvar),
                span: r.span.clone(),
-               snippet: "".to_string()
             })}
          }
       }
@@ -1307,7 +1301,6 @@ impl TLC {
                      kind: "Type Error".to_string(),
                      rule: format!("multiple type constructors of type {:?} are present in type {:?}", bt, tt),
                      span: span.clone(),
-                     snippet: "".to_string()
                   }) }
                   uq.insert(bt.clone());
                   nuq.insert(tn.clone());
@@ -1490,7 +1483,6 @@ impl TLC {
                                .collect::<Vec<String>>().join(" | "),
                   ),
             span: span.clone(),
-            snippet: "".to_string()
          }) } else {
             self.typeof_var(&sc.parent.clone(), v, implied, span)
          }
@@ -1498,7 +1490,6 @@ impl TLC {
          kind: "Type Error".to_string(),
          rule: format!("variable not found in scope: {}", v),
          span: span.clone(),
-         snippet: "".to_string()
       }) }
    }
    pub fn reduce_type(&mut self, subs: &HashMap<Type,Type>, tt: &mut Type, span: &Span) {
@@ -1768,7 +1759,6 @@ impl TLC {
             kind: "Type Error".to_string(),
             rule: format!("could not normalize numerator type atom in cast {:?}", n),
             span: span.clone(),
-            snippet: "".to_string()
          })
       }
 
@@ -1822,7 +1812,6 @@ impl TLC {
             kind: "Type Error".to_string(),
             rule: format!("could not normalize denominator type atom in cast {:?}", d),
             span: span.clone(),
-            snippet: "".to_string()
          })
       }
 
@@ -1895,7 +1884,6 @@ impl TLC {
                kind: "Type Error".to_string(),
                rule: format!("could not denormalize numerator type atom in cast {:?}", n),
                span: span.clone(),
-               snippet: "".to_string()
             })
          }
 
@@ -1941,7 +1929,6 @@ impl TLC {
                kind: "Type Error".to_string(),
                rule: format!("could not denormalize denominator type atom in cast {:?}", d),
                span: span.clone(),
-               snippet: "".to_string()
             })
          }
 
@@ -2154,7 +2141,6 @@ impl TLC {
                                  self.print_type(&HashMap::new(), st),
                                  self.print_term(i), ival, self.print_term(prop)),
                            span: self.rows[t.id].span.clone(),
-                           snippet: "".to_string()
                         })
                      }
                   }
@@ -2164,7 +2150,6 @@ impl TLC {
                   kind: "Type Error".to_string(),
                   rule: format!("invariant not satisfied {}: {} | {}", tn, self.print_term(invariant.prop), self.print_term(invariant.algs)),
                   span: self.rows[t.id].span.clone(),
-                  snippet: "".to_string()
                })
             }
          }
@@ -2245,7 +2230,6 @@ impl TLC {
                         kind: "Type Error".to_string(),
                         rule: format!("could not cast {:?} into {:?}", &self.rows[x.id].typ, &into),
                         span: self.rows[t.id].span.clone(),
-                        snippet: "".to_string()
                      })
                   }
                }
@@ -2279,7 +2263,6 @@ impl TLC {
                      kind: "Type Error".to_string(),
                      rule: format!("type {:?} rejected the literal {}", i, x),
                      span: self.rows[t.id].span.clone(),
-                     snippet: "".to_string()
                   })
                }
             } else {
@@ -2287,7 +2270,6 @@ impl TLC {
                   kind: "Type Error".to_string(),
                   rule: format!("type {:?} is not literal: {}", i, x),
                   span: self.rows[t.id].span.clone(),
-                  snippet: "".to_string()
                })
             }
             self.check_invariants(t)?;
@@ -2312,7 +2294,6 @@ impl TLC {
                kind: "Type Error".to_string(),
                rule: format!("type constructor, none found for: {}", self.print_term(t)),
                span: self.rows[t.id].span.clone(),
-               snippet: "".to_string()
             }) }
          },
          Term::Substitution(e,a,b) => {
@@ -2363,7 +2344,6 @@ impl TLC {
          kind: "Type Error".to_string(),
          rule: format!("failed unification {} (x) {}", self.print_type(kinds,&lt), self.print_type(kinds,&rt)),
          span: span.clone(),
-         snippet: "".to_string(),
       }) }
    }
 
