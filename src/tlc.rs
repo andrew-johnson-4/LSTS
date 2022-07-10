@@ -9,6 +9,8 @@ use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
 use crate::typ::{Type,IsParameter};
 use crate::kind::Kind;
+use crate::token::{Span,tokenize};
+use crate::debug::Error;
 
 #[derive(Parser)]
 #[grammar = "grammar_tlc.pest"]
@@ -61,27 +63,6 @@ pub struct Row {
    pub kind: Kind,
    pub span: Span,
    pub constant: Option<Constant>,
-}
-
-#[derive(Clone)]
-pub struct Span {
-   pub filename: Rc<String>,
-   pub offset_start: usize,
-   pub offset_end: usize,
-   pub linecol_start: (usize,usize),
-   pub linecol_end: (usize,usize),
-}
-
-pub struct Error {
-   pub kind: String,
-   pub rule: String,
-   pub span: Span,
-}
-impl std::fmt::Debug for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\n{}, expected {}, in {} --> {},{}\n", self.kind, self.rule, self.span.filename,
-               self.span.linecol_start.0, self.span.linecol_start.1)
-    }
 }
 
 #[derive(Clone)]
@@ -323,6 +304,7 @@ impl TLC {
       Ok(ScopeId {id:0})
    }
    pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
+      let _tokens = tokenize(docname.to_string(), src)?;
       let ast = self.parse_doc(globals, docname, src)?;
       self.compile_rules(docname)?;
       self.typeck(globals, ast, None)?;

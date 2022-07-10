@@ -27,3 +27,7 @@ pub mod scope;
 
 /// The LL module defines an LL(1) hand written parser.
 pub mod ll;
+
+pub mod debug;
+
+pub mod token;
