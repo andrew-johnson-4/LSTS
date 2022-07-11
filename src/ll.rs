@@ -40,8 +40,97 @@ pub fn ll1_forall_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>
    todo!("implement ll1_forall_stmt")
 }
 
-pub fn ll1_let_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement ll1_let_stmt")
+pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   pop_is("let-stmt", tokens, &vec![Symbol::Let]);
+   let ident = if let Some(t) = tokens.get(0) {
+      if let Symbol::Ident(id) = tokens.remove(0).symbol {
+         id.clone()
+      } else {
+         pop_is("let-stmt", tokens, &vec![Symbol::Ident("x".to_string())])?;
+         unreachable!("let-stmt")
+      }
+   } else {
+      pop_is("let-stmt", tokens, &vec![Symbol::Ident("x".to_string())])?;
+      unreachable!("let-stmt")
+   };
+   todo!("implement ll1_let_stmt, let {}", ident)
+
+/*
+            let mut ps = p.into_inner();
+            let ident  = self.into_ident(ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat());
+            let mut pars: Vec<Vec<(Option<String>,Option<Type>,Kind)>> = Vec::new();
+            let mut rt = self.nil_type.clone();
+            let mut rk = self.term_kind.clone();
+            let mut t  = None;
+            let mut dept = HashMap::new();
+            for e in ps { match e.as_rule() {
+               Rule::let_stmt_par => {
+                  let mut itks = Vec::new();
+                  for itkse in e.into_inner() {
+                     let mut ident = None;
+                     let mut typ   = None;
+                     let mut kind  = self.term_kind.clone();
+                     for itk in itkse.into_inner() { match itk.as_rule() {
+                        Rule::ident => { ident = Some(itk.into_inner().concat()); },
+                        Rule::typ   => { typ   = Some(self.unparse_ast_type(&mut dept,scope,fp,itk,span)?); },
+                        Rule::kind   => { kind = self.unparse_ast_kind(scope,fp,itk,span)?; },
+                        rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
+                     }}
+                     if let Some(tt) = &typ {
+                     if tt.is_constant() {
+                        kind = self.constant_kind.clone();
+                     }};
+                     itks.push((ident,typ,kind));
+                  }
+                  pars.push(itks);
+               },
+               Rule::typ => { rt = self.unparse_ast_type(&mut dept,scope,fp,e,span)?; },
+               Rule::kind => { rk = self.unparse_ast_kind(scope,fp,e,span)?; },
+               Rule::term => { t = Some(self.unparse_ast(scope,fp,e,span)?); },
+               rule => panic!("unexpected let_stmt rule: {:?}", rule),
+            }}
+            if rt.is_constant() {
+               rk = self.constant_kind.clone();
+            };
+            let mut children = Vec::new();
+            for itks in pars.iter() {
+               for (i,t,k) in itks.iter() {
+                  let t = t.clone().unwrap_or(self.bottom_type.clone()).normalize();
+                  let mut ks = HashMap::new(); ks.insert(t.clone(),k.clone());
+                  let vn = i.clone().unwrap_or("_".to_string());
+                  let vt = self.push_term(Term::Ident(vn.clone()),span);
+                  self.untyped(vt);
+                  children.push((vn.clone(), ks, t.clone(), vt));
+               }
+            }
+            let mut ft = rt.clone();
+            let mut fkts = HashMap::new();
+            for itks in pars.iter().rev() {
+               let mut ps = Vec::new();
+               for (_i,t,k) in itks.iter() {
+                  let t = t.clone().unwrap_or(self.bottom_type.clone()).normalize();
+                  fkts.insert(t.clone(),k.clone());
+                  ps.push(t.clone());
+               }
+               let pt = if ps.len()==1 {
+                  ps[0].clone()
+               } else {
+                  Type::Tuple(ps.clone())
+               };
+               ft = Type::Arrow(Box::new(pt),Box::new(ft));
+            }
+            self.reduce_type(&HashMap::new(), &mut ft, span); //destructively reduce constants in type
+            ft = ft.normalize();
+            let vt = self.push_term(Term::Ident(ident.clone()), span);
+            self.untyped(vt);
+            self.scopes[scope.id].children.push((ident.clone(), fkts, ft, vt));
+            let inner_scope = self.push_scope(Scope {
+               parent: Some(scope),
+               children: children,
+            }, span);
+            Ok(self.push_term(Term::Let(inner_scope,ident,pars,t,rt,rk), &span))
+   */
 }
 
 pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
