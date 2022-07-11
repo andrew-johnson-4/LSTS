@@ -39,6 +39,9 @@ pub struct Token {
 #[derive(Clone)]
 pub enum Symbol {
    Ident(String),
+   Typename(String),
+   Value(String),
+   Is,
    Equal,
    NotEqual,
    GreaterThan,
@@ -57,6 +60,8 @@ pub enum Symbol {
    Minus,
    Pow,
    Dot,
+   SemiColon,
+   BackSlash,
    LeftBracket,
    RightBracket,
    LeftParen,
@@ -77,9 +82,12 @@ impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
            Symbol::Ident(s)           => write!(f, r#"$"{}""#, s),
+           Symbol::Typename(s)        => write!(f, "{}", s),
+           Symbol::Value(s)           => write!(f, "'{}'", s),
            Symbol::Ascript            => write!(f, ":"),
            Symbol::KAscript           => write!(f, "::"),
-           Symbol::Equal              => write!(f, "="),
+           Symbol::Is                 => write!(f, "="),
+           Symbol::Equal              => write!(f, "=="),
            Symbol::NotEqual           => write!(f, "!="),
            Symbol::GreaterThan        => write!(f, ">"),
            Symbol::GreaterThanOrEqual => write!(f, ">="),
@@ -96,6 +104,8 @@ impl std::fmt::Debug for Symbol {
            Symbol::Minus              => write!(f, "-"),
            Symbol::Pow                => write!(f, "^"),
            Symbol::Dot                => write!(f, "."),
+           Symbol::SemiColon          => write!(f, ";"),
+           Symbol::BackSlash          => write!(f, "\\"),
 
            Symbol::LeftBracket        => write!(f, "["),
            Symbol::RightBracket       => write!(f, "]"),
@@ -122,6 +132,12 @@ pub fn is_ident_char(source: &str, index: usize) -> bool {
    c == '_' || c.is_ascii_alphanumeric()
 }
 
+pub fn is_value_char(source: &str, index: usize) -> bool {
+   let c = source.as_bytes()[index] as char;
+   c == 'e' || c == 'E' || c == '+' || c == '-' || c == 'i' ||
+   c.is_ascii_digit()
+}
+
 pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
    let filename = Rc::new(source_name);
    let mut tokens = Vec::new();
@@ -132,6 +148,7 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
       ("::",Symbol::KAscript),
       (":", Symbol::Ascript),
       ("==",Symbol::Equal),
+      ("=", Symbol::Is),
       ("!=",Symbol::NotEqual),
       (">=",Symbol::GreaterThanOrEqual),
       (">", Symbol::GreaterThan),
@@ -147,6 +164,8 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
       ("-", Symbol::Minus),
       ("^", Symbol::Pow),
       (".", Symbol::Dot),
+      (";", Symbol::SemiColon),
+      ("\\",Symbol::BackSlash),
       ("[", Symbol::LeftBracket),
       ("]", Symbol::RightBracket),
       ("(", Symbol::LeftParen),
@@ -167,6 +186,28 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
       match source.as_bytes()[si] as char {
          ' ' => { column += 1; si += 1; },
          '\n' => { column = 1; line += 1; si += 1; },
+         '0'..='9' => {
+            let mut ci = si + 1;
+            while ci<source.len() && is_value_char(source, ci) {
+               ci += 1;
+            }
+            let span = span_of(&filename, si, ci - si, line, column);
+            column += ci - si;
+            let value = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
+            tokens.push(Token { symbol: Symbol::Value(value.to_string()), span: span, });
+            si = ci;
+         },
+         'A'..='Z' => {
+            let mut ci = si + 1;
+            while ci<source.len() && is_ident_char(source, ci) {
+               ci += 1;
+            }
+            let span = span_of(&filename, si, ci - si, line, column);
+            column += ci - si;
+            let tname = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
+            tokens.push(Token { symbol: Symbol::Typename(tname.to_string()), span: span, });
+            si = ci;
+         },
          'a'..='z' => {
             let mut ci = si + 1;
             while ci<source.len() && is_ident_char(source, ci) {
@@ -192,7 +233,8 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
          _ => {
             let mut found_operator = false;
             for (tok,sym) in operators.iter() {
-               if &source.as_bytes()[si..si+tok.len()] == tok.as_bytes() {
+               let ri = std::cmp::min( si+tok.len(), source.len() );
+               if &source.as_bytes()[si..ri] == tok.as_bytes() {
                   let span = span_of(&filename, si, tok.len(), line, column);
                   tokens.push(Token { symbol: sym.clone(), span: span, });
                   column += tok.len();
@@ -203,7 +245,7 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
             }
             if !found_operator { return Err(Error{
                kind: "Tokenization Error".to_string(),
-               rule: format!("Unexpected Character '{}'", if si<source.len() 
+               rule: format!("Unexpected character '{}'", if si<source.len() 
                             { (source.as_bytes()[si] as char).to_string() }
                        else {"EOF".to_string()} ),
                span: Span {
