@@ -11,23 +11,25 @@ fn peek_is(tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> bool {
       is.contains(&t.symbol)
    } else { false }
 }
-fn pop_is(rule: &str, tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> Result<(),Error> {
+fn pop_is(rule: &str, tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> Result<Symbol,Error> {
    if let Some(t) = tokens.get(0) {
       if !is.contains(&t.symbol) {
-         return Err(Error {
+         Err(Error {
             kind: "Parse Error".to_string(),
             rule: format!("unexpected Symbol {:?} in rule {}", &t.symbol, rule),
             span: span_of(tokens),
          })
+      } else {
+         let t = tokens.remove(0);
+         Ok(t.symbol.clone())
       }
    } else { //this branch should hopefully be dead code
-      return Err(Error {
+      Err(Error {
          kind: "Parse Error".to_string(),
          rule: format!("unexpected End-Of-File in rule {}", rule),
          span: span_of(tokens),
       })
    }
-   Ok(())
 }
 
 pub fn ll1_typ_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Result<TermId,Error> {
@@ -41,8 +43,93 @@ pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Re
    todo!("implement if term")
 }
 
+pub fn ll1_logical_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   let mut term = ll1_compare_term(tlc, scope, tokens)?;
+   while peek_is(tokens, &vec![Symbol::And,Symbol::Or]) {
+      let op = pop_is("logical-term", tokens, &vec![Symbol::And,Symbol::Or]);
+      let op = format!("{:?}", op);
+      let term2 = ll1_compare_term(tlc, scope, tokens)?;
+      let t = Term::App(
+         tlc.push_term(Term::Ident(op),&span),
+         tlc.push_term(Term::Tuple(vec![term,term2]),&span),
+      );
+      term = tlc.push_term(t,&span);
+   }
+   Ok(term)
+}
+
+pub fn ll1_compare_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   let mut term = ll1_addsub_term(tlc, scope, tokens)?;
+   while peek_is(tokens, &vec![Symbol::Equal,Symbol::NotEqual,Symbol::GreaterThan,Symbol::GreaterThanOrEqual,Symbol::LessThan,Symbol::LessThanOrEqual]) {
+      let op = pop_is("compare-term", tokens, &vec![Symbol::Equal,Symbol::NotEqual,Symbol::GreaterThan,Symbol::GreaterThanOrEqual,Symbol::LessThan,Symbol::LessThanOrEqual]);
+      let op = format!("{:?}", op);
+      let term2 = ll1_addsub_term(tlc, scope, tokens)?;
+      let t = Term::App(
+         tlc.push_term(Term::Ident(op),&span),
+         tlc.push_term(Term::Tuple(vec![term,term2]),&span),
+      );
+      term = tlc.push_term(t,&span);
+   }
+   Ok(term)
+}
+
+pub fn ll1_addsub_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   let mut term = ll1_divmul_term(tlc, scope, tokens)?;
+   while peek_is(tokens, &vec![Symbol::Plus,Symbol::Minus]) {
+      let op = pop_is("addsub-term", tokens, &vec![Symbol::Plus,Symbol::Minus]);
+      let op = format!("{:?}", op);
+      let term2 = ll1_divmul_term(tlc, scope, tokens)?;
+      let t = Term::App(
+         tlc.push_term(Term::Ident(op),&span),
+         tlc.push_term(Term::Tuple(vec![term,term2]),&span),
+      );
+      term = tlc.push_term(t,&span);
+   }
+   Ok(term)
+}
+
+pub fn ll1_divmul_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   let mut term = ll1_power_term(tlc, scope, tokens)?;
+   while peek_is(tokens, &vec![Symbol::Div,Symbol::Mul,Symbol::Mod]) {
+      let op = pop_is("divmul-term", tokens, &vec![Symbol::Div,Symbol::Mul,Symbol::Mod]);
+      let op = format!("{:?}", op);
+      let term2 = ll1_power_term(tlc, scope, tokens)?;
+      let t = Term::App(
+         tlc.push_term(Term::Ident(op),&span),
+         tlc.push_term(Term::Tuple(vec![term,term2]),&span),
+      );
+      term = tlc.push_term(t,&span);
+   }
+   Ok(term)
+}
+
+pub fn ll1_power_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   let mut term = ll1_prefix_term(tlc, scope, tokens)?;
+   while peek_is(tokens, &vec![Symbol::Pow]) {
+      let op = pop_is("power-term", tokens, &vec![Symbol::Pow]);
+      let op = format!("{:?}", op);
+      let term2 = ll1_prefix_term(tlc, scope, tokens)?;
+      let t = Term::App(
+         tlc.push_term(Term::Ident(op),&span),
+         tlc.push_term(Term::Tuple(vec![term,term2]),&span),
+      );
+      term = tlc.push_term(t,&span);
+   }
+   Ok(term)
+}
+
+pub fn ll1_prefix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   todo!("implement prefix term")
+}
+
 pub fn ll1_expr_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement expr term")
+   //expr_term = { prefix_term ~ ((power_op | divmul_op | addsub_op | compare_op | logical_op) ~ prefix_term)* }
+   ll1_logical_term(tlc, scope, tokens)
 }
 
 pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
