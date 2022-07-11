@@ -42,6 +42,7 @@ pub enum Symbol {
    Typename(String),
    Value(String),
    Regex(String),
+   Question,
    Is,
    Equal,
    NotEqual,
@@ -97,6 +98,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::LessThan           => write!(f, "<"),
            Symbol::LessThanOrEqual    => write!(f, "<="),
 
+           Symbol::Question           => write!(f, "?"),
            Symbol::And                => write!(f, "&&"),
            Symbol::Or                 => write!(f, "||"),
            Symbol::Bar                => write!(f, "|"),
@@ -149,6 +151,7 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
    let mut line = 1;
    let mut column = 1;
    let operators: Vec<(&str,Symbol)> = vec![
+      ("?", Symbol::Question),
       ("::",Symbol::KAscript),
       (":", Symbol::Ascript),
       ("==",Symbol::Equal),
@@ -237,8 +240,21 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
          },
          _ => {
             let ri = std::cmp::min( si+2, source.len() );
+            if &source.as_bytes()[si..ri] == r#"$""#.as_bytes() {
+               let mut ci = si + 2;
+               while ci<source.len() && (source.as_bytes()[ci] as char) != '"' {
+                  ci += 1;
+               }
+               if ci<source.len() { ci += 1; }
+               let span = span_of(&filename, si, ci - si, line, column);
+               column += ci - si;
+               let ident = std::str::from_utf8(&source.as_bytes()[si+2..ci-1]).unwrap();
+               tokens.push(Token { symbol: Symbol::Ident(ident.to_string()), span: span, });
+               si = ci;
+               continue;
+            }
             if &source.as_bytes()[si..ri] == "/^".as_bytes() {
-               let mut ci = si + 1;
+               let mut ci = si + 2;
                while ci<source.len() && (source.as_bytes()[ci] as char) != '/' {
                   ci += 1;
                }
@@ -294,7 +310,6 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
             }); }
          },
       };
-      eprintln!("push symbol {:?}", tokens[tokens.len()-1].symbol);
    }
    Ok(tokens)
 }
