@@ -5,6 +5,7 @@ use crate::token::{Token,Symbol,span_of};
 use crate::scope::{ScopeId,Scope};
 use crate::tlc::{TLC};
 use crate::typ::{Type};
+use crate::kind::{Kind};
 
 fn peek_is(tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> bool {
    if let Some(t) = tokens.get(0) {
@@ -42,7 +43,7 @@ pub fn ll1_forall_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>
 
 pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   pop_is("let-stmt", tokens, &vec![Symbol::Let]);
+   pop_is("let-stmt", tokens, &vec![Symbol::Let])?;
    let ident = if let Some(t) = tokens.get(0) {
       if let Symbol::Ident(id) = tokens.remove(0).symbol {
          id.clone()
@@ -54,37 +55,50 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> R
       pop_is("let-stmt", tokens, &vec![Symbol::Ident("x".to_string())])?;
       unreachable!("let-stmt")
    };
+   let mut pars: Vec<Vec<(Option<String>,Option<Type>,Kind)>> = Vec::new();
+   let mut rt = tlc.nil_type.clone();
+   let mut rk = tlc.term_kind.clone();
+   let mut t: Option<TermId> = None;
+   let mut dept = HashMap::new();
+
+   while peek_is(tokens, &vec![Symbol::LeftParen]) {
+      pop_is("let-stmt", tokens, &vec![Symbol::LeftParen])?;
+      let mut itks = Vec::new();
+      while !peek_is(tokens, &vec![Symbol::RightParen]) {
+         while peek_is(tokens, &vec![Symbol::Comma]) {
+            pop_is("let-stmt", tokens, &vec![Symbol::Comma])?;
+         }
+         let mut ident = None;
+         let mut typ = None;
+         let mut kind = tlc.term_kind.clone();
+         if tokens.len()>0 {
+         if let Symbol::Ident(id) = &tokens[0].symbol.clone() {
+            tokens.remove(0);
+            ident = Some(id.clone());
+         }}
+         if peek_is(tokens, &vec![Symbol::Ascript]) {
+            pop_is("let-stmt", tokens, &vec![Symbol::Ascript])?;
+         }
+         if !peek_is(tokens, &vec![Symbol::RightParen,Symbol::Comma,Symbol::KAscript]) {
+            typ = Some(ll1_type(tlc, &mut dept, scope, tokens)?);
+         }
+         if peek_is(tokens, &vec![Symbol::KAscript]) {
+            pop_is("let-stmt", tokens, &vec![Symbol::KAscript])?;
+            kind = ll1_kind(tlc, scope, tokens)?;
+         }
+         if let Some(tt) = &typ {
+         if tt.is_constant() {
+            kind = tlc.constant_kind.clone();
+         }};
+         itks.push((ident,typ,kind));
+      }
+      pop_is("let-stmt", tokens, &vec![Symbol::RightParen])?;
+      pars.push(itks);
+   }
+
    todo!("implement ll1_let_stmt, let {}", ident)
 
 /*
-            let mut ps = p.into_inner();
-            let ident  = self.into_ident(ps.next().expect("TLC Grammar Error in rule [let_stmt.1]").into_inner().concat());
-            let mut pars: Vec<Vec<(Option<String>,Option<Type>,Kind)>> = Vec::new();
-            let mut rt = self.nil_type.clone();
-            let mut rk = self.term_kind.clone();
-            let mut t  = None;
-            let mut dept = HashMap::new();
-            for e in ps { match e.as_rule() {
-               Rule::let_stmt_par => {
-                  let mut itks = Vec::new();
-                  for itkse in e.into_inner() {
-                     let mut ident = None;
-                     let mut typ   = None;
-                     let mut kind  = self.term_kind.clone();
-                     for itk in itkse.into_inner() { match itk.as_rule() {
-                        Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                        Rule::typ   => { typ   = Some(self.unparse_ast_type(&mut dept,scope,fp,itk,span)?); },
-                        Rule::kind   => { kind = self.unparse_ast_kind(scope,fp,itk,span)?; },
-                        rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
-                     }}
-                     if let Some(tt) = &typ {
-                     if tt.is_constant() {
-                        kind = self.constant_kind.clone();
-                     }};
-                     itks.push((ident,typ,kind));
-                  }
-                  pars.push(itks);
-               },
                Rule::typ => { rt = self.unparse_ast_type(&mut dept,scope,fp,e,span)?; },
                Rule::kind => { rk = self.unparse_ast_kind(scope,fp,e,span)?; },
                Rule::term => { t = Some(self.unparse_ast(scope,fp,e,span)?); },
@@ -319,6 +333,10 @@ pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) 
 
 pub fn ll1_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
    todo!("implement type")
+}
+
+pub fn ll1_kind(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Kind,Error> {
+   todo!("implement kind")
 }
 
 pub fn ll1_ascript_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
