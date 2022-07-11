@@ -35,8 +35,13 @@ fn pop_is(rule: &str, tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> Result<Symbo
 pub fn ll1_typ_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    todo!("implement ll1_typ_stmt")
 }
+
 pub fn ll1_forall_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    todo!("implement ll1_forall_stmt")
+}
+
+pub fn ll1_let_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   todo!("implement ll1_let_stmt")
 }
 
 pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
@@ -272,6 +277,8 @@ pub fn ll1_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Resul
       ll1_typ_stmt(tlc, scope, tokens)
    } else if peek_is(tokens, &vec![Symbol::Forall]) {
       ll1_forall_stmt(tlc, scope, tokens)
+   } else if peek_is(tokens, &vec![Symbol::Let]) {
+      ll1_let_stmt(tlc, scope, tokens)
    } else {
       ll1_term(tlc, scope, tokens)
    }
