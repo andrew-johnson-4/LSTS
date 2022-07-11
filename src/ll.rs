@@ -18,7 +18,7 @@ fn pop_is(rule: &str, tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> Result<(),Er
             span: span_of(tokens),
          })
       }
-   } else {
+   } else { //this branch should hopefully be dead code
       return Err(Error {
          kind: "Parse Error".to_string(),
          rule: format!("unexpected End-Of-File in rule {}", rule),
@@ -34,9 +34,10 @@ pub fn ll1_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Re
 
 pub fn ll1_file(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    let mut es = Vec::new();
-   while tokens.len()>0 {
+   while !peek_is(tokens, &vec![Symbol::EOF]) {
       es.push( ll1_stmt(tlc, scope, tokens)? );
    }
+   pop_is("file", tokens, &vec![Symbol::EOF])?;
    Ok(tlc.push_term(Term::Block(scope,es), &span_of(tokens)))
 }
 

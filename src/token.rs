@@ -38,6 +38,7 @@ pub struct Token {
 
 #[derive(Clone,Eq,PartialEq)]
 pub enum Symbol {
+   EOF,
    Ident(String),
    Typename(String),
    Value(String),
@@ -84,6 +85,7 @@ pub enum Symbol {
 impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+           Symbol::EOF                => write!(f, "EOF"),
            Symbol::Ident(s)           => write!(f, r#"$"{}""#, s),
            Symbol::Typename(s)        => write!(f, "{}", s),
            Symbol::Regex(s)           => write!(f, "{}", s),
@@ -311,5 +313,7 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
          },
       };
    }
+   let span = span_of(&filename, si, 0, line, column);
+   tokens.push(Token { symbol: Symbol::EOF, span: span, });
    Ok(tokens)
 }
