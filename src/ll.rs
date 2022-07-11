@@ -1,8 +1,10 @@
+use std::collections::{HashMap};
 use crate::term::{Term,TermId};
 use crate::debug::{Error};
 use crate::token::{Token,Symbol,span_of};
 use crate::scope::{ScopeId,Scope};
 use crate::tlc::{TLC};
+use crate::typ::{Type};
 
 fn peek_is(tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> bool {
    if let Some(t) = tokens.get(0) {
@@ -39,8 +41,42 @@ pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Re
    todo!("implement if term")
 }
 
+pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   todo!("implement algebra term")
+}
+
+pub fn ll1_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   todo!("implement type")
+}
+
+pub fn ll1_ascript_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   let mut term = ll1_algebra_term(tlc, scope, tokens)?;
+   if peek_is(tokens, &vec![Symbol::Ascript]) {
+      pop_is("ascript-term", tokens, &vec![Symbol::Ascript])?;
+      let at = ll1_type(tlc, &mut HashMap::new(), scope, tokens)?;
+      let t = Term::Ascript(
+         term,
+         at
+      );
+      term = tlc.push_term(t, &span);
+   }
+   Ok(term)
+}
+
 pub fn ll1_as_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement as term")
+   let span = span_of(tokens);
+   let mut term = ll1_ascript_term(tlc, scope, tokens)?;
+   if peek_is(tokens, &vec![Symbol::As]) {
+      pop_is("as-term", tokens, &vec![Symbol::As])?;
+      let at = ll1_type(tlc, &mut HashMap::new(), scope, tokens)?;
+      let t = Term::As(
+         term,
+         at
+      );
+      term = tlc.push_term(t, &span);
+   }
+   Ok(term)
 }
 
 pub fn ll1_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {

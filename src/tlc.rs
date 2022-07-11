@@ -699,28 +699,6 @@ impl TLC {
             }, span);
             Ok(self.push_term(Term::Let(inner_scope,ident,pars,t,rt,rk), &span))
          },
-         Rule::ascript_term => {
-            let mut es = p.into_inner();
-            let e = es.next().expect("TLC Grammar Error in rule [ascript_term]");
-            match es.next() {
-               None => self.unparse_ast(scope,fp,e,span),
-               Some(tt) => Ok({let t = Term::Ascript(
-                  self.unparse_ast(scope,fp,e,span)?, //term
-                  self.unparse_ast_type(&mut HashMap::new(),scope,fp,tt,span)? //type
-               ); self.push_term(t, &span)}),
-            }
-         },
-         Rule::as_term => {
-            let mut es = p.into_inner();
-            let e = es.next().expect("TLC Grammar Error in rule [as_term]");
-            match es.next() {
-               None => self.unparse_ast(scope,fp,e,span),
-               Some(tt) => Ok({let t = Term::As(
-                  self.unparse_ast(scope,fp,e,span)?, //term
-                  self.unparse_ast_type(&mut HashMap::new(),scope,fp,tt,span)? //type
-               ); self.push_term(t, &span)}),
-            }
-         },
          Rule::if_term => {
             let mut es = p.into_inner();
             let ct = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [if_term.1]"),span)?;
