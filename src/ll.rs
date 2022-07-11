@@ -34,8 +34,21 @@ pub fn ll1_typ_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -
 pub fn ll1_forall_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    todo!("implement ll1_forall_stmt")
 }
-pub fn ll1_term(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement ll1_term")
+
+pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   todo!("implement if term")
+}
+
+pub fn ll1_as_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   todo!("implement as term")
+}
+
+pub fn ll1_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   if peek_is(tokens, &vec![Symbol::If]) {
+      ll1_if_term(tlc, scope, tokens)
+   } else {
+      ll1_as_term(tlc, scope, tokens)
+   }
 }
 
 pub fn ll1_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
