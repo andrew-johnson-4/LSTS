@@ -335,8 +335,63 @@ pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) 
    Ok(term)
 }
 
+pub fn ll1_paren_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   pop_is("paren-type", tokens, &vec![Symbol::LeftParen])?;
+   let mut ts = Vec::new();
+   while !peek_is(tokens, &vec![Symbol::RightParen]) {
+      if peek_is(tokens, &vec![Symbol::Comma]) {
+         pop_is("paren-type", tokens, &vec![Symbol::Comma])?;
+      }
+      ts.push( ll1_type(tlc, dept, scope, tokens)? );
+   }
+   pop_is("paren-type", tokens, &vec![Symbol::RightParen])?;
+   if ts.len()==1 {
+      Ok(ts[0].clone())
+   } else {
+      Ok(Type::Tuple(ts))
+   }
+}
+
+pub fn ll1_typeof_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   let span = span_of(tokens);
+   pop_is("atom-type", tokens, &vec![Symbol::Typeof])?;
+   pop_is("atom-type", tokens, &vec![Symbol::LeftParen])?;
+   let vt = if tokens.len()>0 {
+      if let Symbol::Ident(v) = tokens[0].symbol.clone() {
+         tlc.typeof_var(&Some(scope), &v, &None, &span)?
+      } else {
+         pop_is("atom-type", tokens, &vec![Symbol::Ident("v".to_string())])?;
+         unreachable!("atom-type")
+      }
+   } else {
+      pop_is("atom-type", tokens, &vec![Symbol::Ident("v".to_string())])?;
+      unreachable!("atom-type")
+   };
+   pop_is("atom-type", tokens, &vec![Symbol::RightParen])?;
+   Ok(vt)
+}
+
+pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   todo!("ident type")
+}
+
+pub fn ll1_dep_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   todo!("dep type")
+}
+
 pub fn ll1_atom_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
-   todo!("atom type")
+   if peek_is(tokens, &vec![Symbol::Question]) {
+      pop_is("atom-type", tokens, &vec![Symbol::Question])?;
+      Ok(Type::Any)
+   } else if peek_is(tokens, &vec![Symbol::LeftParen]) {
+      ll1_paren_type(tlc, dept, scope, tokens)
+   } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
+      ll1_dep_type(tlc, dept, scope, tokens)
+   } else if peek_is(tokens, &vec![Symbol::Typeof]) {
+      ll1_typeof_type(tlc, dept, scope, tokens)
+   } else {
+      ll1_ident_type(tlc, dept, scope, tokens)
+   }
 }
 
 pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
@@ -369,27 +424,11 @@ pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: 
    Ok(base)
 
 /*
-         Rule::typname => {
-            let name = p.into_inner().concat();
-            Ok(Type::Ident(name,Vec::new()))
-         },
-         Rule::typ => self.unparse_ast_type(dept,scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [typ]"),span),
          Rule::ident_typ => {
             let mut ps = p.into_inner();
             let tn = ps.next().expect("TLC Grammar Error in rule [ident_typ.1]").into_inner().concat();
             let tps = ps.map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Type>>();
             Ok(Type::Ident(tn,tps))
-         },
-         Rule::atom_typ => self.unparse_ast_type(dept,scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]"),span),
-         Rule::any_typ => Ok(Type::Any),
-         Rule::paren_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [paren_typ]"))
-                      .collect::<Vec<Type>>();
-            if ts.len()==1 {
-               Ok(ts[0].clone())
-            } else {
-               Ok(Type::Tuple(ts))
-            }
          },
          Rule::dep_typ => {
             let mut t = self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span)?;
@@ -398,21 +437,8 @@ pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: 
             let ct = self.push_dep_type(&self.rows[t.id].term.clone(), t);  //check if type is constant
             Ok(ct)
          }
-         Rule::typeof_typ => {
-            let v = p.into_inner().concat();
-            let vt = self.typeof_var(&Some(scope), &v, &None, span)?;
-            Ok(vt)
-         },
-         rule => panic!("unexpected typ rule: {:?}", rule)
-*/
-/*
 ident_typ = { typname ~ ("<" ~ typ ~ ("," ~ typ)* ~ ">")? }
-typeof_typ = { "typeof" ~ "(" ~ ident ~ ")" }
-any_typ   = { "?" }
-paren_typ = { "(" ~ (typ ~ ("," ~ typ)*)? ~ ")" }
 dep_typ   = { "[" ~ term ~ "]" }
-atom_typ  = { any_typ | paren_typ | ident_typ | dep_typ | typeof_typ }
-suffix_typ = { atom_typ ~ brack_typ* }
 */
 }
 
