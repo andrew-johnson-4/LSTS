@@ -794,22 +794,6 @@ impl TLC {
                Ok(self.push_term(Term::Tuple(es), &span))
             }
          },
-         Rule::algebra_term => {
-            let mut es = p.into_inner();
-            let mut e = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [algebra_term.1]"),span)?;
-            while let Some(a) = es.next() {
-               let mut a = self.unparse_ast(scope,fp,a,span)?;
-               self.untyped(a); self.unify_varnames(&mut HashMap::new(),&mut a);
-               let mut b = self.unparse_ast(scope,fp,es.next().expect("TLC Grammar Error in rule [algebra_term.2]"),span)?;
-               self.untyped(b); self.unify_varnames(&mut HashMap::new(),&mut b);
-               e = {let t = Term::Substitution(
-                  e,
-                  a,
-                  b,
-               ); self.push_term(t,&span)};
-            }
-            Ok(e)
-         },
 
          //inference rules
          Rule::typ_stmt => {

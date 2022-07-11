@@ -41,8 +41,29 @@ pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Re
    todo!("implement if term")
 }
 
+pub fn ll1_expr_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   todo!("implement expr term")
+}
+
 pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement algebra term")
+   let span = span_of(tokens);
+   let mut term = ll1_expr_term(tlc, scope, tokens)?;
+   while peek_is(tokens, &vec![Symbol::BackSlash]) {
+      pop_is("algebra-term", tokens, &vec![Symbol::BackSlash])?;
+      pop_is("algebra-term", tokens, &vec![Symbol::LeftBracket])?;
+      let mut a = ll1_expr_term(tlc, scope, tokens)?;
+      pop_is("algebra-term", tokens, &vec![Symbol::Bar])?;
+      let mut b = ll1_expr_term(tlc, scope, tokens)?;
+      pop_is("algebra-term", tokens, &vec![Symbol::RightBracket])?;
+      tlc.untyped(a); tlc.unify_varnames(&mut HashMap::new(),&mut a);
+      tlc.untyped(b); tlc.unify_varnames(&mut HashMap::new(),&mut b);
+      term = {let t = Term::Substitution(
+         term,
+         a,
+         b
+      ); tlc.push_term(t,&span)};
+   }
+   Ok(term)
 }
 
 pub fn ll1_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
