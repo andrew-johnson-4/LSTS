@@ -335,8 +335,68 @@ pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) 
    Ok(term)
 }
 
+pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   todo!("suffix type")
+/*
+ident_typ = { typname ~ ("<" ~ typ ~ ("," ~ typ)* ~ ">")? }
+typeof_typ = { "typeof" ~ "(" ~ ident ~ ")" }
+any_typ   = { "?" }
+paren_typ = { "(" ~ (typ ~ ("," ~ typ)*)? ~ ")" }
+brack_typ = { "[" ~ term? ~ "]" }
+dep_typ   = { "[" ~ term ~ "]" }
+atom_typ  = { any_typ | paren_typ | ident_typ | dep_typ | typeof_typ }
+suffix_typ = { atom_typ ~ brack_typ* }
+*/
+}
+
+pub fn ll1_product_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   let mut types = vec![ ll1_suffix_type(tlc, dept, scope, tokens)? ];
+   while peek_is(tokens, &vec![Symbol::Mul]) {
+      pop_is("product-type", tokens, &vec![Symbol::Mul])?;
+      types.push( ll1_suffix_type(tlc, dept, scope, tokens)? );
+   }
+   if types.len()==1 {
+      Ok(types[0].clone())
+   } else {
+      Ok(Type::Product(types))
+   }
+}
+
+pub fn ll1_ratio_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   let mut typ = ll1_product_type(tlc, dept, scope, tokens)?;
+   if peek_is(tokens, &vec![Symbol::Div]) {
+      pop_is("ratio-type", tokens, &vec![Symbol::Div])?;
+      let typ2 = ll1_product_type(tlc, dept, scope, tokens)?;
+      typ = Type::Ratio(Box::new(typ), Box::new(typ2));
+   }
+   Ok(typ)
+}
+
+pub fn ll1_arrow_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   let mut typ = ll1_ratio_type(tlc, dept, scope, tokens)?;
+   if peek_is(tokens, &vec![Symbol::Arrow]) {
+      pop_is("and-type", tokens, &vec![Symbol::Arrow])?;
+      let typ2 = ll1_arrow_type(tlc, dept, scope, tokens)?;
+      typ = Type::Arrow(Box::new(typ), Box::new(typ2));
+   }
+   Ok(typ)
+}
+
+pub fn ll1_and_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   let mut types = vec![ ll1_arrow_type(tlc, dept, scope, tokens)? ];
+   while peek_is(tokens, &vec![Symbol::Plus]) {
+      pop_is("and-type", tokens, &vec![Symbol::Plus])?;
+      types.push( ll1_arrow_type(tlc, dept, scope, tokens)? );
+   }
+   if types.len()==1 {
+      Ok(types[0].clone())
+   } else {
+      Ok(Type::And(types))
+   }
+}
+
 pub fn ll1_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
-   todo!("implement type")
+   ll1_and_type(tlc, dept, scope, tokens)
 }
 
 pub fn ll1_kind(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Kind,Error> {

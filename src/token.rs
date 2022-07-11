@@ -53,6 +53,7 @@ pub enum Symbol {
    LessThanOrEqual,
    Ascript,
    KAscript,
+   Arrow,
    And,
    Or,
    Bar,
@@ -114,6 +115,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::Comma              => write!(f, ","),
            Symbol::SemiColon          => write!(f, ";"),
            Symbol::BackSlash          => write!(f, "\\"),
+           Symbol::Arrow              => write!(f, "->"),
 
            Symbol::LeftBracket        => write!(f, "["),
            Symbol::RightBracket       => write!(f, "]"),
@@ -170,6 +172,7 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
       ("*", Symbol::Mul),
       ("%", Symbol::Mod),
       ("+", Symbol::Plus),
+      ("->",Symbol::Arrow),
       ("-", Symbol::Minus),
       ("^", Symbol::Pow),
       (".", Symbol::Dot),
