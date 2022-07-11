@@ -9,8 +9,9 @@ use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
 use crate::typ::{Type,IsParameter};
 use crate::kind::Kind;
-use crate::token::{Span,tokenize};
+use crate::token::{Span,tokenize,span_of};
 use crate::debug::Error;
+use crate::ll::ll1_file;
 
 #[derive(Parser)]
 #[grammar = "grammar_tlc.pest"]
@@ -304,8 +305,12 @@ impl TLC {
       Ok(ScopeId {id:0})
    }
    pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
-      let _tokens = tokenize(docname.to_string(), src)?;
-      let ast = self.parse_doc(globals, docname, src)?;
+      let mut tokens = tokenize(docname.to_string(), src)?;
+      let file_scope = globals.unwrap_or(self.push_scope(Scope {
+         parent: None,
+         children: Vec::new(),
+      }, &span_of(&tokens)));
+      let ast = ll1_file(self, file_scope, &mut tokens)?;
       self.compile_rules(docname)?;
       self.typeck(globals, ast, None)?;
       self.sanityck()?;
