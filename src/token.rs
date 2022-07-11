@@ -36,7 +36,7 @@ pub struct Token {
    pub span: Span,
 }
 
-#[derive(Clone)]
+#[derive(Clone,Eq,PartialEq)]
 pub enum Symbol {
    Ident(String),
    Typename(String),

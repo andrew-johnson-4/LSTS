@@ -591,28 +591,6 @@ impl TLC {
    }
    pub fn unparse_ast(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span:&Span) -> Result<TermId,Error> {
       match p.as_rule() {
-         //entry point rule
-         Rule::file => {
-            let mut es = Vec::new();
-            for e in p.into_inner() { match e.as_rule() {
-               Rule::EOI => (),
-               _ => es.push(self.unparse_ast(scope,fp,e,span).expect("TLC Grammar Error in rule [file]"))
-            }}
-            Ok(self.push_term(Term::Block(scope,es), &span))
-         },
-
-         //block statement rule
-         Rule::block => {
-            let sid = self.push_scope(Scope {
-               parent: Some(scope),
-               children: Vec::new(),
-            }, &span);
-            let mut es = Vec::new();
-            for e in p.into_inner() { match e.as_rule() {
-               _ => es.push(self.unparse_ast(sid,fp,e,span).expect("TLC Grammar Error in rule [file]"))
-            }}
-            Ok(self.push_term(Term::Block(sid, es), &span))
-         },
 
          //passthrough rules
          Rule::stmt => self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span),
