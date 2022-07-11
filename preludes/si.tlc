@@ -1,3 +1,4 @@
+/* SI Prelude */
 //: Definition of prelude types and kinds
 type normal Boolean = True | False;
 type Number;   //Marker trait for numbers. Require declaration to prevent accidental shadowing.

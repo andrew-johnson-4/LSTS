@@ -41,6 +41,7 @@ pub enum Symbol {
    Ident(String),
    Typename(String),
    Value(String),
+   Regex(String),
    Is,
    Equal,
    NotEqual,
@@ -60,6 +61,7 @@ pub enum Symbol {
    Minus,
    Pow,
    Dot,
+   Comma,
    SemiColon,
    BackSlash,
    LeftBracket,
@@ -83,6 +85,7 @@ impl std::fmt::Debug for Symbol {
         match self {
            Symbol::Ident(s)           => write!(f, r#"$"{}""#, s),
            Symbol::Typename(s)        => write!(f, "{}", s),
+           Symbol::Regex(s)           => write!(f, "{}", s),
            Symbol::Value(s)           => write!(f, "'{}'", s),
            Symbol::Ascript            => write!(f, ":"),
            Symbol::KAscript           => write!(f, "::"),
@@ -104,6 +107,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::Minus              => write!(f, "-"),
            Symbol::Pow                => write!(f, "^"),
            Symbol::Dot                => write!(f, "."),
+           Symbol::Comma              => write!(f, ","),
            Symbol::SemiColon          => write!(f, ";"),
            Symbol::BackSlash          => write!(f, "\\"),
 
@@ -164,6 +168,7 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
       ("-", Symbol::Minus),
       ("^", Symbol::Pow),
       (".", Symbol::Dot),
+      (",", Symbol::Comma),
       (";", Symbol::SemiColon),
       ("\\",Symbol::BackSlash),
       ("[", Symbol::LeftBracket),
@@ -184,8 +189,8 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
    }
    while si < source.len() {
       match source.as_bytes()[si] as char {
-         ' ' => { column += 1; si += 1; },
-         '\n' => { column = 1; line += 1; si += 1; },
+         ' ' => { column += 1; si += 1; continue; },
+         '\n' => { column = 1; line += 1; si += 1; continue; },
          '0'..='9' => {
             let mut ci = si + 1;
             while ci<source.len() && is_value_char(source, ci) {
@@ -231,6 +236,37 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
             si = ci;
          },
          _ => {
+            let ri = std::cmp::min( si+2, source.len() );
+            if &source.as_bytes()[si..ri] == "/^".as_bytes() {
+               let mut ci = si + 1;
+               while ci<source.len() && (source.as_bytes()[ci] as char) != '/' {
+                  ci += 1;
+               }
+               if ci<source.len() { ci += 1; }
+               let span = span_of(&filename, si, ci - si, line, column);
+               column += ci - si;
+               let regex = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
+               tokens.push(Token { symbol: Symbol::Regex(regex.to_string()), span: span, });
+               si = ci;
+               continue;
+            }
+            if &source.as_bytes()[si..ri] == "//".as_bytes() {
+               let mut ci = si + 2;
+               while ci<source.len() && (source.as_bytes()[ci] as char) != '\n' {
+                  ci += 1;
+               }
+               si = ci;
+               continue;
+            }
+            if &source.as_bytes()[si..ri] == "/*".as_bytes() {
+               let mut ci = si + 2;
+               while ci<source.len() && &source.as_bytes()[ci..std::cmp::min(source.len(),ci+2)] != "*/".as_bytes() {
+                  ci += 1;
+               }
+               si = ci + 2;
+               continue;
+            }
+
             let mut found_operator = false;
             for (tok,sym) in operators.iter() {
                let ri = std::cmp::min( si+tok.len(), source.len() );
