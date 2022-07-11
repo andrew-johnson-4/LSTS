@@ -147,7 +147,24 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
 }
 
 pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement value term")
+   let span = span_of(tokens);
+   if let Some(sym) = tokens.get(0) {
+      if let Symbol::Ident(x) = sym.symbol.clone() {
+         tokens.remove(0);
+         return Ok(tlc.push_term(Term::Ident(x.clone()), &span))
+      } else if let Symbol::Value(x) = sym.symbol.clone() {
+         tokens.remove(0);
+         return Ok(tlc.push_term(Term::Value(x.clone()), &span))
+      } else if let Symbol::Typename(c) = sym.symbol.clone() {
+         todo!("implement type constructor in value-term")
+      }
+   }
+   pop_is("value-term",tokens,&vec![
+      Symbol::Ident("x".to_string()),
+      Symbol::Typename("A".to_string()),
+      Symbol::Value("1".to_string()),
+   ])?;
+   unreachable!("value-term expected Ident, Typename, or Value")
 }
 
 pub fn ll1_field_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
