@@ -485,6 +485,9 @@ impl TLC {
         }
       } 
    }
+   pub fn unparse_ast_type(&mut self, dept: &mut HashMap<String,TermId>, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Type,Error> {
+      todo!("remove dependencies on unparse_ast_type")
+   }
    pub fn unparse_file(&mut self, scope:Option<ScopeId>, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<TermId,Error> {
       let p = ps.peek().unwrap();
       let span = Span {
@@ -883,104 +886,6 @@ impl TLC {
       if a.is_none() { panic!("TLC Grammar Error in rule [inference]") }
       else if b.is_none() { Ok(Inference::Type(a.unwrap())) }
       else { Ok(Inference::Imply(a.unwrap(), b.unwrap())) }
-   }
-   pub fn unparse_ast_type(&mut self, dept: &mut HashMap<String,TermId>, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Type,Error> {
-      match p.as_rule() {
-         Rule::typname => {
-            let name = p.into_inner().concat();
-            Ok(Type::Ident(name,Vec::new()))
-         },
-         Rule::typ => self.unparse_ast_type(dept,scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [typ]"),span),
-         Rule::ident_typ => {
-            let mut ps = p.into_inner();
-            let tn = ps.next().expect("TLC Grammar Error in rule [ident_typ.1]").into_inner().concat();
-            let tps = ps.map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Type>>();
-            Ok(Type::Ident(tn,tps))
-         },
-         Rule::atom_typ => self.unparse_ast_type(dept,scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]"),span),
-         Rule::any_typ => Ok(Type::Any),
-         Rule::paren_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [paren_typ]"))
-                      .collect::<Vec<Type>>();
-            if ts.len()==1 {
-               Ok(ts[0].clone())
-            } else {
-               Ok(Type::Tuple(ts))
-            }
-         },
-         Rule::arrow_typ => {
-            let mut ts = p.into_inner();
-            let mut t = self.unparse_ast_type(dept,scope,fp,ts.next().expect("TLC Grammar Error in rule [arrow_typ]"),span)?;
-            for tr in ts {
-               t = Type::Arrow(
-                  Box::new(t),
-                  Box::new(self.unparse_ast_type(dept,scope,fp,tr,span)?)
-               );
-            }
-            Ok(t)
-         },
-         Rule::suffix_typ => {
-            let mut ts = p.into_inner();
-            let mut t = self.unparse_ast_type(dept,scope,fp,ts.next().expect("TLC Grammar Error in rule [suffix_typ.1]"),span)?;
-            for bracketed in ts.rev() {
-               let mut dt = if let Some(br) = bracketed.into_inner().next() {
-                  self.unparse_ast(scope,fp,br,span)?
-               } else {
-                  self.push_term(Term::Ident("length".to_string()),span)
-               };
-               self.untyped(dt);
-               self.unify_varnames(dept,&mut dt);
-               let ct = self.push_dep_type(&self.rows[dt.id].term.clone(), dt);
-               t = Type::Ident("Tensor".to_string(), vec![
-                  t,
-                  ct
-               ]);
-            }
-            Ok(t)
-         },
-         Rule::ratio_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [ratio_typ.1]"))
-                      .collect::<Vec<Type>>();
-            if ts.len()==1 {
-               Ok(ts[0].clone())
-            } else if ts.len()==2 {
-               Ok(Type::Ratio(Box::new(ts[0].clone()),Box::new(ts[1].clone())))
-            } else {
-               panic!("TLC Grammar Error in rule [ratio_typ.2]")
-            }
-         },
-         Rule::product_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [or_typ]"))
-                      .collect::<Vec<Type>>();
-            if ts.len()==1 {
-               Ok(ts[0].clone())
-            } else {
-               Ok(Type::Product(ts))
-            }
-         },
-         Rule::and_typ => {
-            let ts = p.into_inner().map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [and_typ]"))
-                      .collect::<Vec<Type>>();
-            if ts.len()==1 {
-               Ok(ts[0].clone())
-            } else {
-               Ok(Type::And(ts))
-            }
-         },
-         Rule::dep_typ => {
-            let mut t = self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span)?;
-            self.untyped(t);
-            self.unify_varnames(dept,&mut t); //convert all varnames to "var#{term.id}" and give identical vars the same id
-            let ct = self.push_dep_type(&self.rows[t.id].term.clone(), t);  //check if type is constant
-            Ok(ct)
-         }
-         Rule::typeof_typ => {
-            let v = p.into_inner().concat();
-            let vt = self.typeof_var(&Some(scope), &v, &None, span)?;
-            Ok(vt)
-         },
-         rule => panic!("unexpected typ rule: {:?}", rule)
-      }
    }
    pub fn unparse_ast_kind(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Kind,Error> {
       match p.as_rule() {

@@ -335,14 +335,81 @@ pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) 
    Ok(term)
 }
 
+pub fn ll1_atom_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+   todo!("atom type")
+}
+
 pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
-   todo!("suffix type")
+   let span = span_of(tokens);
+   let mut base = ll1_atom_type(tlc, dept, scope, tokens)?;
+   let mut ts = Vec::new();
+   while peek_is(tokens, &vec![Symbol::LeftBracket]) {
+      pop_is("suffix-type", tokens, &vec![Symbol::LeftBracket])?;
+      if !peek_is(tokens, &vec![Symbol::RightBracket]) {
+         ts.push(Some( ll1_term(tlc, scope, tokens)? ));
+      } else {
+         ts.push(None);
+      };
+      pop_is("suffix-type", tokens, &vec![Symbol::RightBracket])?;
+   }
+   for bracketed in ts.iter().rev() {
+      let mut dt = if let Some(br) = bracketed {
+         *br
+      } else {
+         tlc.push_term(Term::Ident("length".to_string()), &span)
+      };
+      tlc.untyped(dt);
+      tlc.unify_varnames(dept,&mut dt);
+      let ct = tlc.push_dep_type(&tlc.rows[dt.id].term.clone(), dt);
+      base = Type::Ident("Tensor".to_string(), vec![
+         base,
+         ct
+      ]);
+   }
+   Ok(base)
+
+/*
+         Rule::typname => {
+            let name = p.into_inner().concat();
+            Ok(Type::Ident(name,Vec::new()))
+         },
+         Rule::typ => self.unparse_ast_type(dept,scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [typ]"),span),
+         Rule::ident_typ => {
+            let mut ps = p.into_inner();
+            let tn = ps.next().expect("TLC Grammar Error in rule [ident_typ.1]").into_inner().concat();
+            let tps = ps.map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Type>>();
+            Ok(Type::Ident(tn,tps))
+         },
+         Rule::atom_typ => self.unparse_ast_type(dept,scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [atom_typ]"),span),
+         Rule::any_typ => Ok(Type::Any),
+         Rule::paren_typ => {
+            let ts = p.into_inner().map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [paren_typ]"))
+                      .collect::<Vec<Type>>();
+            if ts.len()==1 {
+               Ok(ts[0].clone())
+            } else {
+               Ok(Type::Tuple(ts))
+            }
+         },
+         Rule::dep_typ => {
+            let mut t = self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span)?;
+            self.untyped(t);
+            self.unify_varnames(dept,&mut t); //convert all varnames to "var#{term.id}" and give identical vars the same id
+            let ct = self.push_dep_type(&self.rows[t.id].term.clone(), t);  //check if type is constant
+            Ok(ct)
+         }
+         Rule::typeof_typ => {
+            let v = p.into_inner().concat();
+            let vt = self.typeof_var(&Some(scope), &v, &None, span)?;
+            Ok(vt)
+         },
+         rule => panic!("unexpected typ rule: {:?}", rule)
+*/
 /*
 ident_typ = { typname ~ ("<" ~ typ ~ ("," ~ typ)* ~ ">")? }
 typeof_typ = { "typeof" ~ "(" ~ ident ~ ")" }
 any_typ   = { "?" }
 paren_typ = { "(" ~ (typ ~ ("," ~ typ)*)? ~ ")" }
-brack_typ = { "[" ~ term? ~ "]" }
 dep_typ   = { "[" ~ term ~ "]" }
 atom_typ  = { any_typ | paren_typ | ident_typ | dep_typ | typeof_typ }
 suffix_typ = { atom_typ ~ brack_typ* }
