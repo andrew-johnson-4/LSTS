@@ -124,11 +124,29 @@ pub fn ll1_power_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
 }
 
 pub fn ll1_prefix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement prefix term")
+   let span = span_of(tokens);
+   let mut ops = Vec::new();
+   while peek_is(tokens, &vec![Symbol::Plus,Symbol::Minus]) {
+      let op = pop_is("prefix-term", tokens, &vec![Symbol::Plus,Symbol::Minus])?;
+      ops.push(op);
+   }
+   let mut term = ll1_atom_term(tlc, scope, tokens)?;
+   while ops.len()>0 {
+      let topop = if ops.pop()==Some(Symbol::Plus) { "pos".to_string() } else { "neg".to_string() };
+      let t = Term::App(
+         tlc.push_term(Term::Ident(topop),&span),
+         term
+      );
+      term = tlc.push_term(t,&span);
+   }
+   Ok(term)
+}
+
+pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   panic!("implement atom term");
 }
 
 pub fn ll1_expr_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   //expr_term = { prefix_term ~ ((power_op | divmul_op | addsub_op | compare_op | logical_op) ~ prefix_term)* }
    ll1_logical_term(tlc, scope, tokens)
 }
 
