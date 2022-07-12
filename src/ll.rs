@@ -96,13 +96,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
    let mut constructors: Vec<String> = Vec::new();
    let mut dept: HashMap<String,TermId> = HashMap::new();
 
-   /*
-   regex = { "/" ~ (!"/" ~ ANY)+ ~ "/" }
-   typedef_branch = { regex | constructor_typedef }
-   typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
-
-   typ_invariant = { ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ term ~ ("|" ~ term)? }
-   */
    pop_is("type-stmt", tokens, &vec![Symbol::Type])?;
    if peek_is(tokens, &vec![Symbol::Normal]) {
       pop_is("type-stmt", tokens, &vec![Symbol::Normal])?;
@@ -173,6 +166,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
          };
          if peek_is(tokens, &vec![Symbol::LeftBrace]) {
             pop_is("type-stmt", tokens, &vec![Symbol::LeftBrace])?;
+
             while !peek_is(tokens, &vec![Symbol::RightBrace]) {
                if peek_is(tokens, &vec![Symbol::Comma]) {
                   pop_is("type-stmt", tokens, &vec![Symbol::Comma])?;
@@ -180,6 +174,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
                let mut ki = "".to_string();
                if tokens.len()>0 {
                if let Symbol::Ident(f) = tokens[0].symbol.clone() {
+                  tokens.remove(0);
                   ki = f.clone();
                }}
                pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
@@ -426,8 +421,14 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -
 pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("let-stmt", tokens, &vec![Symbol::Let])?;
-   let ident = if let Some(t) = tokens.get(0) {
-      if let Symbol::Ident(id) = tokens.remove(0).symbol {
+   let mut dot = false;
+   if peek_is(tokens, &vec![Symbol::Dot]) {
+      pop_is("let-stmt", tokens, &vec![Symbol::Dot])?;
+      dot = true;
+   }
+   let mut ident = if tokens.len()>0 {
+      if let Symbol::Ident(id) = tokens[0].symbol.clone() {
+         tokens.remove(0);
          id.clone()
       } else {
          pop_is("let-stmt", tokens, &vec![Symbol::Ident("x".to_string())])?;
@@ -437,6 +438,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> R
       pop_is("let-stmt", tokens, &vec![Symbol::Ident("x".to_string())])?;
       unreachable!("let-stmt")
    };
+   if dot { ident = format!(".{}", ident); };
    let mut pars: Vec<Vec<(Option<String>,Option<Type>,Kind)>> = Vec::new();
    let mut rt = tlc.nil_type.clone();
    let mut rk = tlc.term_kind.clone();
