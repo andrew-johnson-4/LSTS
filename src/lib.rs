@@ -1,11 +1,6 @@
 //! Large Scale Type Systems:
 //! LSTS implements a categorical view of typed lambda calculus with flexible soundness guarantees.
 
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
-
-
 /// The TLC module provides a context object for parsing, typing, and evaluating expressions.
 pub mod tlc;
 
@@ -27,3 +22,7 @@ pub mod scope;
 
 /// The LL module defines an LL(1) hand written parser.
 pub mod ll;
+
+pub mod debug;
+
+pub mod token;
