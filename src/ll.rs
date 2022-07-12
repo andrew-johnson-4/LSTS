@@ -288,7 +288,66 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
 }
 
 pub fn ll1_forall_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
+   let mut inference  = None;
+   let mut term = None;
+   let mut kind = self.term_kind.clone();
+   let mut dept = HashMap::new();
    todo!("implement ll1_forall_stmt")
+   /*
+            for e in p.into_inner() { match e.as_rule() {
+               Rule::ident_typ_kind => {
+                  let mut ident = None;
+                  let mut typ = None;
+                  let mut kind = self.term_kind.clone();
+                  for itk in e.into_inner() { match itk.as_rule() {
+                     Rule::ident => { ident = Some(itk.into_inner().concat()); },
+                     Rule::typ   => { typ   = Some(self.unparse_ast_type(&mut dept,scope,fp,itk,span)?); },
+                     Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,itk,span)?; },
+                     rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
+                  }}
+                  if let Some(tt) = &typ {
+                  if tt.is_constant() {
+                     kind = self.constant_kind.clone();
+                  }};
+                  quants.push((ident, typ, kind));
+               },
+               Rule::inference => { inference = Some(self.unparse_ast_inference(scope,fp,e,span)?); }
+               Rule::term => { term = Some(self.unparse_ast(scope,fp,e,span)?); }
+               Rule::kind => { kind = self.unparse_ast_kind(scope,fp,e,span)?; }
+               rule => panic!("unexpected typ_stmt rule: {:?}", rule)
+            }}
+            self.push_forall(
+               quants.clone(),
+               inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
+               term,
+               kind,
+               span.clone(),
+            );
+            if let Some(t) = term {
+               let mut children = Vec::new();
+               for (i,t,_k) in quants.iter() {
+                  let vn = i.clone().unwrap_or("_".to_string());
+                  let vt = self.push_term(Term::Ident(vn.clone()),span);
+                  self.untyped(vt);
+                  children.push((vn.clone(), HashMap::new(), t.clone().unwrap_or(self.bottom_type.clone()), vt));
+               }
+               let sid = self.push_scope(Scope {
+                  parent: Some(scope),
+                  children: children,
+               }, &span);
+               Ok(self.push_term(Term::Let(
+                 sid,
+                 "".to_string(),
+                 vec![quants.clone()],
+                 Some(t),
+                 Type::Any,
+                 self.term_kind.clone(),
+               ),&span))
+            } else {
+               Ok(TermId { id:0 })
+            }
+   */
 }
 
 pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
