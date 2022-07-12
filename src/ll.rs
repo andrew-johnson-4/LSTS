@@ -89,8 +89,32 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
 
    if peek_is(tokens, &vec![Symbol::LessThan]) {
       pop_is("type-stmt", tokens, &vec![Symbol::LessThan])?;
-      todo!("implement type stmt parameters {}", t);
-      //[typ:inf::kind]
+
+      while !peek_is(tokens, &vec![Symbol::GreaterThan]) {
+         if peek_is(tokens, &vec![Symbol::Comma]) {
+            pop_is("type-stmt", tokens, &vec![Symbol::Comma])?;
+         }
+
+         let mut typ = "".to_string();
+         let mut inf = None;
+         let mut kind = tlc.term_kind.clone();
+
+         if tokens.len()>0 {
+         if let Symbol::Typename(tn) = tokens[0].symbol.clone() {
+            tokens.remove(0);
+            typ = tn.clone();
+         }}
+         if peek_is(tokens, &vec![Symbol::Ascript]) {
+            pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
+            inf = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
+         }
+         if peek_is(tokens, &vec![Symbol::KAscript]) {
+            pop_is("type-stmt", tokens, &vec![Symbol::KAscript])?;
+            kind = ll1_kind(tlc, tokens)?;
+         }
+         tiks.push((typ,inf,kind));
+      }
+
       pop_is("type-stmt", tokens, &vec![Symbol::GreaterThan])?;
    }
    let struct_typ = Type::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Type::Ident(t.clone(),Vec::new())).collect::<Vec<Type>>());
@@ -236,18 +260,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
 
    /*
             for e in p.into_inner() { match e.as_rule() {
-               Rule::typ_inf_kind => {
-                  let mut typ = "".to_string();
-                  let mut inf = None;
-                  let mut kind = tlc.term_kind.clone();
-                  for tik in e.into_inner() { match tik.as_rule() {
-                     Rule::typvar => { typ = tik.into_inner().concat(); },
-                     Rule::typ   => { inf   = Some(tlc.unparse_ast_type(&mut dept,scope,fp,tik,span)?); },
-                     Rule::kind   => { kind   = tlc.unparse_ast_kind(scope,fp,tik,span)?; },
-                     rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
-                  }}
-                  tiks.push((typ,inf,kind));
-               },
                Rule::typ_invariant => {
                   let mut itks = Vec::new();
                   let mut prop = None;
