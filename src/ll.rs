@@ -287,14 +287,14 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
    */
 }
 
-pub fn ll1_forall_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   todo!("implement ll1_forall_stmt")
+   /*
    let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
    let mut inference  = None;
    let mut term = None;
-   let mut kind = self.term_kind.clone();
+   let mut kind = tlc.term_kind.clone();
    let mut dept = HashMap::new();
-   todo!("implement ll1_forall_stmt")
-   /*
             for e in p.into_inner() { match e.as_rule() {
                Rule::ident_typ_kind => {
                   let mut ident = None;
