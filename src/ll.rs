@@ -267,8 +267,15 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
       } else if let Symbol::Value(x) = sym.symbol.clone() {
          tokens.remove(0);
          return Ok(tlc.push_term(Term::Value(x.clone()), &span))
-      } else if let Symbol::Typename(c) = sym.symbol.clone() {
-         todo!("implement type constructor in value-term")
+      } else if let Symbol::Typename(cname) = sym.symbol.clone() {
+         tokens.remove(0);
+         let kvs = Vec::new();
+         //key_value = { ident ~ "=" ~ term }
+         //constructor = { typname ~ ("{" ~ (key_value ~ ("," ~ key_value)*)? ~ "}")? }
+         return Ok(tlc.push_term(Term::Constructor(
+            cname.clone(),
+            kvs
+         ),&span));
       }
    }
    pop_is("value-term",tokens,&vec![

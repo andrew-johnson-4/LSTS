@@ -797,18 +797,6 @@ impl TLC {
             Ok(TermId { id:0 })
          },
 
-         Rule::constructor => {
-            let mut ps = p.into_inner();
-            let cname = ps.next().expect("TLC Grammar Error in rule [constructor], expected typname").into_inner().concat();
-            let kvs = Vec::new();
-            //key_value = { ident ~ "=" ~ term }
-            //constructor = { typname ~ ("{" ~ (key_value ~ ("," ~ key_value)*)? ~ "}")? }
-            Ok(self.push_term(Term::Constructor(
-               cname,
-               kvs
-            ),&span))
-         },
-         
          Rule::forall_stmt => {
             let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
             let mut inference  = None;
