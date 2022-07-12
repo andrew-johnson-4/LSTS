@@ -14,6 +14,7 @@ fn check_precondition() {
    tlc.check(Some(si), "let a:Even = 2;").unwrap();
 }
 
+/*
 #[test]
 fn check_postcondition() {
    let mut tlc = TLC::new();
@@ -25,6 +26,7 @@ fn check_postcondition() {
    tlc.check(Some(si), "let a:Even; a%2:[0]").unwrap();
    tlc.check(Some(si), "let a:Even; a%2:[1]").unwrap_err();
 }
+*/
 
 /*
 #[test]

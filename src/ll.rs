@@ -785,6 +785,7 @@ pub fn ll1_typeof_type(tlc: &mut TLC, _dept: &mut HashMap<String,TermId>, scope:
    pop_is("atom-type", tokens, &vec![Symbol::LeftParen])?;
    let vt = if tokens.len()>0 {
       if let Symbol::Ident(v) = tokens[0].symbol.clone() {
+         tokens.remove(0);
          tlc.typeof_var(&Some(scope), &v, &None, &span)?
       } else {
          pop_is("atom-type", tokens, &vec![Symbol::Ident("v".to_string())])?;
