@@ -3,7 +3,7 @@ use crate::term::{Term,TermId};
 use crate::debug::{Error};
 use crate::token::{Token,Symbol,span_of};
 use crate::scope::{ScopeId,Scope};
-use crate::tlc::{TLC,TypeRule,Invariant,Typedef};
+use crate::tlc::{TLC,TypeRule,Invariant,Typedef,Inference};
 use crate::typ::{Type};
 use crate::kind::{Kind};
 
@@ -288,66 +288,95 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
 }
 
 pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement ll1_forall_stmt")
-   /*
+   let span = span_of(tokens);
    let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
    let mut inference  = None;
    let mut term = None;
    let mut kind = tlc.term_kind.clone();
    let mut dept = HashMap::new();
-            for e in p.into_inner() { match e.as_rule() {
-               Rule::ident_typ_kind => {
-                  let mut ident = None;
-                  let mut typ = None;
-                  let mut kind = self.term_kind.clone();
-                  for itk in e.into_inner() { match itk.as_rule() {
-                     Rule::ident => { ident = Some(itk.into_inner().concat()); },
-                     Rule::typ   => { typ   = Some(self.unparse_ast_type(&mut dept,scope,fp,itk,span)?); },
-                     Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,itk,span)?; },
-                     rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
-                  }}
-                  if let Some(tt) = &typ {
-                  if tt.is_constant() {
-                     kind = self.constant_kind.clone();
-                  }};
-                  quants.push((ident, typ, kind));
-               },
-               Rule::inference => { inference = Some(self.unparse_ast_inference(scope,fp,e,span)?); }
-               Rule::term => { term = Some(self.unparse_ast(scope,fp,e,span)?); }
-               Rule::kind => { kind = self.unparse_ast_kind(scope,fp,e,span)?; }
-               rule => panic!("unexpected typ_stmt rule: {:?}", rule)
-            }}
-            self.push_forall(
-               quants.clone(),
-               inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
-               term,
-               kind,
-               span.clone(),
-            );
-            if let Some(t) = term {
-               let mut children = Vec::new();
-               for (i,t,_k) in quants.iter() {
-                  let vn = i.clone().unwrap_or("_".to_string());
-                  let vt = self.push_term(Term::Ident(vn.clone()),span);
-                  self.untyped(vt);
-                  children.push((vn.clone(), HashMap::new(), t.clone().unwrap_or(self.bottom_type.clone()), vt));
-               }
-               let sid = self.push_scope(Scope {
-                  parent: Some(scope),
-                  children: children,
-               }, &span);
-               Ok(self.push_term(Term::Let(
-                 sid,
-                 "".to_string(),
-                 vec![quants.clone()],
-                 Some(t),
-                 Type::Any,
-                 self.term_kind.clone(),
-               ),&span))
-            } else {
-               Ok(TermId { id:0 })
-            }
-   */
+
+   pop_is("forall-stmt", tokens, &vec![Symbol::Forall])?;
+
+   while !peek_is(tokens, &vec![Symbol::Dot]) {
+      if peek_is(tokens, &vec![Symbol::Comma]) {
+         pop_is("forall-stmt", tokens, &vec![Symbol::Comma])?;
+      }
+
+      let mut ident = None;
+      let mut typ = None;
+      let mut kind = tlc.term_kind.clone();
+
+      if tokens.len()>0 {
+      if let Symbol::Ident(v) = tokens[0].symbol.clone() {
+         tokens.remove(0);
+         ident = Some(v.clone());
+      }}
+      if peek_is(tokens, &vec![Symbol::Ascript]) {
+         pop_is("forall-stmt", tokens, &vec![Symbol::Ascript])?;
+         typ = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
+      }
+      if peek_is(tokens, &vec![Symbol::KAscript]) {
+         pop_is("forall-stmt", tokens, &vec![Symbol::KAscript])?;
+         kind = ll1_kind(tlc, tokens)?;
+      }
+
+      if let Some(tt) = &typ {
+      if tt.is_constant() {
+         kind = tlc.constant_kind.clone();
+      }};
+      quants.push((ident, typ, kind));
+   }
+
+   pop_is("forall-stmt", tokens, &vec![Symbol::Dot])?;
+   let inf1 = ll1_type(tlc, &mut dept, scope, tokens)?;
+   if peek_is(tokens, &vec![Symbol::Imply]) {
+      pop_is("forall-stmt", tokens, &vec![Symbol::Imply])?;
+      let inf2 = ll1_type(tlc, &mut dept, scope, tokens)?;
+      inference = Some(Inference::Imply(inf1,inf2));
+   } else {
+      inference = Some(Inference::Type(inf1));
+   };
+
+   if peek_is(tokens, &vec![Symbol::Is]) {
+      pop_is("forall-stmt", tokens, &vec![Symbol::Is])?;
+      term = Some( ll1_term(tlc, scope, tokens)? );
+   }
+
+   if peek_is(tokens, &vec![Symbol::KAscript]) {
+      pop_is("forall-stmt", tokens, &vec![Symbol::KAscript])?;
+      kind = ll1_kind(tlc, tokens)?	;
+   }
+
+   tlc.push_forall(
+      quants.clone(),
+      inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
+      term,
+      kind,
+      span.clone(),
+   );
+   if let Some(t) = term {
+      let mut children = Vec::new();
+      for (i,t,_k) in quants.iter() {
+         let vn = i.clone().unwrap_or("_".to_string());
+         let vt = tlc.push_term(Term::Ident(vn.clone()), &span);
+         tlc.untyped(vt);
+         children.push((vn.clone(), HashMap::new(), t.clone().unwrap_or(tlc.bottom_type.clone()), vt));
+      }
+      let sid = tlc.push_scope(Scope {
+         parent: Some(scope),
+         children: children,
+      }, &span);
+      Ok(tlc.push_term(Term::Let(
+         sid,
+         "".to_string(),
+         vec![quants.clone()],
+         Some(t),
+         Type::Any,
+         tlc.term_kind.clone(),
+      ),&span))
+   } else {
+      Ok(TermId { id:0 })
+   }
 }
 
 pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
