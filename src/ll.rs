@@ -3,7 +3,7 @@ use crate::term::{Term,TermId};
 use crate::debug::{Error};
 use crate::token::{Token,Symbol,span_of};
 use crate::scope::{ScopeId,Scope};
-use crate::tlc::{TLC};
+use crate::tlc::{TLC,TypeRule,Invariant};
 use crate::typ::{Type};
 use crate::kind::{Kind};
 
@@ -33,35 +33,114 @@ fn pop_is(rule: &str, tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> Result<Symbo
    }
 }
 
-pub fn ll1_type_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement ll1_type_stmt")
+pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   let mut t = "".to_string();
+   let mut normal = false;
+   let mut implies = None;
+   let mut tiks = Vec::new();
+   let mut typedef = Vec::new();
+   let mut kinds: Vec<Kind> = Vec::new();
+   let mut props: Vec<Invariant> = Vec::new();
+   let mut constructors: Vec<String> = Vec::new();
+   let mut dept: HashMap<String,TermId> = HashMap::new();
+
+   todo!("implement type stmt parse");
+
+   let kinds = if kinds.len()==0 { tlc.term_kind.clone()
+   } else if kinds.len()==1 { kinds[0].clone()
+   } else { Kind::and(kinds) };
+   if normal {
+      if constructors.len()==0 {
+         //constructors are preferred normal forms
+         tlc.type_is_normal.insert(Type::Ident(t.clone(),Vec::new()));
+      }
+      for k in kinds.flatten().iter() {
+         if k == &tlc.term_kind { continue; } //Term is never normal
+         tlc.kind_is_normal.insert(k.clone());
+      }
+   }
+   tlc.typedef_index.insert(t.clone(), tlc.rules.len());
+   for c in constructors.iter() {
+      if normal {
+         tlc.type_is_normal.insert(Type::Ident(c.clone(),Vec::new()));
+      }
+      if &t==c { continue; } //constructor has same name as type
+      tlc.typedef_index.insert(c.clone(), tlc.rules.len());
+   }
+   for inv in props.iter() {
+   if let Term::App(g,x) = &tlc.rows[inv.prop.id].term.clone() {
+   if let Term::Ident(gn) = &tlc.rows[g.id].term.clone() {
+      let mut xs = Vec::new();
+      let mut fkts = HashMap::new();
+      match &tlc.rows[x.id].term.clone() {
+         Term::Tuple(ts) => {
+            for ct in ts.iter() {
+               if let Term::Ident(ctn) = &tlc.rows[ct.id].term.clone() {
+               if ctn == "tlc" { //replace "tlc" in invariants with this type rule
+                  xs.push(Type::Ident(t.clone(),Vec::new()));
+                  fkts.insert(xs[xs.len()-1].clone(), tlc.term_kind.clone());
+                  continue;
+               }}
+               let ctt = tlc.rows[ct.id].term.clone();
+               xs.push(tlc.push_dep_type(&ctt, *ct));
+               fkts.insert(xs[xs.len()-1].clone(), tlc.constant_kind.clone());
+            }
+         }, pt => {
+            let mut is_self = false;
+            if let Term::Ident(ctn) = pt {
+            if ctn == "self" { //replace "self" in invariants with this type rule
+               xs.push(Type::Ident(t.clone(),Vec::new()));
+               fkts.insert(xs[xs.len()-1].clone(), tlc.term_kind.clone());
+               is_self = true;
+            }}
+            if !is_self {
+               xs.push(tlc.push_dep_type(&pt, *x));
+               fkts.insert(xs[xs.len()-1].clone(), tlc.constant_kind.clone());
+            }
+         }
+      }
+      let rt = tlc.push_dep_type(&tlc.rows[inv.algs.id].term.clone(), inv.algs);
+
+      let pt = if xs.len()==1 {
+         xs[0].clone()
+      } else {
+         Type::Tuple(xs)
+      };
+      let ft = Type::Arrow(Box::new(pt),Box::new(rt));
+      let vt = tlc.push_term(Term::Ident(gn.clone()),&span);
+      tlc.untyped(vt);
+      tlc.scopes[scope.id].children.push((gn.clone(), fkts, ft, vt));
+   }}}
+   tlc.rules.push(TypeRule::Typedef(
+      t,
+      normal,
+      tiks,
+      implies,
+      typedef,
+      kinds,
+      props,
+      span.clone()
+   ));
+   Ok(TermId { id:0 })
+
    /*
-         Rule::typ_stmt => {
-            let mut t = "".to_string();
-            let mut normal = false;
-            let mut implies = None;
-            let mut tiks = Vec::new();
-            let mut typedef = Vec::new();
-            let mut kinds = Vec::new();
-            let mut props = Vec::new();
-            let mut constructors = Vec::new();
-            let mut dept = HashMap::new();
             for e in p.into_inner() { match e.as_rule() {
                Rule::typname => { t=e.into_inner().concat(); },
                Rule::normal => { normal=true; },
                Rule::typ_inf_kind => {
                   let mut typ = "".to_string();
                   let mut inf = None;
-                  let mut kind = self.term_kind.clone();
+                  let mut kind = tlc.term_kind.clone();
                   for tik in e.into_inner() { match tik.as_rule() {
                      Rule::typvar => { typ = tik.into_inner().concat(); },
-                     Rule::typ   => { inf   = Some(self.unparse_ast_type(&mut dept,scope,fp,tik,span)?); },
-                     Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,tik,span)?; },
+                     Rule::typ   => { inf   = Some(tlc.unparse_ast_type(&mut dept,scope,fp,tik,span)?); },
+                     Rule::kind   => { kind   = tlc.unparse_ast_kind(scope,fp,tik,span)?; },
                      rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                   }}
                   tiks.push((typ,inf,kind));
                },
-               Rule::typ => { implies = Some(self.unparse_ast_type(&mut dept,scope,fp,e,span)?); },
+               Rule::typ => { implies = Some(tlc.unparse_ast_type(&mut dept,scope,fp,e,span)?); },
                Rule::typedef => {
                   let struct_typ = Type::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Type::Ident(t.clone(),Vec::new())).collect::<Vec<Type>>());
                   for tdb in e.into_inner() {
@@ -80,11 +159,11 @@ pub fn ll1_type_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) 
                               Rule::key_typ => {
                                  let mut kts = tc.into_inner();
                                  let ki = kts.next().expect("TLC Grammar Error in rule [typedef.3]").into_inner().concat();
-                                 let kt = self.unparse_ast_type(&mut dept,scope,fp,kts.next().expect("TLC Grammar Error in rule [typedef.4]"),span)?;
+                                 let kt = tlc.unparse_ast_type(&mut dept,scope,fp,kts.next().expect("TLC Grammar Error in rule [typedef.4]"),span)?;
                                  let vn = format!(".{}",ki.clone());
-                                 let vt = self.push_term(Term::Ident(vn.clone()),span);
-                                 self.untyped(vt);
-                                 self.scopes[scope.id].children.push((
+                                 let vt = tlc.push_term(Term::Ident(vn.clone()),span);
+                                 tlc.untyped(vt);
+                                 tlc.scopes[scope.id].children.push((
                                     vn,
                                     HashMap::new(),
                                     Type::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
@@ -101,7 +180,7 @@ pub fn ll1_type_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) 
                      }
                   }
                },
-               Rule::kind => { kinds.push(self.unparse_ast_kind(scope,fp,e,span)?); },
+               Rule::kind => { kinds.push(tlc.unparse_ast_kind(scope,fp,e,span)?); },
                Rule::typ_invariant => {
                   let mut itks = Vec::new();
                   let mut prop = None;
@@ -110,26 +189,26 @@ pub fn ll1_type_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) 
                      Rule::ident_typ_kind => {
                         let mut idn = None;
                         let mut inf = None;
-                        let mut kind = self.term_kind.clone();
+                        let mut kind = tlc.term_kind.clone();
                         for itk in tip.into_inner() { match itk.as_rule() {
                            Rule::ident => { idn = Some(itk.into_inner().concat()); },
-                           Rule::typ   => { inf   = Some(self.unparse_ast_type(&mut dept,scope,fp,itk,span)?); },
-                           Rule::kind   => { kind   = self.unparse_ast_kind(scope,fp,itk,span)?; },
+                           Rule::typ   => { inf   = Some(tlc.unparse_ast_type(&mut dept,scope,fp,itk,span)?); },
+                           Rule::kind   => { kind   = tlc.unparse_ast_kind(scope,fp,itk,span)?; },
                            rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
                         }}
                         itks.push((idn,inf,kind));
                      },
                      Rule::term => {
                         if prop.is_none() {
-                           prop = Some(self.unparse_ast(scope,fp,tip,span)?);
+                           prop = Some(tlc.unparse_ast(scope,fp,tip,span)?);
                         } else {
-                           algs = Some(self.unparse_ast(scope,fp,tip,span)?);
+                           algs = Some(tlc.unparse_ast(scope,fp,tip,span)?);
                         }
                      }
                      rule => panic!("unexpected typ_invariant rule: {:?}", rule)
                   }}
                   let algs = if let Some(a) = algs { a }
-                  else { self.push_term(Term::Ident("True".to_string()),&span) };
+                  else { tlc.push_term(Term::Ident("True".to_string()),&span) };
                   props.push(Invariant {
                      itks: itks,
                      prop: prop.expect("TLC Grammar Error in rule [typ_invariant]"),
@@ -138,82 +217,6 @@ pub fn ll1_type_stmt(_tlc: &mut TLC, _scope: ScopeId, _tokens: &mut Vec<Token>) 
                },
                rule => panic!("unexpected typ_stmt rule: {:?}", rule)
             }}
-            let kinds = if kinds.len()==0 { self.term_kind.clone()
-            } else if kinds.len()==1 { kinds[0].clone()
-            } else { Kind::and(kinds) };
-            if normal {
-               if constructors.len()==0 {
-                  //constructors are preferred normal forms
-                  self.type_is_normal.insert(Type::Ident(t.clone(),Vec::new()));
-               }
-               for k in kinds.flatten().iter() {
-                  if k == &self.term_kind { continue; } //Term is never normal
-                  self.kind_is_normal.insert(k.clone());
-               }
-            }
-            self.typedef_index.insert(t.clone(), self.rules.len());
-            for c in constructors.iter() {
-               if normal {
-                  self.type_is_normal.insert(Type::Ident(c.clone(),Vec::new()));
-               }
-               if &t==c { continue; } //constructor has same name as type
-               self.typedef_index.insert(c.clone(), self.rules.len());
-            }
-            for inv in props.iter() {
-            if let Term::App(g,x) = &self.rows[inv.prop.id].term.clone() {
-            if let Term::Ident(gn) = &self.rows[g.id].term.clone() {
-               let mut xs = Vec::new();
-               let mut fkts = HashMap::new();
-               match &self.rows[x.id].term.clone() {
-                  Term::Tuple(ts) => {
-                     for ct in ts.iter() {
-                        if let Term::Ident(ctn) = &self.rows[ct.id].term.clone() {
-                        if ctn == "self" { //replace "self" in invariants with this type rule
-                           xs.push(Type::Ident(t.clone(),Vec::new()));
-                           fkts.insert(xs[xs.len()-1].clone(), self.term_kind.clone());
-                           continue;
-                        }}
-                        let ctt = self.rows[ct.id].term.clone();
-                        xs.push(self.push_dep_type(&ctt, *ct));
-                        fkts.insert(xs[xs.len()-1].clone(), self.constant_kind.clone());
-                     }
-                  }, pt => {
-                     let mut is_self = false;
-                     if let Term::Ident(ctn) = pt {
-                     if ctn == "self" { //replace "self" in invariants with this type rule
-                        xs.push(Type::Ident(t.clone(),Vec::new()));
-                        fkts.insert(xs[xs.len()-1].clone(), self.term_kind.clone());
-                        is_self = true;
-                     }}
-                     if !is_self {
-                        xs.push(self.push_dep_type(&pt, *x));
-                        fkts.insert(xs[xs.len()-1].clone(), self.constant_kind.clone());
-                     }
-                  }
-               }
-               let rt = self.push_dep_type(&self.rows[inv.algs.id].term.clone(), inv.algs);
-
-               let pt = if xs.len()==1 {
-                  xs[0].clone()
-               } else {
-                  Type::Tuple(xs)
-               };
-               let ft = Type::Arrow(Box::new(pt),Box::new(rt));
-               let vt = self.push_term(Term::Ident(gn.clone()),span);
-               self.untyped(vt);
-               self.scopes[scope.id].children.push((gn.clone(), fkts, ft, vt));
-            }}}
-            self.rules.push(TypeRule::Typedef(
-               t,
-               normal,
-               tiks,
-               implies,
-               typedef,
-               kinds,
-               props,
-               span.clone()
-            ));
-            Ok(TermId { id:0 })
    */
 }
 
