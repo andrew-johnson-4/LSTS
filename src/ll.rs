@@ -683,7 +683,15 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
 }
 
 pub fn ll1_field_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement field term")
+   let span = span_of(tokens);
+   pop_is("field-term", tokens, &vec![Symbol::Dot])?;
+   if tokens.len()>0 {
+   if let Symbol::Ident(f) = tokens[0].symbol.clone() {
+      tokens.remove(0);
+      return Ok(tlc.push_term(Term::Ident(f),&span))
+   }}
+   pop_is("field-term", tokens, &vec![Symbol::Ident("x".to_string())])?;
+   unreachable!("field-term")
 }
 
 pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
