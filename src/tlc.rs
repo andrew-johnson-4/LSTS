@@ -595,36 +595,8 @@ impl TLC {
    pub fn unparse_ast(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span:&Span) -> Result<TermId,Error> {
       todo!("remove references to this function")
    }
-   pub fn unparse_ast_inference(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Inference,Error> {
-      let mut a = None;
-      let mut b = None;
-      let mut dept = HashMap::new();
-      for e in p.into_inner() { match e.as_rule() {
-         Rule::typ => {
-            if a.is_none() { a = Some(self.unparse_ast_type(&mut dept,scope,fp,e,span)?); }
-            else { b = Some(self.unparse_ast_type(&mut dept,scope,fp,e,span)?); }
-         },
-         rule => panic!("unexpected inference rule: {:?}", rule)
-      }}
-      if a.is_none() { panic!("TLC Grammar Error in rule [inference]") }
-      else if b.is_none() { Ok(Inference::Type(a.unwrap())) }
-      else { Ok(Inference::Imply(a.unwrap(), b.unwrap())) }
-   }
    pub fn unparse_ast_kind(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Kind,Error> {
-      match p.as_rule() {
-         Rule::kind => {
-            let mut name = "Nil".to_string();
-            let mut kinds = Vec::new();
-            for e in p.into_inner() { match e.as_rule() {
-               Rule::kindname => { name = e.into_inner().concat(); },
-               Rule::kind  => { kinds.push(self.unparse_ast_kind(scope,fp,e,span)?); },
-               rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
-            }}
-            if name=="Nil" { Ok(Kind::Nil) }
-            else { Ok(Kind::Simple(name, kinds)) }
-         },
-         rule => panic!("unexpected kind rule: {:?}", rule)
-      }
+      todo!("remove references to this dead code")
    }
    pub fn sanityck(&mut self) -> Result<(),Error> {
       for (ri,r) in self.rows.iter().enumerate() {
