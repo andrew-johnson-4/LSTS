@@ -79,25 +79,25 @@ fn check_constant_equivalence() {
    tlc.check(Some(si), "let x:[False || False || True]; x: [False]").unwrap_err();
    tlc.check(Some(si), "let x:[False || False || False]; x: [False]").unwrap();
 
-   tlc.check(Some(si), "let x:[0+0]; x: [0]").unwrap();
-   tlc.check(Some(si), "let x:[0+1]; x: [1]").unwrap();
-   tlc.check(Some(si), "let x:[1+0]; x: [1]").unwrap();
-   tlc.check(Some(si), "let x:[1+1]; x: [2]").unwrap();
-   tlc.check(Some(si), "let x:[2+1]; x: [3]").unwrap();
-   tlc.check(Some(si), "let x:[1+2]; x: [3]").unwrap();
-   tlc.check(Some(si), "let x:[2+2]; x: [4]").unwrap();
-   tlc.check(Some(si), "let x:[1+1]; x: [3]").unwrap_err();
-   tlc.check(Some(si), "let x:[2+2]; x: [5]").unwrap_err();
+   tlc.check(Some(si), "let x:[0 + 0]; x: [0]").unwrap();
+   tlc.check(Some(si), "let x:[0 + 1]; x: [1]").unwrap();
+   tlc.check(Some(si), "let x:[1 + 0]; x: [1]").unwrap();
+   tlc.check(Some(si), "let x:[1 + 1]; x: [2]").unwrap();
+   tlc.check(Some(si), "let x:[2 + 1]; x: [3]").unwrap();
+   tlc.check(Some(si), "let x:[1 + 2]; x: [3]").unwrap();
+   tlc.check(Some(si), "let x:[2 + 2]; x: [4]").unwrap();
+   tlc.check(Some(si), "let x:[1 + 1]; x: [3]").unwrap_err();
+   tlc.check(Some(si), "let x:[2 + 2]; x: [5]").unwrap_err();
 
-   tlc.check(Some(si), "let x:[0-0]; x: [0]").unwrap();
-   tlc.check(Some(si), "let x:[0-1]; x: [-1]").unwrap();
-   tlc.check(Some(si), "let x:[1-0]; x: [1]").unwrap();
-   tlc.check(Some(si), "let x:[1-1]; x: [0]").unwrap();
-   tlc.check(Some(si), "let x:[2-1]; x: [1]").unwrap();
-   tlc.check(Some(si), "let x:[1-2]; x: [-1]").unwrap();
-   tlc.check(Some(si), "let x:[2-2]; x: [0]").unwrap();
-   tlc.check(Some(si), "let x:[5-2]; x: [0]").unwrap_err();
-   tlc.check(Some(si), "let x:[2-5]; x: [1]").unwrap_err();
+   tlc.check(Some(si), "let x:[0 - 0]; x: [0]").unwrap();
+   tlc.check(Some(si), "let x:[0 - 1]; x: [-1]").unwrap();
+   tlc.check(Some(si), "let x:[1 - 0]; x: [1]").unwrap();
+   tlc.check(Some(si), "let x:[1 - 1]; x: [0]").unwrap();
+   tlc.check(Some(si), "let x:[2 - 1]; x: [1]").unwrap();
+   tlc.check(Some(si), "let x:[1 - 2]; x: [-1]").unwrap();
+   tlc.check(Some(si), "let x:[2 - 2]; x: [0]").unwrap();
+   tlc.check(Some(si), "let x:[5 - 2]; x: [0]").unwrap_err();
+   tlc.check(Some(si), "let x:[2 - 5]; x: [1]").unwrap_err();
 
    tlc.check(Some(si), "let x:[0*0]; x: [0]").unwrap();
    tlc.check(Some(si), "let x:[0*1]; x: [0]").unwrap();
@@ -177,25 +177,25 @@ fn check_variable_substitution() {
    //tlc.check(Some(si), "-(-2): [2]").unwrap();
    //tlc.check(Some(si), "-(-1): [-1]").unwrap_err();
 
-   tlc.check(Some(si), "0+0: [0]").unwrap();
-   tlc.check(Some(si), "0+1: [1]").unwrap();
-   tlc.check(Some(si), "1+0: [1]").unwrap();
-   tlc.check(Some(si), "1+1: [2]").unwrap();
-   tlc.check(Some(si), "2+1: [3]").unwrap();
-   tlc.check(Some(si), "1+2: [3]").unwrap();
-   tlc.check(Some(si), "2+2: [4]").unwrap();
-   tlc.check(Some(si), "1+1: [3]").unwrap_err();
-   tlc.check(Some(si), "2+2: [5]").unwrap_err();
+   tlc.check(Some(si), "0 + 0: [0]").unwrap();
+   tlc.check(Some(si), "0 + 1: [1]").unwrap();
+   tlc.check(Some(si), "1 + 0: [1]").unwrap();
+   tlc.check(Some(si), "1 + 1: [2]").unwrap();
+   tlc.check(Some(si), "2 + 1: [3]").unwrap();
+   tlc.check(Some(si), "1 + 2: [3]").unwrap();
+   tlc.check(Some(si), "2 + 2: [4]").unwrap();
+   tlc.check(Some(si), "1 + 1: [3]").unwrap_err();
+   tlc.check(Some(si), "2 + 2: [5]").unwrap_err();
 
-   tlc.check(Some(si), "0-0: [0]").unwrap();
-   tlc.check(Some(si), "0-1: [-1]").unwrap();
-   tlc.check(Some(si), "1-0: [1]").unwrap();
-   tlc.check(Some(si), "1-1: [0]").unwrap();
-   tlc.check(Some(si), "2-1: [1]").unwrap();
-   tlc.check(Some(si), "1-2: [-1]").unwrap();
-   tlc.check(Some(si), "2-2: [0]").unwrap();
-   tlc.check(Some(si), "5-2: [0]").unwrap_err();
-   tlc.check(Some(si), "2-5: [1]").unwrap_err();
+   tlc.check(Some(si), "0 - 0: [0]").unwrap();
+   tlc.check(Some(si), "0 - 1: [-1]").unwrap();
+   tlc.check(Some(si), "1 - 0: [1]").unwrap();
+   tlc.check(Some(si), "1 - 1: [0]").unwrap();
+   tlc.check(Some(si), "2 - 1: [1]").unwrap();
+   tlc.check(Some(si), "1 - 2: [-1]").unwrap();
+   tlc.check(Some(si), "2 - 2: [0]").unwrap();
+   tlc.check(Some(si), "5 - 2: [0]").unwrap_err();
+   tlc.check(Some(si), "2 - 5: [1]").unwrap_err();
 
    tlc.check(Some(si), "0*0: [0]").unwrap();
    tlc.check(Some(si), "0*1: [0]").unwrap();

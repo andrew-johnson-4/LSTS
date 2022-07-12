@@ -74,6 +74,7 @@ pub enum Symbol {
    RightParen,
    LeftBrace,
    RightBrace,
+   AndAlso,
    Typeof,
    As,
    If,
@@ -126,6 +127,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::LeftBrace          => write!(f, "{{"),
            Symbol::RightBrace         => write!(f, "}}"),
 
+           Symbol::AndAlso            => write!(f, "and"),
            Symbol::Typeof             => write!(f, "typeof"),
            Symbol::As                 => write!(f, "as"),
            Symbol::If                 => write!(f, "if"),
@@ -180,6 +182,7 @@ impl std::fmt::Display for Symbol {
            Symbol::LeftBrace          => write!(f, "{{"),
            Symbol::RightBrace         => write!(f, "}}"),
 
+           Symbol::AndAlso            => write!(f, "and"),
            Symbol::Typeof             => write!(f, "typeof"),
            Symbol::As                 => write!(f, "as"),
            Symbol::If                 => write!(f, "if"),
@@ -287,6 +290,7 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
             column += ci - si;
             let ident = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
             match ident {
+               "and" => { tokens.push(Token { symbol: Symbol::AndAlso, span: span, }); },
                "typeof" => { tokens.push(Token { symbol: Symbol::Typeof, span: span, }); },
                "as" => { tokens.push(Token { symbol: Symbol::As, span: span, }); },
                "if" => { tokens.push(Token { symbol: Symbol::If, span: span, }); },

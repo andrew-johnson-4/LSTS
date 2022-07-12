@@ -207,8 +207,48 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
    }
 
    if peek_is(tokens, &vec![Symbol::Where]) {
-      pop_is("type-stmt", tokens, &vec![Symbol::Where])?;
-      todo!("type stmt invariants")
+      while peek_is(tokens, &vec![Symbol::Where,Symbol::AndAlso]) {
+         pop_is("type-stmt", tokens, &vec![Symbol::Where,Symbol::AndAlso])?;
+         let mut itks = Vec::new();
+         let mut prop = None;
+         let mut algs = None;
+
+         while !peek_is(tokens, &vec![Symbol::Dot]) {
+            if peek_is(tokens, &vec![Symbol::Comma]) {
+               pop_is("type-stmt", tokens, &vec![Symbol::Comma])?;
+            }
+            let mut idn = None;
+            let mut inf = None;
+            let mut kind = tlc.term_kind.clone();
+            if tokens.len()>0 {
+            if let Symbol::Ident(n) = tokens[0].symbol.clone() {
+               tokens.remove(0);
+               idn = Some(n.clone());
+            }}
+            if peek_is(tokens, &vec![Symbol::Ascript]) {
+               pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
+               inf = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
+            }
+            if peek_is(tokens, &vec![Symbol::KAscript]) {
+               pop_is("type-stmt", tokens, &vec![Symbol::KAscript])?;
+               kind = ll1_kind(tlc, tokens)?;
+            }
+            itks.push((idn,inf,kind));
+         }
+         pop_is("type-stmt", tokens, &vec![Symbol::Dot])?;
+         prop = Some( ll1_term(tlc, scope, tokens)? );
+         if peek_is(tokens, &vec![Symbol::Bar]) {
+            pop_is("type-stmt", tokens, &vec![Symbol::Bar])?;
+            algs = Some( ll1_term(tlc, scope, tokens)? );
+         }
+         let algs = if let Some(a) = algs { a }
+         else { tlc.push_term(Term::Ident("True".to_string()),&span) };
+         props.push(Invariant {
+            itks: itks,
+            prop: prop.expect("TLC Grammar Error in rule [typ_invariant]"),
+            algs: algs,
+         });
+      }
    }
 
    if normal {
@@ -286,43 +326,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
    Ok(TermId { id:0 })
 
    /*
-            for e in p.into_inner() { match e.as_rule() {
-               Rule::typ_invariant => {
-                  let mut itks = Vec::new();
-                  let mut prop = None;
-                  let mut algs = None;
-                  for tip in e.into_inner() { match tip.as_rule() {
-                     Rule::ident_typ_kind => {
-                        let mut idn = None;
-                        let mut inf = None;
-                        let mut kind = tlc.term_kind.clone();
-                        for itk in tip.into_inner() { match itk.as_rule() {
-                           Rule::ident => { idn = Some(itk.into_inner().concat()); },
-                           Rule::typ   => { inf   = Some(tlc.unparse_ast_type(&mut dept,scope,fp,itk,span)?); },
-                           Rule::kind   => { kind   = tlc.unparse_ast_kind(scope,fp,itk,span)?; },
-                           rule => panic!("unexpected ident_typ_kind rule: {:?}", rule)
-                        }}
-                        itks.push((idn,inf,kind));
-                     },
-                     Rule::term => {
-                        if prop.is_none() {
-                           prop = Some(tlc.unparse_ast(scope,fp,tip,span)?);
-                        } else {
-                           algs = Some(tlc.unparse_ast(scope,fp,tip,span)?);
-                        }
-                     }
-                     rule => panic!("unexpected typ_invariant rule: {:?}", rule)
-                  }}
-                  let algs = if let Some(a) = algs { a }
-                  else { tlc.push_term(Term::Ident("True".to_string()),&span) };
-                  props.push(Invariant {
-                     itks: itks,
-                     prop: prop.expect("TLC Grammar Error in rule [typ_invariant]"),
-                     algs: algs,
-                  });
-               },
-               rule => panic!("unexpected typ_stmt rule: {:?}", rule)
-            }}
    */
 }
 
