@@ -67,7 +67,6 @@ fn check_type_equality() {
    tlc.check(Some(si), "let x:Real=1:Complex;").unwrap_err();
 }
 
-/*
 #[test]
 fn check_compound_types() {
    let mut tlc = TLC::new();
@@ -103,7 +102,6 @@ fn check_compound_types() {
    tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.y:Integer").unwrap_err();
    tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.z:Integer").unwrap_err();
 }
-*/
 
 #[test]
 fn check_tik_i() {

@@ -670,7 +670,7 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
    }
 }
 
-pub fn ll1_value_term(tlc: &mut TLC, _scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    if let Some(sym) = tokens.get(0) {
       if let Symbol::Ident(x) = sym.symbol.clone() {
@@ -681,9 +681,25 @@ pub fn ll1_value_term(tlc: &mut TLC, _scope: ScopeId, tokens: &mut Vec<Token>) -
          return Ok(tlc.push_term(Term::Value(x.clone()), &span))
       } else if let Symbol::Typename(cname) = sym.symbol.clone() {
          tokens.remove(0);
-         let kvs = Vec::new();
-         //key_value = { ident ~ "=" ~ term }
-         //constructor = { typname ~ ("{" ~ (key_value ~ ("," ~ key_value)*)? ~ "}")? }
+         let mut kvs = Vec::new();
+         if peek_is(tokens, &vec![Symbol::LeftBrace]) {
+            pop_is("value-term", tokens, &vec![Symbol::LeftBrace])?;
+            while !peek_is(tokens, &vec![Symbol::RightBrace]) {
+               if peek_is(tokens, &vec![Symbol::Comma]) {
+                  pop_is("value-term", tokens, &vec![Symbol::Comma])?;
+               }
+               if tokens.len()>0 {
+               if let Symbol::Ident(k) = tokens[0].symbol.clone() {
+                  tokens.remove(0);
+                  pop_is("value-term", tokens, &vec![Symbol::Is])?;
+                  let v = ll1_term(tlc, scope, tokens)?;
+                  kvs.push((k.clone(),v));
+                  continue;
+               }}
+               pop_is("value-term", tokens, &vec![Symbol::Ident("x".to_string())])?;
+            }
+            pop_is("value-term", tokens, &vec![Symbol::RightBrace])?;
+         }
          return Ok(tlc.push_term(Term::Constructor(
             cname.clone(),
             kvs
@@ -704,7 +720,7 @@ pub fn ll1_field_term(tlc: &mut TLC, _scope: ScopeId, tokens: &mut Vec<Token>) -
    if tokens.len()>0 {
    if let Symbol::Ident(f) = tokens[0].symbol.clone() {
       tokens.remove(0);
-      return Ok(tlc.push_term(Term::Ident(f),&span))
+      return Ok(tlc.push_term(Term::Ident(format!(".{}",f)),&span))
    }}
    pop_is("field-term", tokens, &vec![Symbol::Ident("x".to_string())])?;
    unreachable!("field-term")
