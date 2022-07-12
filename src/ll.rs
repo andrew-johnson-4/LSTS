@@ -637,7 +637,21 @@ pub fn ll1_prefix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -
 }
 
 pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement tuple term")
+   let span = span_of(tokens);
+   pop_is("tuple-term", tokens, &vec![Symbol::LeftParen])?;
+   let mut ts = Vec::new();
+   while !peek_is(tokens, &vec![Symbol::RightParen]) {
+      if peek_is(tokens, &vec![Symbol::Comma]) {
+         pop_is("tuple-term", tokens, &vec![Symbol::Comma])?;
+      }
+      ts.push( ll1_term(tlc, scope, tokens)? );
+   }
+   pop_is("tuple-term", tokens, &vec![Symbol::RightParen])?;
+   if ts.len()==1 {
+      Ok(ts[0])
+   } else {
+      Ok(tlc.push_term(Term::Tuple(ts),&span))
+   }
 }
 
 pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
@@ -680,7 +694,7 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
       ll1_value_term(tlc, scope, tokens)?
    };
    while peek_is(tokens, &vec![Symbol::LeftParen,Symbol::Dot]) {
-      if peek_is(tokens, &vec![Symbol::LeftParen]) {
+      if peek_is(tokens, &vec![Symbol::Dot]) {
          let field = ll1_field_term(tlc, scope, tokens)?;
          let t = Term::App(
             field,

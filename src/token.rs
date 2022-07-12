@@ -200,7 +200,7 @@ pub fn is_ident_char(source: &str, index: usize) -> bool {
 
 pub fn is_value_char(source: &str, index: usize) -> bool {
    let c = source.as_bytes()[index] as char;
-   c == 'e' || c == 'E' || c == '+' || c == '-' || c == 'i' ||
+   c == 'e' || c == 'E' || c == '+' || c == '-' || c == 'i' || c == '.' ||
    c.is_ascii_digit()
 }
 
