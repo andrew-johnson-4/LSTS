@@ -48,8 +48,40 @@ fn pop_is(rule: &str, tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> Result<Symbo
 }
 
 pub fn ll1_kind(tlc: &mut TLC, tokens: &mut Vec<Token>) -> Result<Kind,Error> {
-   todo!("ll1-kind")
-   //Kind1 + Kind2<Kind3,Kind4>
+   let mut kinds = Vec::new();
+   while peek_is_typename(tokens) {
+      let mut kname = "Nil".to_string();
+      let mut ks = Vec::new();
+      if let Symbol::Typename(kn) = tokens[0].symbol.clone() {
+         tokens.remove(0);
+         kname = kn.clone();
+      }
+
+      if peek_is(tokens, &vec![Symbol::LessThan]) {
+         pop_is("kind", tokens, &vec![Symbol::LessThan])?;
+         while !peek_is(tokens, &vec![Symbol::GreaterThan]) {
+            if peek_is(tokens, &vec![Symbol::Comma]) {
+               pop_is("kind", tokens, &vec![Symbol::Comma])?;
+            }
+            ks.push(ll1_kind(tlc, tokens)?);
+         }
+         pop_is("kind", tokens, &vec![Symbol::GreaterThan])?;
+      }
+
+      if peek_is(tokens, &vec![Symbol::Plus]) {
+         pop_is("kind", tokens, &vec![Symbol::Plus])?;
+      }
+      if &kname=="Nil" {
+         kinds.push(Kind::Nil);
+      } else {
+         kinds.push(Kind::Simple(kname,ks));
+      }
+   }
+   if kinds.len()==1 {
+      Ok(kinds[0].clone())
+   } else { 
+      Ok(Kind::And(kinds))
+   }
 }
 
 pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
