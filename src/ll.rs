@@ -7,6 +7,13 @@ use crate::tlc::{TLC,TypeRule,Invariant,Typedef};
 use crate::typ::{Type};
 use crate::kind::{Kind};
 
+fn peek_is_regex(tokens: &mut Vec<Token>) -> bool {
+   if let Some(t) = tokens.get(0) {
+      if let Symbol::Regex(_) = t.symbol {
+         true
+      } else { false }
+   } else { false }
+}
 fn peek_is_typename(tokens: &mut Vec<Token>) -> bool {
    if let Some(t) = tokens.get(0) {
       if let Symbol::Typename(_) = t.symbol {
@@ -96,9 +103,14 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
    if peek_is(tokens, &vec![Symbol::Is]) {
       pop_is("type-stmt", tokens, &vec![Symbol::Is])?;
 
-      while peek_is_typename(tokens) || peek_is(tokens, &vec![Symbol::LeftBrace]) {
+      while peek_is_typename(tokens) || peek_is_regex(tokens) || peek_is(tokens, &vec![Symbol::LeftBrace]) {
          let mut tcname = t.clone();
          let mut tcrows = Vec::new();
+         if let Symbol::Regex(r) = tokens[0].symbol.clone() {
+            tokens.remove(0);
+            typedef.push( Typedef::Regex(r.clone()) );
+            continue;
+         };
          if let Symbol::Typename(tn) = tokens[0].symbol.clone() {
             tokens.remove(0);
             tcname = tn.clone();
@@ -236,21 +248,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
                   }}
                   tiks.push((typ,inf,kind));
                },
-               Rule::typedef => {
-                  let struct_typ = Type::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Type::Ident(t.clone(),Vec::new())).collect::<Vec<Type>>());
-                  for tdb in e.into_inner() {
-                     let mut tbs = tdb.into_inner();
-                     let tbl = tbs.concat();
-                     let tb = tbs.next().expect("TLC Grammar Error in rule [typedef.2]");
-                     match tb.as_rule() {
-                        Rule::regex => {
-                           typedef.push( Typedef::Regex(tbl) );
-                        },
-                        rule => panic!("unexpected typedef rule: {:?}", rule)
-                     }
-                  }
-               },
-               Rule::kind => { kinds.push(tlc.unparse_ast_kind(scope,fp,e,span)?); },
                Rule::typ_invariant => {
                   let mut itks = Vec::new();
                   let mut prop = None;
