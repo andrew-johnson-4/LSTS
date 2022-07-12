@@ -136,6 +136,59 @@ impl std::fmt::Debug for Symbol {
         }
     }
 }
+impl std::fmt::Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+           Symbol::EOF                => write!(f, "EOF"),
+           Symbol::Ident(s)           => write!(f, "{}", s),
+           Symbol::Typename(s)        => write!(f, "{}", s),
+           Symbol::Regex(s)           => write!(f, "{}", s),
+           Symbol::Value(s)           => write!(f, "{}", s),
+           Symbol::Ascript            => write!(f, ":"),
+           Symbol::KAscript           => write!(f, "::"),
+           Symbol::Is                 => write!(f, "="),
+           Symbol::Equal              => write!(f, "=="),
+           Symbol::NotEqual           => write!(f, "!="),
+           Symbol::GreaterThan        => write!(f, ">"),
+           Symbol::GreaterThanOrEqual => write!(f, ">="),
+           Symbol::LessThan           => write!(f, "<"),
+           Symbol::LessThanOrEqual    => write!(f, "<="),
+
+           Symbol::Question           => write!(f, "?"),
+           Symbol::And                => write!(f, "&&"),
+           Symbol::Or                 => write!(f, "||"),
+           Symbol::Bar                => write!(f, "|"),
+           Symbol::Div                => write!(f, "/"),
+           Symbol::Mul                => write!(f, "*"),
+           Symbol::Mod                => write!(f, "%"),
+           Symbol::Plus               => write!(f, "+"),
+           Symbol::Minus              => write!(f, "-"),
+           Symbol::Pow                => write!(f, "^"),
+           Symbol::Dot                => write!(f, "."),
+           Symbol::Comma              => write!(f, ","),
+           Symbol::SemiColon          => write!(f, ";"),
+           Symbol::BackSlash          => write!(f, "\\"),
+           Symbol::Arrow              => write!(f, "->"),
+
+           Symbol::LeftBracket        => write!(f, "["),
+           Symbol::RightBracket       => write!(f, "]"),
+           Symbol::LeftParen          => write!(f, "("),
+           Symbol::RightParen         => write!(f, ")"),
+           Symbol::LeftBrace          => write!(f, "{{"),
+           Symbol::RightBrace         => write!(f, "}}"),
+
+           Symbol::Typeof             => write!(f, "typeof"),
+           Symbol::As                 => write!(f, "as"),
+           Symbol::If                 => write!(f, "if"),
+           Symbol::Else               => write!(f, "else"),
+           Symbol::Let                => write!(f, "let"),
+           Symbol::Forall             => write!(f, "forall"),
+           Symbol::Type               => write!(f, "type"),
+           Symbol::Normal             => write!(f, "normal"),
+           Symbol::Where              => write!(f, "where"),
+        }
+    }
+}
 
 pub fn is_ident_char(source: &str, index: usize) -> bool {
    let c = source.as_bytes()[index] as char;
