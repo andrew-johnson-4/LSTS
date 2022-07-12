@@ -372,11 +372,38 @@ pub fn ll1_typeof_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: 
 }
 
 pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
-   todo!("ident type")
+   let tn = if tokens.len()>0 {
+      if let Symbol::Typename(tn) = tokens[0].symbol.clone() {
+         tn.clone()
+      } else {
+         pop_is("ident-type", tokens, &vec![Symbol::Typename("T".to_string())])?;
+         unreachable!("ident-type")
+      }
+   } else {
+      pop_is("ident-type", tokens, &vec![Symbol::Typename("T".to_string())])?;
+      unreachable!("ident-type")
+   };
+   let mut tps = Vec::new();
+   pop_is("ident-type", tokens, &vec![Symbol::LessThan])?;
+   while !peek_is(tokens, &vec![Symbol::GreaterThan]) {
+      if peek_is(tokens, &vec![Symbol::Comma]) {
+         pop_is("ident-type", tokens, &vec![Symbol::Comma])?;
+      }
+      tps.push( ll1_type(tlc, dept, scope, tokens)? );
+   }
+   pop_is("ident-type", tokens, &vec![Symbol::GreaterThan])?;
+   Ok(Type::Ident(tn,tps))
 }
 
 pub fn ll1_dep_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
-   todo!("dep type")
+   let span = span_of(tokens);
+   pop_is("dependent-type", tokens, &vec![Symbol::LeftBracket])?;
+   let mut t = ll1_term(tlc, scope, tokens)?;
+   pop_is("dependent-type", tokens, &vec![Symbol::RightBracket])?;
+   tlc.untyped(t);
+   tlc.unify_varnames(dept,&mut t);
+   let ct = tlc.push_dep_type(&tlc.rows[t.id].term.clone(), t);
+   Ok(ct)
 }
 
 pub fn ll1_atom_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
@@ -422,24 +449,6 @@ pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: 
       ]);
    }
    Ok(base)
-
-/*
-         Rule::ident_typ => {
-            let mut ps = p.into_inner();
-            let tn = ps.next().expect("TLC Grammar Error in rule [ident_typ.1]").into_inner().concat();
-            let tps = ps.map(|e|self.unparse_ast_type(dept,scope,fp,e,span).expect("TLC Grammar Error in rule [ident_typ.2]")).collect::<Vec<Type>>();
-            Ok(Type::Ident(tn,tps))
-         },
-         Rule::dep_typ => {
-            let mut t = self.unparse_ast(scope,fp,p.into_inner().next().expect("TLC Grammar Error in rule [stmt]"),span)?;
-            self.untyped(t);
-            self.unify_varnames(dept,&mut t); //convert all varnames to "var#{term.id}" and give identical vars the same id
-            let ct = self.push_dep_type(&self.rows[t.id].term.clone(), t);  //check if type is constant
-            Ok(ct)
-         }
-ident_typ = { typname ~ ("<" ~ typ ~ ("," ~ typ)* ~ ">")? }
-dep_typ   = { "[" ~ term ~ "]" }
-*/
 }
 
 pub fn ll1_product_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
