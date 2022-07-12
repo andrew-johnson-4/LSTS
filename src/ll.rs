@@ -634,6 +634,7 @@ pub fn ll1_typeof_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: 
 pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
    let tn = if tokens.len()>0 {
       if let Symbol::Typename(tn) = tokens[0].symbol.clone() {
+         tokens.remove(0);
          tn.clone()
       } else {
          pop_is("ident-type", tokens, &vec![Symbol::Typename("T".to_string())])?;
@@ -644,14 +645,16 @@ pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
       unreachable!("ident-type")
    };
    let mut tps = Vec::new();
-   pop_is("ident-type", tokens, &vec![Symbol::LessThan])?;
-   while !peek_is(tokens, &vec![Symbol::GreaterThan]) {
-      if peek_is(tokens, &vec![Symbol::Comma]) {
-         pop_is("ident-type", tokens, &vec![Symbol::Comma])?;
+   if peek_is(tokens, &vec![Symbol::LessThan]) {
+      pop_is("ident-type", tokens, &vec![Symbol::LessThan])?;
+      while !peek_is(tokens, &vec![Symbol::GreaterThan]) {
+         if peek_is(tokens, &vec![Symbol::Comma]) {
+            pop_is("ident-type", tokens, &vec![Symbol::Comma])?;
+         }
+         tps.push( ll1_type(tlc, dept, scope, tokens)? );
       }
-      tps.push( ll1_type(tlc, dept, scope, tokens)? );
+      pop_is("ident-type", tokens, &vec![Symbol::GreaterThan])?;
    }
-   pop_is("ident-type", tokens, &vec![Symbol::GreaterThan])?;
    Ok(Type::Ident(tn,tps))
 }
 
