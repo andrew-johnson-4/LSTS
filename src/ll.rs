@@ -33,6 +33,11 @@ fn pop_is(rule: &str, tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> Result<Symbo
    }
 }
 
+pub fn ll1_kind(tlc: &mut TLC, tokens: &mut Vec<Token>) -> Result<Kind,Error> {
+   todo!("ll1-kind")
+   //Kind1 + Kind2<Kind3,Kind4>
+}
+
 pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut t = "".to_string();
@@ -40,16 +45,68 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
    let mut implies = None;
    let mut tiks = Vec::new();
    let mut typedef = Vec::new();
-   let mut kinds: Vec<Kind> = Vec::new();
+   let mut kinds = tlc.term_kind.clone();
    let mut props: Vec<Invariant> = Vec::new();
    let mut constructors: Vec<String> = Vec::new();
    let mut dept: HashMap<String,TermId> = HashMap::new();
 
-   todo!("implement type stmt parse");
+   /*
+   key_typ = { ident ~ ":" ~ typ }
+   constructor_typedef = { typname? ~ ("{" ~ (key_typ ~ ("," ~ key_typ)*)? ~ "}")? }
+   regex = { "/" ~ (!"/" ~ ANY)+ ~ "/" }
+   typedef_branch = { regex | constructor_typedef }
+   typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
 
-   let kinds = if kinds.len()==0 { tlc.term_kind.clone()
-   } else if kinds.len()==1 { kinds[0].clone()
-   } else { Kind::and(kinds) };
+   typ_invariant = { ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ term ~ ("|" ~ term)? }
+   typ_stmt =
+                       ~ ("=" ~ typedef)? ~ ("::" ~ kind ~ ("+" ~ kind)*)?
+                       ~ ("where" ~ typ_invariant ~ ("and" ~ typ_invariant)*)? }
+   */
+   pop_is("type-stmt", tokens, &vec![Symbol::Type])?;
+   if peek_is(tokens, &vec![Symbol::Normal]) {
+      pop_is("type-stmt", tokens, &vec![Symbol::Normal])?;
+      normal = true;
+   }
+   if tokens.len()>0 {
+      if let Symbol::Typename(tname) = tokens[0].symbol.clone() {
+         tokens.remove(0);
+         t = tname.clone();
+      } else {
+         pop_is("type-stmt", tokens, &vec![Symbol::Typename("T".to_string())])?;
+      }
+   } else {
+      pop_is("type-stmt", tokens, &vec![Symbol::Typename("T".to_string())])?;
+   }
+
+   if peek_is(tokens, &vec![Symbol::LessThan]) {
+      pop_is("type-stmt", tokens, &vec![Symbol::LessThan])?;
+      todo!("implement type stmt parameters {}", t);
+      //[typ:inf::kind]
+      pop_is("type-stmt", tokens, &vec![Symbol::GreaterThan])?;
+   }
+
+   if peek_is(tokens, &vec![Symbol::Ascript]) {
+      pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
+      implies = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
+   }
+
+   eprintln!("top token is {:?}", tokens[0].symbol.clone());
+
+   if peek_is(tokens, &vec![Symbol::Is]) {
+      pop_is("type-stmt", tokens, &vec![Symbol::Is])?;
+      todo!("type-stmt typedef")
+   }
+
+   if peek_is(tokens, &vec![Symbol::KAscript]) {
+      pop_is("type-stmt", tokens, &vec![Symbol::KAscript])?;
+      kinds = ll1_kind(tlc, tokens)?;
+   }
+
+   if peek_is(tokens, &vec![Symbol::Where]) {
+      pop_is("type-stmt", tokens, &vec![Symbol::Where])?;
+      todo!("type stmt invariants")
+   }
+
    if normal {
       if constructors.len()==0 {
          //constructors are preferred normal forms
@@ -126,8 +183,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
 
    /*
             for e in p.into_inner() { match e.as_rule() {
-               Rule::typname => { t=e.into_inner().concat(); },
-               Rule::normal => { normal=true; },
                Rule::typ_inf_kind => {
                   let mut typ = "".to_string();
                   let mut inf = None;
@@ -140,7 +195,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
                   }}
                   tiks.push((typ,inf,kind));
                },
-               Rule::typ => { implies = Some(tlc.unparse_ast_type(&mut dept,scope,fp,e,span)?); },
                Rule::typedef => {
                   let struct_typ = Type::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Type::Ident(t.clone(),Vec::new())).collect::<Vec<Type>>());
                   for tdb in e.into_inner() {
@@ -267,7 +321,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> R
          }
          if peek_is(tokens, &vec![Symbol::KAscript]) {
             pop_is("let-stmt", tokens, &vec![Symbol::KAscript])?;
-            kind = ll1_kind(tlc, scope, tokens)?;
+            kind = ll1_kind(tlc, tokens)?;
          }
          if let Some(tt) = &typ {
          if tt.is_constant() {
@@ -285,7 +339,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> R
    }
    if peek_is(tokens, &vec![Symbol::KAscript]) {
       pop_is("let-stmt", tokens, &vec![Symbol::KAscript])?;
-      rk = ll1_kind(tlc, scope, tokens)?;
+      rk = ll1_kind(tlc, tokens)?;
    }
    if peek_is(tokens, &vec![Symbol::Is]) {
       pop_is("let-stmt", tokens, &vec![Symbol::Is])?;
@@ -689,10 +743,6 @@ pub fn ll1_and_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: Sco
 
 pub fn ll1_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
    ll1_and_type(tlc, dept, scope, tokens)
-}
-
-pub fn ll1_kind(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Kind,Error> {
-   todo!("implement kind")
 }
 
 pub fn ll1_ascript_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
