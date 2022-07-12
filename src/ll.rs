@@ -567,6 +567,9 @@ pub fn ll1_block_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
    let mut es = Vec::new();
    while !peek_is(tokens, &vec![Symbol::RightBrace]) {
       es.push( ll1_stmt(tlc, scope, tokens)? );
+      while peek_is(tokens, &vec![Symbol::SemiColon]) {
+         pop_is("block", tokens, &vec![Symbol::SemiColon])?;
+      }
    }
    pop_is("block", tokens, &vec![Symbol::RightBrace])?;
 
@@ -577,6 +580,9 @@ pub fn ll1_file(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Resul
    let mut es = Vec::new();
    while !peek_is(tokens, &vec![Symbol::EOF]) {
       es.push( ll1_stmt(tlc, scope, tokens)? );
+      while peek_is(tokens, &vec![Symbol::SemiColon]) {
+         pop_is("file", tokens, &vec![Symbol::SemiColon])?;
+      }
    }
    pop_is("file", tokens, &vec![Symbol::EOF])?;
    Ok(tlc.push_term(Term::Block(scope,es), &span_of(tokens)))
