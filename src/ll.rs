@@ -3,10 +3,17 @@ use crate::term::{Term,TermId};
 use crate::debug::{Error};
 use crate::token::{Token,Symbol,span_of};
 use crate::scope::{ScopeId,Scope};
-use crate::tlc::{TLC,TypeRule,Invariant};
+use crate::tlc::{TLC,TypeRule,Invariant,Typedef};
 use crate::typ::{Type};
 use crate::kind::{Kind};
 
+fn peek_is_typename(tokens: &mut Vec<Token>) -> bool {
+   if let Some(t) = tokens.get(0) {
+      if let Symbol::Typename(_) = t.symbol {
+         true
+      } else { false }
+   } else { false }
+}
 fn peek_is(tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> bool {
    if let Some(t) = tokens.get(0) {
       is.contains(&t.symbol)
@@ -43,7 +50,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
    let mut t = "".to_string();
    let mut normal = false;
    let mut implies = None;
-   let mut tiks = Vec::new();
+   let mut tiks: Vec<(String,Option<Type>,Kind)> = Vec::new();
    let mut typedef = Vec::new();
    let mut kinds = tlc.term_kind.clone();
    let mut props: Vec<Invariant> = Vec::new();
@@ -51,16 +58,11 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
    let mut dept: HashMap<String,TermId> = HashMap::new();
 
    /*
-   key_typ = { ident ~ ":" ~ typ }
-   constructor_typedef = { typname? ~ ("{" ~ (key_typ ~ ("," ~ key_typ)*)? ~ "}")? }
    regex = { "/" ~ (!"/" ~ ANY)+ ~ "/" }
    typedef_branch = { regex | constructor_typedef }
    typedef = { typedef_branch ~ ("|" ~ typedef_branch)* }
 
    typ_invariant = { ident_typ_kind? ~ ("," ~ ident_typ_kind)* ~ "." ~ term ~ ("|" ~ term)? }
-   typ_stmt =
-                       ~ ("=" ~ typedef)? ~ ("::" ~ kind ~ ("+" ~ kind)*)?
-                       ~ ("where" ~ typ_invariant ~ ("and" ~ typ_invariant)*)? }
    */
    pop_is("type-stmt", tokens, &vec![Symbol::Type])?;
    if peek_is(tokens, &vec![Symbol::Normal]) {
@@ -84,17 +86,56 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
       //[typ:inf::kind]
       pop_is("type-stmt", tokens, &vec![Symbol::GreaterThan])?;
    }
+   let struct_typ = Type::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Type::Ident(t.clone(),Vec::new())).collect::<Vec<Type>>());
 
    if peek_is(tokens, &vec![Symbol::Ascript]) {
       pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
       implies = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
    }
 
-   eprintln!("top token is {:?}", tokens[0].symbol.clone());
-
    if peek_is(tokens, &vec![Symbol::Is]) {
       pop_is("type-stmt", tokens, &vec![Symbol::Is])?;
-      todo!("type-stmt typedef")
+
+      while peek_is_typename(tokens) || peek_is(tokens, &vec![Symbol::LeftBrace]) {
+         let mut tcname = t.clone();
+         let mut tcrows = Vec::new();
+         if let Symbol::Typename(tn) = tokens[0].symbol.clone() {
+            tokens.remove(0);
+            tcname = tn.clone();
+         };
+         if peek_is(tokens, &vec![Symbol::LeftBrace]) {
+            pop_is("type-stmt", tokens, &vec![Symbol::LeftBrace])?;
+            while !peek_is(tokens, &vec![Symbol::RightBrace]) {
+               if peek_is(tokens, &vec![Symbol::Comma]) {
+                  pop_is("type-stmt", tokens, &vec![Symbol::Comma])?;
+               }
+               let mut ki = "".to_string();
+               if tokens.len()>0 {
+               if let Symbol::Ident(f) = tokens[0].symbol.clone() {
+                  ki = f.clone();
+               }}
+               pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
+               let kt = ll1_type(tlc, &mut dept, scope, tokens)?;
+               let vn = format!(".{}", ki.clone());
+               let vt = tlc.push_term(Term::Ident(vn.clone()),&span);
+               tlc.untyped(vt);
+               tlc.scopes[scope.id].children.push((
+                  vn,
+                  HashMap::new(),
+                  Type::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
+                  vt
+               ));
+               tcrows.push((ki,kt));
+            }
+            pop_is("type-stmt", tokens, &vec![Symbol::RightBrace])?;
+         }
+         constructors.push(tcname.clone());
+         typedef.push( Typedef::Constructor(tcname,tcrows) );
+
+         if peek_is(tokens, &vec![Symbol::Bar]) {
+            pop_is("type-stmt", tokens, &vec![Symbol::Bar])?;
+         };
+      }
    }
 
    if peek_is(tokens, &vec![Symbol::KAscript]) {
@@ -204,31 +245,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
                      match tb.as_rule() {
                         Rule::regex => {
                            typedef.push( Typedef::Regex(tbl) );
-                        },
-                        Rule::constructor_typedef => {
-                           let mut tcname = t.clone(); //if not provided, constructor name is same as of the type being defined
-                           let mut tcrows = Vec::new();
-                           for tc in tb.into_inner() { match tc.as_rule() {
-                              Rule::typname => { tcname = tc.into_inner().concat(); },
-                              Rule::key_typ => {
-                                 let mut kts = tc.into_inner();
-                                 let ki = kts.next().expect("TLC Grammar Error in rule [typedef.3]").into_inner().concat();
-                                 let kt = tlc.unparse_ast_type(&mut dept,scope,fp,kts.next().expect("TLC Grammar Error in rule [typedef.4]"),span)?;
-                                 let vn = format!(".{}",ki.clone());
-                                 let vt = tlc.push_term(Term::Ident(vn.clone()),span);
-                                 tlc.untyped(vt);
-                                 tlc.scopes[scope.id].children.push((
-                                    vn,
-                                    HashMap::new(),
-                                    Type::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
-                                    vt
-                                 ));
-                                 tcrows.push((ki,kt));
-                              },
-                              rule => panic!("unexpected constructor_typedef rule: {:?}", rule)
-                           }}
-                           constructors.push(tcname.clone());
-                           typedef.push( Typedef::Constructor(tcname,tcrows) );
                         },
                         rule => panic!("unexpected typedef rule: {:?}", rule)
                      }
