@@ -210,7 +210,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
       while peek_is(tokens, &vec![Symbol::Where,Symbol::AndAlso]) {
          pop_is("type-stmt", tokens, &vec![Symbol::Where,Symbol::AndAlso])?;
          let mut itks = Vec::new();
-         let mut prop = None;
+         let prop;
          let mut algs = None;
 
          while !peek_is(tokens, &vec![Symbol::Dot]) {
@@ -324,15 +324,12 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
       span.clone()
    ));
    Ok(TermId { id:0 })
-
-   /*
-   */
 }
 
 pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
-   let mut inference  = None;
+   let inference;
    let mut term = None;
    let mut kind = tlc.term_kind.clone();
    let mut dept = HashMap::new();
@@ -673,7 +670,7 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
    }
 }
 
-pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_value_term(tlc: &mut TLC, _scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    if let Some(sym) = tokens.get(0) {
       if let Symbol::Ident(x) = sym.symbol.clone() {
@@ -701,7 +698,7 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
    unreachable!("value-term expected Ident, Typename, or Value")
 }
 
-pub fn ll1_field_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_field_term(tlc: &mut TLC, _scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("field-term", tokens, &vec![Symbol::Dot])?;
    if tokens.len()>0 {
@@ -782,7 +779,7 @@ pub fn ll1_paren_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
    }
 }
 
-pub fn ll1_typeof_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_typeof_type(tlc: &mut TLC, _dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
    let span = span_of(tokens);
    pop_is("atom-type", tokens, &vec![Symbol::Typeof])?;
    pop_is("atom-type", tokens, &vec![Symbol::LeftParen])?;
@@ -829,7 +826,6 @@ pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
 }
 
 pub fn ll1_dep_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
-   let span = span_of(tokens);
    pop_is("dependent-type", tokens, &vec![Symbol::LeftBracket])?;
    let mut t = ll1_term(tlc, scope, tokens)?;
    pop_is("dependent-type", tokens, &vec![Symbol::RightBracket])?;

@@ -1,9 +1,6 @@
 use std::rc::Rc;
 use std::collections::{HashSet,HashMap};
 use std::path::Path;
-use pest::Parser;
-use pest::iterators::{Pair,Pairs};
-use pest::error::{ErrorVariant,InputLocation,LineColLocation};
 use regex::Regex;
 use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
@@ -12,10 +9,6 @@ use crate::kind::Kind;
 use crate::token::{Span,tokenize,span_of};
 use crate::debug::Error;
 use crate::ll::ll1_file;
-
-#[derive(Parser)]
-#[grammar = "grammar_tlc.pest"]
-struct TlcParser;
 
 pub struct TLC {
    pub rows: Vec<Row>,
@@ -448,60 +441,12 @@ impl TLC {
    }
    pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
       //used mainly in tests
-      self.parse_doc(None, "[string]", src)
-   }
-   pub fn parse_doc(&mut self, scope:Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
-      let parse_result = TlcParser::parse(Rule::file, src);
-      match parse_result {
-        Ok(parse_ast) => { self.unparse_file(scope, docname, parse_ast) }
-        Err(pe) => {
-          let (start,end) = match pe.line_col {
-             LineColLocation::Pos(s) => (s,s),
-             LineColLocation::Span(s,e) => (s,e),
-          };
-          let (istart,iend) = match pe.location {
-             InputLocation::Pos(s) => (s,s),
-             InputLocation::Span((s,e)) => (s,e),
-          };
-          let rule = match pe.variant {
-             ErrorVariant::ParsingError {
-                positives:p,
-                negatives:_
-             } => {
-                p.iter().map(|r|{format!("{:?}",r)}).collect::<Vec<String>>().join(" or ")
-             }, _ => {format!("")}
-          };
-          Err(Error { 
-             kind: "Parse Error".to_string(),
-             rule: rule,
-             span: Span {
-                filename: Rc::new(docname.to_string()),
-                offset_start: istart,
-                offset_end: iend,
-                linecol_start: start,
-                linecol_end: end,
-             },
-          })
-        }
-      } 
-   }
-   pub fn unparse_ast_type(&mut self, dept: &mut HashMap<String,TermId>, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Type,Error> {
-      todo!("remove dependencies on unparse_ast_type")
-   }
-   pub fn unparse_file(&mut self, scope:Option<ScopeId>, fp:&str, ps: Pairs<crate::tlc::Rule>) -> Result<TermId,Error> {
-      let p = ps.peek().unwrap();
-      let span = Span {
-         filename: Rc::new(fp.to_string()),
-         linecol_start: p.as_span().start_pos().line_col(),
-         linecol_end: p.as_span().end_pos().line_col(),
-         offset_start: p.as_span().start(),
-         offset_end: p.as_span().end(),
-      };
-      let file_scope = scope.unwrap_or(self.push_scope(Scope {
+      let mut tokens = tokenize("[string]".to_string(), src)?;
+      let file_scope = self.push_scope(Scope {
          parent: None,
          children: Vec::new(),
-      }, &span));
-      self.unparse_ast(file_scope, fp, p, &span)
+      }, &span_of(&tokens));
+      ll1_file(self, file_scope, &mut tokens)
    }
    pub fn maybe_constant(&self, t: TermId) -> Option<Constant> {
       if let Some(c) = self.tconstant_index.get(&t) {
@@ -591,12 +536,6 @@ impl TLC {
    pub fn into_ident(&self, n: String) -> String {
       if n.starts_with("$") { n[2..n.len()-1].to_string() }
       else { n }
-   }
-   pub fn unparse_ast(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span:&Span) -> Result<TermId,Error> {
-      todo!("remove references to this function")
-   }
-   pub fn unparse_ast_kind(&mut self, scope:ScopeId, fp:&str, p: Pair<crate::tlc::Rule>, span: &Span) -> Result<Kind,Error> {
-      todo!("remove references to this dead code")
    }
    pub fn sanityck(&mut self) -> Result<(),Error> {
       for (ri,r) in self.rows.iter().enumerate() {
