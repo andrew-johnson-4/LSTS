@@ -278,7 +278,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
          Term::Tuple(ts) => {
             for ct in ts.iter() {
                if let Term::Ident(ctn) = &tlc.rows[ct.id].term.clone() {
-               if ctn == "tlc" { //replace "tlc" in invariants with this type rule
+               if ctn == "self" { //replace "self" in invariants with this type rule
                   xs.push(Type::Ident(t.clone(),Vec::new()));
                   fkts.insert(xs[xs.len()-1].clone(), tlc.term_kind.clone());
                   continue;
