@@ -539,7 +539,21 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> R
 }
 
 pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
-   todo!("implement if term")
+   let span = span_of(tokens);
+   pop_is("if-term", tokens, &vec![Symbol::If])?;
+   let cond = ll1_expr_term(tlc, scope, tokens)?;
+   pop_is("if-term", tokens, &vec![Symbol::Then])?;
+   let branch1 = ll1_expr_term(tlc, scope, tokens)?;
+   let branch2 = if peek_is(tokens, &vec![Symbol::Else]) {
+      pop_is("if-term", tokens, &vec![Symbol::Else])?;
+      ll1_expr_term(tlc, scope, tokens)?
+   } else {
+      tlc.push_term(Term::Tuple(Vec::new()),&span)
+   };
+   Ok({let t = Term::App(
+      tlc.push_term(Term::Ident("if".to_string()),&span),
+      tlc.push_term(Term::Tuple(vec![cond,branch1,branch2]),&span),
+   ); tlc.push_term(t,&span)})
 }
 
 pub fn ll1_logical_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {

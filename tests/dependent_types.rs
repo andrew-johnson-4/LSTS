@@ -158,7 +158,7 @@ fn check_constant_equivalence() {
    tlc.check(Some(si), "let x:[if True then 0]; x: [0]").unwrap();
    tlc.check(Some(si), "let x:[if True then 0]; x: [NaN]").unwrap_err();
    tlc.check(Some(si), "let x:[if False then 0]; x: [0]").unwrap_err();
-   tlc.check(Some(si), "let x:[if False then 0]; x: [NaN]").unwrap();
+   tlc.check(Some(si), "let x:[if False then 0]; x: [()]").unwrap();
 }
 
 #[test]
