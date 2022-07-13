@@ -231,30 +231,69 @@ impl<R: Read> TokenReader<R> {
          Ok(self.peek.clone())
       }
    }
+
+   pub fn is_operator(&self, ts: &[u8]) -> Option<(usize,Symbol)> {
+      match ts {
+         [b':', b':', ..] => Some((2,Symbol::KAscript)),
+         [b'=', b'=', ..] => Some((2,Symbol::Equal)),
+         [b'=', b'>', ..] => Some((2,Symbol::Imply)),
+         [b'!', b'=', ..] => Some((2,Symbol::NotEqual)),
+         [b'>', b'=', ..] => Some((2,Symbol::GreaterThanOrEqual)),
+         [b'<', b'=', ..] => Some((2,Symbol::LessThanOrEqual)),
+         [b'&', b'&', ..] => Some((2,Symbol::And)),
+         [b'|', b'|', ..] => Some((2,Symbol::Or)),
+         [b'-', b'>', ..] => Some((2,Symbol::Arrow)),
+         [b'?', ..] => Some((1,Symbol::Question)),
+         [b':', ..] => Some((1,Symbol::Ascript)),
+         [b'=', ..] => Some((1,Symbol::Is)),
+         [b'>', ..] => Some((1,Symbol::GreaterThan)),
+         [b'<', ..] => Some((1,Symbol::LessThan)),
+         [b'|', ..] => Some((1,Symbol::Bar)),
+         [b'/', ..] => Some((1,Symbol::Div)),
+         [b'*', ..] => Some((1,Symbol::Mul)),
+         [b'%', ..] => Some((1,Symbol::Mod)),
+         [b'+', ..] => Some((1,Symbol::Plus)),
+         [b'-', ..] => Some((1,Symbol::Minus)),
+         [b'^', ..] => Some((1,Symbol::Pow)),
+         [b'.', ..] => Some((1,Symbol::Dot)),
+         [b',', ..] => Some((1,Symbol::Comma)),
+         [b';', ..] => Some((1,Symbol::SemiColon)),
+         [b'\\', ..] => Some((1,Symbol::BackSlash)),
+         [b'[', ..] => Some((1,Symbol::LeftBracket)),
+         [b']', ..] => Some((1,Symbol::RightBracket)),
+         [b'(', ..] => Some((1,Symbol::LeftParen)),
+         [b')', ..] => Some((1,Symbol::RightParen)),
+         [b'{', ..] => Some((1,Symbol::LeftBrace)),
+         [b'}', ..] => Some((1,Symbol::RightBrace)),
+         _ => None,
+      }
+   }
+
+   pub fn span_of(&self, token_length:usize) -> Span {
+      Span {
+         filename: self.source_name.clone(),
+         offset_start: self.offset_start,
+         offset_end: self.offset_start + token_length,
+         linecol_start: (self.line,self.column),
+         linecol_end: (self.line,self.column + token_length),
+      }
+   }
+   pub fn takec(&mut self) -> u8 {
+      if self.cbuf[0]==0 {
+      if let Err(_) = self.buf.read(&mut self.cbuf) {
+         return 0;
+      }}
+      let c = self.cbuf[0];
+      self.cbuf[0] = 0;
+      c
+   }
    pub fn take(&mut self) -> Result<Option<Token>,Error> {
       if self.peek.is_some() {
          let t = self.peek.clone();
          self.peek = None;
          return Ok(t);
       }
-
-      if self.cbuf[0]==0 {
-      if let Err(err) = self.buf.read(&mut self.cbuf) {
-         return Err(Error{
-            kind: "Tokenization Error".to_string(),
-            rule: format!("Could not read character from buffer"),
-            span: Span {
-               filename: self.source_name.clone(),
-               offset_start: self.offset_start,
-               offset_end: self.offset_start,
-               linecol_start: (self.line,self.column),
-               linecol_end: (self.line,self.column),
-            }
-         });
-         
-      }}
-      let c = self.cbuf[0];
-      self.cbuf[0] = 0;
+      let c = self.takec();
       todo!("TokenReader.take")
    }
    pub fn peek_symbol(&mut self) -> Result<Option<Symbol>,Error> {
@@ -311,54 +350,8 @@ pub fn tokenize_string<'a>(source_name: &str, src: &'a str) -> Result<TokenReade
    })
 }
 
+/*
 pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
-   let filename = Rc::new(source_name);
-   let mut tokens = Vec::new();
-   let mut si = 0;
-   let mut line = 1;
-   let mut column = 1;
-   let operators: Vec<(&str,Symbol)> = vec![
-      ("?", Symbol::Question),
-      ("::",Symbol::KAscript),
-      (":", Symbol::Ascript),
-      ("==",Symbol::Equal),
-      ("=>",Symbol::Imply),
-      ("=", Symbol::Is),
-      ("!=",Symbol::NotEqual),
-      (">=",Symbol::GreaterThanOrEqual),
-      (">", Symbol::GreaterThan),
-      ("<=",Symbol::LessThanOrEqual),
-      ("<", Symbol::LessThan),
-      ("&&",Symbol::And),
-      ("||",Symbol::Or),
-      ("|", Symbol::Bar),
-      ("/", Symbol::Div),
-      ("*", Symbol::Mul),
-      ("%", Symbol::Mod),
-      ("+", Symbol::Plus),
-      ("->",Symbol::Arrow),
-      ("-", Symbol::Minus),
-      ("^", Symbol::Pow),
-      (".", Symbol::Dot),
-      (",", Symbol::Comma),
-      (";", Symbol::SemiColon),
-      ("\\",Symbol::BackSlash),
-      ("[", Symbol::LeftBracket),
-      ("]", Symbol::RightBracket),
-      ("(", Symbol::LeftParen),
-      (")", Symbol::RightParen),
-      ("{", Symbol::LeftBrace),
-      ("}", Symbol::RightBrace),
-   ];
-   fn span_of(filename:&Rc<String>, start_index:usize, token_length:usize, line:usize, column:usize) -> Span {
-      Span {
-         filename: filename.clone(),
-         offset_start: start_index,
-         offset_end: start_index + token_length,
-         linecol_start: (line,column),
-         linecol_end: (line,column + token_length),
-      }
-   }
    while si < source.len() {
       match source.as_bytes()[si] as char {
          ' ' => { column += 1; si += 1; continue; },
@@ -486,3 +479,4 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
    tokens.push(Token { symbol: Symbol::EOF, span: span, });
    Ok(tokens)
 }
+*/
