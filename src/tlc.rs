@@ -294,7 +294,11 @@ impl TLC {
       }
       let src = std::fs::read_to_string(filename)
                    .expect("parse_file: Something went wrong reading the file");
+      eprintln!("before tokenize");
+      tokenize(filename.to_string(), &src)?;
+      eprintln!("after tokenize, before compile");
       self.compile_doc(globals, filename,&src)?;
+      eprintln!("after compile");
       Ok(ScopeId {id:0})
    }
    pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
@@ -1635,7 +1639,13 @@ impl TLC {
       let rules_l = self.rules.len();
       let scopes_l = self.scopes.len();
       let regexes_l = self.regexes.len();
-      let globals_l = if let Some(g) = globals { self.scopes[g.id].children.len() } else { 0 };
+      let globals_l = if let Some(g) = globals {
+         if self.scopes.len()>0 {
+            self.scopes[g.id].children.len()
+         } else {
+            0
+         }
+      } else { 0 };
       let type_is_normal_l = self.type_is_normal.clone();
       let kind_is_normal_l = self.kind_is_normal.clone();
       let typedef_index_l = self.typedef_index.clone();
@@ -1650,7 +1660,11 @@ impl TLC {
       self.rules.truncate(rules_l);
       self.scopes.truncate(scopes_l);
       self.regexes.truncate(regexes_l);
-      if let Some(g) = globals { self.scopes[g.id].children.truncate(globals_l); };
+      if let Some(g) = globals {
+         if self.scopes.len()>0 {
+            self.scopes[g.id].children.truncate(globals_l);
+         }
+      };
       self.type_is_normal = type_is_normal_l;
       self.kind_is_normal = kind_is_normal_l;
       self.typedef_index = typedef_index_l;
