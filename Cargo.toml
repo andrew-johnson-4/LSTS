@@ -18,3 +18,7 @@ opt-level = 3
 
 [profile.test]
 opt-level = 3
+
+[[bin]]
+name = "lsts"
+path = "src/main.rs"
