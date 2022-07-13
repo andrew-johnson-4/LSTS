@@ -13,22 +13,22 @@ pub struct Span {
    pub linecol_end: (usize,usize),
 }
 
-pub fn span_of(ts: &Vec<Token>) -> Span {
-   if ts.len()==0 {
+pub fn span_of<R: Read>(ts: &mut TokenReader<R>) -> Span {
+   if let Ok(Some(t)) = ts.peek() {
+      Span {
+         filename: t.span.filename.clone(),
+         offset_start: t.span.offset_start,
+         offset_end: t.span.offset_end,
+         linecol_start: t.span.linecol_start.clone(),
+         linecol_end: t.span.linecol_end.clone(),
+      }
+   } else {
       Span {
          filename: Rc::new("NULL String".to_string()),
          offset_start: 0,
          offset_end: 0,
          linecol_start: (0,0),
          linecol_end: (0,0),
-      }
-   } else {
-      Span {
-         filename: ts[0].span.filename.clone(),
-         offset_start: ts[0].span.offset_start,
-         offset_end: ts[ts.len()-1].span.offset_end,
-         linecol_start: ts[0].span.linecol_start.clone(),
-         linecol_end: ts[ts.len()-1].span.linecol_end.clone(),
       }
    }
 }
@@ -214,6 +214,7 @@ pub fn is_value_char(source: &str, index: usize) -> bool {
 }
 
 pub struct TokenReader<R: Read> {
+   source_name: Rc<String>,
    peek: Option<Token>,
    buf: BufReader<R>,
 }
@@ -234,6 +235,26 @@ impl<R: Read> TokenReader<R> {
       }
       todo!("TokenReader.take")
    }
+   pub fn peek_symbol(&mut self) -> Result<Option<Symbol>,Error> {
+      let t = self.peek();
+      if let Ok(Some(t)) = t {
+         Ok(Some(t.symbol.clone()))
+      } else if let Ok(None) = t {
+         Ok(None)
+      } else if let Err(err) = t {
+         Err(err)
+      } else { unreachable!("peek symbol") }
+   }
+   pub fn take_symbol(&mut self) -> Result<Option<Symbol>,Error> {
+      let t = self.take();
+      if let Ok(Some(t)) = t {
+         Ok(Some(t.symbol.clone()))
+      } else if let Ok(None) = t {
+         Ok(None)
+      } else if let Err(err) = t {
+         Err(err)
+      } else { unreachable!("peek symbol") }
+   }
 }
 
 pub fn tokenize_file(source_name: &str) -> Result<TokenReader<File>,Error> {
@@ -252,7 +273,12 @@ pub fn tokenize_file(source_name: &str) -> Result<TokenReader<File>,Error> {
          }
       });
    };
-   Ok(TokenReader { buf:buf, peek:None })
+   Ok(TokenReader { source_name:Rc::new(source_name.to_string()), buf:buf, peek:None })
+}
+
+pub fn tokenize_string<'a>(source_name: &str, src: &'a str) -> Result<TokenReader<&'a [u8]>,Error> {
+   let buf = BufReader::new(src.as_bytes());
+   Ok(TokenReader { source_name:Rc::new(source_name.to_string()), buf:buf, peek:None })
 }
 
 pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {

@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::rc::Rc;
 use std::collections::{HashSet,HashMap};
 use std::path::Path;
@@ -6,7 +7,7 @@ use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
 use crate::typ::{Type,IsParameter};
 use crate::kind::Kind;
-use crate::token::{Span,tokenize,tokenize_file,span_of};
+use crate::token::{Span,TokenReader,tokenize_string,tokenize_file,span_of};
 use crate::debug::Error;
 use crate::ll::ll1_file;
 
@@ -282,34 +283,27 @@ impl TLC {
    }
 
    pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
-      self.compile_doc(globals, "[string]", src)
+      let tks = tokenize_string("[string]", src)?;
+      self.compile_doc(globals, "[string]", tks)
    }
    pub fn import_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<ScopeId,Error> {
-      self.compile_doc(globals, "[string]", src)?;
+      let tks = tokenize_string("[string]", src)?;
+      self.compile_doc(globals, "[string]", tks)?;
       Ok(ScopeId {id:0})
    }
    pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
       if !Path::new(filename).exists() {
          panic!("parse_file could not find file: '{}'", filename)
       }
-      eprintln!("before tokenize");
       let mut tks = tokenize_file(filename)?;
-      while tks.peek()?.is_some() {
-         tks.take()?;
-      }
-      eprintln!("after tokenize, before compile");
-      let src = std::fs::read_to_string(filename)
-                   .expect("parse_file: Something went wrong reading the file");
-      self.compile_doc(globals, filename,&src)?;
-      eprintln!("after compile");
+      self.compile_doc(globals, filename, tks)?;
       Ok(ScopeId {id:0})
    }
-   pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
-      let mut tokens = tokenize(docname.to_string(), src)?;
+   pub fn compile_doc<R: Read>(&mut self, globals: Option<ScopeId>, docname:&str, mut tokens: TokenReader<R>) -> Result<TermId,Error> {
       let file_scope = globals.unwrap_or(self.push_scope(Scope {
          parent: None,
          children: Vec::new(),
-      }, &span_of(&tokens)));
+      }, &span_of(&mut tokens)));
       let ast = ll1_file(self, file_scope, &mut tokens)?;
       self.compile_rules(docname)?;
       self.typeck(globals, ast, None)?;
@@ -448,11 +442,11 @@ impl TLC {
    }
    pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
       //used mainly in tests
-      let mut tokens = tokenize("[string]".to_string(), src)?;
+      let mut tokens = tokenize_string("[string]", src)?;
       let file_scope = self.push_scope(Scope {
          parent: None,
          children: Vec::new(),
-      }, &span_of(&tokens));
+      }, &span_of(&mut tokens));
       ll1_file(self, file_scope, &mut tokens)
    }
    pub fn maybe_constant(&self, t: TermId) -> Option<Constant> {
