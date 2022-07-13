@@ -15,6 +15,13 @@ regex = { version = "1" }
 
 [profile.release]
 opt-level = 3
+#rustflags = [
+#  "-C", "link-args=-z stack-size=1500000",
+#]
 
 [profile.test]
 opt-level = 3
+
+[[bin]]
+name = "lsts"
+path = "src/main.rs"
