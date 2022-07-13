@@ -353,79 +353,93 @@ impl<R: Read> TokenReader<R> {
             }
          },
          _ => {
-            todo!("check operators and comments in buf.take")
-
-            /*
-            let ri = std::cmp::min( si+2, source.len() );
-            if &source.as_bytes()[si..ri] == r#"$""#.as_bytes() {
-               let mut ci = si + 2;
-               while ci<source.len() && (source.as_bytes()[ci] as char) != '"' {
-                  ci += 1;
-               }
-               if ci<source.len() { ci += 1; }
-               let span = span_of(&filename, si, ci - si, line, column);
-               column += ci - si;
-               let ident = std::str::from_utf8(&source.as_bytes()[si+2..ci-1]).unwrap();
-               tokens.push(Token { symbol: Symbol::Ident(ident.to_string()), span: span, });
-               si = ci;
-               continue;
-            }
-            if &source.as_bytes()[si..ri] == "/^".as_bytes() {
-               let mut ci = si + 2;
-               while ci<source.len() && (source.as_bytes()[ci] as char) != '/' {
-                  ci += 1;
-               }
-               if ci<source.len() { ci += 1; }
-               let span = span_of(&filename, si, ci - si, line, column);
-               column += ci - si;
-               let regex = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
-               tokens.push(Token { symbol: Symbol::Regex(regex.to_string()), span: span, });
-               si = ci;
-               continue;
-            }
-            if &source.as_bytes()[si..ri] == "//".as_bytes() {
-               let mut ci = si + 2;
-               while ci<source.len() && (source.as_bytes()[ci] as char) != '\n' {
-                  ci += 1;
-               }
-               si = ci;
-               continue;
-            }
-            if &source.as_bytes()[si..ri] == "/*".as_bytes() {
-               let mut ci = si + 2;
-               while ci<source.len() && &source.as_bytes()[ci..std::cmp::min(source.len(),ci+2)] != "*/".as_bytes() {
-                  ci += 1;
-               }
-               si = ci + 2;
-               continue;
-            }
-
-            let mut found_operator = false;
-            for (tok,sym) in operators.iter() {
-               let ri = std::cmp::min( si+tok.len(), source.len() );
-               if &source.as_bytes()[si..ri] == tok.as_bytes() {
-                  let span = span_of(&filename, si, tok.len(), line, column);
-                  tokens.push(Token { symbol: sym.clone(), span: span, });
-                  column += tok.len();
-                  si += tok.len();
-                  found_operator = true;
-                  break;
-               }
-            }
-            if !found_operator { return Err(Error{
-               kind: "Tokenization Error".to_string(),
-               rule: format!("Unexpected character '{}'", if si<source.len() 
-                            { (source.as_bytes()[si] as char).to_string() }
-                       else {"EOF".to_string()} ),
-               span: Span {
-                  filename: filename.clone(),
-                  offset_start: si,
-                  offset_end: si+1,
-                  linecol_start: (line,column),
-                  linecol_end: (line,column+1),
+            let mut c2 = self.takec();
+            match [c, c2] {
+               [b'$', b'"'] => {
+                  todo!("tokenize quoted ident")
+                  /*
+                  let mut ci = si + 2;
+                  while ci<source.len() && (source.as_bytes()[ci] as char) != '"' {
+                     ci += 1;
+                  }
+                  if ci<source.len() { ci += 1; }
+                  let span = span_of(&filename, si, ci - si, line, column);
+                  column += ci - si;
+                  let ident = std::str::from_utf8(&source.as_bytes()[si+2..ci-1]).unwrap();
+                  tokens.push(Token { symbol: Symbol::Ident(ident.to_string()), span: span, });
+                  si = ci;
+                  continue;
+                  */
+               }, 
+               [b'/', b'^'] => {
+                  todo!("tokenize regex")
+                  /*
+                  let mut ci = si + 2;
+                  while ci<source.len() && (source.as_bytes()[ci] as char) != '/' {
+                     ci += 1;
+                  }
+                  if ci<source.len() { ci += 1; }
+                  let span = span_of(&filename, si, ci - si, line, column);
+                  column += ci - si;
+                  let regex = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
+                  tokens.push(Token { symbol: Symbol::Regex(regex.to_string()), span: span, });
+                  si = ci;
+                  continue;
+                  */
                },
-            }); }
-            */
+               [b'/', b'/'] => {
+                  todo!("tokenize line comment")
+                  /*
+                  let mut ci = si + 2;
+                  while ci<source.len() && (source.as_bytes()[ci] as char) != '\n' {
+                     ci += 1;
+                  }
+                  si = ci;
+                  continue;
+                  */
+               },
+               [b'/', b'*'] => {
+                  todo!("tokenize multiline comment")
+                  /*
+                  let mut ci = si + 2;
+                  while ci<source.len() && &source.as_bytes()[ci..std::cmp::min(source.len(),ci+2)] != "".as_bytes() {
+                     ci += 1;
+                  }
+                  si = ci + 2;
+                  continue;
+                  */
+               },
+               _ => {
+                  todo!("tokenize operator")
+                  /*
+                  let mut found_operator = false;
+                  for (tok,sym) in operators.iter() {
+                     let ri = std::cmp::min( si+tok.len(), source.len() );
+                     if &source.as_bytes()[si..ri] == tok.as_bytes() {
+                        let span = span_of(&filename, si, tok.len(), line, column);
+                        tokens.push(Token { symbol: sym.clone(), span: span, });
+                        column += tok.len();
+                        si += tok.len();
+                        found_operator = true;
+                        break;
+                     }
+                  }
+                  if !found_operator { return Err(Error{
+                     kind: "Tokenization Error".to_string(),
+                     rule: format!("Unexpected character '{}'", if si<source.len() 
+                                  { (source.as_bytes()[si] as char).to_string() }
+                             else {"EOF".to_string()} ),
+                     span: Span {
+                        filename: filename.clone(),
+                        offset_start: si,
+                        offset_end: si+1,
+                        linecol_start: (line,column),
+                        linecol_end: (line,column+1),
+                     },
+                  }); }
+                  */
+               }
+            }
          }
       }}
       Ok(Some(Token {
