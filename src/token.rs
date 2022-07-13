@@ -360,7 +360,7 @@ impl<R: Read> TokenReader<R> {
                [b'$', b'"'] => {
                   let mut token = Vec::new();
                   c = self.takec();
-                  while c != b'"' {
+                  while c>0 && c != b'"' {
                      token.push(c);
                      c = self.takec();
                   }
@@ -373,20 +373,20 @@ impl<R: Read> TokenReader<R> {
                   }));
                }, 
                [b'/', b'^'] => {
-                  todo!("tokenize regex")
-                  /*
-                  let mut ci = si + 2;
-                  while ci<source.len() && (source.as_bytes()[ci] as char) != '/' {
-                     ci += 1;
+                  let mut token = Vec::new();
+                  c = self.takec();
+                  while c>0 && c != b'/' {
+                     token.push(c);
+                     c = self.takec();
                   }
-                  if ci<source.len() { ci += 1; }
-                  let span = span_of(&filename, si, ci - si, line, column);
-                  column += ci - si;
-                  let regex = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
-                  tokens.push(Token { symbol: Symbol::Regex(regex.to_string()), span: span, });
-                  si = ci;
-                  continue;
-                  */
+                  token.push(c);
+                  let span = self.span_of(token.len());
+                  self.column += token.len();
+                  let rgx = std::str::from_utf8(&token).unwrap();
+                  return Ok(Some(Token {
+                     symbol: Symbol::Regex(rgx.to_string()),
+                     span: span,
+                  }));
                },
                [b'/', b'/'] => {
                   while c2>0 && c2!=b'\n' {
