@@ -1,6 +1,6 @@
 [package]
 name = "lsts"
-version = "0.5.17"
+version = "0.5.18"
 authors = ["Andrew <andrew@subarctic.org>"]
 license = "MIT"
 description = "Large Scale Type Systems"
@@ -12,3 +12,9 @@ keywords = ["type","logic","automated","theorem","proof"]
 
 [dependencies]
 regex = { version = "1" }
+
+[profile.release]
+opt-level = 3
+
+[profile.test]
+opt-level = 3

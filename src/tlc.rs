@@ -1,12 +1,12 @@
+use std::io::Read;
 use std::rc::Rc;
 use std::collections::{HashSet,HashMap};
-use std::path::Path;
 use regex::Regex;
 use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
 use crate::typ::{Type,IsParameter};
 use crate::kind::Kind;
-use crate::token::{Span,tokenize,span_of};
+use crate::token::{Span,TokenReader,tokenize_string,tokenize_file,span_of};
 use crate::debug::Error;
 use crate::ll::ll1_file;
 
@@ -282,27 +282,24 @@ impl TLC {
    }
 
    pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
-      self.compile_doc(globals, "[string]", src)
+      let tks = tokenize_string("[string]", src)?;
+      self.compile_doc(globals, "[string]", tks)
    }
    pub fn import_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<ScopeId,Error> {
-      self.compile_doc(globals, "[string]", src)?;
+      let tks = tokenize_string("[string]", src)?;
+      self.compile_doc(globals, "[string]", tks)?;
       Ok(ScopeId {id:0})
    }
    pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
-      if !Path::new(filename).exists() {
-         panic!("parse_file could not find file: '{}'", filename)
-      }
-      let src = std::fs::read_to_string(filename)
-                   .expect("parse_file: Something went wrong reading the file");
-      self.compile_doc(globals, filename,&src)?;
+      let tks = tokenize_file(filename)?;
+      self.compile_doc(globals, filename, tks)?;
       Ok(ScopeId {id:0})
    }
-   pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, src:&str) -> Result<TermId,Error> {
-      let mut tokens = tokenize(docname.to_string(), src)?;
+   pub fn compile_doc<R: Read>(&mut self, globals: Option<ScopeId>, docname:&str, mut tokens: TokenReader<R>) -> Result<TermId,Error> {
       let file_scope = globals.unwrap_or(self.push_scope(Scope {
          parent: None,
          children: Vec::new(),
-      }, &span_of(&tokens)));
+      }, &span_of(&mut tokens)));
       let ast = ll1_file(self, file_scope, &mut tokens)?;
       self.compile_rules(docname)?;
       self.typeck(globals, ast, None)?;
@@ -441,11 +438,11 @@ impl TLC {
    }
    pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
       //used mainly in tests
-      let mut tokens = tokenize("[string]".to_string(), src)?;
+      let mut tokens = tokenize_string("[string]", src)?;
       let file_scope = self.push_scope(Scope {
          parent: None,
          children: Vec::new(),
-      }, &span_of(&tokens));
+      }, &span_of(&mut tokens));
       ll1_file(self, file_scope, &mut tokens)
    }
    pub fn maybe_constant(&self, t: TermId) -> Option<Constant> {
@@ -1635,7 +1632,13 @@ impl TLC {
       let rules_l = self.rules.len();
       let scopes_l = self.scopes.len();
       let regexes_l = self.regexes.len();
-      let globals_l = if let Some(g) = globals { self.scopes[g.id].children.len() } else { 0 };
+      let globals_l = if let Some(g) = globals {
+         if self.scopes.len()>0 {
+            self.scopes[g.id].children.len()
+         } else {
+            0
+         }
+      } else { 0 };
       let type_is_normal_l = self.type_is_normal.clone();
       let kind_is_normal_l = self.kind_is_normal.clone();
       let typedef_index_l = self.typedef_index.clone();
@@ -1650,7 +1653,11 @@ impl TLC {
       self.rules.truncate(rules_l);
       self.scopes.truncate(scopes_l);
       self.regexes.truncate(regexes_l);
-      if let Some(g) = globals { self.scopes[g.id].children.truncate(globals_l); };
+      if let Some(g) = globals {
+         if self.scopes.len()>0 {
+            self.scopes[g.id].children.truncate(globals_l);
+         }
+      };
       self.type_is_normal = type_is_normal_l;
       self.kind_is_normal = kind_is_normal_l;
       self.typedef_index = typedef_index_l;

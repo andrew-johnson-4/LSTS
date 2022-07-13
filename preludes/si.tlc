@@ -9,8 +9,13 @@ forall i:Integer. Integer => Real    = i; //cast Integer to Real
 forall i:Integer. Integer => Complex = i; //cast Integer to Complex
 forall i:Real   . Real    => Complex = i; //cast Real to Complex
 
+
+//: Expressions
+let $"if"(c: Boolean, b1: A, b2: A): A;
+
 //: Tensor Type
 type Tensor<T::Term, X::Constant>;
+
 
 //: SI Units
 type normal Second  :: Unit; //Unit is the Kind of SI Unit types.

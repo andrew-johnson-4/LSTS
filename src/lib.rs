@@ -23,6 +23,8 @@ pub mod scope;
 /// The LL module defines an LL(1) hand written parser.
 pub mod ll;
 
+/// The Debug module defines error messages and formatting
 pub mod debug;
 
+/// The Token module defines lexical tokens, spans, and a stream tokenizer
 pub mod token;

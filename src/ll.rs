@@ -1,59 +1,61 @@
 use std::collections::{HashMap};
+use std::io::Read;
 use crate::term::{Term,TermId};
 use crate::debug::{Error};
-use crate::token::{Token,Symbol,span_of};
+use crate::token::{Symbol,TokenReader,span_of};
 use crate::scope::{ScopeId,Scope};
 use crate::tlc::{TLC,TypeRule,Invariant,Typedef,Inference};
 use crate::typ::{Type};
 use crate::kind::{Kind};
 
-fn peek_is_regex(tokens: &mut Vec<Token>) -> bool {
-   if let Some(t) = tokens.get(0) {
+fn peek_is_regex<R: Read>(tokens: &mut TokenReader<R>) -> bool {
+   if let Ok(Some(t)) = tokens.peek() {
       if let Symbol::Regex(_) = t.symbol {
          true
       } else { false }
    } else { false }
 }
-fn peek_is_typename(tokens: &mut Vec<Token>) -> bool {
-   if let Some(t) = tokens.get(0) {
+fn peek_is_typename<R: Read>(tokens: &mut TokenReader<R>) -> bool {
+   if let Ok(Some(t)) = tokens.peek() {
       if let Symbol::Typename(_) = t.symbol {
          true
       } else { false }
    } else { false }
 }
-fn peek_is(tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> bool {
-   if let Some(t) = tokens.get(0) {
+fn peek_is<R: Read>(tokens: &mut TokenReader<R>, is: &Vec<Symbol>) -> bool {
+   if let Ok(Some(t)) = tokens.peek() {
       is.contains(&t.symbol)
    } else { false }
 }
-fn pop_is(rule: &str, tokens: &mut Vec<Token>, is: &Vec<Symbol>) -> Result<Symbol,Error> {
-   if let Some(t) = tokens.get(0) {
-      if !is.contains(&t.symbol) {
+fn pop_is<R: Read>(rule: &str, tokens: &mut TokenReader<R>, is: &Vec<Symbol>) -> Result<Symbol,Error> {
+   match tokens.take()? {
+      Some(t) => {
+         if !is.contains(&t.symbol) {
+            Err(Error {
+               kind: "Parse Error".to_string(),
+               rule: format!("unexpected Symbol {:?} in rule {}, expected one of {}", &t.symbol, rule,
+               is.iter().map(|s|format!("{:?}",s)).collect::<Vec<String>>().join(" or ") ),
+               span: span_of(tokens),
+            })
+         } else { Ok(t.symbol.clone()) }
+      },
+      None => {
          Err(Error {
             kind: "Parse Error".to_string(),
-            rule: format!("unexpected Symbol {:?} in rule {}", &t.symbol, rule),
+            rule: format!("unexpected End-Of-File in rule {}", rule),
             span: span_of(tokens),
          })
-      } else {
-         let t = tokens.remove(0);
-         Ok(t.symbol.clone())
-      }
-   } else { //this branch should hopefully be dead code
-      Err(Error {
-         kind: "Parse Error".to_string(),
-         rule: format!("unexpected End-Of-File in rule {}", rule),
-         span: span_of(tokens),
-      })
+      },
    }
 }
 
-pub fn ll1_kind(tlc: &mut TLC, tokens: &mut Vec<Token>) -> Result<Kind,Error> {
+pub fn ll1_kind<R: Read>(tlc: &mut TLC, tokens: &mut TokenReader<R>) -> Result<Kind,Error> {
    let mut kinds = Vec::new();
    while peek_is_typename(tokens) {
       let mut kname = "Nil".to_string();
       let mut ks = Vec::new();
-      if let Symbol::Typename(kn) = tokens[0].symbol.clone() {
-         tokens.remove(0);
+      if let Some(Symbol::Typename(kn)) = tokens.peek_symbol()? {
+         tokens.take_symbol()?;
          kname = kn.clone();
       }
 
@@ -84,7 +86,7 @@ pub fn ll1_kind(tlc: &mut TLC, tokens: &mut Vec<Token>) -> Result<Kind,Error> {
    }
 }
 
-pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut t = "".to_string();
    let mut normal = false;
@@ -101,13 +103,9 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
       pop_is("type-stmt", tokens, &vec![Symbol::Normal])?;
       normal = true;
    }
-   if tokens.len()>0 {
-      if let Symbol::Typename(tname) = tokens[0].symbol.clone() {
-         tokens.remove(0);
-         t = tname.clone();
-      } else {
-         pop_is("type-stmt", tokens, &vec![Symbol::Typename("T".to_string())])?;
-      }
+   if let Some(Symbol::Typename(tname)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
+      t = tname.clone();
    } else {
       pop_is("type-stmt", tokens, &vec![Symbol::Typename("T".to_string())])?;
    }
@@ -124,11 +122,10 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
          let mut inf = None;
          let mut kind = tlc.term_kind.clone();
 
-         if tokens.len()>0 {
-         if let Symbol::Typename(tn) = tokens[0].symbol.clone() {
-            tokens.remove(0);
+         if let Some(Symbol::Typename(tn)) = tokens.peek_symbol()? {
+            tokens.take_symbol()?;
             typ = tn.clone();
-         }}
+         }
          if peek_is(tokens, &vec![Symbol::Ascript]) {
             pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
             inf = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
@@ -155,13 +152,13 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
       while peek_is_typename(tokens) || peek_is_regex(tokens) || peek_is(tokens, &vec![Symbol::LeftBrace]) {
          let mut tcname = t.clone();
          let mut tcrows = Vec::new();
-         if let Symbol::Regex(r) = tokens[0].symbol.clone() {
-            tokens.remove(0);
+         if let Some(Symbol::Regex(r)) = tokens.peek_symbol()? {
+            tokens.take_symbol()?;
             typedef.push( Typedef::Regex(r.clone()) );
             continue;
          };
-         if let Symbol::Typename(tn) = tokens[0].symbol.clone() {
-            tokens.remove(0);
+         if let Some(Symbol::Typename(tn)) = tokens.peek_symbol()? {
+            tokens.take_symbol()?;
             tcname = tn.clone();
          };
          if peek_is(tokens, &vec![Symbol::LeftBrace]) {
@@ -171,12 +168,13 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
                if peek_is(tokens, &vec![Symbol::Comma]) {
                   pop_is("type-stmt", tokens, &vec![Symbol::Comma])?;
                }
-               let mut ki = "".to_string();
-               if tokens.len()>0 {
-               if let Symbol::Ident(f) = tokens[0].symbol.clone() {
-                  tokens.remove(0);
-                  ki = f.clone();
-               }}
+               let ki = if let Some(Symbol::Ident(f)) = tokens.peek_symbol()? {
+                  tokens.take_symbol()?;
+                  f.clone()
+               } else {
+                  pop_is("type-stmt", tokens, &vec![Symbol::Ident("x".to_string())])?;
+                  unreachable!("type-stmt")
+               };
                pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
                let kt = ll1_type(tlc, &mut dept, scope, tokens)?;
                let vn = format!(".{}", ki.clone());
@@ -220,11 +218,10 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
             let mut idn = None;
             let mut inf = None;
             let mut kind = tlc.term_kind.clone();
-            if tokens.len()>0 {
-            if let Symbol::Ident(n) = tokens[0].symbol.clone() {
-               tokens.remove(0);
+            if let Some(Symbol::Ident(n)) = tokens.peek_symbol()? {
+               tokens.take_symbol()?;
                idn = Some(n.clone());
-            }}
+            }
             if peek_is(tokens, &vec![Symbol::Ascript]) {
                pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
                inf = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
@@ -326,7 +323,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
    Ok(TermId { id:0 })
 }
 
-pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
    let inference;
@@ -345,11 +342,10 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -
       let mut typ = None;
       let mut kind = tlc.term_kind.clone();
 
-      if tokens.len()>0 {
-      if let Symbol::Ident(v) = tokens[0].symbol.clone() {
-         tokens.remove(0);
+      if let Some(Symbol::Ident(v)) = tokens.peek_symbol()? {
+         tokens.take_symbol()?;
          ident = Some(v.clone());
-      }}
+      }
       if peek_is(tokens, &vec![Symbol::Ascript]) {
          pop_is("forall-stmt", tokens, &vec![Symbol::Ascript])?;
          typ = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
@@ -418,7 +414,7 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -
    }
 }
 
-pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("let-stmt", tokens, &vec![Symbol::Let])?;
    let mut dot = false;
@@ -426,14 +422,9 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> R
       pop_is("let-stmt", tokens, &vec![Symbol::Dot])?;
       dot = true;
    }
-   let mut ident = if tokens.len()>0 {
-      if let Symbol::Ident(id) = tokens[0].symbol.clone() {
-         tokens.remove(0);
-         id.clone()
-      } else {
-         pop_is("let-stmt", tokens, &vec![Symbol::Ident("x".to_string())])?;
-         unreachable!("let-stmt")
-      }
+   let mut ident = if let Some(Symbol::Ident(id)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
+      id.clone()
    } else {
       pop_is("let-stmt", tokens, &vec![Symbol::Ident("x".to_string())])?;
       unreachable!("let-stmt")
@@ -455,11 +446,10 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> R
          let mut ident = None;
          let mut typ = None;
          let mut kind = tlc.term_kind.clone();
-         if tokens.len()>0 {
-         if let Symbol::Ident(id) = &tokens[0].symbol.clone() {
-            tokens.remove(0);
+         if let Some(Symbol::Ident(id)) = tokens.peek_symbol()? {
+            tokens.take_symbol()?;
             ident = Some(id.clone());
-         }}
+         }
          if peek_is(tokens, &vec![Symbol::Ascript]) {
             pop_is("let-stmt", tokens, &vec![Symbol::Ascript])?;
          }
@@ -535,7 +525,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> R
    Ok(tlc.push_term(Term::Let(inner_scope,ident,pars,t,rt,rk), &span))
 }
 
-pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_if_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("if-term", tokens, &vec![Symbol::If])?;
    let cond = ll1_expr_term(tlc, scope, tokens)?;
@@ -543,7 +533,7 @@ pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Re
    let branch1 = ll1_expr_term(tlc, scope, tokens)?;
    let branch2 = if peek_is(tokens, &vec![Symbol::Else]) {
       pop_is("if-term", tokens, &vec![Symbol::Else])?;
-      ll1_expr_term(tlc, scope, tokens)?
+      ll1_term(tlc, scope, tokens)?
    } else {
       tlc.push_term(Term::Tuple(Vec::new()),&span)
    };
@@ -553,7 +543,7 @@ pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Re
    ); tlc.push_term(t,&span)})
 }
 
-pub fn ll1_logical_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_logical_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = ll1_compare_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::And,Symbol::Or]) {
@@ -569,7 +559,7 @@ pub fn ll1_logical_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) 
    Ok(term)
 }
 
-pub fn ll1_compare_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_compare_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = ll1_addsub_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Equal,Symbol::NotEqual,Symbol::GreaterThan,Symbol::GreaterThanOrEqual,Symbol::LessThan,Symbol::LessThanOrEqual]) {
@@ -585,7 +575,7 @@ pub fn ll1_compare_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) 
    Ok(term)
 }
 
-pub fn ll1_addsub_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_addsub_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = ll1_divmul_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Plus,Symbol::Minus]) {
@@ -601,7 +591,7 @@ pub fn ll1_addsub_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -
    Ok(term)
 }
 
-pub fn ll1_divmul_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_divmul_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = ll1_power_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Div,Symbol::Mul,Symbol::Mod]) {
@@ -617,7 +607,7 @@ pub fn ll1_divmul_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -
    Ok(term)
 }
 
-pub fn ll1_power_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_power_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = ll1_prefix_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Pow]) {
@@ -633,7 +623,7 @@ pub fn ll1_power_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
    Ok(term)
 }
 
-pub fn ll1_prefix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_prefix_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut ops = Vec::new();
    while peek_is(tokens, &vec![Symbol::Plus,Symbol::Minus]) {
@@ -652,7 +642,7 @@ pub fn ll1_prefix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -
    Ok(term)
 }
 
-pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_tuple_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("tuple-term", tokens, &vec![Symbol::LeftParen])?;
    let mut ts = Vec::new();
@@ -670,17 +660,17 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
    }
 }
 
-pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_value_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   if let Some(sym) = tokens.get(0) {
-      if let Symbol::Ident(x) = sym.symbol.clone() {
-         tokens.remove(0);
+   if let Some(sym) = tokens.peek_symbol()? {
+      if let Symbol::Ident(x) = sym {
+         tokens.take_symbol()?;
          return Ok(tlc.push_term(Term::Ident(x.clone()), &span))
-      } else if let Symbol::Value(x) = sym.symbol.clone() {
-         tokens.remove(0);
+      } else if let Symbol::Value(x) = sym {
+         tokens.take_symbol()?;
          return Ok(tlc.push_term(Term::Value(x.clone()), &span))
-      } else if let Symbol::Typename(cname) = sym.symbol.clone() {
-         tokens.remove(0);
+      } else if let Symbol::Typename(cname) = sym {
+         tokens.take_symbol()?;
          let mut kvs = Vec::new();
          if peek_is(tokens, &vec![Symbol::LeftBrace]) {
             pop_is("value-term", tokens, &vec![Symbol::LeftBrace])?;
@@ -688,14 +678,13 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
                if peek_is(tokens, &vec![Symbol::Comma]) {
                   pop_is("value-term", tokens, &vec![Symbol::Comma])?;
                }
-               if tokens.len()>0 {
-               if let Symbol::Ident(k) = tokens[0].symbol.clone() {
-                  tokens.remove(0);
+               if let Some(Symbol::Ident(k)) = tokens.peek_symbol()? {
+                  tokens.take_symbol()?;
                   pop_is("value-term", tokens, &vec![Symbol::Is])?;
                   let v = ll1_term(tlc, scope, tokens)?;
                   kvs.push((k.clone(),v));
                   continue;
-               }}
+               }
                pop_is("value-term", tokens, &vec![Symbol::Ident("x".to_string())])?;
             }
             pop_is("value-term", tokens, &vec![Symbol::RightBrace])?;
@@ -714,19 +703,18 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
    unreachable!("value-term expected Ident, Typename, or Value")
 }
 
-pub fn ll1_field_term(tlc: &mut TLC, _scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_field_term<R: Read>(tlc: &mut TLC, _scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("field-term", tokens, &vec![Symbol::Dot])?;
-   if tokens.len()>0 {
-   if let Symbol::Ident(f) = tokens[0].symbol.clone() {
-      tokens.remove(0);
+   if let Some(Symbol::Ident(f)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
       return Ok(tlc.push_term(Term::Ident(format!(".{}",f)),&span))
-   }}
+   }
    pop_is("field-term", tokens, &vec![Symbol::Ident("x".to_string())])?;
    unreachable!("field-term")
 }
 
-pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_atom_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = if peek_is(tokens, &vec![Symbol::LeftParen]) {
       ll1_tuple_term(tlc, scope, tokens)?
@@ -753,11 +741,11 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> 
    Ok(term)
 }
 
-pub fn ll1_expr_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_expr_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    ll1_logical_term(tlc, scope, tokens)
 }
 
-pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_algebra_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = ll1_expr_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::BackSlash]) {
@@ -778,7 +766,7 @@ pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) 
    Ok(term)
 }
 
-pub fn ll1_paren_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_paren_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
    pop_is("paren-type", tokens, &vec![Symbol::LeftParen])?;
    let mut ts = Vec::new();
    while !peek_is(tokens, &vec![Symbol::RightParen]) {
@@ -795,18 +783,13 @@ pub fn ll1_paren_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
    }
 }
 
-pub fn ll1_typeof_type(tlc: &mut TLC, _dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_typeof_type<R: Read>(tlc: &mut TLC, _dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
    let span = span_of(tokens);
    pop_is("atom-type", tokens, &vec![Symbol::Typeof])?;
    pop_is("atom-type", tokens, &vec![Symbol::LeftParen])?;
-   let vt = if tokens.len()>0 {
-      if let Symbol::Ident(v) = tokens[0].symbol.clone() {
-         tokens.remove(0);
-         tlc.typeof_var(&Some(scope), &v, &None, &span)?
-      } else {
-         pop_is("atom-type", tokens, &vec![Symbol::Ident("v".to_string())])?;
-         unreachable!("atom-type")
-      }
+   let vt = if let Some(Symbol::Ident(v)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
+      tlc.typeof_var(&Some(scope), &v, &None, &span)?
    } else {
       pop_is("atom-type", tokens, &vec![Symbol::Ident("v".to_string())])?;
       unreachable!("atom-type")
@@ -815,15 +798,10 @@ pub fn ll1_typeof_type(tlc: &mut TLC, _dept: &mut HashMap<String,TermId>, scope:
    Ok(vt)
 }
 
-pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
-   let tn = if tokens.len()>0 {
-      if let Symbol::Typename(tn) = tokens[0].symbol.clone() {
-         tokens.remove(0);
-         tn.clone()
-      } else {
-         pop_is("ident-type", tokens, &vec![Symbol::Typename("T".to_string())])?;
-         unreachable!("ident-type")
-      }
+pub fn ll1_ident_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
+   let tn = if let Some(Symbol::Typename(tn)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
+      tn.clone()
    } else {
       pop_is("ident-type", tokens, &vec![Symbol::Typename("T".to_string())])?;
       unreachable!("ident-type")
@@ -842,7 +820,7 @@ pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
    Ok(Type::Ident(tn,tps))
 }
 
-pub fn ll1_dep_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_dep_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
    pop_is("dependent-type", tokens, &vec![Symbol::LeftBracket])?;
    let mut t = ll1_term(tlc, scope, tokens)?;
    pop_is("dependent-type", tokens, &vec![Symbol::RightBracket])?;
@@ -852,7 +830,7 @@ pub fn ll1_dep_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: Sco
    Ok(ct)
 }
 
-pub fn ll1_atom_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_atom_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
    if peek_is(tokens, &vec![Symbol::Question]) {
       pop_is("atom-type", tokens, &vec![Symbol::Question])?;
       Ok(Type::Any)
@@ -867,7 +845,7 @@ pub fn ll1_atom_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: Sc
    }
 }
 
-pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_suffix_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
    let span = span_of(tokens);
    let mut base = ll1_atom_type(tlc, dept, scope, tokens)?;
    let mut ts = Vec::new();
@@ -897,7 +875,7 @@ pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: 
    Ok(base)
 }
 
-pub fn ll1_product_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_product_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
    let mut types = vec![ ll1_suffix_type(tlc, dept, scope, tokens)? ];
    while peek_is(tokens, &vec![Symbol::Mul]) {
       pop_is("product-type", tokens, &vec![Symbol::Mul])?;
@@ -910,7 +888,7 @@ pub fn ll1_product_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope:
    }
 }
 
-pub fn ll1_ratio_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_ratio_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
    let mut typ = ll1_product_type(tlc, dept, scope, tokens)?;
    if peek_is(tokens, &vec![Symbol::Div]) {
       pop_is("ratio-type", tokens, &vec![Symbol::Div])?;
@@ -920,7 +898,7 @@ pub fn ll1_ratio_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
    Ok(typ)
 }
 
-pub fn ll1_arrow_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_arrow_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
    let mut typ = ll1_ratio_type(tlc, dept, scope, tokens)?;
    if peek_is(tokens, &vec![Symbol::Arrow]) {
       pop_is("and-type", tokens, &vec![Symbol::Arrow])?;
@@ -930,7 +908,7 @@ pub fn ll1_arrow_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
    Ok(typ)
 }
 
-pub fn ll1_and_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_and_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
    let mut types = vec![ ll1_arrow_type(tlc, dept, scope, tokens)? ];
    while peek_is(tokens, &vec![Symbol::Plus]) {
       pop_is("and-type", tokens, &vec![Symbol::Plus])?;
@@ -943,11 +921,11 @@ pub fn ll1_and_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: Sco
    }
 }
 
-pub fn ll1_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<Type,Error> {
+pub fn ll1_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
    ll1_and_type(tlc, dept, scope, tokens)
 }
 
-pub fn ll1_ascript_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_ascript_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = ll1_algebra_term(tlc, scope, tokens)?;
    if peek_is(tokens, &vec![Symbol::Ascript]) {
@@ -962,7 +940,7 @@ pub fn ll1_ascript_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) 
    Ok(term)
 }
 
-pub fn ll1_as_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_as_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = ll1_ascript_term(tlc, scope, tokens)?;
    if peek_is(tokens, &vec![Symbol::As]) {
@@ -977,7 +955,7 @@ pub fn ll1_as_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Re
    Ok(term)
 }
 
-pub fn ll1_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    if peek_is(tokens, &vec![Symbol::If]) {
       ll1_if_term(tlc, scope, tokens)
    } else {
@@ -985,7 +963,7 @@ pub fn ll1_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Resul
    }
 }
 
-pub fn ll1_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    if peek_is(tokens, &vec![Symbol::LeftBrace]) {
       ll1_block_stmt(tlc, scope, tokens)
    } else if peek_is(tokens, &vec![Symbol::Type]) {
@@ -999,7 +977,7 @@ pub fn ll1_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Resul
    }
 }
 
-pub fn ll1_block_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_block_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let scope = tlc.push_scope(Scope {
       parent: Some(scope),
       children: Vec::new(),
@@ -1018,7 +996,7 @@ pub fn ll1_block_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) ->
    Ok(tlc.push_term(Term::Block(scope,es), &span_of(tokens)))
 }
 
-pub fn ll1_file(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Result<TermId,Error> {
+pub fn ll1_file<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let mut es = Vec::new();
    while !peek_is(tokens, &vec![Symbol::EOF]) {
       es.push( ll1_stmt(tlc, scope, tokens)? );
