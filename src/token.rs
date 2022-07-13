@@ -410,34 +410,27 @@ impl<R: Read> TokenReader<R> {
                   */
                },
                _ => {
-                  todo!("tokenize operator")
-                  /*
-                  let mut found_operator = false;
-                  for (tok,sym) in operators.iter() {
-                     let ri = std::cmp::min( si+tok.len(), source.len() );
-                     if &source.as_bytes()[si..ri] == tok.as_bytes() {
-                        let span = span_of(&filename, si, tok.len(), line, column);
-                        tokens.push(Token { symbol: sym.clone(), span: span, });
-                        column += tok.len();
-                        si += tok.len();
-                        found_operator = true;
-                        break;
-                     }
+                  if let Some((len,sym)) = self.is_operator(&[c,c2]) {
+                     let t = Token {
+                        symbol: sym.clone(),
+                        span: self.span_of(len)
+                     };
+                     self.column += len;
+                     if len==1 { self.cbuf[0] = c2; }
+                     return Ok(Some(t));
+                  } else {
+                     return Err(Error{
+                        kind: "Tokenization Error".to_string(),
+                        rule: format!("Unexpected character '{}'", c as char),
+                        span: Span {
+                           filename: self.source_name.clone(),
+                           offset_start: self.offset_start,
+                           offset_end: self.offset_start+1,
+                           linecol_start: (self.line,self.column),
+                           linecol_end: (self.line,self.column+1),
+                        },
+                     });
                   }
-                  if !found_operator { return Err(Error{
-                     kind: "Tokenization Error".to_string(),
-                     rule: format!("Unexpected character '{}'", if si<source.len() 
-                                  { (source.as_bytes()[si] as char).to_string() }
-                             else {"EOF".to_string()} ),
-                     span: Span {
-                        filename: filename.clone(),
-                        offset_start: si,
-                        offset_end: si+1,
-                        linecol_start: (line,column),
-                        linecol_end: (line,column+1),
-                     },
-                  }); }
-                  */
                }
             }
          }
