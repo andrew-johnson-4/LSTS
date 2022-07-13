@@ -33,7 +33,8 @@ fn pop_is<R: Read>(rule: &str, tokens: &mut TokenReader<R>, is: &Vec<Symbol>) ->
          if !is.contains(&t.symbol) {
             Err(Error {
                kind: "Parse Error".to_string(),
-               rule: format!("unexpected Symbol {:?} in rule {}", &t.symbol, rule),
+               rule: format!("unexpected Symbol {:?} in rule {}, expected one of {}", &t.symbol, rule,
+               is.iter().map(|s|format!("{:?}",s)).collect::<Vec<String>>().join(" or ") ),
                span: span_of(tokens),
             })
          } else { Ok(t.symbol.clone()) }
@@ -148,11 +149,13 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
       while peek_is_typename(tokens) || peek_is_regex(tokens) || peek_is(tokens, &vec![Symbol::LeftBrace]) {
          let mut tcname = t.clone();
          let mut tcrows = Vec::new();
-         if let Some(Symbol::Regex(r)) = tokens.take_symbol()? {
+         if let Some(Symbol::Regex(r)) = tokens.peek_symbol()? {
+            tokens.take_symbol()?;
             typedef.push( Typedef::Regex(r.clone()) );
             continue;
          };
-         if let Some(Symbol::Typename(tn)) = tokens.take_symbol()? {
+         if let Some(Symbol::Typename(tn)) = tokens.peek_symbol()? {
+            tokens.take_symbol()?;
             tcname = tn.clone();
          };
          if peek_is(tokens, &vec![Symbol::LeftBrace]) {

@@ -1,7 +1,6 @@
 use std::io::Read;
 use std::rc::Rc;
 use std::collections::{HashSet,HashMap};
-use std::path::Path;
 use regex::Regex;
 use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
@@ -292,9 +291,6 @@ impl TLC {
       Ok(ScopeId {id:0})
    }
    pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
-      if !Path::new(filename).exists() {
-         panic!("parse_file could not find file: '{}'", filename)
-      }
       let mut tks = tokenize_file(filename)?;
       self.compile_doc(globals, filename, tks)?;
       Ok(ScopeId {id:0})
