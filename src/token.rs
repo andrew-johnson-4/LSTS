@@ -1,6 +1,8 @@
 use crate::debug::Error;
 use std::rc::Rc;
-use std::path::Path;
+use std::io::{BufReader};
+use std::io::prelude::*;
+use std::fs::File;
 
 #[derive(Clone)]
 pub struct Span {
@@ -211,9 +213,10 @@ pub fn is_value_char(source: &str, index: usize) -> bool {
    c.is_ascii_digit()
 }
 
-pub struct TokenReader {
+pub struct TokenReader<R: Read> {
+   buf: BufReader<R>,
 }
-impl TokenReader {
+impl<R: Read> TokenReader<R> {
    pub fn peek(&mut self) -> Result<Option<Token>,Error> {
       todo!("TokenReader.peek")
    }
@@ -222,9 +225,10 @@ impl TokenReader {
    }
 }
 
-pub fn tokenize_file(source_name: &str) -> Result<TokenReader,Error> {
-   let p = Path::new(source_name);
-   if !p.exists() {
+pub fn tokenize_file(source_name: &str) -> Result<TokenReader<File>,Error> {
+   let buf = if let Ok(f) = File::open(source_name) {
+      BufReader::new(f)
+   } else {
       return Err(Error{
          kind: "Tokenization Error".to_string(),
          rule: format!("Could not open file: {}", source_name),
@@ -236,8 +240,8 @@ pub fn tokenize_file(source_name: &str) -> Result<TokenReader,Error> {
             linecol_end: (1,1),
          }
       });
-   }
-   Ok(TokenReader {})
+   };
+   Ok(TokenReader { buf:buf })
 }
 
 pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
