@@ -227,6 +227,11 @@ impl<R: Read> TokenReader<R> {
       }
    }
    pub fn take(&mut self) -> Result<Option<Token>,Error> {
+      if self.peek.is_some() {
+         let t = self.peek.clone();
+         self.peek = None;
+         return Ok(t);
+      }
       todo!("TokenReader.take")
    }
 }
