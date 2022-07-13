@@ -301,9 +301,9 @@ impl TLC {
          children: Vec::new(),
       }, &span_of(&mut tokens)));
       let ast = ll1_file(self, file_scope, &mut tokens)?;
-      self.compile_rules(docname)?;
-      self.typeck(globals, ast, None)?;
-      self.sanityck()?;
+      //self.compile_rules(docname)?;
+      //self.typeck(globals, ast, None)?;
+      //self.sanityck()?;
       Ok(ast)
    }
    pub fn kinds_of(&self, kinds: &mut HashMap<Type,Kind>, tt: &Type) -> Option<Kind> {
