@@ -390,26 +390,25 @@ impl<R: Read> TokenReader<R> {
                   */
                },
                [b'/', b'/'] => {
-                  todo!("tokenize line comment")
-                  /*
-                  let mut ci = si + 2;
-                  while ci<source.len() && (source.as_bytes()[ci] as char) != '\n' {
-                     ci += 1;
+                  while c2>0 && c2!=b'\n' {
+                     self.column += 1; self.offset_start += 1;
+                     c = c2;
+                     c2 = self.takec();
                   }
-                  si = ci;
-                  continue;
-                  */
+                  self.column += 1; self.offset_start += 1;
+                  self.cbuf[0] = c2;
                },
                [b'/', b'*'] => {
-                  todo!("tokenize multiline comment")
-                  /*
-                  let mut ci = si + 2;
-                  while ci<source.len() && &source.as_bytes()[ci..std::cmp::min(source.len(),ci+2)] != "".as_bytes() {
-                     ci += 1;
+                  while c2>0 && !(c==b'*' && c2==b'/') {
+                     if c==b'\n' { self.column = 1; self.line += 1; self.offset_start += 1;
+                     } else { self.column += 1; self.offset_start += 1; };
+                     c = c2;
+                     c2 = self.takec();
                   }
-                  si = ci + 2;
-                  continue;
-                  */
+                  if c==b'\n' { self.column = 1; self.line += 1; self.offset_start += 1;
+                  } else { self.column += 1; self.offset_start += 1; };
+                  if c2==b'\n' { self.column = 1; self.line += 1; self.offset_start += 1;
+                  } else { self.column += 1; self.offset_start += 1; };
                },
                _ => {
                   if let Some((len,sym)) = self.is_operator(&[c,c2]) {
