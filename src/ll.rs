@@ -543,7 +543,7 @@ pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut Vec<Token>) -> Re
    let branch1 = ll1_expr_term(tlc, scope, tokens)?;
    let branch2 = if peek_is(tokens, &vec![Symbol::Else]) {
       pop_is("if-term", tokens, &vec![Symbol::Else])?;
-      ll1_expr_term(tlc, scope, tokens)?
+      ll1_term(tlc, scope, tokens)?
    } else {
       tlc.push_term(Term::Tuple(Vec::new()),&span)
    };
