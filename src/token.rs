@@ -216,6 +216,9 @@ pub fn is_value_char(source: &str, index: usize) -> bool {
 pub struct TokenReader<R: Read> {
    cbuf: [u8; 1],
    source_name: Rc<String>,
+   offset_start: usize,
+   line: usize,
+   column: usize,
    peek: Option<Token>,
    buf: BufReader<R>,
 }
@@ -234,7 +237,24 @@ impl<R: Read> TokenReader<R> {
          self.peek = None;
          return Ok(t);
       }
-      
+
+      if self.cbuf[0]==0 {
+      if let Err(err) = self.buf.read(&mut self.cbuf) {
+         return Err(Error{
+            kind: "Tokenization Error".to_string(),
+            rule: format!("Could not read character from buffer"),
+            span: Span {
+               filename: self.source_name.clone(),
+               offset_start: self.offset_start,
+               offset_end: self.offset_start,
+               linecol_start: (self.line,self.column),
+               linecol_end: (self.line,self.column),
+            }
+         });
+         
+      }}
+      let c = self.cbuf[0];
+      self.cbuf[0] = 0;
       todo!("TokenReader.take")
    }
    pub fn peek_symbol(&mut self) -> Result<Option<Symbol>,Error> {
@@ -275,12 +295,20 @@ pub fn tokenize_file(source_name: &str) -> Result<TokenReader<File>,Error> {
          }
       });
    };
-   Ok(TokenReader { source_name:Rc::new(source_name.to_string()), buf:buf, peek:None, cbuf: [0;1] })
+   Ok(TokenReader {
+      source_name:Rc::new(source_name.to_string()),
+      offset_start: 0, line: 1, column: 1,
+      buf:buf, peek:None, cbuf: [0;1]
+   })
 }
 
 pub fn tokenize_string<'a>(source_name: &str, src: &'a str) -> Result<TokenReader<&'a [u8]>,Error> {
    let buf = BufReader::new(src.as_bytes());
-   Ok(TokenReader { source_name:Rc::new(source_name.to_string()), buf:buf, peek:None, cbuf: [0;1] })
+   Ok(TokenReader {
+      source_name:Rc::new(source_name.to_string()),
+      offset_start: 0, line: 1, column: 1,
+      buf:buf, peek:None, cbuf: [0;1]
+   })
 }
 
 pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
