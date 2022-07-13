@@ -1,5 +1,6 @@
 use crate::debug::Error;
 use std::rc::Rc;
+use std::path::Path;
 
 #[derive(Clone)]
 pub struct Span {
@@ -208,6 +209,35 @@ pub fn is_value_char(source: &str, index: usize) -> bool {
    let c = source.as_bytes()[index] as char;
    c == 'e' || c == 'E' || c == '+' || c == '-' || c == 'i' || c == '.' ||
    c.is_ascii_digit()
+}
+
+pub struct TokenReader {
+}
+impl TokenReader {
+   pub fn peek(&mut self) -> Result<Option<Token>,Error> {
+      todo!("TokenReader.peek")
+   }
+   pub fn take(&mut self) -> Result<Option<Token>,Error> {
+      todo!("TokenReader.take")
+   }
+}
+
+pub fn tokenize_file(source_name: &str) -> Result<TokenReader,Error> {
+   let p = Path::new(source_name);
+   if !p.exists() {
+      return Err(Error{
+         kind: "Tokenization Error".to_string(),
+         rule: format!("Could not open file: {}", source_name),
+         span: Span {
+            filename: Rc::new(source_name.to_string()),
+            offset_start: 0,
+            offset_end: 0,
+            linecol_start: (1,1),
+            linecol_end: (1,1),
+         }
+      });
+   }
+   Ok(TokenReader {})
 }
 
 pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {

@@ -6,7 +6,7 @@ use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
 use crate::typ::{Type,IsParameter};
 use crate::kind::Kind;
-use crate::token::{Span,tokenize,span_of};
+use crate::token::{Span,tokenize,tokenize_file,span_of};
 use crate::debug::Error;
 use crate::ll::ll1_file;
 
@@ -292,11 +292,14 @@ impl TLC {
       if !Path::new(filename).exists() {
          panic!("parse_file could not find file: '{}'", filename)
       }
+      eprintln!("before tokenize");
+      let mut tks = tokenize_file(filename)?;
+      while tks.peek()?.is_some() {
+         tks.take()?;
+      }
+      eprintln!("after tokenize, before compile");
       let src = std::fs::read_to_string(filename)
                    .expect("parse_file: Something went wrong reading the file");
-      eprintln!("before tokenize");
-      tokenize(filename.to_string(), &src)?;
-      eprintln!("after tokenize, before compile");
       self.compile_doc(globals, filename,&src)?;
       eprintln!("after compile");
       Ok(ScopeId {id:0})
