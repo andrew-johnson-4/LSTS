@@ -214,11 +214,17 @@ pub fn is_value_char(source: &str, index: usize) -> bool {
 }
 
 pub struct TokenReader<R: Read> {
+   peek: Option<Token>,
    buf: BufReader<R>,
 }
 impl<R: Read> TokenReader<R> {
    pub fn peek(&mut self) -> Result<Option<Token>,Error> {
-      todo!("TokenReader.peek")
+      if self.peek.is_some() {
+         Ok(self.peek.clone())
+      } else {
+         self.peek = self.take()?;
+         Ok(self.peek.clone())
+      }
    }
    pub fn take(&mut self) -> Result<Option<Token>,Error> {
       todo!("TokenReader.take")
@@ -241,7 +247,7 @@ pub fn tokenize_file(source_name: &str) -> Result<TokenReader<File>,Error> {
          }
       });
    };
-   Ok(TokenReader { buf:buf })
+   Ok(TokenReader { buf:buf, peek:None })
 }
 
 pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
