@@ -300,32 +300,34 @@ impl<R: Read> TokenReader<R> {
          b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
          b'\n' => { self.column = 1; self.line += 1; self.offset_start += 1; c = self.takec(); },
          b'0'..=b'9' => {
-            todo!(".take value")
-            /*
-            let mut ci = si + 1;
-            while ci<source.len() && is_value_char(source, ci) {
-               ci += 1;
+            let mut token = Vec::new();
+            while is_value_char(c) {
+               token.push(c);
+               c = self.takec();
             }
-            let span = span_of(&filename, si, ci - si, line, column);
-            column += ci - si;
-            let value = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
-            tokens.push(Token { symbol: Symbol::Value(value.to_string()), span: span, });
-            si = ci;
-            */
+            self.cbuf[0] = c; //push last char back onto cbuf
+            let span = self.span_of(token.len());
+            self.column += token.len();
+            let value = std::str::from_utf8(&token).unwrap();
+            return Ok(Some(Token {
+               symbol: Symbol::Value(value.to_string()),
+               span: span,
+            }));
          },
          b'A'..=b'Z' => {
-            todo!(".take typename")
-            /*
-            let mut ci = si + 1;
-            while ci<source.len() && is_ident_char(source, ci) {
-               ci += 1;
+            let mut token = Vec::new();
+            while is_ident_char(c) {
+               token.push(c);
+               c = self.takec();
             }
-            let span = span_of(&filename, si, ci - si, line, column);
-            column += ci - si;
-            let tname = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
-            tokens.push(Token { symbol: Symbol::Typename(tname.to_string()), span: span, });
-            si = ci;
-            */
+            self.cbuf[0] = c; //push last char back onto cbuf
+            let span = self.span_of(token.len());
+            self.column += token.len();
+            let tname = std::str::from_utf8(&token).unwrap();
+            return Ok(Some(Token {
+               symbol: Symbol::Typename(tname.to_string()),
+               span: span,
+            }));
          },
          b'a'..=b'z' => {
             let mut token = Vec::new();
