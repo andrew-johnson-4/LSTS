@@ -12,3 +12,9 @@ keywords = ["type","logic","automated","theorem","proof"]
 
 [dependencies]
 regex = { version = "1" }
+
+[profile.release]
+opt-level = 3
+
+[profile.test]
+opt-level = 3

@@ -1,31 +1,24 @@
 use lsts::tlc::TLC;
-use std::path::Path;
 
 #[test]
 fn parse_1() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-   if Path::new("tests/stress/1.tlc").exists() {
-      tlc.import_file(Some(si), "tests/stress/1.tlc").unwrap();
-   }
+   tlc.import_file(Some(si), "tests/stress/1.tlc").unwrap();
 }
 
 #[test]
 fn parse_10() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-   if Path::new("tests/stress/10.tlc").exists() {
-      tlc.import_file(Some(si), "tests/stress/10.tlc").unwrap();
-   }
+   tlc.import_file(Some(si), "tests/stress/10.tlc").unwrap();
 }
 
 #[test]
 fn parse_100() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-   if Path::new("tests/stress/100.tlc").exists() {
-      tlc.import_file(Some(si), "tests/stress/100.tlc").unwrap();
-   }
+   tlc.import_file(Some(si), "tests/stress/100.tlc").unwrap();
 }
 
 /*
@@ -33,9 +26,7 @@ fn parse_100() {
 fn parse_1k() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-   if Path::new("tests/stress/1k.tlc").exists() {
-      tlc.import_file(Some(si), "tests/stress/1k.tlc").unwrap();
-   }
+   tlc.import_file(Some(si), "tests/stress/1k.tlc").unwrap();
 }
 
 #[test]
@@ -44,24 +35,6 @@ fn parse_10k() {
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
    if Path::new("tests/stress/10k.tlc").exists() {
       tlc.import_file(Some(si), "tests/stress/10k.tlc").unwrap();
-   }
-}
-
-#[test]
-fn parse_100k() {
-   let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-   if Path::new("tests/stress/100k.tlc").exists() {
-      tlc.import_file(Some(si), "tests/stress/100k.tlc").unwrap();
-   }
-}
-
-#[test]
-fn parse_1m() {
-   let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-   if Path::new("tests/stress/1m.tlc").exists() {
-      tlc.import_file(Some(si), "tests/stress/1m.tlc").unwrap();
    }
 }
 */
