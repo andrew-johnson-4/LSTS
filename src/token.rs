@@ -358,20 +358,19 @@ impl<R: Read> TokenReader<R> {
             let mut c2 = self.takec();
             match [c, c2] {
                [b'$', b'"'] => {
-                  todo!("tokenize quoted ident")
-                  /*
-                  let mut ci = si + 2;
-                  while ci<source.len() && (source.as_bytes()[ci] as char) != '"' {
-                     ci += 1;
+                  let mut token = Vec::new();
+                  c = self.takec();
+                  while c != b'"' {
+                     token.push(c);
+                     c = self.takec();
                   }
-                  if ci<source.len() { ci += 1; }
-                  let span = span_of(&filename, si, ci - si, line, column);
-                  column += ci - si;
-                  let ident = std::str::from_utf8(&source.as_bytes()[si+2..ci-1]).unwrap();
-                  tokens.push(Token { symbol: Symbol::Ident(ident.to_string()), span: span, });
-                  si = ci;
-                  continue;
-                  */
+                  let span = self.span_of(token.len()+3);
+                  self.column += token.len()+3;
+                  let ident = std::str::from_utf8(&token).unwrap();
+                  return Ok(Some(Token {
+                     symbol: Symbol::Ident(ident.to_string()),
+                     span: span,
+                  }));
                }, 
                [b'/', b'^'] => {
                   todo!("tokenize regex")
@@ -396,7 +395,7 @@ impl<R: Read> TokenReader<R> {
                      c2 = self.takec();
                   }
                   self.column += 1; self.offset_start += 1;
-                  self.cbuf[0] = c2;
+                  c = c2;
                },
                [b'/', b'*'] => {
                   while c2>0 && !(c==b'*' && c2==b'/') {
@@ -409,6 +408,7 @@ impl<R: Read> TokenReader<R> {
                   } else { self.column += 1; self.offset_start += 1; };
                   if c2==b'\n' { self.column = 1; self.line += 1; self.offset_start += 1;
                   } else { self.column += 1; self.offset_start += 1; };
+                  c = self.takec();
                },
                _ => {
                   if let Some((len,sym)) = self.is_operator(&[c,c2]) {
