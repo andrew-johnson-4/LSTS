@@ -202,13 +202,13 @@ impl std::fmt::Display for Symbol {
     }
 }
 
-pub fn is_ident_char(source: &str, index: usize) -> bool {
-   let c = source.as_bytes()[index] as char;
+pub fn is_ident_char(c: u8) -> bool {
+   let c = c as char;
    c == '_' || c.is_ascii_alphanumeric()
 }
 
-pub fn is_value_char(source: &str, index: usize) -> bool {
-   let c = source.as_bytes()[index] as char;
+pub fn is_value_char(c: u8) -> bool {
+   let c = c as char;
    c == 'e' || c == 'E' || c == '+' || c == '-' || c == 'i' || c == '.' ||
    c.is_ascii_digit()
 }
@@ -293,70 +293,15 @@ impl<R: Read> TokenReader<R> {
          self.peek = None;
          return Ok(t);
       }
-      let c = self.takec();
-      todo!("TokenReader.take")
-   }
-   pub fn peek_symbol(&mut self) -> Result<Option<Symbol>,Error> {
-      let t = self.peek();
-      if let Ok(Some(t)) = t {
-         Ok(Some(t.symbol.clone()))
-      } else if let Ok(None) = t {
-         Ok(None)
-      } else if let Err(err) = t {
-         Err(err)
-      } else { unreachable!("peek symbol") }
-   }
-   pub fn take_symbol(&mut self) -> Result<Option<Symbol>,Error> {
-      let t = self.take();
-      if let Ok(Some(t)) = t {
-         Ok(Some(t.symbol.clone()))
-      } else if let Ok(None) = t {
-         Ok(None)
-      } else if let Err(err) = t {
-         Err(err)
-      } else { unreachable!("peek symbol") }
-   }
-}
+      let mut c = self.takec();
 
-pub fn tokenize_file(source_name: &str) -> Result<TokenReader<File>,Error> {
-   let buf = if let Ok(f) = File::open(source_name) {
-      BufReader::new(f)
-   } else {
-      return Err(Error{
-         kind: "Tokenization Error".to_string(),
-         rule: format!("Could not open file: {}", source_name),
-         span: Span {
-            filename: Rc::new(source_name.to_string()),
-            offset_start: 0,
-            offset_end: 0,
-            linecol_start: (1,1),
-            linecol_end: (1,1),
-         }
-      });
-   };
-   Ok(TokenReader {
-      source_name:Rc::new(source_name.to_string()),
-      offset_start: 0, line: 1, column: 1,
-      buf:buf, peek:None, cbuf: [0;1]
-   })
-}
-
-pub fn tokenize_string<'a>(source_name: &str, src: &'a str) -> Result<TokenReader<&'a [u8]>,Error> {
-   let buf = BufReader::new(src.as_bytes());
-   Ok(TokenReader {
-      source_name:Rc::new(source_name.to_string()),
-      offset_start: 0, line: 1, column: 1,
-      buf:buf, peek:None, cbuf: [0;1]
-   })
-}
-
-/*
-pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
-   while si < source.len() {
-      match source.as_bytes()[si] as char {
-         ' ' => { column += 1; si += 1; continue; },
-         '\n' => { column = 1; line += 1; si += 1; continue; },
-         '0'..='9' => {
+      while c > 0 {
+      match c {
+         b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
+         b'\n' => { self.column = 1; self.line += 1; self.offset_start += 1; c = self.takec(); },
+         b'0'..=b'9' => {
+            todo!(".take value")
+            /*
             let mut ci = si + 1;
             while ci<source.len() && is_value_char(source, ci) {
                ci += 1;
@@ -366,8 +311,11 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
             let value = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
             tokens.push(Token { symbol: Symbol::Value(value.to_string()), span: span, });
             si = ci;
+            */
          },
-         'A'..='Z' => {
+         b'A'..=b'Z' => {
+            todo!(".take typename")
+            /*
             let mut ci = si + 1;
             while ci<source.len() && is_ident_char(source, ci) {
                ci += 1;
@@ -377,32 +325,37 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
             let tname = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
             tokens.push(Token { symbol: Symbol::Typename(tname.to_string()), span: span, });
             si = ci;
+            */
          },
-         'a'..='z' => {
-            let mut ci = si + 1;
-            while ci<source.len() && is_ident_char(source, ci) {
-               ci += 1;
+         b'a'..=b'z' => {
+            let mut token = Vec::new();
+            while is_ident_char(c) {
+               token.push(c);
+               c = self.takec();
             }
-            let span = span_of(&filename, si, ci - si, line, column);
-            column += ci - si;
-            let ident = std::str::from_utf8(&source.as_bytes()[si..ci]).unwrap();
+            self.cbuf[0] = c; //push last char back onto cbuf
+            let span = self.span_of(token.len());
+            self.column += token.len();
+            let ident = std::str::from_utf8(&token).unwrap();
             match ident {
-               "and" => { tokens.push(Token { symbol: Symbol::AndAlso, span: span, }); },
-               "typeof" => { tokens.push(Token { symbol: Symbol::Typeof, span: span, }); },
-               "as" => { tokens.push(Token { symbol: Symbol::As, span: span, }); },
-               "if" => { tokens.push(Token { symbol: Symbol::If, span: span, }); },
-               "then" => { tokens.push(Token { symbol: Symbol::Then, span: span, }); },
-               "else" => { tokens.push(Token { symbol: Symbol::Else, span: span, }); },
-               "let" => { tokens.push(Token { symbol: Symbol::Let, span: span, }); },
-               "forall" => { tokens.push(Token { symbol: Symbol::Forall, span: span, }); },
-               "type" => { tokens.push(Token { symbol: Symbol::Type, span: span, }); },
-               "normal" => { tokens.push(Token { symbol: Symbol::Normal, span: span, }); },
-               "where" => { tokens.push(Token { symbol: Symbol::Where, span: span, }); },
-               _ => { tokens.push(Token { symbol: Symbol::Ident(ident.to_string()), span: span, }); },
+               "and" => { return Ok(Some(Token { symbol: Symbol::AndAlso, span: span, })); },
+               "typeof" => { return Ok(Some(Token { symbol: Symbol::Typeof, span: span, })); },
+               "as" => { return Ok(Some(Token { symbol: Symbol::As, span: span, })); },
+               "if" => { return Ok(Some(Token { symbol: Symbol::If, span: span, })); },
+               "then" => { return Ok(Some(Token { symbol: Symbol::Then, span: span, })); },
+               "else" => { return Ok(Some(Token { symbol: Symbol::Else, span: span, })); },
+               "let" => { return Ok(Some(Token { symbol: Symbol::Let, span: span, })); },
+               "forall" => { return Ok(Some(Token { symbol: Symbol::Forall, span: span, })); },
+               "type" => { return Ok(Some(Token { symbol: Symbol::Type, span: span, })); },
+               "normal" => { return Ok(Some(Token { symbol: Symbol::Normal, span: span, })); },
+               "where" => { return Ok(Some(Token { symbol: Symbol::Where, span: span, })); },
+               _ => { return Ok(Some(Token { symbol: Symbol::Ident(ident.to_string()), span: span, })); },
             }
-            si = ci;
          },
          _ => {
+            todo!("check operators and comments in buf.take")
+
+            /*
             let ri = std::cmp::min( si+2, source.len() );
             if &source.as_bytes()[si..ri] == r#"$""#.as_bytes() {
                let mut ci = si + 2;
@@ -472,11 +425,64 @@ pub fn tokenize(source_name:String, source: &str) -> Result<Vec<Token>,Error> {
                   linecol_end: (line,column+1),
                },
             }); }
-         },
-      };
+            */
+         }
+      }}
+      Ok(Some(Token {
+         symbol: Symbol::EOF,
+         span: self.span_of(0),
+      }))
    }
-   let span = span_of(&filename, si, 0, line, column);
-   tokens.push(Token { symbol: Symbol::EOF, span: span, });
-   Ok(tokens)
+   pub fn peek_symbol(&mut self) -> Result<Option<Symbol>,Error> {
+      let t = self.peek();
+      if let Ok(Some(t)) = t {
+         Ok(Some(t.symbol.clone()))
+      } else if let Ok(None) = t {
+         Ok(None)
+      } else if let Err(err) = t {
+         Err(err)
+      } else { unreachable!("peek symbol") }
+   }
+   pub fn take_symbol(&mut self) -> Result<Option<Symbol>,Error> {
+      let t = self.take();
+      if let Ok(Some(t)) = t {
+         Ok(Some(t.symbol.clone()))
+      } else if let Ok(None) = t {
+         Ok(None)
+      } else if let Err(err) = t {
+         Err(err)
+      } else { unreachable!("peek symbol") }
+   }
 }
-*/
+
+pub fn tokenize_file(source_name: &str) -> Result<TokenReader<File>,Error> {
+   let buf = if let Ok(f) = File::open(source_name) {
+      BufReader::new(f)
+   } else {
+      return Err(Error{
+         kind: "Tokenization Error".to_string(),
+         rule: format!("Could not open file: {}", source_name),
+         span: Span {
+            filename: Rc::new(source_name.to_string()),
+            offset_start: 0,
+            offset_end: 0,
+            linecol_start: (1,1),
+            linecol_end: (1,1),
+         }
+      });
+   };
+   Ok(TokenReader {
+      source_name:Rc::new(source_name.to_string()),
+      offset_start: 0, line: 1, column: 1,
+      buf:buf, peek:None, cbuf: [0;1]
+   })
+}
+
+pub fn tokenize_string<'a>(source_name: &str, src: &'a str) -> Result<TokenReader<&'a [u8]>,Error> {
+   let buf = BufReader::new(src.as_bytes());
+   Ok(TokenReader {
+      source_name:Rc::new(source_name.to_string()),
+      offset_start: 0, line: 1, column: 1,
+      buf:buf, peek:None, cbuf: [0;1]
+   })
+}
