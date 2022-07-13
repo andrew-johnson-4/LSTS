@@ -54,7 +54,8 @@ pub fn ll1_kind<R: Read>(tlc: &mut TLC, tokens: &mut TokenReader<R>) -> Result<K
    while peek_is_typename(tokens) {
       let mut kname = "Nil".to_string();
       let mut ks = Vec::new();
-      if let Some(Symbol::Typename(kn)) = tokens.take_symbol()? {
+      if let Some(Symbol::Typename(kn)) = tokens.peek_symbol()? {
+         tokens.take_symbol()?;
          kname = kn.clone();
       }
 
@@ -102,7 +103,8 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
       pop_is("type-stmt", tokens, &vec![Symbol::Normal])?;
       normal = true;
    }
-   if let Some(Symbol::Typename(tname)) = tokens.take_symbol()? {
+   if let Some(Symbol::Typename(tname)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
       t = tname.clone();
    } else {
       pop_is("type-stmt", tokens, &vec![Symbol::Typename("T".to_string())])?;
@@ -120,7 +122,8 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
          let mut inf = None;
          let mut kind = tlc.term_kind.clone();
 
-         if let Some(Symbol::Typename(tn)) = tokens.take_symbol()? {
+         if let Some(Symbol::Typename(tn)) = tokens.peek_symbol()? {
+            tokens.take_symbol()?;
             typ = tn.clone();
          }
          if peek_is(tokens, &vec![Symbol::Ascript]) {
@@ -165,10 +168,13 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
                if peek_is(tokens, &vec![Symbol::Comma]) {
                   pop_is("type-stmt", tokens, &vec![Symbol::Comma])?;
                }
-               let mut ki = "".to_string();
-               if let Some(Symbol::Ident(f)) = tokens.take_symbol()? {
-                  ki = f.clone();
-               }
+               let ki = if let Some(Symbol::Ident(f)) = tokens.peek_symbol()? {
+                  tokens.take_symbol()?;
+                  f.clone()
+               } else {
+                  pop_is("type-stmt", tokens, &vec![Symbol::Ident("x".to_string())])?;
+                  unreachable!("type-stmt")
+               };
                pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
                let kt = ll1_type(tlc, &mut dept, scope, tokens)?;
                let vn = format!(".{}", ki.clone());
@@ -212,7 +218,8 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
             let mut idn = None;
             let mut inf = None;
             let mut kind = tlc.term_kind.clone();
-            if let Some(Symbol::Ident(n)) = tokens.take_symbol()? {
+            if let Some(Symbol::Ident(n)) = tokens.peek_symbol()? {
+               tokens.take_symbol()?;
                idn = Some(n.clone());
             }
             if peek_is(tokens, &vec![Symbol::Ascript]) {
@@ -335,7 +342,8 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
       let mut typ = None;
       let mut kind = tlc.term_kind.clone();
 
-      if let Some(Symbol::Ident(v)) = tokens.take_symbol()? {
+      if let Some(Symbol::Ident(v)) = tokens.peek_symbol()? {
+         tokens.take_symbol()?;
          ident = Some(v.clone());
       }
       if peek_is(tokens, &vec![Symbol::Ascript]) {
@@ -414,7 +422,8 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
       pop_is("let-stmt", tokens, &vec![Symbol::Dot])?;
       dot = true;
    }
-   let mut ident = if let Some(Symbol::Ident(id)) = tokens.take_symbol()? {
+   let mut ident = if let Some(Symbol::Ident(id)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
       id.clone()
    } else {
       pop_is("let-stmt", tokens, &vec![Symbol::Ident("x".to_string())])?;
@@ -437,7 +446,8 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
          let mut ident = None;
          let mut typ = None;
          let mut kind = tlc.term_kind.clone();
-         if let Some(Symbol::Ident(id)) = tokens.take_symbol()? {
+         if let Some(Symbol::Ident(id)) = tokens.peek_symbol()? {
+            tokens.take_symbol()?;
             ident = Some(id.clone());
          }
          if peek_is(tokens, &vec![Symbol::Ascript]) {
@@ -652,12 +662,15 @@ pub fn ll1_tuple_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Token
 
 pub fn ll1_value_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   if let Ok(Some(sym)) = tokens.take_symbol() {
+   if let Some(sym) = tokens.peek_symbol()? {
       if let Symbol::Ident(x) = sym {
+         tokens.take_symbol()?;
          return Ok(tlc.push_term(Term::Ident(x.clone()), &span))
       } else if let Symbol::Value(x) = sym {
+         tokens.take_symbol()?;
          return Ok(tlc.push_term(Term::Value(x.clone()), &span))
       } else if let Symbol::Typename(cname) = sym {
+         tokens.take_symbol()?;
          let mut kvs = Vec::new();
          if peek_is(tokens, &vec![Symbol::LeftBrace]) {
             pop_is("value-term", tokens, &vec![Symbol::LeftBrace])?;
@@ -665,7 +678,8 @@ pub fn ll1_value_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Token
                if peek_is(tokens, &vec![Symbol::Comma]) {
                   pop_is("value-term", tokens, &vec![Symbol::Comma])?;
                }
-               if let Some(Symbol::Ident(k)) = tokens.take_symbol()? {
+               if let Some(Symbol::Ident(k)) = tokens.peek_symbol()? {
+                  tokens.take_symbol()?;
                   pop_is("value-term", tokens, &vec![Symbol::Is])?;
                   let v = ll1_term(tlc, scope, tokens)?;
                   kvs.push((k.clone(),v));
@@ -692,7 +706,8 @@ pub fn ll1_value_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Token
 pub fn ll1_field_term<R: Read>(tlc: &mut TLC, _scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("field-term", tokens, &vec![Symbol::Dot])?;
-   if let Some(Symbol::Ident(f)) = tokens.take_symbol()? {
+   if let Some(Symbol::Ident(f)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
       return Ok(tlc.push_term(Term::Ident(format!(".{}",f)),&span))
    }
    pop_is("field-term", tokens, &vec![Symbol::Ident("x".to_string())])?;
@@ -772,7 +787,8 @@ pub fn ll1_typeof_type<R: Read>(tlc: &mut TLC, _dept: &mut HashMap<String,TermId
    let span = span_of(tokens);
    pop_is("atom-type", tokens, &vec![Symbol::Typeof])?;
    pop_is("atom-type", tokens, &vec![Symbol::LeftParen])?;
-   let vt = if let Some(Symbol::Ident(v)) = tokens.take_symbol()? {
+   let vt = if let Some(Symbol::Ident(v)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
       tlc.typeof_var(&Some(scope), &v, &None, &span)?
    } else {
       pop_is("atom-type", tokens, &vec![Symbol::Ident("v".to_string())])?;
@@ -783,7 +799,8 @@ pub fn ll1_typeof_type<R: Read>(tlc: &mut TLC, _dept: &mut HashMap<String,TermId
 }
 
 pub fn ll1_ident_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
-   let tn = if let Some(Symbol::Typename(tn)) = tokens.take_symbol()? {
+   let tn = if let Some(Symbol::Typename(tn)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
       tn.clone()
    } else {
       pop_is("ident-type", tokens, &vec![Symbol::Typename("T".to_string())])?;

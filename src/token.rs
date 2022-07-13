@@ -374,7 +374,6 @@ impl<R: Read> TokenReader<R> {
                }, 
                [b'/', b'^'] => {
                   let mut token = Vec::new();
-                  c = self.takec();
                   while c>0 && c != b'/' {
                      token.push(c);
                      c = self.takec();
@@ -391,7 +390,6 @@ impl<R: Read> TokenReader<R> {
                [b'/', b'/'] => {
                   while c2>0 && c2!=b'\n' {
                      self.column += 1; self.offset_start += 1;
-                     c = c2;
                      c2 = self.takec();
                   }
                   self.column += 1; self.offset_start += 1;
