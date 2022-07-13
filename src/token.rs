@@ -373,7 +373,8 @@ impl<R: Read> TokenReader<R> {
                   }));
                }, 
                [b'/', b'^'] => {
-                  let mut token = Vec::new();
+                  let mut token = vec![c, c2];
+                  c = self.takec();
                   while c>0 && c != b'/' {
                      token.push(c);
                      c = self.takec();

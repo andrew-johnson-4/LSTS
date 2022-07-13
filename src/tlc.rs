@@ -291,7 +291,7 @@ impl TLC {
       Ok(ScopeId {id:0})
    }
    pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
-      let mut tks = tokenize_file(filename)?;
+      let tks = tokenize_file(filename)?;
       self.compile_doc(globals, filename, tks)?;
       Ok(ScopeId {id:0})
    }
