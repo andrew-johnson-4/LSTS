@@ -57,3 +57,7 @@ LSTS natively supports dependent types, inhabiting the "Constant" Kind. Constant
     
     //algebraic substitution is allowed in dependent contexts
     [if a%2==0 then 1 else 2]\[a%2|1] : [if 1==0 then 1 else 2] : [2]
+    
+# Tutorial
+
+For further information there is a [tutorial and reference documentation](https://andrew-johnson-4.github.io/lsts-tutorial/).
