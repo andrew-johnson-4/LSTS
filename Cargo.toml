@@ -13,13 +13,19 @@ keywords = ["type","logic","automated","theorem","proof"]
 [dependencies]
 regex = { version = "1" }
 
+[profile.dev]
+lto = true
+opt-level = 3
+
 [profile.release]
+lto = true
 opt-level = 3
 #rustflags = [
 #  "-C", "link-args=-z stack-size=1500000",
 #]
 
 [profile.test]
+lto = true
 opt-level = 3
 
 [[bin]]
