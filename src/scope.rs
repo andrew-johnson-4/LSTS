@@ -3,7 +3,7 @@ use crate::typ::Type;
 use crate::kind::Kind;
 use crate::term::TermId;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ScopeId {
    pub id: usize,
 }
