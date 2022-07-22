@@ -1,13 +1,13 @@
 [package]
 name = "lsts"
-version = "0.5.22"
+version = "0.5.23"
 authors = ["Andrew <andrew@subarctic.org>"]
 license = "MIT"
 description = "Large Scale Type Systems"
 edition = "2018"
 readme = "README.md"
 repository = "https://github.com/andrew-johnson-4/LSTS"
-documentation = "https://docs.rs/lsts/"
+documentation = "https://andrew-johnson-4.github.io/lsts-tutorial/"
 keywords = ["type","logic","automated","theorem","proof"]
 
 [dependencies]
