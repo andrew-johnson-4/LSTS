@@ -6,7 +6,7 @@
 [![Read the Docs](https://img.shields.io/badge/book-reference-blue)](https://andrew-johnson-4.github.io/lsts-tutorial/)
 [![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/andrew-johnson-4/donate)
 
-Pronounced "Loss-Toss"
+LSTS is a proof assistant and maybe a programming language.
 
 Large Scale Type Systems is a library for performance-sensitive type system operations, specifically designed for
 cases where type logic may greatly outscale AST logic. The LSTS code works only with backreferences to AST code
