@@ -290,9 +290,26 @@ impl TLC {
       self.compile_doc(globals, "[string]", tks)?;
       Ok(ScopeId {id:0})
    }
+   pub fn parse_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {
+      let mut tks = tokenize_file(filename)?;
+      let file_scope = globals.unwrap_or(self.push_scope(Scope {
+         parent: None,
+         children: Vec::new(),
+      }, &span_of(&mut tks)));
+      Ok(ll1_file(self, file_scope, &mut tks)?)
+   }
+   pub fn check_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
+      let ast = self.parse_file(globals, filename)?;
+      self.compile_rules(filename)?;
+      self.typeck(globals, ast, None)?;
+      self.sanityck()?;
+      Ok(ScopeId {id:0})
+   }
    pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
-      let tks = tokenize_file(filename)?;
-      self.compile_doc(globals, filename, tks)?;
+      let ast = self.parse_file(globals, filename)?;
+      self.compile_rules(filename)?;
+      self.typeck(globals, ast, None)?;
+      self.sanityck()?;
       Ok(ScopeId {id:0})
    }
    pub fn compile_doc<R: Read>(&mut self, globals: Option<ScopeId>, docname:&str, mut tokens: TokenReader<R>) -> Result<TermId,Error> {

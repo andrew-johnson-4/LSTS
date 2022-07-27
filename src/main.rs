@@ -16,6 +16,17 @@ fn main() {
          println!("Compiling: {}", fp);
          env = Some(tlc.import_file(env, fp).unwrap());
       }
+   } else if command=="parse" {
+      for fp in args.iter() {
+         println!("Parsing: {}", fp);
+         tlc.parse_file(None, fp).unwrap();
+      }
+   } else if command=="check" {
+      let mut env = None;
+      for fp in args.iter() {
+         println!("Typechecking: {}", fp);
+         env = Some(tlc.check_file(env, fp).unwrap());
+      }
    } else {
       println!("lsts help");
       println!("     parse [filenames] -- parse files but nothing more");
