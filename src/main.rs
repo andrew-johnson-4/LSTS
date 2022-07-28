@@ -16,6 +16,12 @@ fn main() {
          println!("Compiling: {}", fp);
          env = Some(tlc.import_file(env, fp).unwrap());
       }
+   } else if command=="run" {
+      let mut env = None;
+      for fp in args.iter() {
+         println!("Running: {}", fp);
+         env = Some(tlc.import_file(env, fp).unwrap());
+      }
    } else if command=="parse" {
       for fp in args.iter() {
          println!("Parsing: {}", fp);
@@ -32,6 +38,7 @@ fn main() {
       println!("     parse [filenames] -- parse files but nothing more");
       println!("     check [filenames] -- parse and typecheck files");
       println!("     build [filenames] -- compile provided files as a program");
+      println!("     run   [filenames] -- execute provided files as a program");
       println!("");
    }
 }
