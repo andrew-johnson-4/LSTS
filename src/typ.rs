@@ -20,8 +20,8 @@ impl std::fmt::Debug for IsParameter {
 
 ///Each Term has at least one Type.
 ///
-///Types are composed of Atomic parts like Idents.
-///An Ident type has a name and possibly some parameters.
+///Types are composed of Atomic parts like Nameds.
+///An Named type has a name and possibly some parameters.
 ///Atomic parts can be combined to form Compound parts like Arrows.
 ///Compound parts are formed by some combination of Arrows, Tuples, Products, and Ratios.
 ///At the Highest level a Compound type can be pluralized with an And to join it to other Compounds.
@@ -34,7 +34,7 @@ impl std::fmt::Debug for IsParameter {
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Type {
    Any,
-   Ident(String,Vec<Type>),
+   Named(String,Vec<Type>),
    And(Vec<Type>), //Bottom is the empty conjunctive
    Arrow(Box<Type>,Box<Type>),
    Tuple(Vec<Type>),   //Tuple is order-sensitive, Nil is the empty tuple
@@ -47,7 +47,7 @@ impl Type {
    pub fn print(&self, kinds: &HashMap<Type,Kind>) -> String {
       let ts = match self {
          Type::Any => format!("?"),
-         Type::Ident(t,ts) => {
+         Type::Named(t,ts) => {
             if ts.len()==0 { format!("{}", t) }
             else { format!("{}<{}>", t, ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join(",") ) }
          }
@@ -99,8 +99,8 @@ impl Type {
    pub fn mask(&self) -> Type {
       match self {
          Type::Any => Type::Any,
-         Type::Ident(tn,_ts) if tn.chars().all(char::is_uppercase) => Type::Any,
-         Type::Ident(tn,ts) => Type::Ident(tn.clone(),ts.iter().map(|_|Type::Any).collect::<Vec<Type>>()),
+         Type::Named(tn,_ts) if tn.chars().all(char::is_uppercase) => Type::Any,
+         Type::Named(tn,ts) => Type::Named(tn.clone(),ts.iter().map(|_|Type::Any).collect::<Vec<Type>>()),
          Type::Arrow(p,b) => Type::Arrow(Box::new(p.mask()),Box::new(b.mask())),
          Type::Ratio(p,b) => Type::Ratio(Box::new(p.mask()),Box::new(b.mask())),
          Type::And(ts) => Type::And(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
@@ -113,8 +113,8 @@ impl Type {
       match (self,other) {
          (Type::Any,r) => r.clone(),
          (l,Type::Any) => l.clone(),
-         (Type::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => rt.clone(),
-         (lt,Type::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => lt.clone(),
+         (Type::Named(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => rt.clone(),
+         (lt,Type::Named(rv,_rps)) if rv.chars().all(char::is_uppercase) => lt.clone(),
          (Type::And(ls),Type::And(rs)) => {
             let mut ts = ls.clone();
             ts.append(&mut rs.clone());
@@ -140,7 +140,7 @@ impl Type {
    }
    pub fn is_var(&self) -> bool {
       match self {
-         Type::Ident(tn,ts) => ts.len()==0 && tn.chars().all(char::is_uppercase),
+         Type::Named(tn,ts) => ts.len()==0 && tn.chars().all(char::is_uppercase),
          _ => false
       }
    }
@@ -187,7 +187,7 @@ impl Type {
    pub fn vars(&self) -> Vec<String> {
       match self {
          Type::Any => vec![],
-         Type::Ident(tn,ts) => {
+         Type::Named(tn,ts) => {
             let mut nv = vec![tn.clone()];
             for tt in ts.iter() {
                nv.append(&mut tt.vars());
@@ -274,9 +274,9 @@ impl Type {
             let ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Type>>();
             Type::Tuple(ts)
          },
-         Type::Ident(tn,ts) => {
+         Type::Named(tn,ts) => {
             let ts = ts.iter().map(|tt|tt.normalize()).collect::<Vec<Type>>();
-            Type::Ident(tn.clone(),ts)
+            Type::Named(tn.clone(),ts)
          },
          Type::Arrow(p,b) => {
             Type::Arrow(Box::new(p.normalize()), Box::new(b.normalize()))
@@ -291,7 +291,7 @@ impl Type {
          Type::Any => Type::Any,
          Type::Arrow(p,b) => Type::Arrow(Box::new(p.remove(x)),Box::new(b.remove(x))),
          Type::Ratio(p,b) => Type::Ratio(Box::new(p.remove(x)),Box::new(b.remove(x))),
-         Type::Ident(tn,ts) => Type::Ident(tn.clone(),ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
+         Type::Named(tn,ts) => Type::Named(tn.clone(),ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::And(ts) => Type::And(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
@@ -306,7 +306,7 @@ impl Type {
          Type::Any => Type::Any,
          Type::Arrow(p,b) => Type::Arrow(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
          Type::Ratio(p,b) => Type::Ratio(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
-         Type::Ident(tn,ts) => Type::Ident(tn.clone(),ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
+         Type::Named(tn,ts) => Type::Named(tn.clone(),ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::And(ts) => Type::And(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
@@ -318,7 +318,7 @@ impl Type {
          Type::Any => false,
          Type::Arrow(p,b) => p.is_concrete() && b.is_concrete(),
          Type::Ratio(p,b) => p.is_concrete() && b.is_concrete(),
-         Type::Ident(_tn,ts) => ts.iter().all(|tc| tc.is_concrete()),
+         Type::Named(_tn,ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom Typee is also concrete
          Type::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
@@ -333,7 +333,7 @@ impl Type {
          return k.clone();
       }
       match self {
-         Type::Constant(_,_) => Kind::Simple("Constant".to_string(),Vec::new()),
+         Type::Constant(_,_) => Kind::Named("Constant".to_string(),Vec::new()),
          Type::And(ats) => {
             let mut aks = Vec::new();
             for at in ats.iter() {
@@ -389,7 +389,7 @@ impl Type {
          //only unify left wildcards when they are returned from a function
          (Type::Any,r) if par!=IsParameter::Top => Ok(r.substitute(subs)),
          (l,Type::Any) => Ok(l.substitute(subs)),
-         (Type::Ident(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
+         (Type::Named(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
                if lt==sl { return rt.unify_impl_par(kinds,subs,sr,par); }
             }
@@ -397,7 +397,7 @@ impl Type {
             subs.insert(lt.clone(),rt.clone());
             Ok(rt.clone())
          },
-         (lt,Type::Ident(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
+         (lt,Type::Named(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
             for (sl,sr) in subs.clone().iter() {
                if rt==sl { return lt.unify_impl_par(kinds,subs,sr,par); }
             }
@@ -476,13 +476,13 @@ impl Type {
          },
 
          //everything else is a mixed bag
-         (Type::Ident(lv,lps),Type::Ident(rv,rps))
+         (Type::Named(lv,lps),Type::Named(rv,rps))
          if lv==rv && lps.len()==rps.len() => {
             let mut tps = Vec::new();
             for (lp,rp) in std::iter::zip(lps,rps) {
                tps.push(lp.unify_impl_par(kinds,subs,rp,par)?);
             }
-            Ok(Type::Ident(lv.clone(),tps))
+            Ok(Type::Named(lv.clone(),tps))
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
             if let Type::And(ref ps) = **pr {
@@ -536,7 +536,7 @@ impl std::fmt::Debug for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
            Type::Any => write!(f, "?"),
-           Type::Ident(t,ts) => {
+           Type::Named(t,ts) => {
               if ts.len()==0 { write!(f, "{}", t) }
               else { write!(f, "{}<{}>", t, ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ) }
            }

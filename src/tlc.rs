@@ -164,8 +164,8 @@ impl TLC {
          tconstant_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
-         term_kind: Kind::Simple("Term".to_string(),Vec::new()),
-         constant_kind: Kind::Simple("Constant".to_string(),Vec::new()),
+         term_kind: Kind::Named("Term".to_string(),Vec::new()),
+         constant_kind: Kind::Named("Constant".to_string(),Vec::new()),
          nil_type: Type::Tuple(Vec::new()),
          bottom_type: Type::And(Vec::new()),
       }
@@ -173,7 +173,7 @@ impl TLC {
    pub fn print_type(&self, kinds: &HashMap<Type,Kind>, tt: &Type) -> String {
       let ts = match tt {
          Type::Any => format!("?"),
-         Type::Ident(t,ts) => {
+         Type::Named(t,ts) => {
             if ts.len()==0 { format!("{}", t) }
             else { format!("{}<{}>", t, ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join(",") ) }
          }
@@ -379,7 +379,7 @@ impl TLC {
             };
             k
          },
-         Type::Ident(cn,_) => {
+         Type::Named(cn,_) => {
             if let Some(t) = kinds.get(tt) { return Some(t.clone()); }
             let mut k = None;
             if let Some(ti) = self.typedef_index.get(cn) {
@@ -435,13 +435,13 @@ impl TLC {
             for td in tds.iter() { match td {
                Typedef::Regex(pat) => {
                   if let Ok(r) = Regex::new(&pat[1..pat.len()-1]) {
-                     self.regexes.push((Type::Ident(tn.clone(),Vec::new()),Rc::new(r)));
+                     self.regexes.push((Type::Named(tn.clone(),Vec::new()),Rc::new(r)));
                   } else {
                      panic!("typedef regex rejected: {}", pat);
                   }
                },
                Typedef::Constructor(cname,kts) => {
-                  self.constructors.insert(cname.clone(), (Type::Ident(tn.clone(),Vec::new()),Vec::new(),kts.clone()));
+                  self.constructors.insert(cname.clone(), (Type::Named(tn.clone(),Vec::new()),Vec::new(),kts.clone()));
                }
             }}
             for p in props.iter() {
@@ -592,7 +592,7 @@ impl TLC {
             let mut uq: HashSet<Type> = HashSet::new();
             let mut nuq: HashSet<String> = HashSet::new();
             for tc in ts.iter() {
-            if let Type::Ident(tn,_ts) = tc {
+            if let Type::Named(tn,_ts) = tc {
                if let Some((bt,_,_)) = self.constructors.get(tn) {
                   if uq.contains(bt) && !nuq.contains(tn) { return Err(Error {
                      kind: "Type Error".to_string(),
@@ -608,7 +608,7 @@ impl TLC {
          },
          Type::Tuple(ts) => { for tc in ts.iter() { self.soundck(tc,span)?; } Ok(()) },
          Type::Product(ts) => { for tc in ts.iter() { self.soundck(tc,span)?; } Ok(()) },
-         Type::Ident(tn,ts) => {
+         Type::Named(tn,ts) => {
             if ts.len()==0 { return Ok(()); }
             if !tt.is_concrete() { return Ok(()); }
             if let Some(ti) = self.typedef_index.get(tn) {
@@ -631,7 +631,7 @@ impl TLC {
          Type::Any => tt.clone(),
          Type::Arrow(p,b) => Type::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Type::Ratio(p,b) => Type::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
-         Type::Ident(tn,ts) => {
+         Type::Named(tn,ts) => {
             let ts = ts.iter().map(|ct|self.extend_implied(ct)).collect::<Vec<Type>>();
             let mut implies: Vec<Type> = Vec::new();
             let mut subs = HashMap::new();
@@ -640,7 +640,7 @@ impl TLC {
             if let Some(ti) = self.typedef_index.get(tn) {
             if let TypeRule::Typedef(_tn,_norm,tiks,imp,_td,_tk,_props,_) = &self.rules[*ti] {
                for ((ot,_it,_k),st) in std::iter::zip(tiks.iter(), ts.iter()) {
-                  subs.insert(Type::Ident(ot.clone(),Vec::new()), st.clone());
+                  subs.insert(Type::Named(ot.clone(),Vec::new()), st.clone());
                }
                if let Some(it) = imp {
                   match self.extend_implied(it) {
@@ -656,7 +656,7 @@ impl TLC {
             }
 
             let mut ats = Vec::new();
-            ats.push(Type::Ident(tn.clone(),ts));
+            ats.push(Type::Named(tn.clone(),ts));
             for i in implies.iter() {
                ats.push(i.substitute(&subs));
             }
@@ -697,7 +697,7 @@ impl TLC {
       match tt {
          Type::Any => false,
          Type::And(ts) => ts.iter().any(|ct|self.is_normal(ct)),
-         Type::Ident(tn,ts) => self.type_is_normal.contains(&Type::Ident(tn.clone(),Vec::new())) &&
+         Type::Named(tn,ts) => self.type_is_normal.contains(&Type::Named(tn.clone(),Vec::new())) &&
                               ts.iter().all(|ct|self.is_normal(ct)),
          Type::Tuple(ts) => ts.iter().all(|ct|self.is_normal(ct)),
          Type::Product(ts) => ts.iter().all(|ct|self.is_normal(ct)),
@@ -795,7 +795,7 @@ impl TLC {
             self.untyped_eval(subs, c);
          },
          Type::Any => {},
-         Type::Ident(_tn,tps) => {
+         Type::Named(_tn,tps) => {
             for mut tp in tps.iter_mut() {
                self.reduce_type(subs, &mut tp, span);
             }
@@ -1012,16 +1012,16 @@ impl TLC {
             continue;
          }
 
-         if let Type::Ident(nn,nns) = &n {
+         if let Type::Named(nn,nns) = &n {
             let mut nns = nns.clone();
             for ni in 0..nns.len() {
             if !self.is_normal(&nns[ni]) {
                nns[ni] = self.cast_normal(&nns[ni], span)?;
             }}
-            n = Type::Ident(nn.clone(),nns);
+            n = Type::Named(nn.clone(),nns);
          }
 
-         if let Type::Ident(nn,_nns) = &n {
+         if let Type::Named(nn,_nns) = &n {
          if let Some(ti) = self.typedef_index.get(nn) {
          if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
          let it = implies.clone().unwrap_or(Type::Any);
@@ -1065,16 +1065,16 @@ impl TLC {
             continue;
          }
 
-         if let Type::Ident(dn,dns) = &d {
+         if let Type::Named(dn,dns) = &d {
             let mut dns = dns.clone();
             for ni in 0..dns.len() {
             if !self.is_normal(&dns[ni]) {
                dns[ni] = self.cast_normal(&dns[ni], span)?;
             }}
-            d = Type::Ident(dn.clone(),dns);
+            d = Type::Named(dn.clone(),dns);
          }
 
-         if let Type::Ident(dn,_dns) = &d {
+         if let Type::Named(dn,_dns) = &d {
          if let Some(ti) = self.typedef_index.get(dn) {
          if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
          let it = implies.clone().unwrap_or(Type::Any);
@@ -1147,7 +1147,7 @@ impl TLC {
             }
 
             //if Into part implies a normal, replace part with implied
-            if let Type::Ident(nn,_nns) = n {
+            if let Type::Named(nn,_nns) = n {
             if let Some(ti) = self.typedef_index.get(nn) {
             if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
             let it = implies.clone().unwrap_or(Type::Any);
@@ -1192,7 +1192,7 @@ impl TLC {
             }
 
             //if Into part implies a normal, replace part with implied
-            if let Type::Ident(dn,_dns) = d {
+            if let Type::Named(dn,_dns) = d {
             if let Some(ti) = self.typedef_index.get(dn) {
             if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
             let it = implies.clone().unwrap_or(Type::Any);
@@ -1316,7 +1316,7 @@ impl TLC {
    pub fn alpha_convert_type(&mut self, tt: &Type, lt: TermId, rt: TermId) -> Type {
       match tt {
          Type::Any => tt.clone(),
-         Type::Ident(_,_) => tt.clone(),
+         Type::Named(_,_) => tt.clone(),
          Type::Arrow(_,_) => tt.clone(), //the inner types here are guarded
          Type::Constant(v,c) => Type::Constant(*v, self.alpha_convert_term(*c,lt,rt)),
          Type::Ratio(nt,dt) => Type::Ratio(
@@ -1393,14 +1393,14 @@ impl TLC {
       self.untyped(self_termid);
       let self_type = self.push_dep_type(&self_term, self_termid);
       match &self.rows[t.id].typ {
-         Type::Ident(tn,ts) => {
-            ground_types.push(Type::Ident(tn.clone(),ts.clone()));
+         Type::Named(tn,ts) => {
+            ground_types.push(Type::Named(tn.clone(),ts.clone()));
          },
          Type::And(tcs) => {
             for tc in tcs.iter() {
             match tc {
-               Type::Ident(tn,ts) => {
-                  ground_types.push(Type::Ident(tn.clone(),ts.clone()));
+               Type::Named(tn,ts) => {
+                  ground_types.push(Type::Named(tn.clone(),ts.clone()));
                }, Type::Constant(v,ct) => {
                   subs.insert(self_type.clone(), Type::Constant(*v,*ct));
                }, _ => {},
@@ -1409,7 +1409,7 @@ impl TLC {
          _ => {},
       }
       for g in ground_types.iter() {
-      if let Type::Ident(tn,_ts) = g {
+      if let Type::Named(tn,_ts) = g {
       if let Some(ti) = self.typedef_index.get(tn) {
       if let TypeRule::Typedef(_cname,_normal,_tiks,_imp,_cons,_k,inv,_span) = &self.rules[*ti] {
          for invariant in inv.clone().iter() {
@@ -1586,7 +1586,7 @@ impl TLC {
             }
             if let Some((ref tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
                self.rows[t.id].typ = tt.clone();
-               self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::Ident(cname.clone(),Vec::new())).normalize();
+               self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::Named(cname.clone(),Vec::new())).normalize();
             } else { return Err(Error {
                kind: "Type Error".to_string(),
                rule: format!("type constructor, none found for: {}", self.print_term(t)),

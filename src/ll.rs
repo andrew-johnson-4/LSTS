@@ -76,7 +76,7 @@ pub fn ll1_kind<R: Read>(tlc: &mut TLC, tokens: &mut TokenReader<R>) -> Result<K
       if &kname=="Nil" {
          kinds.push(Kind::Nil);
       } else {
-         kinds.push(Kind::Simple(kname,ks));
+         kinds.push(Kind::Named(kname,ks));
       }
    }
    if kinds.len()==1 {
@@ -139,7 +139,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
 
       pop_is("type-stmt", tokens, &vec![Symbol::GreaterThan])?;
    }
-   let struct_typ = Type::Ident(t.clone(), tiks.iter().map(|(t,_i,_k)|Type::Ident(t.clone(),Vec::new())).collect::<Vec<Type>>());
+   let struct_typ = Type::Named(t.clone(), tiks.iter().map(|(t,_i,_k)|Type::Named(t.clone(),Vec::new())).collect::<Vec<Type>>());
 
    if peek_is(tokens, &vec![Symbol::Ascript]) {
       pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
@@ -251,7 +251,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
    if normal {
       if constructors.len()==0 {
          //constructors are preferred normal forms
-         tlc.type_is_normal.insert(Type::Ident(t.clone(),Vec::new()));
+         tlc.type_is_normal.insert(Type::Named(t.clone(),Vec::new()));
       }
       for k in kinds.flatten().iter() {
          if k == &tlc.term_kind { continue; } //Term is never normal
@@ -261,7 +261,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
    tlc.typedef_index.insert(t.clone(), tlc.rules.len());
    for c in constructors.iter() {
       if normal {
-         tlc.type_is_normal.insert(Type::Ident(c.clone(),Vec::new()));
+         tlc.type_is_normal.insert(Type::Named(c.clone(),Vec::new()));
       }
       if &t==c { continue; } //constructor has same name as type
       tlc.typedef_index.insert(c.clone(), tlc.rules.len());
@@ -276,7 +276,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
             for ct in ts.iter() {
                if let Term::Ident(ctn) = &tlc.rows[ct.id].term.clone() {
                if ctn == "self" { //replace "self" in invariants with this type rule
-                  xs.push(Type::Ident(t.clone(),Vec::new()));
+                  xs.push(Type::Named(t.clone(),Vec::new()));
                   fkts.insert(xs[xs.len()-1].clone(), tlc.term_kind.clone());
                   continue;
                }}
@@ -288,7 +288,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
             let mut is_self = false;
             if let Term::Ident(ctn) = pt {
             if ctn == "self" { //replace "self" in invariants with this type rule
-               xs.push(Type::Ident(t.clone(),Vec::new()));
+               xs.push(Type::Named(t.clone(),Vec::new()));
                fkts.insert(xs[xs.len()-1].clone(), tlc.term_kind.clone());
                is_self = true;
             }}
@@ -817,7 +817,7 @@ pub fn ll1_ident_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>,
       }
       pop_is("ident-type", tokens, &vec![Symbol::GreaterThan])?;
    }
-   Ok(Type::Ident(tn,tps))
+   Ok(Type::Named(tn,tps))
 }
 
 pub fn ll1_dep_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<Type,Error> {
@@ -867,7 +867,7 @@ pub fn ll1_suffix_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>
       tlc.untyped(dt);
       tlc.unify_varnames(dept,&mut dt);
       let ct = tlc.push_dep_type(&tlc.rows[dt.id].term.clone(), dt);
-      base = Type::Ident("Tensor".to_string(), vec![
+      base = Type::Named("Tensor".to_string(), vec![
          base,
          ct
       ]);

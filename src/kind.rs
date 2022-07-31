@@ -1,9 +1,9 @@
 
-/// All Kinds are Simple Strings with optional Parameters.
+/// All Kinds are Named Strings with optional Parameters.
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Kind {
    Nil,
-   Simple(String,Vec<Kind>),
+   Named(String,Vec<Kind>),
    And(Vec<Kind>),
 }
 
@@ -13,7 +13,7 @@ impl std::fmt::Debug for Kind {
            Kind::Nil => {
               write!(f, "Nil")
            },
-           Kind::Simple(k,ps) => {
+           Kind::Named(k,ps) => {
               if ps.len()==0 { write!(f, "{}", k) }
               else { write!(f, "{}<{:?}>", k, ps.iter().map(|p|format!("{:?}",p)).collect::<Vec<String>>().join(",")) }
            },
