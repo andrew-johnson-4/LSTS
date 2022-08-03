@@ -4,7 +4,6 @@
 [![Build](https://github.com/andrew-johnson-4/LSTS/workflows/Build/badge.svg)](https://github.com/andrew-johnson-4/LSTS)
 [![Documentation](https://img.shields.io/badge/api-rustdoc-blue.svg)](https://docs.rs/lsts/latest/lsts/)
 [![Read the Docs](https://img.shields.io/badge/book-reference-blue)](https://andrew-johnson-4.github.io/lsts-tutorial/)
-[![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/andrew-johnson-4/donate)
 
 LSTS is a proof assistant and maybe a programming language.
 
