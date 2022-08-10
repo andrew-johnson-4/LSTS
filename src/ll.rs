@@ -4,7 +4,7 @@ use crate::term::{Term,TermId};
 use crate::debug::{Error};
 use crate::token::{Symbol,TokenReader,span_of};
 use crate::scope::{ScopeId,Scope};
-use crate::tlc::{TLC,TypeRule,Invariant,Typedef,Inference};
+use crate::tlc::{TLC,TypeRule,Invariant,TypedefRule,TypedefBranch,Inference};
 use crate::typ::{Type};
 use crate::kind::{Kind};
 
@@ -154,7 +154,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
          let mut tcrows = Vec::new();
          if let Some(Symbol::Regex(r)) = tokens.peek_symbol()? {
             tokens.take_symbol()?;
-            typedef.push( Typedef::Regex(r.clone()) );
+            typedef.push( TypedefBranch::Regex(r.clone()) );
             continue;
          };
          if let Some(Symbol::Typename(tn)) = tokens.peek_symbol()? {
@@ -191,7 +191,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
             pop_is("type-stmt", tokens, &vec![Symbol::RightBrace])?;
          }
          constructors.push(tcname.clone());
-         typedef.push( Typedef::Constructor(tcname,tcrows) );
+         typedef.push( TypedefBranch::Constructor(tcname,tcrows) );
 
          if peek_is(tokens, &vec![Symbol::Bar]) {
             pop_is("type-stmt", tokens, &vec![Symbol::Bar])?;
@@ -310,16 +310,19 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
       tlc.untyped(vt);
       tlc.scopes[scope.id].children.push((gn.clone(), fkts, ft, vt));
    }}}
-   tlc.rules.push(TypeRule::Typedef(
-      t,
-      normal,
-      tiks,
-      implies,
-      typedef,
-      kinds,
-      props,
-      span.clone()
-   ));
+
+   tlc.rules.push(TypeRule::Typedef(TypedefRule {
+      name: t,
+      is_normal: normal,
+      is_constant: false,
+      parameters: tiks,
+      implies: implies,
+      definition: typedef,
+      invariants: props,
+      kind: kinds,
+      span: span.clone(),
+   }));
+
    Ok(TermId { id:0 })
 }
 

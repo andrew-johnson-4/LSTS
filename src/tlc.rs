@@ -82,7 +82,7 @@ impl Inference {
 }
 
 #[derive(Clone)]
-pub enum Typedef {
+pub enum TypedefBranch {
    Regex(String),
    Constructor(String,Vec<(String,Type)>),
 }
@@ -95,15 +95,28 @@ pub struct Invariant {
 }
 
 #[derive(Clone)]
+pub struct TypedefRule {
+   pub name: String,
+   pub is_normal: bool,
+   pub is_constant: bool,
+   pub parameters: Vec<(String,Option<Type>,Kind)>,
+   pub implies: Option<Type>,
+   pub definition: Vec<TypedefBranch>, //having a definition implies that the term is a Valued type
+   pub invariants: Vec<Invariant>,
+   pub kind: Kind,
+   pub span: Span,
+}
+
+#[derive(Clone)]
 pub enum TypeRule {
-   Typedef(String,bool,Vec<(String,Option<Type>,Kind)>,Option<Type>,Vec<Typedef>,Kind,Vec<Invariant>,Span),
+   Typedef(TypedefRule),
 
    Forall(Vec<(Option<String>,Option<Type>,Kind)>, Inference, Option<TermId>, Kind, Span),
 }
 impl TypeRule {
    pub fn span(&self) -> Span {
       match self {
-         TypeRule::Typedef(_,_,_,_,_,_,_,sp) => sp.clone(),
+         TypeRule::Typedef(tr) => tr.span.clone(),
          TypeRule::Forall(_,_,_,_,sp) => sp.clone(),
       }
    }
@@ -111,17 +124,17 @@ impl TypeRule {
 impl std::fmt::Debug for TypeRule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-           TypeRule::Typedef(tn,_norm,itks,implies,_td,tk,_props,_) => write!(f, "{}{}{}{}{}::{:?}",
-              tn,
-              if itks.len()==0 { "" } else { "<" },
-              itks.iter().map(|(t,i,k)| format!("{:?}:{:?}::{:?}",
+           TypeRule::Typedef(tr) => write!(f, "{}{}{}{}{}::{:?}",
+              tr.name,
+              if tr.parameters.len()==0 { "" } else { "<" },
+              tr.parameters.iter().map(|(t,i,k)| format!("{:?}:{:?}::{:?}",
                     t.clone(),
                     i.clone().unwrap_or(Type::Any),
                     k
               )).collect::<Vec<String>>().join(","),
-              if itks.len()==0 { "" } else { ">" },
-              if let Some(ti) = implies { format!(":{:?}",ti) } else { format!("") },
-              tk
+              if tr.parameters.len()==0 { "" } else { ">" },
+              if let Some(ref ti) = tr.implies { format!(":{:?}",ti) } else { format!("") },
+              tr.kind
            ),
            TypeRule::Forall(itks,inf,_t,tk,_) => write!(f, "forall {}. {:?} :: {:?}", 
               itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
@@ -383,9 +396,9 @@ impl TLC {
             if let Some(t) = kinds.get(tt) { return Some(t.clone()); }
             let mut k = None;
             if let Some(ti) = self.typedef_index.get(cn) {
-            if let TypeRule::Typedef(_tn,_norm,_tps,_implies,_td,tk,_props,_) = &self.rules[*ti] {
-               kinds.insert(tt.clone(), tk.clone());
-               k = Some(tk.clone());
+            if let TypeRule::Typedef(tr) = &self.rules[*ti] {
+               kinds.insert(tt.clone(), tr.kind.clone());
+               k = Some(tr.kind.clone());
             }}
             k
          },
@@ -431,20 +444,20 @@ impl TLC {
             }
             */
          },
-         TypeRule::Typedef(tn,_norm,_itks,_implies,tds,_tks,props,_span) => {
-            for td in tds.iter() { match td {
-               Typedef::Regex(pat) => {
+         TypeRule::Typedef(tr) => {
+            for td in tr.definition.iter() { match td {
+               TypedefBranch::Regex(pat) => {
                   if let Ok(r) = Regex::new(&pat[1..pat.len()-1]) {
-                     self.regexes.push((Type::Named(tn.clone(),Vec::new()),Rc::new(r)));
+                     self.regexes.push((Type::Named(tr.name.clone(),Vec::new()),Rc::new(r)));
                   } else {
                      panic!("typedef regex rejected: {}", pat);
                   }
                },
-               Typedef::Constructor(cname,kts) => {
-                  self.constructors.insert(cname.clone(), (Type::Named(tn.clone(),Vec::new()),Vec::new(),kts.clone()));
+               TypedefBranch::Constructor(cname,kts) => {
+                  self.constructors.insert(cname.clone(), (Type::Named(tr.name.clone(),Vec::new()),Vec::new(),kts.clone()));
                }
             }}
-            for p in props.iter() {
+            for p in tr.invariants.iter() {
                self.untyped(p.prop);
                self.untyped(p.algs);
             }
@@ -612,11 +625,11 @@ impl TLC {
             if ts.len()==0 { return Ok(()); }
             if !tt.is_concrete() { return Ok(()); }
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,itks,_implies,_td,_tk,_props,_) = &self.rules[*ti].clone() {
-            if ts.len()==itks.len() {
-               for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,itks) {
+            if let TypeRule::Typedef(tr) = &self.rules[*ti].clone() {
+            if ts.len()==tr.parameters.len() {
+               for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,&tr.parameters) {
                   if let Some(bt) = bt {
-                     self.unify(pt, bt, span)?;
+                     self.unify(pt, &bt, span)?;
                   }
                }
                return Ok(());
@@ -638,11 +651,11 @@ impl TLC {
 
             //lookup typedefs
             if let Some(ti) = self.typedef_index.get(tn) {
-            if let TypeRule::Typedef(_tn,_norm,tiks,imp,_td,_tk,_props,_) = &self.rules[*ti] {
-               for ((ot,_it,_k),st) in std::iter::zip(tiks.iter(), ts.iter()) {
+            if let TypeRule::Typedef(tr) = &self.rules[*ti] {
+               for ((ot,_it,_k),st) in std::iter::zip(tr.parameters.iter(), ts.iter()) {
                   subs.insert(Type::Named(ot.clone(),Vec::new()), st.clone());
                }
-               if let Some(it) = imp {
+               if let Some(ref it) = tr.implies {
                   match self.extend_implied(it) {
                      Type::And(mut its) => { implies.append(&mut its); },
                      i => { implies.push(i); },
@@ -1023,8 +1036,8 @@ impl TLC {
 
          if let Type::Named(nn,_nns) = &n {
          if let Some(ti) = self.typedef_index.get(nn) {
-         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
-         let it = implies.clone().unwrap_or(Type::Any);
+         if let TypeRule::Typedef(tr) = &self.rules[*ti] {
+         let it = tr.implies.clone().unwrap_or(Type::Any);
          if self.is_normal(&it) {
             let (inum, iden) = it.project_ratio();
             num_collector.append(&mut inum.clone());
@@ -1076,8 +1089,8 @@ impl TLC {
 
          if let Type::Named(dn,_dns) = &d {
          if let Some(ti) = self.typedef_index.get(dn) {
-         if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
-         let it = implies.clone().unwrap_or(Type::Any);
+         if let TypeRule::Typedef(tr) = &self.rules[*ti] {
+         let it = tr.implies.clone().unwrap_or(Type::Any);
          if self.is_normal(&it) {
             let (inum, iden) = it.project_ratio();
             num_collector.append(&mut iden.clone());
@@ -1149,8 +1162,8 @@ impl TLC {
             //if Into part implies a normal, replace part with implied
             if let Type::Named(nn,_nns) = n {
             if let Some(ti) = self.typedef_index.get(nn) {
-            if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
-            let it = implies.clone().unwrap_or(Type::Any);
+            if let TypeRule::Typedef(tr) = &self.rules[*ti] {
+            let it = tr.implies.clone().unwrap_or(Type::Any);
             if self.is_normal(&it) {
                let (inum, iden) = it.project_ratio();
                num_collector.append(&mut inum.clone());
@@ -1194,8 +1207,8 @@ impl TLC {
             //if Into part implies a normal, replace part with implied
             if let Type::Named(dn,_dns) = d {
             if let Some(ti) = self.typedef_index.get(dn) {
-            if let TypeRule::Typedef(_tn,_norm,_itks,implies,_td,_tk,_props,_span) = &self.rules[*ti] {
-            let it = implies.clone().unwrap_or(Type::Any);
+            if let TypeRule::Typedef(tr) = &self.rules[*ti] {
+            let it = tr.implies.clone().unwrap_or(Type::Any);
             if self.is_normal(&it) {
                let (inum, iden) = it.project_ratio();
                num_collector.append(&mut iden.clone());
@@ -1411,8 +1424,8 @@ impl TLC {
       for g in ground_types.iter() {
       if let Type::Named(tn,_ts) = g {
       if let Some(ti) = self.typedef_index.get(tn) {
-      if let TypeRule::Typedef(_cname,_normal,_tiks,_imp,_cons,_k,inv,_span) = &self.rules[*ti] {
-         for invariant in inv.clone().iter() {
+      if let TypeRule::Typedef(tr) = &self.rules[*ti] {
+         for invariant in tr.invariants.clone().iter() {
             let p = self.untyped_eval(&subs, &mut invariant.prop.clone());
             let a = self.untyped_eval(&subs, &mut invariant.algs.clone());
             if p.is_some() && p==a {
