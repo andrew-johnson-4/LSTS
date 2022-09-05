@@ -368,13 +368,19 @@ impl Type {
    pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
       self.unify_impl_par(kinds,subs,rt,IsParameter::Top)
    }
+   pub fn is_bottom(&self) -> bool {
+      match self {
+         Type::And(ts) if ts.len()==0 => { true },
+         _ => false
+      }
+   }
    pub fn implication_unifier(&self, other: &Type) -> Type {
       let mut subs = Vec::new();
       let nt = self._implication_unifier(other, &mut subs);
       //TODO: substitute MGUs of type variables
       nt
    }
-   fn _implication_unifier(&self, other: &Type, _subs: &mut Vec<(Type,Type)>) -> Type {
+   fn _implication_unifier(&self, other: &Type, subs: &mut Vec<(Type,Type)>) -> Type {
       //if the two types don't unify
       //then the mgu will be the bottom type
       match (self,other) {
@@ -383,9 +389,10 @@ impl Type {
          (_,Type::And(rts)) if rts.len()==0 => { Type::And(vec![]) },
 
          //wildcard match
-         (Type::Any,Type::Any) => { self.clone() },
-         (Type::Named(lv,_lps),Type::Named(rv,_rps)) if lv.chars().all(char::is_uppercase) && lv==rv => {
-            self.clone()
+         (lt,Type::Any) => { lt.clone() },
+         (lt,Type::Named(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
+            subs.push((other.clone(), lt.clone()));
+            other.clone()
          },
 
          //conjunctive normal form takes precedence
@@ -393,7 +400,7 @@ impl Type {
             let mut mts = Vec::new();
             for rt in rts.iter() {
                let mtsl = mts.len();
-               match self.most_general_unifier(rt) {
+               match self._implication_unifier(rt,subs) {
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
                }
@@ -406,7 +413,7 @@ impl Type {
          (Type::And(lts),rt) => {
             let mut mts = Vec::new();
             for ltt in lts.iter() {
-               match ltt.most_general_unifier(rt) {
+               match ltt._implication_unifier(rt,subs) {
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
                }
@@ -418,7 +425,7 @@ impl Type {
          (lt,Type::And(rts)) => {
             let mut mts = Vec::new();
             for rt in rts.iter() {
-               match lt.most_general_unifier(rt) {
+               match lt._implication_unifier(rt,subs) {
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
                }
@@ -431,14 +438,16 @@ impl Type {
          //ratio Typees have next precedence
          (Type::Ratio(pl,bl),Type::Ratio(pr,br)) => {
             let pt = pl.most_general_unifier(pr);
+            if pt.is_bottom() { return pt.clone(); }
             let bt = bl.most_general_unifier(br);
+            if bt.is_bottom() { return bt.clone(); }
             Type::Ratio(Box::new(pt),Box::new(bt))
          },
          (lt,Type::Ratio(pr,br)) => {
             //assert Nil divisor on rhs
             match **br {
                Type::Tuple(ref bs) if bs.len()==0 => {
-                  lt.most_general_unifier(pr)
+                  lt._implication_unifier(pr,subs)
                }, _ => { Type::And(vec![]) }
             }
          },
@@ -446,7 +455,7 @@ impl Type {
             //assert Nil divisor on rhs
             match **bl {
                Type::Tuple(ref bs) if bs.len()==0 => {
-                  pl.most_general_unifier(rt)
+                  pl._implication_unifier(rt,subs)
                }, _ => { Type::And(vec![]) }
             }
          },
@@ -456,30 +465,34 @@ impl Type {
          if lv==rv && lps.len()==rps.len() => {
             let mut tps = Vec::new();
             for (lp,rp) in std::iter::zip(lps,rps) {
-               tps.push(lp.most_general_unifier(rp));
+               let nt = lp._implication_unifier(rp,subs);
+               if nt.is_bottom() { return nt.clone(); }
+               tps.push(lp._implication_unifier(rp,subs));
             }
             Type::Named(lv.clone(),tps)
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
-            if let Type::And(ref ps) = **pr {
-            if ps.len() == 0 {
-               return Type::And(vec![]);
-            }}
-            let pt = pl.most_general_unifier(pr);
-            let bt = bl.most_general_unifier(br);
+            let pt = pl._implication_unifier(pr,subs);
+            if pt.is_bottom() { return pt.clone(); }
+            let bt = bl._implication_unifier(br,subs);
+            if bt.is_bottom() { return bt.clone(); }
             Type::Arrow(Box::new(pt),Box::new(bt))
          },
          (Type::Product(la),Type::Product(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               ts.push(lt.most_general_unifier(rt));
+               let nt = lt._implication_unifier(rt,subs);
+               if nt.is_bottom() { return nt.clone(); }
+               ts.push(nt.clone());
             }
             Type::Product(ts)
          },
          (Type::Tuple(la),Type::Tuple(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               ts.push(lt.most_general_unifier(rt));
+               let nt = lt._implication_unifier(rt,subs);
+               if nt.is_bottom() { return nt.clone(); }
+               ts.push(nt.clone());
             }
             Type::Tuple(ts)
          },
@@ -512,12 +525,10 @@ impl Type {
          (Type::And(_lts),Type::And(rts)) => {
             let mut mts = Vec::new();
             for rt in rts.iter() {
-               let mtsl = mts.len();
                match self.most_general_unifier(rt) {
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
                }
-               if mts.len()==mtsl { return Type::And(vec![]); }
             }
             mts.sort(); mts.dedup();
             if mts.len()==1 { mts[0].clone() }
@@ -551,7 +562,9 @@ impl Type {
          //ratio Typees have next precedence
          (Type::Ratio(pl,bl),Type::Ratio(pr,br)) => {
             let pt = pl.most_general_unifier(pr);
+            if pt.is_bottom() { return pt.clone(); }
             let bt = bl.most_general_unifier(br);
+            if bt.is_bottom() { return bt.clone(); }
             Type::Ratio(Box::new(pt),Box::new(bt))
          },
          (lt,Type::Ratio(pr,br)) => {
@@ -576,7 +589,9 @@ impl Type {
          if lv==rv && lps.len()==rps.len() => {
             let mut tps = Vec::new();
             for (lp,rp) in std::iter::zip(lps,rps) {
-               tps.push(lp.most_general_unifier(rp));
+               let nt = lp.most_general_unifier(rp);
+               if nt.is_bottom() { return nt.clone(); }
+               tps.push(nt);
             }
             Type::Named(lv.clone(),tps)
          }
@@ -586,20 +601,26 @@ impl Type {
                return Type::And(vec![]);
             }}
             let pt = pl.most_general_unifier(pr);
+            if pt.is_bottom() { return pt.clone(); }
             let bt = bl.most_general_unifier(br);
+            if bt.is_bottom() { return bt.clone(); }
             Type::Arrow(Box::new(pt),Box::new(bt))
          },
          (Type::Product(la),Type::Product(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               ts.push(lt.most_general_unifier(rt));
+               let nt = lt.most_general_unifier(rt);
+               if nt.is_bottom() { return nt.clone(); }
+               ts.push(nt.clone());
             }
             Type::Product(ts)
          },
          (Type::Tuple(la),Type::Tuple(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               ts.push(lt.most_general_unifier(rt));
+               let nt = lt.most_general_unifier(rt);
+               if nt.is_bottom() { return nt.clone(); }
+               ts.push(nt.clone());
             }
             Type::Tuple(ts)
          },

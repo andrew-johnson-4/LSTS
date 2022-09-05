@@ -75,20 +75,20 @@ fn check_self_unifies() {
    assert_eq!(tc2, tc2.implication_unifier(&tc2));
 }
 
-/*
 #[test]
 fn check_simplytyped() {
-   let mut tlc = TLC::new();
-
-   //inhabited types must be defined
-   tlc.check(None, "type Ab; let a: Ab").unwrap();
-   tlc.check(None, "let a: Ab").unwrap_err();
-
-   //unexpected argument B to function A -> B
-   tlc.check(None, "type Ab; type Bc; let a: Ab->Bc; let b: Ab; a(b)").unwrap();
-   tlc.check(None, "type Ab; type Bc; let a: Ab->Bc; let b: Bc; a(b)").unwrap_err();
+   let tb   = Type::And(vec![]);
+   let tany = Type::Any;
+   let tn1  = Type::Named("Aa".to_string(),vec![]);
+   let tn2  = Type::Named("Bb".to_string(),vec![]);
+   let ta1  = Type::Arrow(Box::new(tn1.clone()), Box::new(tn2.clone()));
+   let ta2  = Type::Arrow(Box::new(tn1.clone()), Box::new(tany.clone()));
+   let ta3  = Type::Arrow(Box::new(tn2.clone()), Box::new(tany.clone()));
+   assert_eq!(ta1, ta1.implication_unifier(&ta2));
+   assert_eq!(tb, ta1.implication_unifier(&ta3));
 }
 
+/*
 #[test]
 fn check_normalization() {
    let mut tlc = TLC::new();
