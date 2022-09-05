@@ -118,6 +118,46 @@ fn check_plural_mgu() {
 }
 
 #[test]
+fn check_nested_plural_mgu() {
+   let tany = Type::Any;
+   let tn1  = Type::Named("Aa".to_string(),vec![]);
+   let tn2  = Type::Named("Bb".to_string(),vec![]);
+   let tn3  = Type::Named("Cc".to_string(),vec![]);
+   let ts1  = Type::And(vec![tany.clone(), tn1.clone()]);
+   let ts2  = Type::And(vec![tn1.clone(), tn2.clone()]);
+   let ta1  = Type::Arrow(Box::new(ts1.clone()), Box::new(tn1.clone()));
+   let ta2  = Type::Arrow(Box::new(tany.clone()), Box::new(tn1.clone()));
+   let ta3  = Type::Arrow(Box::new(tn1.clone()), Box::new(tn1.clone()));
+   let tt1  = Type::Tuple(vec![ts2.clone(), tn3.clone()]);
+   let tt2  = Type::Tuple(vec![tn1.clone(), tn3.clone()]);
+   let tp1  = Type::Product(vec![ts1.clone(), tn3.clone()]);
+   let tp2  = Type::Product(vec![tn1.clone(), tn3.clone()]);
+   let tr1  = Type::Ratio(Box::new(ts1.clone()), Box::new(tn3.clone()));
+   let tr2  = Type::Ratio(Box::new(tn1.clone()), Box::new(tn3.clone()));
+
+   assert_eq!(
+      ta1.most_general_unifier(&ta2), 
+      ta2.clone()
+   );
+   assert_eq!(
+      ta1.most_general_unifier(&ta3), 
+      ta3.clone()
+   );
+   assert_eq!(
+      tt1.most_general_unifier(&tt2), 
+      tt2.clone()
+   );
+   assert_eq!(
+      tp1.most_general_unifier(&tp2), 
+      tp2.clone()
+   );
+   assert_eq!(
+      tr1.most_general_unifier(&tr2), 
+      tr2.clone()
+   );
+}
+
+#[test]
 fn check_special_cases_mgu() {
    let tn1 = Type::Named("Aa".to_string(),vec![]);
    let tt1 = Type::Tuple(vec![]);
