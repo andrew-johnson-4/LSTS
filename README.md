@@ -11,7 +11,21 @@ Large Scale Type Systems is a library for performance-sensitive type system oper
 cases where type logic may greatly outscale AST logic. The LSTS code works only with backreferences to AST code
 thereby permitting lazy generation of AST nodes.
 
-LSTS implements [a categorical view of typed lambda calculus with flexible soundness guarantees](https://github.com/andrew-johnson-4/perplexity/blob/main/categorical_prelude.md).
+LSTS implements three methods of type unification which form a basis for logical operations.
+Type expressions are made up of some combination of logical statements.
+When two type expressions are merged somehow, this is called unification.
+Depending on which direction information can propogate (change), we end up with three possible operators.
+
+| A x B           | A can change         | A cannot change     |
+| --------------- | -------------------- | ------------------- |
+| B can change    | Most General Unifier | A => B              |
+| B cannot change | B => A               | Structural Equality |
+
+The three binary operations on types are
+
+* Most General Unifier
+* Logical Implication
+* Structural Equality
 
 # Examples
 
