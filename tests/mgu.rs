@@ -167,3 +167,37 @@ fn check_special_cases_mgu() {
       tn1.clone()
    );
 }
+
+#[test]
+fn check_compound_failures() {
+   let tb   = Type::And(vec![]);
+   let tn1  = Type::Named("Aa".to_string(),vec![]);
+   let tn2  = Type::Named("Bb".to_string(),vec![]);
+   let ta1  = Type::Arrow(Box::new(tn1.clone()), Box::new(tn1.clone()));
+   let ta2  = Type::Arrow(Box::new(tn1.clone()), Box::new(tn2.clone()));
+   let ta3  = Type::Arrow(Box::new(tn2.clone()), Box::new(tn1.clone()));
+   let tt1  = Type::Tuple(vec![]);
+   let tt2  = Type::Tuple(vec![tn1.clone()]);
+   let tt3  = Type::Tuple(vec![tn2.clone()]);
+   let tt4  = Type::Tuple(vec![tn1.clone(),tn2.clone()]);
+   let tp1  = Type::Product(vec![]);
+   let tp2  = Type::Product(vec![tn1.clone()]);
+   let tp3  = Type::Product(vec![tn2.clone()]);
+   let tp4  = Type::Product(vec![tn1.clone(),tn2.clone()]);
+   let tr1  = Type::Ratio(Box::new(tn1.clone()), Box::new(tn1.clone()));
+   let tr2  = Type::Ratio(Box::new(tn1.clone()), Box::new(tn2.clone()));
+   let tr3  = Type::Ratio(Box::new(tn2.clone()), Box::new(tn1.clone()));
+   assert_eq!(ta1.most_general_unifier(&ta2), tb.clone());
+   assert_eq!(ta1.most_general_unifier(&ta3), tb.clone());
+
+   assert_eq!(tt1.most_general_unifier(&tt2), tb.clone());
+   assert_eq!(tt2.most_general_unifier(&tt3), tb.clone());
+   assert_eq!(tt2.most_general_unifier(&tt4), tb.clone());
+
+   assert_eq!(tp1.most_general_unifier(&tp2), tb.clone());
+   assert_eq!(tp2.most_general_unifier(&tp3), tb.clone());
+   assert_eq!(tp2.most_general_unifier(&tp4), tb.clone());
+
+   assert_eq!(tr1.most_general_unifier(&tr2), tb.clone());
+   assert_eq!(tr1.most_general_unifier(&tr3), tb.clone());
+}
