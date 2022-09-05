@@ -14,12 +14,12 @@ thereby permitting lazy generation of AST nodes.
 LSTS implements three methods of type unification which form a basis for logical operations.
 Type expressions are made up of some combination of logical statements.
 When two type expressions are merged somehow, this is called unification.
-Depending on which direction information can propogate (change), we end up with three possible operators.
+Depending on which direction information can propogate (narrow), we end up with three possible operators.
 
-| A x B           | A can change         | A cannot change     |
+| A x B           | A can narrow         | A cannot narrow     |
 | --------------- | -------------------- | ------------------- |
-| B can change    | Most General Unifier | A => B              |
-| B cannot change | B => A               | Structural Equality |
+| B can narrow    | Most General Unifier | B => A              |
+| B cannot narrow | A => B               | Structural Equality |
 
 The three binary operations on types are
 
