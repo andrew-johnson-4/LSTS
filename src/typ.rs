@@ -436,6 +436,14 @@ impl Type {
                }, _ => { Type::And(vec![]) }
             }
          },
+         (Type::Ratio(pl,bl),rt) => {
+            //assert Nil divisor on rhs
+            match **bl {
+               Type::Tuple(ref bs) if bs.len()==0 => {
+                  pl.most_general_unifier(rt)
+               }, _ => { Type::And(vec![]) }
+            }
+         },
 
          //everything else is a mixed bag
          (Type::Named(lv,lps),Type::Named(rv,rps))

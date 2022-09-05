@@ -116,3 +116,14 @@ fn check_plural_mgu() {
       tc1.clone()
    );
 }
+
+#[test]
+fn check_special_cases_mgu() {
+   let tn1 = Type::Named("Aa".to_string(),vec![]);
+   let tt1 = Type::Tuple(vec![]);
+   let tr1 = Type::Ratio(Box::new(tn1.clone()), Box::new(tt1.clone()));
+   assert_eq!(
+      tr1.most_general_unifier(&tn1), 
+      tn1.clone()
+   );
+}
