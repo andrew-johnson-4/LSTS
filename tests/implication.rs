@@ -175,9 +175,9 @@ fn check_compound_subtyping() {
    let ta2  = Type::Arrow(Box::new(ts1.clone()), Box::new(tn1.clone()));
    let ta3  = Type::Arrow(Box::new(tn1.clone()), Box::new(ts1.clone()));
    assert_eq!(ta1, ta1.implication_unifier(&ta1));
-   assert_eq!(ta1, ta2.implication_unifier(&ta1));
+   assert_eq!(td, ta2.implication_unifier(&ta1));  //contravariance
    assert_eq!(ta1, ta3.implication_unifier(&ta1));
-   assert_eq!(td, ta1.implication_unifier(&ta2));
+   assert_eq!(ta1, ta1.implication_unifier(&ta2)); //contravariance
    assert_eq!(td, ta1.implication_unifier(&ta3));
 
    let tt1  = Type::Tuple(vec![tn1.clone(), tn1.clone()]);

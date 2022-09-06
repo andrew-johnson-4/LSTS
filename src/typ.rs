@@ -472,7 +472,7 @@ impl Type {
             Type::Named(lv.clone(),tps)
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
-            let pt = pl._implication_unifier(pr,subs);
+            let pt = pr._implication_unifier(pl,subs); //contravariant
             if pt.is_bottom() { return pt.clone(); }
             let bt = bl._implication_unifier(br,subs);
             if bt.is_bottom() { return bt.clone(); }
@@ -596,11 +596,7 @@ impl Type {
             Type::Named(lv.clone(),tps)
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
-            if let Type::And(ref ps) = **pr {
-            if ps.len() == 0 {
-               return Type::And(vec![]);
-            }}
-            let pt = pl.most_general_unifier(pr);
+            let pt = if pl == pr { (**pl).clone() } else { Type::And(vec![]) };
             if pt.is_bottom() { return pt.clone(); }
             let bt = bl.most_general_unifier(br);
             if bt.is_bottom() { return bt.clone(); }
