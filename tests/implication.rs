@@ -274,12 +274,11 @@ fn check_parameter_unification() {
    assert_eq!(td,  ta3.implication_unifier(&ta4));
 
    let ta5  = Type::Arrow( Box::new(tt4.clone()), Box::new(ts2.clone()) );
-   assert_eq!(ta4, ta5.implication_unifier(&ta4));
-
    let ta6  = Type::Arrow( Box::new(tt5.clone()), Box::new(ts2.clone()) );
-   assert_eq!(ta1, ta6.implication_unifier(&ta4));
-
    let ta7  = Type::Arrow( Box::new(tt5.clone()), Box::new(ts4.clone()) );
+   let ta8  = Type::Arrow( Box::new(tt4.clone()), Box::new(ts1.clone()) );
+   assert_eq!(ta8, ta5.implication_unifier(&ta4));
+   assert_eq!(ta1, ta6.implication_unifier(&ta4));
    assert_eq!(td,  ta7.implication_unifier(&ta4));
 }
 

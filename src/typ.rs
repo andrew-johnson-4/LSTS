@@ -377,8 +377,15 @@ impl Type {
    pub fn implication_unifier(&self, other: &Type) -> Type {
       let mut subs = Vec::new();
       let nt = self._implication_unifier(other, &mut subs);
-      //TODO: substitute MGUs of type variables
-      nt
+      let mut msubs: HashMap<Type,Type> = HashMap::new();
+      for (lt,mut rt) in subs.clone().into_iter() {
+         if let Some(vt) = msubs.get(&lt) {
+            rt = vt.most_general_unifier(&rt);
+            if rt.is_bottom() { return rt.clone(); }
+         }
+         msubs.insert(lt, rt);
+      }
+      nt.substitute(&msubs)
    }
    fn _implication_unifier(&self, other: &Type, subs: &mut Vec<(Type,Type)>) -> Type {
       //if the two types don't unify
@@ -390,6 +397,10 @@ impl Type {
 
          //wildcard match
          (lt,Type::Any) => { lt.clone() },
+         (Type::Named(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
+            subs.push((self.clone(), rt.clone()));
+            self.clone()
+         },
          (lt,Type::Named(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
             subs.push((other.clone(), lt.clone()));
             other.clone()
