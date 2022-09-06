@@ -399,12 +399,11 @@ impl Type {
          (Type::And(_lts),Type::And(rts)) => {
             let mut mts = Vec::new();
             for rt in rts.iter() {
-               let mtsl = mts.len();
                match self._implication_unifier(rt,subs) {
+                  Type::And(tts) if tts.len()==0 => { return Type::And(vec![]); },
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
                }
-               if mts.len()==mtsl { return Type::And(vec![]); }
             }
             mts.sort(); mts.dedup();
             if mts.len()==1 { mts[0].clone() }
@@ -426,6 +425,7 @@ impl Type {
             let mut mts = Vec::new();
             for rt in rts.iter() {
                match lt._implication_unifier(rt,subs) {
+                  Type::And(tts) if tts.len()==0 => { return Type::And(vec![]); },
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
                }

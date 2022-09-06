@@ -134,17 +134,25 @@ fn check_normalization() {
    assert_eq!(ts1.normalize(), ts1.normalize().implication_unifier(&ts2.normalize()));
 }
 
-/*
 #[test]
 fn check_subtyping() {
-   let mut tlc = TLC::new();
-
-   //the type system should accept subtyping relationships
-   tlc.check(None, "type Ab; type Bc; type Cd; let a: Ab+Bc; a:Ab").unwrap(); 
-   tlc.check(None, "type Ab; type Bc; type Cd; let a: Ab+Bc; a:Bc").unwrap(); 
-   tlc.check(None, "type Ab; type Bc; type Cd; let a: Ab+Bc; a:Cd").unwrap_err(); 
+   let td   = Type::And(vec![]);
+   let tn1  = Type::Named("Aa".to_string(),vec![]);
+   let tn2  = Type::Named("Bb".to_string(),vec![]);
+   let tn3  = Type::Named("Cc".to_string(),vec![]);
+   let ts1  = Type::And(vec![tn1.clone(),tn2.clone()]);
+   let ts2  = Type::And(vec![tn1.clone(),tn2.clone(),tn3.clone()]);
+   assert_eq!(tn1, ts1.implication_unifier(&tn1));
+   assert_eq!(tn2, ts1.implication_unifier(&tn2));
+   assert_eq!(td, ts1.implication_unifier(&tn3));
+   assert_eq!(td, tn1.implication_unifier(&ts1));
+   assert_eq!(td, tn2.implication_unifier(&ts1));
+   assert_eq!(td, tn3.implication_unifier(&ts1));
+   assert_eq!(ts1, ts2.implication_unifier(&ts1));
+   assert_eq!(td, ts1.implication_unifier(&ts2));
 }
 
+/*
 #[test]
 fn check_narrow_implication() {
    let mut tlc = TLC::new();
