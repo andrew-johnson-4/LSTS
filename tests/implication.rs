@@ -247,7 +247,39 @@ fn check_products_and_ratios() {
 
 #[test]
 fn check_parameter_unification() {
-   //TODO: unification is substitution
-   //TODO: unification is MGU
+   let td   = Type::And(vec![]);
+   let tn1  = Type::Named("Aa".to_string(),vec![]);
+   let tn2  = Type::Named("Bb".to_string(),vec![]);
+   let tn3  = Type::Named("Cc".to_string(),vec![]);
+   let tn4  = Type::Named("X".to_string(),vec![]);
+
+   let tt1  = Type::Tuple(vec![tn1.clone(), tn1.clone()]);
+   let tt2  = Type::Tuple(vec![tn1.clone(), tn2.clone()]);
+   let tt3  = Type::Tuple(vec![tn4.clone(), tn4.clone()]);
+
+   let ts1  = Type::And(vec![tn1.clone(), tn2.clone()]);
+   let ts2  = Type::And(vec![tn1.clone(), tn2.clone(), tn3.clone()]);
+   let ts3  = Type::And(vec![tn1.clone(), tn3.clone()]);
+   let ts4  = Type::And(vec![tn2.clone(), tn3.clone()]);
+
+   let tt4  = Type::Tuple(vec![ts1.clone(), ts1.clone()]);
+   let tt5  = Type::Tuple(vec![ts1.clone(), ts3.clone()]);
+
+   let ta1  = Type::Arrow( Box::new(tt1.clone()), Box::new(tn1.clone()) );
+   let ta2  = Type::Arrow( Box::new(tt1.clone()), Box::new(tn3.clone()) );
+   let ta3  = Type::Arrow( Box::new(tt2.clone()), Box::new(tn3.clone()) );
+   let ta4  = Type::Arrow( Box::new(tt3.clone()), Box::new(tn4.clone()) );
+   assert_eq!(ta1, ta1.implication_unifier(&ta4));
+   assert_eq!(td,  ta2.implication_unifier(&ta4));
+   assert_eq!(td,  ta3.implication_unifier(&ta4));
+
+   let ta5  = Type::Arrow( Box::new(tt4.clone()), Box::new(ts2.clone()) );
+   assert_eq!(ta4, ta5.implication_unifier(&ta4));
+
+   let ta6  = Type::Arrow( Box::new(tt5.clone()), Box::new(ts2.clone()) );
+   assert_eq!(ta1, ta6.implication_unifier(&ta4));
+
+   let ta7  = Type::Arrow( Box::new(tt5.clone()), Box::new(ts4.clone()) );
+   assert_eq!(td,  ta7.implication_unifier(&ta4));
 }
 
