@@ -152,29 +152,19 @@ fn check_subtyping() {
    assert_eq!(td, ts1.implication_unifier(&ts2));
 }
 
+#[test]
+fn check_parameters_subtyping() {
+   let td   = Type::And(vec![]);
+   let tn1  = Type::Named("Aa".to_string(),vec![]);
+   let tn2  = Type::Named("Bb".to_string(),vec![]);
+   let tn3  = Type::Named("Cc".to_string(),vec![ tn1.clone() ]);
+   let tn4  = Type::Named("Cc".to_string(),vec![ Type::And(vec![tn1.clone(),tn2.clone()]) ]);
+   assert_eq!(tn3, tn3.implication_unifier(&tn3));
+   assert_eq!(tn3, tn4.implication_unifier(&tn3));
+   assert_eq!(td, tn3.implication_unifier(&tn4));
+}
+
 /*
-#[test]
-fn check_narrow_implication() {
-   let mut tlc = TLC::new();
-   
-   //narrow subtyping truth table, Bc => Ab
-   tlc.check(None, "type Ab; type Bc: Ab; let a: Ab; a:Ab").unwrap();     //Ab implies        Ab
-   tlc.check(None, "type Ab; type Bc: Ab; let a: Ab; a:Bc").unwrap_err(); //Ab does not imply Bc
-   tlc.check(None, "type Ab; type Bc: Ab; let a: Bc; a:Ab").unwrap();     //Bc implies        Ab
-   tlc.check(None, "type Ab; type Bc: Ab; let a: Bc; a:Bc").unwrap();     //Bc implies        Bc
-}
-
-#[test]
-fn check_narrow_implication_with_parameters() {
-   let mut tlc = TLC::new();
-   
-   //narrow subtyping truth table, Bc<Pt> => Ab<Pt>
-   tlc.check(None, "type Pt; type Ab<A>; type Bc<B>: Ab<B>; let a: Ab<Pt>; a:Ab<Pt>").unwrap();     //Ab<Pt> implies        Ab<Pt>
-   tlc.check(None, "type Pt; type Ab<A>; type Bc<B>: Ab<B>; let a: Ab<Pt>; a:Bc<Pt>").unwrap_err(); //Ab<Pt> does not imply Bc<Pt>
-   tlc.check(None, "type Pt; type Ab<A>; type Bc<B>: Ab<B>; let a: Bc<Pt>; a:Ab<Pt>").unwrap();     //Bc<Pt> implies        Ab<Pt>
-   tlc.check(None, "type Pt; type Ab<A>; type Bc<B>: Ab<B>; let a: Bc<Pt>; a:Bc<Pt>").unwrap();     //Bc<Pt> implies        Bc<Pt>
-}
-
 #[test]
 fn check_kinded_polymorphism() {
    let mut tlc = TLC::new();
