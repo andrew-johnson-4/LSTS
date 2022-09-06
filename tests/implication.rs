@@ -245,61 +245,9 @@ fn check_products_and_ratios() {
    assert_eq!(td, tr3.normalize().implication_unifier(&tr5));
 }
 
-
-/*
 #[test]
-fn check_kinded_polymorphism() {
-   let mut tlc = TLC::new();
-
-   //unification is kind sensitive
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Ab = a;").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Bc = b;").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Ab+Bc = a;").unwrap_err();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Ab+Bc = b;").unwrap_err();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Ab = b;").unwrap_err();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Bc; let c:Bc = a;").unwrap_err();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Ab+Bc; let c:Ab = a;").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Ab+Bc; let c:Bc = a;").unwrap_err();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Ab+Bc; let c:Ab = b;").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Ab+Bc; let c:Bc = b;").unwrap();
+fn check_parameter_unification() {
+   //TODO: unification is substitution
+   //TODO: unification is MGU
 }
 
-#[test]
-fn check_kinded_parametric_polymorphism() {
-   let mut tlc = TLC::new();
-
-   //unification is kind sensitive
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:Ab::Term); let f(x:Bc::BKind); let x:Ab; f(x)").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:Ab::Term); let f(x:Bc::BKind); let x:Bc; f(x)").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:Ab::Term); let f(x:Bc::BKind); let x:Ab+Bc; f(x)").unwrap(); //Permitted to match multiple
-
-   //parameters can be inferred by kind
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab; f(x)").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Bc; f(x)").unwrap();
-   tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab+Bc; f(x)").unwrap(); //Permitted to match multiple
-}
-
-#[test]
-fn check_kinded_functions() {
-   let mut tlc = TLC::new();
-
-   //function application is narrowly typed
-   tlc.check(None, "type Aa::Ka; type Bb; let f(X::Ka):X; let x: Aa+Bb; f(x): Aa").unwrap();
-   tlc.check(None, "type Aa::Ka; type Bb; let f(X::Ka):X; let x: Aa+Bb; f(x): Bb").unwrap_err();
-
-   //default kind is Term
-   //there is no Any kind
-   tlc.check(None, "type Aa::Ka; type Bb; let f(X):X; let x: Aa+Bb; f(x): Aa").unwrap_err();
-   tlc.check(None, "type Aa::Ka; type Bb; let f(X):X; let x: Aa+Bb; f(x): Bb").unwrap();
-}
-
-#[test]
-fn check_dependent_variable() {
-   let mut tlc = TLC::new();
-
-   tlc.check(None, "let x; let y; x: typeof(x)").unwrap();
-   tlc.check(None, "let x; let y; x: typeof(y)").unwrap_err();
-   tlc.check(None, "let x; let y; y: typeof(x)").unwrap_err();
-   tlc.check(None, "let x; let y; y: typeof(y)").unwrap();
-}
-*/
