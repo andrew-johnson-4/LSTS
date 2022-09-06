@@ -208,6 +208,44 @@ fn check_compound_subtyping() {
    assert_eq!(td, tr1.implication_unifier(&tr3));
 }
 
+#[test]
+fn check_products_and_ratios() {
+   let td   = Type::And(vec![]);
+   let tany = Type::Any;
+   let tn1  = Type::Named("Aa".to_string(),vec![]);
+   let tn2  = Type::Named("Bb".to_string(),vec![]);
+   let tp1  = Type::Product(vec![ tn1.clone(), tn1.clone() ]);
+   let tp2  = Type::Product(vec![ tn1.clone(), tn2.clone() ]);
+   let tt1  = Type::Tuple(vec![]);
+   let tr1  = Type::Ratio( Box::new(tp1.clone()), Box::new(tt1.clone()) );
+   let tr2  = Type::Ratio( Box::new(tp1.clone()), Box::new(tn1.clone()) );
+   let tr3  = Type::Ratio( Box::new(tn1.clone()), Box::new(tn1.clone()) );
+   let tr4  = Type::Ratio( Box::new(tt1.clone()), Box::new(tn1.clone()) );
+   let tr5  = Type::Ratio( Box::new(tany.clone()), Box::new(tn1.clone()) );
+
+   assert_eq!(tp1.normalize(), tp1.normalize().implication_unifier(&tp1));
+   assert_eq!(tp1.normalize(), tp1.normalize().implication_unifier(&tany));
+   assert_eq!(tp2.normalize(), tp2.normalize().implication_unifier(&tp2));
+   assert_eq!(tp2.normalize(), tp2.normalize().implication_unifier(&tany));
+
+   assert_eq!(tp1.normalize(), tp1.normalize().implication_unifier(&tr1));
+
+   assert_eq!(td, tp1.normalize().implication_unifier(&tn1));
+   assert_eq!(td, tp2.normalize().implication_unifier(&tn1));
+
+   assert_eq!(tn1, tr2.normalize());
+   assert_eq!(tn1, tr2.normalize().implication_unifier(&tn1));
+
+   assert_eq!(tt1, tr3.normalize());
+   assert_eq!(tt1, tr3.normalize().implication_unifier(&tt1));
+
+   assert_eq!(tr4, tr4.normalize());
+   assert_eq!(tr4, tr4.normalize().implication_unifier(&tr4));
+
+   assert_eq!(td, tr3.normalize().implication_unifier(&tr5));
+}
+
+
 /*
 #[test]
 fn check_kinded_polymorphism() {
@@ -239,28 +277,6 @@ fn check_kinded_parametric_polymorphism() {
    tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab; f(x)").unwrap();
    tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Bc; f(x)").unwrap();
    tlc.check(None, "type Ab::Term; type Bc::BKind; let f(x:X::Term); let f(x:X::BKind); let x:Ab+Bc; f(x)").unwrap(); //Permitted to match multiple
-}
-
-#[test]
-fn check_products_and_ratios() {
-   let mut tlc = TLC::new();
-
-   //ratio types and product types are rational
-   tlc.check(None, "type At; let a: At*At; a:At*At").unwrap();
-   tlc.check(None, "type At; let a: At*At; a:?").unwrap();
-   tlc.check(None, "type At; let a: At*At; a:?/()").unwrap();
-   tlc.check(None, "type At; let a: At*At; a:At").unwrap_err();
-   tlc.check(None, "type At; let a: At*At/At; a:At").unwrap();
-   tlc.check(None, "type At; let a: At*At/At; a:?").unwrap();
-   tlc.check(None, "type At; let a: At*At/At; a:?/()").unwrap();
-   tlc.check(None, "type At; let a: At/At; a:()").unwrap();
-   tlc.check(None, "type At; let a: At/At; a:?").unwrap();
-   tlc.check(None, "type At; let a: At/At; a:?/()").unwrap();
-   tlc.check(None, "type At; let a: At/At; a:At").unwrap_err();
-   tlc.check(None, "type At; let a: At/At*At; a:At").unwrap_err();
-   tlc.check(None, "type At; let a: At/At*At; a:()/At").unwrap();
-   tlc.check(None, "type At; let a: At/At*At; a:()/At*At").unwrap_err();
-   tlc.check(None, "type At; let a: At/At*At; a:?/()").unwrap_err();
 }
 
 #[test]
