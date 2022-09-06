@@ -164,6 +164,50 @@ fn check_parameters_subtyping() {
    assert_eq!(td, tn3.implication_unifier(&tn4));
 }
 
+#[test]
+fn check_compound_subtyping() {
+   let td   = Type::And(vec![]);
+   let tn1  = Type::Named("Aa".to_string(),vec![]);
+   let tn2  = Type::Named("Bb".to_string(),vec![]);
+   let ts1  = Type::And(vec![tn1.clone(),tn2.clone()]);
+
+   let ta1  = Type::Arrow(Box::new(tn1.clone()), Box::new(tn1.clone()));
+   let ta2  = Type::Arrow(Box::new(ts1.clone()), Box::new(tn1.clone()));
+   let ta3  = Type::Arrow(Box::new(tn1.clone()), Box::new(ts1.clone()));
+   assert_eq!(ta1, ta1.implication_unifier(&ta1));
+   assert_eq!(ta1, ta2.implication_unifier(&ta1));
+   assert_eq!(ta1, ta3.implication_unifier(&ta1));
+   assert_eq!(td, ta1.implication_unifier(&ta2));
+   assert_eq!(td, ta1.implication_unifier(&ta3));
+
+   let tt1  = Type::Tuple(vec![tn1.clone(), tn1.clone()]);
+   let tt2  = Type::Tuple(vec![ts1.clone(), tn1.clone()]);
+   let tt3  = Type::Tuple(vec![tn1.clone(), ts1.clone()]);
+   assert_eq!(tt1, tt1.implication_unifier(&tt1));
+   assert_eq!(tt1, tt2.implication_unifier(&tt1));
+   assert_eq!(tt1, tt3.implication_unifier(&tt1));
+   assert_eq!(td, tt1.implication_unifier(&tt2));
+   assert_eq!(td, tt1.implication_unifier(&tt3));
+
+   let tp1  = Type::Product(vec![tn1.clone(), tn1.clone()]);
+   let tp2  = Type::Product(vec![ts1.clone(), tn1.clone()]);
+   let tp3  = Type::Product(vec![tn1.clone(), ts1.clone()]);
+   assert_eq!(tp1, tp1.implication_unifier(&tp1));
+   assert_eq!(tp1, tp2.implication_unifier(&tp1));
+   assert_eq!(tp1, tp3.implication_unifier(&tp1));
+   assert_eq!(td, tp1.implication_unifier(&tp2));
+   assert_eq!(td, tp1.implication_unifier(&tp3));
+
+   let tr1  = Type::Ratio(Box::new(tn1.clone()), Box::new(tn1.clone()));
+   let tr2  = Type::Ratio(Box::new(ts1.clone()), Box::new(tn1.clone()));
+   let tr3  = Type::Ratio(Box::new(tn1.clone()), Box::new(ts1.clone()));
+   assert_eq!(tr1, tr1.implication_unifier(&tr1));
+   assert_eq!(tr1, tr2.implication_unifier(&tr1));
+   assert_eq!(tr1, tr3.implication_unifier(&tr1));
+   assert_eq!(td, tr1.implication_unifier(&tr2));
+   assert_eq!(td, tr1.implication_unifier(&tr3));
+}
+
 /*
 #[test]
 fn check_kinded_polymorphism() {

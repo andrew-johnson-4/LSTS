@@ -437,9 +437,9 @@ impl Type {
 
          //ratio Typees have next precedence
          (Type::Ratio(pl,bl),Type::Ratio(pr,br)) => {
-            let pt = pl.most_general_unifier(pr);
+            let pt = pl._implication_unifier(pr,subs);
             if pt.is_bottom() { return pt.clone(); }
-            let bt = bl.most_general_unifier(br);
+            let bt = bl._implication_unifier(br,subs);
             if bt.is_bottom() { return bt.clone(); }
             Type::Ratio(Box::new(pt),Box::new(bt))
          },
