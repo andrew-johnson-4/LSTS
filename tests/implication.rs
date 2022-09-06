@@ -122,15 +122,19 @@ fn check_simplytyped() {
    assert_eq!(tb, ta1.implication_unifier(&ta3));
 }
 
-/*
 #[test]
 fn check_normalization() {
-   let mut tlc = TLC::new();
-
-   //types should be normalized during unification
-   tlc.check(None, "type Ab; type Bc; type Cd; let a: Ab+Bc*Cd; a:Cd*Bc+Ab").unwrap(); 
+   let tn1  = Type::Named("Aa".to_string(),vec![]);
+   let tn2  = Type::Named("Bb".to_string(),vec![]);
+   let tn3  = Type::Named("Cc".to_string(),vec![]);
+   let tp1  = Type::Product(vec![tn1.clone(),tn2.clone()]);
+   let tp2  = Type::Product(vec![tn2.clone(),tn1.clone()]);
+   let ts1  = Type::And(vec![tn3.clone(),tp1.clone()]);
+   let ts2  = Type::And(vec![tp2.clone(),tn3.clone()]);
+   assert_eq!(ts1.normalize(), ts1.normalize().implication_unifier(&ts2.normalize()));
 }
 
+/*
 #[test]
 fn check_subtyping() {
    let mut tlc = TLC::new();
