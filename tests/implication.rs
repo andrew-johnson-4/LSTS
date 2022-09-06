@@ -280,7 +280,7 @@ fn check_kinded_parametric_polymorphism() {
 }
 
 #[test]
-fn check_functions() {
+fn check_kinded_functions() {
    let mut tlc = TLC::new();
 
    //function application is narrowly typed
