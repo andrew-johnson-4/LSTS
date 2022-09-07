@@ -1604,8 +1604,10 @@ impl TLC {
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
-            self.rows[x.id].typ = self.implies(&self.rows[g.id].typ.domain(), &self.rows[x.id].typ.clone(), &self.rows[x.id].span.clone())?;
-            self.rows[t.id].typ = self.implies(&self.rows[t.id].typ.clone(), &self.rows[g.id].typ.range(), &self.rows[t.id].span.clone())?;
+            println!("typeck app g(x). g : {:?}", &self.rows[g.id].typ );
+            println!("typeck app g(x). x : {:?}", &self.rows[x.id].typ );
+            self.rows[x.id].typ = self.implies(&self.rows[g.id].typ.domain(), &self.rows[x.id].typ.clone(), &self.rows[t.id].span.clone())?;
+            self.rows[t.id].typ = self.implies(&self.rows[g.id].typ.range(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
