@@ -399,6 +399,7 @@ impl Type {
 
          //wildcard match
          (lt,Type::Any) => { lt.clone() },
+         (Type::Any,rt) => { rt.clone() },
          (Type::Named(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             subs.push((self.clone(), rt.clone()));
             self.clone()

@@ -764,12 +764,7 @@ impl TLC {
                      matches.push(rt.clone());
                   }
                }} else {
-                  let kt = self.project_kinded(&self.constant_kind, tt);
-                  let tt = if kt==self.bottom_type {
-                     let vt = Type::Constant(false,*vt);
-                     tt.and(&vt)
-                  } else { tt.clone() };
-                  matches.push(tt);
+                  matches.push(tt.clone());
                }
             }
          }
@@ -1145,21 +1140,21 @@ impl TLC {
       })
    }
    pub fn kinded_implies(&mut self, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
-      unimplemented!("TODO TLC.kinded_implies")
-   }
-   pub fn implies(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
-      let kinds = HashMap::new();
-      let nt = Type::implies(self, &kinds, lt, rt);
+      let nt = Type::implies(self, kinds, lt, rt);
       match nt {
          Type::And(nts) if nts.len()==0 => {
             Err(Error {
                kind: "Type Error".to_string(),
-               rule: format!("failed unification {} (x) {}", self.print_type(&kinds,&lt), self.print_type(&kinds,&rt)),
+               rule: format!("failed unification {} (x) {}", self.print_type(kinds,&lt), self.print_type(kinds,&rt)),
                span: span.clone(),
             })
          },
          _ => { Ok(nt) }
       }
+   }
+   pub fn implies(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+      let kinds = HashMap::new();
+      self.kinded_implies(&kinds, lt, rt, span)
    }
    pub fn cast_into_kind(&mut self, mut l_only: Type, into: &Type, span: &Span) -> Result<Type,Error> {
 

@@ -64,19 +64,6 @@ fn check_tik_i() {
    tlc.check(Some(si), "let xy: Point2D<Boolean>").unwrap_err();
 }
 
-/* TODO remove
-#[test]
-fn check_project_kinded() {
-   let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-
-   //It is ok to let the compiler infer the Term type
-   tlc.check(Some(si), "True").unwrap(); //should be a Boolean
-   tlc.check(Some(si), "1").unwrap(); //should be an Integer number
-   tlc.check(Some(si), "1.2").unwrap(); //should be a Real number
-   tlc.check(Some(si), "1.2+3i").unwrap(); //should be an Complex number
-}
-
 #[test]
 fn check_compound_types() {
    let mut tlc = TLC::new();
@@ -111,6 +98,20 @@ fn check_compound_types() {
    tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.x:Integer").unwrap_err();
    tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.y:Integer").unwrap_err();
    tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.z:Integer").unwrap_err();
+}
+
+
+/* TODO remove
+#[test]
+fn check_project_kinded() {
+   let mut tlc = TLC::new();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+
+   //It is ok to let the compiler infer the Term type
+   tlc.check(Some(si), "True").unwrap(); //should be a Boolean
+   tlc.check(Some(si), "1").unwrap(); //should be an Integer number
+   tlc.check(Some(si), "1.2").unwrap(); //should be a Real number
+   tlc.check(Some(si), "1.2+3i").unwrap(); //should be an Complex number
 }
 
 #[test]
