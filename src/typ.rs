@@ -39,7 +39,7 @@ impl Type {
          Type::And(ts) => format!("{{{}}}", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join("+") ),
          Type::Tuple(ts) => format!("({})", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join(",") ),
          Type::Product(ts) => format!("({})", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join("*") ),
-         Type::Arrow(p,b) => format!("({})=>({})", p.print(kinds), b.print(kinds)),
+         Type::Arrow(p,b) => format!("({})->({})", p.print(kinds), b.print(kinds)),
          Type::Ratio(n,d) => format!("({})/({})", n.print(kinds), d.print(kinds)),
          Type::Constant(v,c) => format!("[{}var#{}]", if *v {"'"} else {""}, c.id),
       };
@@ -659,7 +659,7 @@ impl std::fmt::Debug for Type {
            Type::And(ts) => write!(f, "{{{}}}", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("+") ),
            Type::Tuple(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ),
            Type::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
-           Type::Arrow(p,b) => write!(f, "({:?})=>({:?})", p, b),
+           Type::Arrow(p,b) => write!(f, "({:?})->({:?})", p, b),
            Type::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
            Type::Constant(v,c) => write!(f, "[{}term#{}]", if *v {"'"} else {""}, c.id),
         }
