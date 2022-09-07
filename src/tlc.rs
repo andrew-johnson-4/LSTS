@@ -1148,7 +1148,18 @@ impl TLC {
       unimplemented!("TODO TLC.kinded_implies")
    }
    pub fn implies(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
-      unimplemented!("TODO TLC.implies")
+      let kinds = HashMap::new();
+      let nt = Type::implies(self, &kinds, lt, rt);
+      match nt {
+         Type::And(nts) if nts.len()==0 => {
+            Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("failed unification {} (x) {}", self.print_type(&kinds,&lt), self.print_type(&kinds,&rt)),
+               span: span.clone(),
+            })
+         },
+         _ => { Ok(nt) }
+      }
    }
    pub fn cast_into_kind(&mut self, mut l_only: Type, into: &Type, span: &Span) -> Result<Type,Error> {
 

@@ -1,4 +1,3 @@
-/* TODO remove
 use lsts::tlc::TLC;
 
 #[test]
@@ -35,6 +34,8 @@ fn check_constant_literals() {
    tlc.check(Some(si), "True:Complex").unwrap_err();
 }
 
+
+/* TODO remove
 #[test]
 fn check_project_kinded() {
    let mut tlc = TLC::new();

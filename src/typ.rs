@@ -370,7 +370,7 @@ impl Type {
       }
    }
    pub fn implies(tlc: &mut TLC, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type) -> Type {
-      unimplemented!("TODO: implication with kinds") 
+      lt.implication_unifier(rt)
       /*
       //lt => rt
       let mut subs = HashMap::new();
