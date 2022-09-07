@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use crate::term::TermId;
 use crate::kind::Kind;
+use crate::tlc::TLC;
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum IsParameter {
@@ -367,6 +368,28 @@ impl Type {
          Type::And(ts) if ts.len()==0 => { true },
          _ => false
       }
+   }
+   pub fn implies(tlc: &mut TLC, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type) -> Type {
+      unimplemented!("TODO: implication with kinds") 
+      /*
+      //lt => rt
+      let mut subs = HashMap::new();
+      let mut lt = self.extend_implied(lt);
+      self.reduce_type(&subs, &mut lt, span); //reduce constant expressions in dependent types
+      lt = lt.normalize();
+      let mut rt = rt.clone();
+      self.reduce_type(&subs, &mut rt, span);
+      rt = rt.normalize();
+      if let Ok(ref mut tt) = lt.unify_impl_par(kinds, &mut subs, &rt, par) {
+         self.reduce_type(&subs, tt, span);
+         let tt = tt.normalize();
+         Ok(tt)
+      } else { return Err(Error {
+         kind: "Type Error".to_string(),
+         rule: format!("failed unification {} (x) {}", self.print_type(kinds,&lt), self.print_type(kinds,&rt)),
+         span: span.clone(),
+      }) }
+      */
    }
    pub fn implication_unifier(&self, other: &Type) -> Type {
       let mut subs = Vec::new();

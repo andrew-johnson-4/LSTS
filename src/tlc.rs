@@ -4,7 +4,7 @@ use std::collections::{HashSet,HashMap};
 use regex::Regex;
 use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
-use crate::typ::{Type,IsParameter};
+use crate::typ::Type;
 use crate::kind::Kind;
 use crate::token::{Span,TokenReader,tokenize_string,tokenize_file,span_of};
 use crate::debug::Error;
@@ -629,7 +629,7 @@ impl TLC {
             if ts.len()==tr.parameters.len() {
                for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,&tr.parameters) {
                   if let Some(bt) = bt {
-                     self.unify(pt, &bt, span)?;
+                     self.implies(pt, &bt, span)?;
                   }
                }
                return Ok(());
@@ -760,7 +760,7 @@ impl TLC {
                   let narrow_it = if let Some(tk) = tkts.get(tp) {
                      self.narrow(&tkts, tk, &it)
                   } else { it.clone() };
-                  if let Ok(rt) = self.unify_with_kinds(&tkts,&narrow_it,&tt,span,IsParameter::Top) {
+                  if let Ok(rt) = self.kinded_implies(&tkts,&narrow_it,&tt,span) {
                      matches.push(rt.clone());
                   }
                }} else {
@@ -1050,9 +1050,10 @@ impl TLC {
          if let Some(tis) = self.foralls_index.get(&mnt) {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+            unimplemented!("apply forall implications")
+            /*
             let kinds = HashMap::new();
-            let mut subs = HashMap::new();
-            if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &n) {
+            if let Ok(srt) = lt.implies(&kinds, &n) {
                let srt = rt.substitute(&subs);
                if self.is_normal(&srt) {
                   let (inum, iden) = srt.project_ratio();
@@ -1062,6 +1063,7 @@ impl TLC {
                   continue;
                }
             }
+            */
          }}}}
          if found { continue; }
 
@@ -1103,10 +1105,10 @@ impl TLC {
          if let Some(tis) = self.foralls_index.get(&mdt) {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+            unimplemented!("TODO: check forall implication")
+            /*
             let kinds = HashMap::new();
-            let mut subs = HashMap::new();
-            if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &d) {
-               let srt = rt.substitute(&subs);
+            if let Ok(srt) = lt.implies(&kinds, &d) {
                if self.is_normal(&srt) {
                   let (inum, iden) = srt.project_ratio();
                   num_collector.append(&mut iden.clone());
@@ -1115,6 +1117,7 @@ impl TLC {
                   continue;
                }
             }
+            */
          }}}}
          if found { continue; }
 
@@ -1140,6 +1143,12 @@ impl TLC {
          let den = Type::Product(den_collector);
          Type::Ratio(Box::new(num),Box::new(den))
       })
+   }
+   pub fn kinded_implies(&mut self, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+      unimplemented!("TODO TLC.kinded_implies")
+   }
+   pub fn implies(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+      unimplemented!("TODO TLC.implies")
    }
    pub fn cast_into_kind(&mut self, mut l_only: Type, into: &Type, span: &Span) -> Result<Type,Error> {
 
@@ -1177,9 +1186,10 @@ impl TLC {
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+               unimplemented!("TODO: apply forall implication")
+               /*
                let kinds = HashMap::new();
-               let mut subs = HashMap::new();
-               if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &n) {
+               if let Ok(_) = lt.implies(&kinds, &n) {
                   let srt = rt.substitute(&subs);
                   let (inum, iden) = srt.project_ratio();
                   num_collector.append(&mut inum.clone());
@@ -1187,6 +1197,7 @@ impl TLC {
                   found = true;
                   continue;
                }
+               */
             }}}}
             if found { continue; }
 
@@ -1222,16 +1233,17 @@ impl TLC {
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+               unimplemented!("TODO: apply forall implication")
+               /*
                let kinds = HashMap::new();
-               let mut subs = HashMap::new();
-               if let Ok(_) = lt.unify_impl(&kinds, &mut subs, &d) {
-                  let srt = rt.substitute(&subs);
+               if let Ok(srt) = lt.implies(&kinds, &d) {
                   let (inum, iden) = srt.project_ratio();
                   num_collector.append(&mut iden.clone());
                   den_collector.append(&mut inum.clone());
                   found = true;
                   continue;
                }
+               */
             }}}}
             if found { continue; }
 
@@ -1258,7 +1270,7 @@ impl TLC {
             Type::Ratio(Box::new(num),Box::new(den))
          };
 
-         self.unify(&l_only, &b_only, span)?;
+         self.implies(&l_only, &b_only, span)?;
          l_only = into.clone();
       }
 
@@ -1477,7 +1489,7 @@ impl TLC {
                self.typeck(Some(sid), *e, None)?;
                last_typ = self.rows[e.id].typ.clone();
             }
-            self.rows[t.id].typ = self.unify(&last_typ, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
+            self.rows[t.id].typ = self.implies(&last_typ, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Tuple(es) => {
             let mut ts = Vec::new();
@@ -1485,7 +1497,7 @@ impl TLC {
                self.typeck(scope, *e, None)?;
                ts.push(self.rows[e.id].typ.clone());
             }
-            self.rows[t.id].typ = self.unify(&Type::Tuple(ts), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
+            self.rows[t.id].typ = self.implies(&Type::Tuple(ts), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Let(s,v,_ps,b,rt,_rk) => {
             if v=="" {
@@ -1501,14 +1513,14 @@ impl TLC {
          },
          Term::Ascript(x,tt) => {
             self.typeck(scope.clone(), x, Some(tt.clone()))?;
-            self.rows[t.id].typ = self.unify(&self.rows[x.id].typ.clone(), &tt, &self.rows[t.id].span.clone())?;
+            self.rows[t.id].typ = self.implies(&self.rows[x.id].typ.clone(), &tt, &self.rows[t.id].span.clone())?;
          },
          Term::As(x,into) => {
             self.typeck(scope.clone(), x, None)?;
             let into_kind = self.kind(&into).first();
-            if let Ok(nt) = self.unify(&self.rows[x.id].typ.clone(), &into, &self.rows[t.id].span.clone()) {
+            if let Ok(nt) = self.implies(&self.rows[x.id].typ.clone(), &into, &self.rows[t.id].span.clone()) {
                //if cast is already satisfied, do nothing
-               self.rows[t.id].typ = self.unify(&nt, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
+               self.rows[t.id].typ = self.implies(&nt, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
             } else {
                if self.is_knormal(&into_kind) {
                   let l_only = self.project_kinded(&into_kind, &self.rows[x.id].typ.clone());
@@ -1516,13 +1528,13 @@ impl TLC {
                   let l_only = self.cast_into_kind(l_only, &into, &self.rows[t.id].span.clone())?;
 
                   //quod erat demonstrandum
-                  self.rows[t.id].typ = self.unify(&l_only,&into,&self.rows[t.id].span.clone())?.and(&l_alts);
+                  self.rows[t.id].typ = self.implies(&l_only,&into,&self.rows[t.id].span.clone())?.and(&l_alts);
                } else {
                   let mut accept = false;
                   for tr in self.rules.clone().iter() { match tr {
                      TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,k,_) if k==&into_kind => {
-                        if let Ok(lt) = self.unify(&self.rows[x.id].typ.clone(), lt, &self.rows[t.id].span.clone()) {
-                        if let Ok(rt) = self.unify(&rt, &into, &self.rows[t.id].span.clone()) {
+                        if let Ok(lt) = self.implies(&self.rows[x.id].typ.clone(), lt, &self.rows[t.id].span.clone()) {
+                        if let Ok(rt) = self.implies(&rt, &into, &self.rows[t.id].span.clone()) {
                            //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
                            //eliminate typeof(x) :: kindof(Into)
                            let l_narrowed = self.remove_kinded(&into_kind, &lt);
@@ -1556,7 +1568,7 @@ impl TLC {
             let alt_i = alt_i.and(&self.push_dep_type(&Term::Value(x.clone()),t));
             let mut r = None;
             for (pat,re) in self.regexes.clone().into_iter() {
-               if let Ok(nt) = self.unify(&ki,&pat,&self.rows[t.id].span.clone()) { //Term kinded is not []
+               if let Ok(nt) = self.implies(&ki,&pat,&self.rows[t.id].span.clone()) { //Term kinded is not []
                   r = Some(re.clone());
                   self.rows[t.id].typ = nt.and(&alt_i);
                   break;
@@ -1590,8 +1602,8 @@ impl TLC {
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
-            self.rows[x.id].typ = self.unify_par(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.domain(), &self.rows[x.id].span.clone(), IsParameter::Yes)?; //x => domain(f(x))
-            self.rows[t.id].typ = self.unify_par(&self.rows[t.id].typ.clone(), &self.rows[g.id].typ.range(), &self.rows[t.id].span.clone(), IsParameter::No)?; //f(x) => range(f(x))
+            self.rows[x.id].typ = self.implies(&self.rows[g.id].typ.domain(), &self.rows[x.id].typ.clone(), &self.rows[x.id].span.clone())?;
+            self.rows[t.id].typ = self.implies(&self.rows[t.id].typ.clone(), &self.rows[g.id].typ.range(), &self.rows[t.id].span.clone())?;
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
@@ -1623,40 +1635,12 @@ impl TLC {
             //yields [1]           => [2]
             //this is ok
          } else {
-            self.rows[t.id].typ = self.unify(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
+            self.rows[t.id].typ = self.implies(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
          }
       }
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
    }
-   pub fn unify_par(&mut self, lt: &Type, rt: &Type, span: &Span, par: IsParameter) -> Result<Type,Error> {
-      let kinds = HashMap::new();
-      self.unify_with_kinds(&kinds, lt, rt, span, par)
-   }
-   pub fn unify(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
-      let kinds = HashMap::new();
-      self.unify_with_kinds(&kinds, lt, rt, span, IsParameter::Top)
-   }
-   pub fn unify_with_kinds(&mut self, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type, span: &Span, par: IsParameter) -> Result<Type,Error> {
-      //lt => rt
-      let mut subs = HashMap::new();
-      let mut lt = self.extend_implied(lt);
-      self.reduce_type(&subs, &mut lt, span); //reduce constant expressions in dependent types
-      lt = lt.normalize();
-      let mut rt = rt.clone();
-      self.reduce_type(&subs, &mut rt, span);
-      rt = rt.normalize();
-      if let Ok(ref mut tt) = lt.unify_impl_par(kinds, &mut subs, &rt, par) {
-         self.reduce_type(&subs, tt, span);
-         let tt = tt.normalize();
-         Ok(tt)
-      } else { return Err(Error {
-         kind: "Type Error".to_string(),
-         rule: format!("failed unification {} (x) {}", self.print_type(kinds,&lt), self.print_type(kinds,&rt)),
-         span: span.clone(),
-      }) }
-   }
-
    pub fn check(&mut self, globals: Option<ScopeId>, src:&str) -> Result<(),Error> {
       let rows_l = self.rows.len();
       let rules_l = self.rules.len();
