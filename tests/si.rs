@@ -100,6 +100,24 @@ fn check_compound_types() {
    tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.z:Integer").unwrap_err();
 }
 
+#[test]
+fn check_type_cast() {
+   let mut tlc = TLC::new();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+
+   //check type cast of compatible numerical types
+   tlc.check(Some(si), "True as Boolean").unwrap();
+   tlc.check(Some(si), "True as Integer").unwrap_err();
+   tlc.check(Some(si), "1:Integer as Integer").unwrap();
+   tlc.check(Some(si), "1:Integer as Real").unwrap();
+   tlc.check(Some(si), "1:Integer as Complex").unwrap();
+   tlc.check(Some(si), "1:Real as Integer").unwrap_err();
+   tlc.check(Some(si), "1:Real as Real").unwrap();
+   tlc.check(Some(si), "1:Real as Complex").unwrap();
+   tlc.check(Some(si), "1:Complex as Integer").unwrap_err();
+   tlc.check(Some(si), "1:Complex as Real").unwrap_err();
+   tlc.check(Some(si), "1:Complex as Complex").unwrap();
+}
 
 /* TODO remove
 #[test]
@@ -139,25 +157,6 @@ fn check_unit_math() {
    //tlc.check(Some(si), "let x: Metre; (2:Integer)*x:Second").unwrap_err();
    //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Metre").unwrap();
    //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Second").unwrap_err();
-}
-
-#[test]
-fn check_type_cast() {
-   let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-
-   //check type cast of compatible numerical types
-   tlc.check(Some(si), "True as Boolean").unwrap();
-   tlc.check(Some(si), "True as Integer").unwrap_err();
-   tlc.check(Some(si), "1:Integer as Integer").unwrap();
-   tlc.check(Some(si), "1:Integer as Real").unwrap();
-   tlc.check(Some(si), "1:Integer as Complex").unwrap();
-   tlc.check(Some(si), "1:Real as Integer").unwrap_err();
-   tlc.check(Some(si), "1:Real as Real").unwrap();
-   tlc.check(Some(si), "1:Real as Complex").unwrap();
-   tlc.check(Some(si), "1:Complex as Integer").unwrap_err();
-   tlc.check(Some(si), "1:Complex as Real").unwrap_err();
-   tlc.check(Some(si), "1:Complex as Complex").unwrap();
 }
 
 #[test]
