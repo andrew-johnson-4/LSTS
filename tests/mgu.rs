@@ -89,7 +89,7 @@ fn check_plural_mgu() {
    let tc2  = Type::Constant(false, TermId{id:2});
    assert_eq!(
       Type::And(vec![tany.clone(), tn1.clone()]).most_general_unifier(&tany), 
-      tany.clone()
+      Type::And(vec![tany.clone(), tn1.clone()]) 
    );
    assert_eq!(
       Type::And(vec![tn1.clone(), tn2.clone()]).most_general_unifier(&tn1), 

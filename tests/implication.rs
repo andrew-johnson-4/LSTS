@@ -282,3 +282,36 @@ fn check_parameter_unification() {
    assert_eq!(td,  ta7.implication_unifier(&ta4));
 }
 
+#[test]
+fn check_function_unification() {
+   //({Point2D::Term+Point2D<{Integer+Number}>::Term}::Term)=>(?::Nil) did not match any candidate (Point2D<N>)=>(N)
+   let tany = Type::Any;
+   let tn1  = Type::Named("Integer".to_string(),vec![]);
+   let tn2  = Type::Named("Number".to_string(),vec![]);
+   let tn3  = Type::Named("Point2D".to_string(),vec![]);
+   let tn4  = Type::Named("N".to_string(),vec![]);
+   let tn5  = Type::Named("Point2D".to_string(),vec![ Type::And(vec![tn1.clone(), tn2.clone()]) ]);
+   let tn6  = Type::Named("Point2D".to_string(),vec![ tn4.clone() ]);
+   let ts1  = Type::And(vec![tn3.clone(), tn5.clone()]);
+
+   //Integer -> ? => N -> N = Integer -> Integer
+   let ta1  = Type::Arrow( Box::new(tn1.clone()), Box::new(tany.clone()) );
+   let ta2  = Type::Arrow( Box::new(tn4.clone()), Box::new(tn4.clone()) );
+   let ta3  = Type::Arrow( Box::new(tn1.clone()), Box::new(tn1.clone()) );
+   assert_eq!(ta3, ta1.implication_unifier(&ta2));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

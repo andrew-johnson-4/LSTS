@@ -753,14 +753,15 @@ impl TLC {
                candidates.push(tt.clone());
                if let Type::Arrow(tp,_tb) = &tt {
                if let Some(it) = implied {
-                  let mut tkts = tkts.clone();
-                  self.kinds_of(&mut tkts, &tt);
-                  self.kinds_of(&mut tkts, it);
+                  let mut tkts = HashMap::new();
+                  //let mut tkts = tkts.clone();
+                  //self.kinds_of(&mut tkts, &tt);
+                  //self.kinds_of(&mut tkts, it);
                   //implied type maybe need to be narrowed by kind
-                  let narrow_it = if let Some(tk) = tkts.get(tp) {
-                     self.narrow(&tkts, tk, &it)
-                  } else { it.clone() };
-                  if let Ok(rt) = self.kinded_implies(&tkts,&narrow_it,&tt,span) {
+                  //let narrow_it = if let Some(tk) = tkts.get(tp) {
+                  //   self.narrow(&tkts, tk, &it)
+                  //} else { it.clone() };
+                  if let Ok(rt) = self.kinded_implies(&tkts,&it,&tt,span) {
                      matches.push(rt.clone());
                   }
                }} else {
