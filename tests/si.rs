@@ -78,7 +78,6 @@ fn check_compound_types() {
    tlc.check(Some(si), "Point3D { x=1:Integer, y=2:Integer, z=False:Boolean").unwrap_err();
    tlc.check(Some(si), "Point3D { x=True:Boolean, y=False:Boolean, z=False:Boolean").unwrap_err();
 
-   /*
    //use fields
    tlc.check(Some(si), "let xy: Point2D<Integer>; xy.x:Integer").unwrap();
    tlc.check(Some(si), "let xy: Point2D<Integer>; xy.y:Integer").unwrap();
@@ -99,7 +98,6 @@ fn check_compound_types() {
    tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.x:Integer").unwrap_err();
    tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.y:Integer").unwrap_err();
    tlc.check(Some(si), "let xyz: Point3D<Real>; xyz.z:Integer").unwrap_err();
-   */
 }
 
 #[test]

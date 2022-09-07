@@ -663,11 +663,6 @@ impl TLC {
                }
             }}
 
-            //lookup constructors
-            if let Some((bt,_ps,_kts)) = self.constructors.get(tn) {
-               implies.push(bt.clone());
-            }
-
             let mut ats = Vec::new();
             ats.push(Type::Named(tn.clone(),ts));
             for i in implies.iter() {
