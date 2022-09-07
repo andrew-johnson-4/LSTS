@@ -516,7 +516,7 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
       };
       ft = Type::Arrow(Box::new(pt),Box::new(ft));
    }
-   tlc.reduce_type(&HashMap::new(), &mut ft, &span); //destructively reduce constants in type
+   tlc.reduce_type(&HashMap::new(), &mut ft); //destructively reduce constants in type
    ft = ft.normalize();
    let vt = tlc.push_term(Term::Ident(ident.clone()), &span);
    tlc.untyped(vt);

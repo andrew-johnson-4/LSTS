@@ -1,4 +1,3 @@
-/* TODO remove
 use lsts::tlc::TLC;
 
 #[test]
@@ -162,6 +161,7 @@ fn check_constant_equivalence() {
    tlc.check(Some(si), "let x:[if False then 0]; x: [()]").unwrap();
 }
 
+/* TODO unquote
 #[test]
 fn check_variable_substitution() {
    let mut tlc = TLC::new();

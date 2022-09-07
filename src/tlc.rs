@@ -793,7 +793,7 @@ impl TLC {
          span: span.clone(),
       }) }
    }
-   pub fn reduce_type(&mut self, subs: &HashMap<Type,Type>, tt: &mut Type, span: &Span) {
+   pub fn reduce_type(&mut self, subs: &HashMap<Type,Type>, tt: &mut Type) {
       match tt {
          Type::Constant(_v, c) => {
             self.untyped_eval(subs, c);
@@ -801,12 +801,12 @@ impl TLC {
          Type::Any => {},
          Type::Named(_tn,tps) => {
             for mut tp in tps.iter_mut() {
-               self.reduce_type(subs, &mut tp, span);
+               self.reduce_type(subs, &mut tp);
             }
          },
          Type::And(ts) => {
             for mut ct in ts.iter_mut() {
-               self.reduce_type(subs, &mut ct, span);
+               self.reduce_type(subs, &mut ct);
             }
             ts.sort(); ts.dedup();
             /* TODO: complain if there are two conflicting constants for one value
@@ -827,21 +827,21 @@ impl TLC {
          },
          Type::Tuple(ts) => {
             for mut ct in ts.iter_mut() {
-               self.reduce_type(subs, &mut ct, span);
+               self.reduce_type(subs, &mut ct);
             }
          },
          Type::Product(ts) => {
             for mut ct in ts.iter_mut() {
-               self.reduce_type(subs, &mut ct, span);
+               self.reduce_type(subs, &mut ct);
             }
          },
          Type::Arrow(ref mut p, ref mut b) => {
-            self.reduce_type(subs, p, span);
-            self.reduce_type(subs, b, span);
+            self.reduce_type(subs, p);
+            self.reduce_type(subs, b);
          },
          Type::Ratio(ref mut p, ref mut b) => {
-            self.reduce_type(subs, p, span);
-            self.reduce_type(subs, b, span);
+            self.reduce_type(subs, p);
+            self.reduce_type(subs, b);
          },
       }
    }
@@ -1604,8 +1604,6 @@ impl TLC {
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
-            println!("typeck app g(x). g : {:?}", &self.rows[g.id].typ );
-            println!("typeck app g(x). x : {:?}", &self.rows[x.id].typ );
             self.rows[x.id].typ = self.implies(&self.rows[g.id].typ.domain(), &self.rows[x.id].typ.clone(), &self.rows[t.id].span.clone())?;
             self.rows[t.id].typ = self.implies(&self.rows[g.id].typ.range(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
@@ -1625,9 +1623,9 @@ impl TLC {
          Term::Substitution(e,a,b) => {
             self.typeck(scope.clone(), e, None)?;
             let mut et = self.rows[e.id].typ.clone();
-            self.reduce_type(&HashMap::new(), &mut et, &self.rows[t.id].span.clone());
+            self.reduce_type(&HashMap::new(), &mut et);
             let mut et = self.alpha_convert_type(&et, a, b);
-            self.reduce_type(&HashMap::new(), &mut et, &self.rows[t.id].span.clone());
+            self.reduce_type(&HashMap::new(), &mut et);
             self.rows[e.id].typ = et.clone();
             self.rows[t.id].typ = et.clone();
          },
