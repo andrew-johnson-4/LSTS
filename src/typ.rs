@@ -223,14 +223,15 @@ impl Type {
       } else {
          Type::Product(num)
       };
-      if rden.len()==0 {
+      let tt = if rden.len()==0 {
          n
       } else if rden.len()==1 {
          Type::Ratio(Box::new(n),Box::new(rden[0].clone()))
       } else {
          let d = Type::Product(rden);
          Type::Ratio(Box::new(n),Box::new(d))
-      }
+      };
+      tt
    }
    pub fn normalize(&self) -> Type {
       match self {
@@ -362,7 +363,7 @@ impl Type {
       rt.normalize();
       let mut tt = lt.implication_unifier(&rt);
       tlc.reduce_type(&HashMap::new(), &mut tt);
-      tt.normalize()
+      tt
    }
    pub fn implication_unifier(&self, other: &Type) -> Type {
       let mut subs = Vec::new();
@@ -375,12 +376,12 @@ impl Type {
          }
          msubs.insert(lt, rt);
       }
-      nt.substitute(&msubs)
+      nt.substitute(&msubs).normalize()
    }
    fn _implication_unifier(&self, other: &Type, subs: &mut Vec<(Type,Type)>) -> Type {
       //if the two types don't unify
       //then the mgu will be the bottom type
-      match (self,other) {
+      let tt = match (self,other) {
          //wildcard failure
          (Type::And(lts),_) if lts.len()==0 => { Type::And(vec![]) },
          (_,Type::And(rts)) if rts.len()==0 => { Type::And(vec![]) },
@@ -475,7 +476,8 @@ impl Type {
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
             let pt = pr._implication_unifier(pl,subs); //contravariant
             if pt.is_bottom() { return pt.clone(); }
-            let bt = bl._implication_unifier(br,subs);
+            let bt = if **bl==Type::Any { (**br).clone() }
+            else { bl._implication_unifier(br,subs) };
             if bt.is_bottom() { return bt.clone(); }
             Type::Arrow(Box::new(pt),Box::new(bt))
          },
@@ -506,7 +508,8 @@ impl Type {
             }
          },
          _ => Type::And(vec![]),
-      }
+      };
+      tt
    }
    pub fn most_general_unifier(&self, other: &Type) -> Type {
       //if the two types don't unify

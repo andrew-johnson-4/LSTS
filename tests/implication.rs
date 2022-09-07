@@ -167,6 +167,7 @@ fn check_parameters_subtyping() {
 #[test]
 fn check_compound_subtyping() {
    let td   = Type::And(vec![]);
+   let tnil = Type::Tuple(vec![]);
    let tn1  = Type::Named("Aa".to_string(),vec![]);
    let tn2  = Type::Named("Bb".to_string(),vec![]);
    let ts1  = Type::And(vec![tn1.clone(),tn2.clone()]);
@@ -201,9 +202,9 @@ fn check_compound_subtyping() {
    let tr1  = Type::Ratio(Box::new(tn1.clone()), Box::new(tn1.clone()));
    let tr2  = Type::Ratio(Box::new(ts1.clone()), Box::new(tn1.clone()));
    let tr3  = Type::Ratio(Box::new(tn1.clone()), Box::new(ts1.clone()));
-   assert_eq!(tr1, tr1.implication_unifier(&tr1));
-   assert_eq!(tr1, tr2.implication_unifier(&tr1));
-   assert_eq!(tr1, tr3.implication_unifier(&tr1));
+   assert_eq!(tnil, tr1.implication_unifier(&tr1));
+   assert_eq!(tnil, tr2.implication_unifier(&tr1));
+   assert_eq!(tnil, tr3.implication_unifier(&tr1));
    assert_eq!(td, tr1.implication_unifier(&tr2));
    assert_eq!(td, tr1.implication_unifier(&tr3));
 }
