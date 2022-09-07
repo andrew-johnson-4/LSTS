@@ -3,22 +3,6 @@ use crate::term::TermId;
 use crate::kind::Kind;
 use crate::tlc::TLC;
 
-#[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
-pub enum IsParameter {
-   Yes,
-   No,
-   Top,
-}
-impl std::fmt::Debug for IsParameter {
-   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      match self {
-         IsParameter::Yes => write!(f, "YES"),
-         IsParameter::No => write!(f, "NO"),
-         IsParameter::Top => write!(f, "TOP"),
-      }
-   }
-}
-
 ///Each Term has at least one Type.
 ///
 ///Types are composed of Atomic parts like Nameds.
