@@ -354,11 +354,12 @@ impl Type {
       }
    }
    pub fn implies(tlc: &mut TLC, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type) -> Type {
-      lt.implication_unifier(rt)
+      let mut lt = tlc.extend_implied(lt);
+      let mut rt = tlc.extend_implied(rt);
+      lt.implication_unifier(&rt)
       /*
       //lt => rt
       let mut subs = HashMap::new();
-      let mut lt = self.extend_implied(lt);
       self.reduce_type(&subs, &mut lt, span); //reduce constant expressions in dependent types
       lt = lt.normalize();
       let mut rt = rt.clone();
