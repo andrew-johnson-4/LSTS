@@ -1,3 +1,4 @@
+/*
 use lsts::tlc::TLC;
 
 #[test]
@@ -39,6 +40,7 @@ fn check_proof_lines_precondition() {
    tlc.check(Some(si), "let a:Prime = 5;").unwrap();
    tlc.check(Some(si), "let a:Prime = 6;").unwrap_err();
 }
+*/
 
 /*
 #[test]

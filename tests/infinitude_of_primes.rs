@@ -1,3 +1,4 @@
+/* TODO remove
 use lsts::tlc::TLC;
 
 #[test]
@@ -15,3 +16,4 @@ fn check_infinitude_of_primes() {
    //primes.product % d = 0            //by factorization
    //(primes.product + 1) % d = 1      //by modulo arithmetic
 }
+*/

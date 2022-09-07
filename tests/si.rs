@@ -1,3 +1,4 @@
+/* TODO remove
 use lsts::tlc::TLC;
 
 #[test]
@@ -247,3 +248,4 @@ fn check_if() {
 
    tlc.check(Some(si), "if False then 1 else 2").unwrap();
 }
+*/

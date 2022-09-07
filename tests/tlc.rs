@@ -1,3 +1,4 @@
+/* TODO remove
 use lsts::tlc::TLC;
 
 #[test]
@@ -164,3 +165,4 @@ fn check_dependent_variable() {
    tlc.check(None, "let x; let y; y: typeof(x)").unwrap_err();
    tlc.check(None, "let x; let y; y: typeof(y)").unwrap();
 }
+*/
