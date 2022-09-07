@@ -311,19 +311,23 @@ fn check_function_unification() {
    let ta7  = Type::Arrow( Box::new(ts2.clone()), Box::new(tany.clone()) );
    let ta8  = Type::Arrow( Box::new(tn6.clone()), Box::new(tn4.clone()) );
    assert_eq!(td, ta7.implication_unifier(&ta8));
+
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#[test]
+fn check_arrow_ratio() {
+   let tany = Type::Any;
+   let tn1  = Type::Named("Pt".to_string(),vec![]);
+   let tn2  = Type::Named("Qt".to_string(),vec![]);
+   let tn3  = Type::Named("X".to_string(),vec![]);
+   let tr1  = Type::Ratio( Box::new(tn1.clone()), Box::new(tn2.clone()) );
+   let tp1  = Type::Product(vec![ tn1.clone(), tn1.clone() ]); 
+   let tp2  = Type::Product(vec![ tn2.clone(), tn2.clone() ]); 
+   let tp3  = Type::Product(vec![ tn3.clone(), tn3.clone() ]); 
+   let tr2  = Type::Ratio( Box::new(tp1.clone()), Box::new(tp2.clone()) );
+   let ta1  = Type::Arrow( Box::new(tr1.clone()), Box::new(tany.clone()) );
+   let ta2  = Type::Arrow( Box::new(tn3.clone()), Box::new(tp3.clone()) );
+   let ta3  = Type::Arrow( Box::new(tr1.clone()), Box::new(tr2.clone()) );
+   //Pt/Qt -> ? => X -> X*X = Pt/Qt -> Pt*Pt/Qt*Qt
+   assert_eq!( ta3, ta1.implication_unifier(&ta2) );
+}
