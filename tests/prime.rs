@@ -1,5 +1,3 @@
-/* TODO remove
-
 use lsts::tlc::TLC;
 #[test]
 fn check_properties_of_primes() {
@@ -15,4 +13,3 @@ fn check_properties_of_primes() {
    tlc.check(Some(si), "let p:Prime = 5").unwrap();
    tlc.check(Some(si), "let p:Prime = -1").unwrap_err();
 }
-*/

@@ -1,5 +1,3 @@
-
-/* TODO remove
 use lsts::tlc::TLC;
 
 #[test]
@@ -14,4 +12,3 @@ fn check_alpha_conversion() {
    tlc.check(None, "let a:[self%2==0]; a\\[self%2|1]:[True]").unwrap_err();
    tlc.check(None, "let a:[self%2==0]; a\\[self%2|1]:[False]").unwrap();
 }
-*/

@@ -1,4 +1,3 @@
-/* TODO remove
 use lsts::tlc::TLC;
 
 #[test]
@@ -13,7 +12,6 @@ fn check_contradictions() {
    tlc.check(Some(si), "let a:False").unwrap();
    tlc.check(Some(si), "let a:True+False").unwrap_err();
 }
-*/
 
 /*
 #[test]
