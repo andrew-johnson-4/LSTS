@@ -284,6 +284,7 @@ fn check_parameter_unification() {
 
 #[test]
 fn check_function_unification() {
+   let td   = Type::And(vec![]);
    let tany = Type::Any;
    let tn1  = Type::Named("Integer".to_string(),vec![]);
    let tn2  = Type::Named("Number".to_string(),vec![]);
@@ -300,17 +301,16 @@ fn check_function_unification() {
    let ta3  = Type::Arrow( Box::new(tn1.clone()), Box::new(tn1.clone()) );
    assert_eq!(ta3, ta1.implication_unifier(&ta2));
 
-   //Point2D<{Integer+Number}> -> ? => Point2D<N> -> N => Point2D<{Integer+Number}> -> {Integer+Number}
+   //Point2D<{Integer+Number}> -> ? => Point2D<N> -> N = Point2D<{Integer+Number}> -> {Integer+Number}
    let ta4  = Type::Arrow( Box::new(tn5.clone()), Box::new(tany.clone()) );
    let ta5  = Type::Arrow( Box::new(tn6.clone()), Box::new(tn4.clone()) );
    let ta6  = Type::Arrow( Box::new(tn5.clone()), Box::new(ts1.clone()) );
    assert_eq!(ta6, ta4.implication_unifier(&ta5));
 
-   //({Point2D::Term+Point2D<{Integer+Number}>::Term}::Term)=>(?::Nil) did not match any candidate (Point2D<N>)=>(N)
+   //{Point2D+Point2D<{Integer+Number}>} -> ? => Point2D<N> -> N = {}
    let ta7  = Type::Arrow( Box::new(ts2.clone()), Box::new(tany.clone()) );
    let ta8  = Type::Arrow( Box::new(tn6.clone()), Box::new(tn4.clone()) );
-   let ta9  = Type::Arrow( Box::new(tn5.clone()), Box::new(ts1.clone()) );
-   assert_eq!(ta9, ta7.implication_unifier(&ta8));
+   assert_eq!(td, ta7.implication_unifier(&ta8));
 }
 
 
