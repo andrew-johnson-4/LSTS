@@ -132,6 +132,13 @@ fn check_normalization() {
    let ts1  = Type::And(vec![tn3.clone(),tp1.clone()]);
    let ts2  = Type::And(vec![tp2.clone(),tn3.clone()]);
    assert_eq!(ts1.normalize(), ts1.normalize().implication_unifier(&ts2.normalize()));
+
+   //{(Cd*Bc)+Ab} = {Ab+(Bc*Cd)}
+   let tp3  = Type::Product(vec![tn3.clone(),tn2.clone()]);
+   let tp4  = Type::Product(vec![tn2.clone(),tn3.clone()]);
+   let ts3  = Type::And(vec![tp3.clone(),tn1.clone()]);
+   let ts4  = Type::And(vec![tn1.clone(),tp4.clone()]);
+   assert_eq!(ts3.normalize(), ts4.normalize());
 }
 
 #[test]

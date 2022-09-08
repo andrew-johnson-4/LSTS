@@ -1,4 +1,3 @@
-/* TODO remove
 use lsts::tlc::TLC;
 
 #[test]
@@ -55,6 +54,8 @@ fn check_normalization() {
    //types should be normalized during unification
    tlc.check(None, "type Ab; type Bc; type Cd; let a: Ab+Bc*Cd; a:Cd*Bc+Ab").unwrap(); 
 }
+
+/* TODO remove
 
 #[test]
 fn check_subtyping() {

@@ -357,13 +357,13 @@ impl Type {
    pub fn implies(tlc: &mut TLC, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type) -> Type {
       let mut lt = tlc.extend_implied(lt);
       tlc.reduce_type(&HashMap::new(), &mut lt);
-      lt.normalize();
+      let lt = lt.normalize();
       let mut rt = tlc.extend_implied(rt);
       tlc.reduce_type(&HashMap::new(), &mut rt);
-      rt.normalize();
+      let rt = rt.normalize();
       let mut tt = lt.implication_unifier(&rt);
       tlc.reduce_type(&HashMap::new(), &mut tt);
-      tt
+      tt.normalize()
    }
    pub fn implication_unifier(&self, other: &Type) -> Type {
       let mut subs = Vec::new();
