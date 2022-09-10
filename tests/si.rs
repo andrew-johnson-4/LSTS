@@ -119,7 +119,6 @@ fn check_type_cast() {
    tlc.check(Some(si), "1:Complex as Complex").unwrap();
 }
 
-/* TODO remove
 #[test]
 fn check_project_kinded() {
    let mut tlc = TLC::new();
@@ -152,11 +151,6 @@ fn check_unit_math() {
    tlc.check(Some(si), "let x: Metre; let y: Metre; x*y:Metre*Second").unwrap_err();
    tlc.check(Some(si), "let x: Metre; let y: Second; x/y:Metre/Second").unwrap();
    tlc.check(Some(si), "let x: Metre; let y: Metre; x/y:Metre/Second").unwrap_err();
-
-   //tlc.check(Some(si), "let x: Metre; (2:Integer)*x:Metre").unwrap();
-   //tlc.check(Some(si), "let x: Metre; (2:Integer)*x:Second").unwrap_err();
-   //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Metre").unwrap();
-   //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Second").unwrap_err();
 }
 
 #[test]
@@ -175,6 +169,9 @@ fn check_narrow_type_cast() {
    tlc.check(Some(si), "(1:Complex+Metre) as Real").unwrap_err();
    tlc.check(Some(si), "(1:Complex+Metre) as Complex").unwrap();
 }
+
+
+/* TODO remove
 
 #[test]
 fn check_narrow_noop_conversion() {
