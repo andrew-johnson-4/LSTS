@@ -181,23 +181,23 @@ let $"/"(x:Number, y:Y::Unit)  :()/Y::Unit; //div constant
 let $"/"(x:X::Unit, y:Number)  :X   ::Unit; //div constant
 
 //: Constant Math
-let pos([x]): [x]           ; //pos
-let neg([x]): [-x]          ; //neg
-let $"+"([x], [y]): [x+y]   ; //add
-let $"-"([x], [y]): [x-y]   ; //sub
-let $"*"([x], [y]): [x*y]   ; //mul
-let $"/"([x], [y]): [x/y]   ; //div
-let $"%"([x], [y]): [x%y]   ; //mod
-let $"^"([x], [y]): [x^y]   ; //pow
-let not([x]): [not(x)]      ; //not
-let $"&&"([x], [y]): [x&&y] ; //and
-let $"||"([x], [y]): [x||y] ; //or
-let $"<"([x], [y]): [x<y]   ; //less than
-let $"<="([x], [y]): [x<=y] ; //less than or equal
-let $">"([x], [y]): [x>y]   ; //greater than
-let $">="([x], [y]): [x>=y] ; //greater than or equal
-let $"=="([x], [y]): [x==y] ; //equal
-let $"!="([x], [y]): [x!=y] ; //not equal
+let pos([x]): [x]           ; //pos                   : [x -> x]
+let neg([x]): [-x]          ; //neg                   : [x -> -x]
+let $"+"([x], [y]): [x+y]   ; //add                   : [(x,y) -> x+y]
+let $"-"([x], [y]): [x-y]   ; //sub                   : [(x,y) -> x-y]
+let $"*"([x], [y]): [x*y]   ; //mul                   : [(x,y) -> x*y]
+let $"/"([x], [y]): [x/y]   ; //div                   : [(x,y) -> x/y]
+let $"%"([x], [y]): [x%y]   ; //mod                   : [(x,y) -> x%y]
+let $"^"([x], [y]): [x^y]   ; //pow                   : [(x,y) -> x^y]
+let not([x]): [not(x)]      ; //not                   : [x -> not(x)
+let $"&&"([x], [y]): [x&&y] ; //and                   : [(x,y) -> x&&y]
+let $"||"([x], [y]): [x||y] ; //or                    : [(x,y) -> x||y]
+let $"<"([x], [y]): [x<y]   ; //less than             : [(x,y) -> x<y]
+let $"<="([x], [y]): [x<=y] ; //less than or equal    : [(x,y) -> x<=y]
+let $">"([x], [y]): [x>y]   ; //greater than          : [(x,y) -> x>y]
+let $">="([x], [y]): [x>=y] ; //greater than or equal : [(x,y) -> x>=y]
+let $"=="([x], [y]): [x==y] ; //equal                 : [(x,y) -> x==y]
+let $"!="([x], [y]): [x!=y] ; //not equal             : [(x,y) -> x!=y]
 
 //: Tensor Properties
 let .length(a: ?[]): Integer;
