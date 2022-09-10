@@ -1005,7 +1005,7 @@ impl TLC {
          _ => panic!("TODO untype term: {}", self.print_term(t))
       }
    }
-   pub fn cast_normal(&self, l_only: &Type, span: &Span) -> Result<Type,Error> {
+   pub fn cast_normal(&mut self, l_only: &Type, span: &Span) -> Result<Type,Error> {
       let mut num_collector = Vec::new();
       let mut den_collector = Vec::new();
       let (numerator,denominator) = l_only.project_ratio();
@@ -1038,13 +1038,14 @@ impl TLC {
 
          let mnt = n.mask();
          let mut found = false;
-         if let Some(tis) = self.foralls_index.get(&mnt) {
+         if let Some(ref tis) = self.foralls_index.get(&mnt) {
          for ti in tis.iter() { if !found {
-         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-            unimplemented!("apply forall implications")
-            /*
+         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti].clone() {
             let kinds = HashMap::new();
-            if let Ok(srt) = lt.implies(&kinds, &n) {
+            let mut subs = Vec::new();
+            if let nt = Type::nored_implies(self, &kinds, &mut subs, &lt, &n) {
+            if !nt.is_bottom() {
+            if let Ok(subs) = Type::compile_subs(&subs) {
                let srt = rt.substitute(&subs);
                if self.is_normal(&srt) {
                   let (inum, iden) = srt.project_ratio();
@@ -1053,8 +1054,7 @@ impl TLC {
                   found = true;
                   continue;
                }
-            }
-            */
+            }}}
          }}}}
          if found { continue; }
 

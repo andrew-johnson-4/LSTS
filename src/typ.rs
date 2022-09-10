@@ -354,29 +354,51 @@ impl Type {
          _ => false
       }
    }
+   pub fn compile_subs(subs: &Vec<(Type,Type)>) -> Result<HashMap<Type,Type>,()> {
+      let mut msubs: HashMap<Type,Type> = HashMap::new();
+      for (lt,mut rt) in subs.clone().into_iter() {
+         if let Some(vt) = msubs.get(&lt) {
+            rt = vt.most_general_unifier(&rt);
+            if rt.is_bottom() { return Err(()); }
+         }
+         msubs.insert(lt, rt);
+      }
+      Ok(msubs)
+   }
    pub fn implies(tlc: &mut TLC, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type) -> Type {
+      let mut subs = Vec::new();
+      Type::subs_implies(tlc, kinds, &mut subs, lt, rt)
+   }
+   pub fn subs_implies(tlc: &mut TLC, kinds: &HashMap<Type,Kind>, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
       let mut lt = tlc.extend_implied(lt);
       tlc.reduce_type(&HashMap::new(), &mut lt);
       let lt = lt.normalize();
       let mut rt = tlc.extend_implied(rt);
       tlc.reduce_type(&HashMap::new(), &mut rt);
       let rt = rt.normalize();
-      let mut tt = lt.implication_unifier(&rt);
+      let mut tt = lt.subs_implication_unifier(subs, &rt);
       tlc.reduce_type(&HashMap::new(), &mut tt);
+      tt.normalize()
+   }
+   pub fn nored_implies(tlc: &TLC, kinds: &HashMap<Type,Kind>, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
+      let mut lt = tlc.extend_implied(lt);
+      let lt = lt.normalize();
+      let mut rt = tlc.extend_implied(rt);
+      let rt = rt.normalize();
+      let mut tt = lt.subs_implication_unifier(subs, &rt);
       tt.normalize()
    }
    pub fn implication_unifier(&self, other: &Type) -> Type {
       let mut subs = Vec::new();
-      let nt = self._implication_unifier(other, &mut subs);
-      let mut msubs: HashMap<Type,Type> = HashMap::new();
-      for (lt,mut rt) in subs.clone().into_iter() {
-         if let Some(vt) = msubs.get(&lt) {
-            rt = vt.most_general_unifier(&rt);
-            if rt.is_bottom() { return rt.clone(); }
-         }
-         msubs.insert(lt, rt);
+      self.subs_implication_unifier(&mut subs, other)
+   }
+   pub fn subs_implication_unifier(&self, subs: &mut Vec<(Type,Type)>, other: &Type) -> Type {
+      let nt = self._implication_unifier(other, subs);
+      if let Ok(msubs) = Type::compile_subs(subs) {
+         nt.substitute(&msubs).normalize()
+      } else {
+         Type::And(vec![])
       }
-      nt.substitute(&msubs).normalize()
    }
    fn _implication_unifier(&self, other: &Type, subs: &mut Vec<(Type,Type)>) -> Type {
       //if the two types don't unify
