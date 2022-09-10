@@ -199,9 +199,6 @@ fn check_narrow_conversion() {
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Second>").unwrap_err();
 }
 
-
-/* TODO remove
-
 #[test]
 fn check_unit_conversion() {
    let mut tlc = TLC::new();
@@ -237,12 +234,3 @@ fn check_imperial_conversion() {
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Mile/Minute").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Watt/Minute").unwrap_err();
 }
-
-#[test]
-fn check_if() {
-   let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-
-   tlc.check(Some(si), "if False then 1 else 2").unwrap();
-}
-*/
