@@ -170,9 +170,6 @@ fn check_narrow_type_cast() {
    tlc.check(Some(si), "(1:Complex+Metre) as Complex").unwrap();
 }
 
-
-/* TODO remove
-
 #[test]
 fn check_narrow_noop_conversion() {
    let mut tlc = TLC::new();
@@ -201,6 +198,9 @@ fn check_narrow_conversion() {
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Metre>").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre) as Kilo<Second>").unwrap_err();
 }
+
+
+/* TODO remove
 
 #[test]
 fn check_unit_conversion() {
