@@ -1096,10 +1096,12 @@ impl TLC {
          if let Some(tis) = self.foralls_index.get(&mdt) {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-            unimplemented!("TODO: check forall implication")
-            /*
             let kinds = HashMap::new();
-            if let Ok(srt) = lt.implies(&kinds, &d) {
+            let mut subs = Vec::new();
+            if let nt = Type::nored_implies(self, &kinds, &mut subs, &lt, &d) {
+            if !nt.is_bottom() {
+            if let Ok(subs) = Type::compile_subs(&subs) {
+               let srt = rt.substitute(&subs);
                if self.is_normal(&srt) {
                   let (inum, iden) = srt.project_ratio();
                   num_collector.append(&mut iden.clone());
@@ -1107,8 +1109,7 @@ impl TLC {
                   found = true;
                   continue;
                }
-            }
-            */
+            }}}
          }}}}
          if found { continue; }
 
@@ -1188,18 +1189,20 @@ impl TLC {
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-               unimplemented!("TODO: apply forall implication")
-               /*
                let kinds = HashMap::new();
-               if let Ok(_) = lt.implies(&kinds, &n) {
+               let mut subs = Vec::new();
+               if let nt = Type::nored_implies(self, &kinds, &mut subs, &lt, &n) {
+               if !nt.is_bottom() {
+               if let Ok(subs) = Type::compile_subs(&subs) {
                   let srt = rt.substitute(&subs);
-                  let (inum, iden) = srt.project_ratio();
-                  num_collector.append(&mut inum.clone());
-                  den_collector.append(&mut iden.clone());
-                  found = true;
-                  continue;
-               }
-               */
+                  if self.is_normal(&srt) {
+                     let (inum, iden) = srt.project_ratio();
+                     num_collector.append(&mut inum.clone());
+                     den_collector.append(&mut iden.clone());
+                     found = true;
+                     continue;
+                  }
+               }}}
             }}}}
             if found { continue; }
 
@@ -1235,17 +1238,21 @@ impl TLC {
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-               unimplemented!("TODO: apply forall implication")
-               /*
+
                let kinds = HashMap::new();
-               if let Ok(srt) = lt.implies(&kinds, &d) {
-                  let (inum, iden) = srt.project_ratio();
-                  num_collector.append(&mut iden.clone());
-                  den_collector.append(&mut inum.clone());
-                  found = true;
-                  continue;
-               }
-               */
+               let mut subs = Vec::new();
+               if let nt = Type::nored_implies(self, &kinds, &mut subs, &lt, &d) {
+               if !nt.is_bottom() {
+               if let Ok(subs) = Type::compile_subs(&subs) {
+                  let srt = rt.substitute(&subs);
+                  if self.is_normal(&srt) {
+                     let (inum, iden) = srt.project_ratio();
+                     num_collector.append(&mut iden.clone());
+                     den_collector.append(&mut inum.clone());
+                     found = true;
+                     continue;
+                  }
+               }}}
             }}}}
             if found { continue; }
 
