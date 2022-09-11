@@ -762,7 +762,9 @@ impl TLC {
                   self.kinds_of(&mut tkts, &it);
                   for nw in ks.iter() {
                      let narrow_it = self.narrow(&tkts, nw, &it);
-                     if let Ok(rt) = self.kinded_implies(&tkts,&narrow_it,&tt,span) {
+                     if let rt = Type::implies(self, &tkts, &narrow_it, &tt) {
+                        if rt.is_bottom() { continue; }
+                        println!("{} => {} = {}", self.print_type(&tkts,&narrow_it), self.print_type(&tkts,&tt), self.print_type(&tkts,&rt));
                         matches.push(rt.clone());
                      }
                   }
@@ -771,9 +773,11 @@ impl TLC {
                }
             }
          }
-         if matches.len()>0 {
+         if matches.len()==1 {
+            Ok(matches[0].clone())
+         } else if matches.len()>1 {
             //it is OK for multiple functions to match
-            Ok(self.extend_implied(&Type::And(matches)).normalize())
+            Ok(Type::And(matches).normalize())
          } else if candidates.len() > 0 {
             let implied = implied.clone().unwrap_or(Type::Any);
             let mut tkts = HashMap::new();
@@ -1638,13 +1642,23 @@ impl TLC {
             unimplemented!("TODO match lhs with rhs")
          }
          Term::App(g,x) => {
+            let ks = HashMap::new();
             self.typeck(scope.clone(), x, None)?;
+            println!("1 App term g : {:?}", self.print_type(&ks, &self.rows[g.id].typ));
+            println!("1 App term x : {:?}", self.print_type(&ks, &self.rows[x.id].typ));
+            println!("1 App term t : {:?}", self.print_type(&ks, &self.rows[t.id].typ));
             self.typeck(scope.clone(), g, Some(
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
+            println!("2 App term g : {:?}", self.print_type(&ks, &self.rows[g.id].typ));
+            println!("2 App term x : {:?}", self.print_type(&ks, &self.rows[x.id].typ));
+            println!("2 App term t : {:?}", self.print_type(&ks, &self.rows[t.id].typ));
             self.rows[x.id].typ = self.implies(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.domain(), &self.rows[t.id].span.clone())?;
             self.rows[t.id].typ = self.implies(&self.rows[g.id].typ.range(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
+            println!("3 App term g : {:?}", self.print_type(&ks, &self.rows[g.id].typ));
+            println!("3 App term x : {:?}", self.print_type(&ks, &self.rows[x.id].typ));
+            println!("3 App term t : {:?}", self.print_type(&ks, &self.rows[t.id].typ));
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
@@ -1670,7 +1684,8 @@ impl TLC {
          },
       };
       if let Some(implied) = implied {
-         self.rows[t.id].typ = self.implies(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
+         //check that implication is satisfied, but this unification does not change the term's type
+         self.implies(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
       }
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
