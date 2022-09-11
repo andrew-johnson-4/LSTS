@@ -36,8 +36,6 @@ pub enum Constant {
    Integer(i64),
    Op(String),
    Tuple(Vec<Constant>),
-   Arrow(TermId,TermId),
-   App(TermId,TermId),
 }
 impl std::fmt::Debug for Constant {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -49,8 +47,6 @@ impl std::fmt::Debug for Constant {
         Constant::Tuple(ts) => write!(f, "({})", ts.iter()
            .map(|t|format!("{:?}",t)).collect::<Vec<String>>()
            .join(",") ),
-        Constant::Arrow(p,b) => write!(f, "(#{} -> #{})", p.id, b.id),
-        Constant::App(g,x) => write!(f, "#{}(#{})", g.id, x.id),
       }
    }
 }
@@ -949,13 +945,6 @@ impl TLC {
             let gc = self.untyped_eval(subs,g);
             let xc = self.untyped_eval(subs,x);
             match (gc,xc) {
-               (Some(Constant::Arrow(ref mut p,ref mut b)),Some(x)) => {
-                  if let Ok(()) = self.untyped_match(subs,p,x) {
-                     return self.untyped_eval(subs,b);
-                  } else {
-                     return None;
-                  }
-               },
                (Some(Constant::Op(uop)),Some(Constant::Boolean(x))) => {
                   let c = if uop=="not" { Constant::Boolean(!x) }
                      else { Constant::NaN };
@@ -1019,9 +1008,6 @@ impl TLC {
                },
                _ => {},
             }
-         },
-         Term::Arrow(ref mut g,ref mut x) => {
-            return Some(Constant::Arrow(*g,*x));
          },
          Term::Tuple(ref mut ts) => {
             let mut all_const = true;
@@ -1206,12 +1192,13 @@ impl TLC {
       })
    }
    pub fn implies(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+      let ks = HashMap::new();
       let nt = Type::implies(self, lt, rt);
       match nt {
          Type::And(nts) if nts.len()==0 => {
             Err(Error {
                kind: "Type Error".to_string(),
-               rule: format!("failed unification {:?} (x) {:?}", lt, rt),
+               rule: format!("failed unification {} (x) {}", self.print_type(&ks,lt), self.print_type(&ks,rt)),
                span: span.clone(),
             })
          },
@@ -1699,30 +1686,36 @@ impl TLC {
                if nt.is_bottom() { continue; }
                let xt = self.narrow(&ks, kn, &self.rows[x.id].typ);
                if xt.is_bottom() { continue; }
+               let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
+               if tt.is_bottom() { tt = Type::Any; }
                println!("narrow g {} :: {:?} = {:?}", self.print_type(&ks, &self.rows[g.id].typ), kn, &nt);
                println!("narrow x {} :: {:?} = {:?}", self.print_type(&ks, &self.rows[x.id].typ), kn, &xt);
                match (&nt, &xt) {
-                  (Type::Arrow(cp,cb), Type::Constant(ref xc)) => {
-                  if let (Type::Constant(ref cp),Type::Constant(ref cb)) = ((**cp).clone(),(**cb).clone()) {
-                     unimplemented!("TODO: implement constant Arrow")
+                  (Type::Arrow(cp,cb), Type::Constant(xc)) => {
+                  if let (Type::Constant(cp),Type::Constant(cb)) = ((**cp).clone(),(**cb).clone()) {
+                     gs.push(nt.clone());
+                     xs.push(xt.clone());
+                     let gct = self.push_term(Term::Arrow(cp,cb), &self.rows[t.id].span.clone());
+                     let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
+                     tcs.push(Type::Constant(gxct));
                   }},
-                  (gt, xt) => { gs.push(gt.clone()); xs.push(xt.clone()); }
+                  (gt, xt) => {
+                     gs.push(gt.clone());
+                     xs.push(xt.clone());
+                     self.implies(&xt, &gt.domain(), &self.rows[t.id].span.clone())?;
+                     self.implies(&gt.range(), &tt, &self.rows[t.id].span.clone())?;
+                  }
                }
             }
             self.rows[g.id].typ = if gs.len()==1 { gs[0].clone() }
             else { Type::And(gs) };
             self.rows[x.id].typ = if xs.len()==1 { xs[0].clone() }
             else { Type::And(xs) };
+            self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::And( tcs ));
 
             println!("2 App term g : {}", self.print_type(&ks, &self.rows[g.id].typ));
             println!("2 App term x : {}", self.print_type(&ks, &self.rows[x.id].typ));
             println!("2 App term t : {}", self.print_type(&ks, &self.rows[t.id].typ));
-
-            self.rows[x.id].typ = self.implies(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.domain(), &self.rows[t.id].span.clone())?;
-            self.rows[t.id].typ = self.implies(&self.rows[g.id].typ.range(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
-            println!("3 App term g : {}", self.print_type(&ks, &self.rows[g.id].typ));
-            println!("3 App term x : {}", self.print_type(&ks, &self.rows[x.id].typ));
-            println!("3 App term t : {}", self.print_type(&ks, &self.rows[t.id].typ));
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
