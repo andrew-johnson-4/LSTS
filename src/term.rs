@@ -11,6 +11,7 @@ pub struct TermId {
 pub enum Term {
    Ident(String),
    Value(String),
+   Arrow(TermId,TermId),
    App(TermId,TermId),
    Let(ScopeId,String,Vec<Vec<(Option<String>,Option<Type>,Kind)>>,Option<TermId>,Type,Kind),
    Tuple(Vec<TermId>),

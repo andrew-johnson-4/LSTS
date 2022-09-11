@@ -220,6 +220,7 @@ impl TLC {
       match &self.rows[t.id].term {
          Term::Ident(x) => format!("{}", x),
          Term::Value(x) => format!("'{}'", x),
+         Term::Arrow(p,b) => format!("({} -> {})", self.print_term(*p), self.print_term(*b)),
          Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
          Term::Let(_sc,v,_ps,_b,_rt,_rk) => format!("let {}", v),
          Term::Ascript(t,tt) => format!("{}:{:?}", self.print_term(*t), tt),
@@ -979,6 +980,7 @@ impl TLC {
          Term::Ident(_x) => (),
          Term::Value(_x) => (),
          Term::App(g,x) => { self.untyped(g); self.untyped(x); },
+         Term::Arrow(p,b) => { self.untyped(p); self.untyped(b); },
          Term::Block(_sid,es) => {
             for e in es.iter() {
                self.untyped(*e);
@@ -1287,53 +1289,61 @@ impl TLC {
    }
 
    pub fn unify_varnames(&mut self, dept: &mut HashMap<String,TermId>, t: &mut TermId) {
+      self.unify_varnames_lhs( dept, t, false );
+   }
+   pub fn unify_varnames_lhs(&mut self, dept: &mut HashMap<String,TermId>, t: &mut TermId, lhs: bool ) {
       match self.rows[t.id].term.clone() {
          Term::Ident(tn) => {
             if ["self","if","not","pos","neg","+","-","*","/","%","^","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
-               //pass
-            } else if let Some(v) = dept.get(&tn) {
-               let nn = format!("var#{}", v.id);
-               self.rows[t.id].term = Term::Ident(nn);
-               t.id = v.id; //clobber the namespace
-            } else {
+                            //don't clobber reserved words
+            } else if lhs { //do capture arrow parameters
                let nn = format!("var#{}", t.id);
                dept.insert(tn.clone(), *t);
                self.rows[t.id].term = Term::Ident(nn);
-            }
+            } else if let Some(dt) = dept.get(&tn) {
+                            //do clobber captured variables
+               if let Term::Ident(dn) = self.rows[dt.id].term.clone() {
+                  self.rows[t.id].term = Term::Ident(dn);
+               }
+            } else {}       //don't clobber free variables
          },
          Term::Value(_) => {},
          Term::Block(_sid,ref mut es) => {
             for e in es.iter_mut() {
-               self.unify_varnames(dept,e);
+               self.unify_varnames_lhs(dept,e,lhs);
             }
          },
          Term::Tuple(ref mut es) => {
             for e in es.iter_mut() {
-               self.unify_varnames(dept,e);
+               self.unify_varnames_lhs(dept,e,lhs);
             }
          },
          Term::Let(_,_,_,_,_,_) => {
             panic!("TODO: unify_varnames in Let term")
          },
+         Term::Arrow(ref mut p,ref mut b) => {
+            self.unify_varnames_lhs(dept,p,true);
+            self.unify_varnames_lhs(dept,b,lhs);
+         },
          Term::App(ref mut g,ref mut x) => {
-            self.unify_varnames(dept,g);
-            self.unify_varnames(dept,x);
+            self.unify_varnames_lhs(dept,g,lhs);
+            self.unify_varnames_lhs(dept,x,lhs);
          },
          Term::Ascript(ref mut t,_tt) => {
-            self.unify_varnames(dept,t);
+            self.unify_varnames_lhs(dept,t,lhs);
          },
          Term::As(ref mut t,_tt) => {
-            self.unify_varnames(dept,t);
+            self.unify_varnames_lhs(dept,t,lhs);
          },
          Term::Constructor(_c,ref mut kts) => {
             for (_k,t) in kts.iter_mut() {
-               self.unify_varnames(dept,t);
+               self.unify_varnames_lhs(dept,t,lhs);
             }
          },
          Term::Substitution(ref mut e,ref mut a,ref mut b) => {
-            self.unify_varnames(dept,e);
-            self.unify_varnames(dept,a);
-            self.unify_varnames(dept,b);
+            self.unify_varnames_lhs(dept,e,lhs);
+            self.unify_varnames_lhs(dept,a,lhs);
+            self.unify_varnames_lhs(dept,b,lhs);
          }
       }
    }
@@ -1605,6 +1615,9 @@ impl TLC {
             }
             self.check_invariants(t)?;
 	 },
+         Term::Arrow(p,b) => {
+            unimplemented!("TODO match lhs with rhs")
+         }
          Term::App(g,x) => {
             self.typeck(scope.clone(), x, None)?;
             self.typeck(scope.clone(), g, Some(
