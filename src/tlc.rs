@@ -759,6 +759,7 @@ impl TLC {
                   for nw in nw.flatten() {
                      ks.insert(nw.clone());
                   }}
+                  self.kinds_of(&mut tkts, &it);
                   for nw in ks.iter() {
                      let narrow_it = self.narrow(&tkts, nw, &it);
                      if let Ok(rt) = self.kinded_implies(&tkts,&narrow_it,&tt,span) {
@@ -1642,7 +1643,7 @@ impl TLC {
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
-            self.rows[x.id].typ = self.implies(&self.rows[g.id].typ.domain(), &self.rows[x.id].typ.clone(), &self.rows[t.id].span.clone())?;
+            self.rows[x.id].typ = self.implies(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.domain(), &self.rows[t.id].span.clone())?;
             self.rows[t.id].typ = self.implies(&self.rows[g.id].typ.range(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Constructor(cname,kvs) => {

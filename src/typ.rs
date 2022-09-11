@@ -411,7 +411,6 @@ impl Type {
       self.__implication_unifier(other, subs, InArrow::No)
    }
    fn __implication_unifier(&self, other: &Type, subs: &mut Vec<(Type,Type)>, inarrow: InArrow) -> Type {
-      println!("try implication unifier {:?} => {:?}", self, other);
       //if the two types don't unify
       //then the mgu will be the bottom type
       let tt = match (self,other) {
@@ -547,7 +546,6 @@ impl Type {
          },
          _ => Type::And(vec![]),
       };
-      println!("implication unifier {:?} => {:?} = {:?}", self, other, &tt);
       tt
    }
    pub fn most_general_unifier(&self, other: &Type) -> Type {
