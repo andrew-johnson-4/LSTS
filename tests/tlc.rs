@@ -109,7 +109,6 @@ fn check_products_and_ratios() {
    tlc.check(None, "type At; let a: At/At*At; a:?/()").unwrap_err();
 }
 
-/* TODO remove
 #[test]
 fn check_kinded_polymorphism() {
    let mut tlc = TLC::new();
@@ -127,6 +126,7 @@ fn check_kinded_polymorphism() {
    tlc.check(None, "type Ab::Term; type Bc::BKind; let a:Ab; let b:Ab+Bc; let c:Bc = b;").unwrap();
 }
 
+/* TODO remove
 #[test]
 fn check_kinded_parametric_polymorphism() {
    let mut tlc = TLC::new();
