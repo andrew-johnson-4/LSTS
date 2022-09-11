@@ -531,6 +531,7 @@ impl Type {
          },
          _ => Type::And(vec![]),
       };
+      println!("implication unifier {:?} => {:?} = {:?}", self, other, &tt);
       tt
    }
    pub fn most_general_unifier(&self, other: &Type) -> Type {

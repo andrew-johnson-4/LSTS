@@ -1666,14 +1666,7 @@ impl TLC {
          },
       };
       if let Some(implied) = implied {
-         if let Type::Arrow(_p,_b) = implied {
-            //arrow unification can narrow the type signature of the arrow
-            //e.g.   {Integer+[1]} => ?
-            //yields [1]           => [2]
-            //this is ok
-         } else {
-            self.rows[t.id].typ = self.implies(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
-         }
+         self.rows[t.id].typ = self.implies(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
       }
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
