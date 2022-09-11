@@ -720,22 +720,72 @@ impl TLC {
    pub fn narrow(&self, kinds: &HashMap<Type,Kind>, projection: &Kind, tt: &Type) -> Type {
       match tt {
          Type::Any => Type::Any,
-         Type::Arrow(tp,tb) => { Type::Arrow(
-            Box::new(self.narrow(kinds,projection,tp)),
-            Box::new(self.narrow(kinds,projection,tb))
-         ) },
+         Type::Named(t,ts) => {
+            //should named types protect their parameters from narrowing?
+            if let Some(nk) = kinds.get(tt) {
+            if nk.has(projection) {
+               return tt.clone();
+            }}
+            self.bottom_type.clone()
+         },
+         Type::Arrow(tp,tb) => {
+            let tp = self.narrow(kinds,projection,tp);
+            if tp.is_bottom() { return tp.clone(); }
+            let tb = self.narrow(kinds,projection,tb);
+            if tb.is_bottom() { return tb.clone(); }
+            Type::Arrow( Box::new(tp), Box::new(tb))
+         },
+         Type::Ratio(tp,tb) => {
+            let tp = self.narrow(kinds,projection,tp);
+            if tp.is_bottom() { return tp.clone(); }
+            let tb = self.narrow(kinds,projection,tb);
+            if tb.is_bottom() { return tb.clone(); }
+            Type::Ratio( Box::new(tp), Box::new(tb))
+         },
          Type::And(ts) => {
             let mut cts = Vec::new();
             for ct in ts.iter() {
-            if let Some(ck) = kinds.get(ct) {
-            if ck.has(projection) {
-               cts.push(ct.clone());
-            }}}
+               let cp = self.narrow(kinds,projection,ct);
+               if cp.is_bottom() { continue; }
+               cts.push(cp);
+            }
             if cts.len()==1 { cts[0].clone() }
             else { Type::And(cts) }
          },
-         _ => tt.clone(),
+         Type::Tuple(ts) => {
+            let mut cts = Vec::new();
+            for ct in ts.iter() {
+               let cp = self.narrow(kinds,projection,ct);
+               if cp.is_bottom() { return self.bottom_type.clone(); }
+               cts.push(cp);
+            }
+            Type::Tuple(cts)
+         },
+         Type::Product(ts) => {
+            let mut cts = Vec::new();
+            for ct in ts.iter() {
+               let cp = self.narrow(kinds,projection,ct);
+               if cp.is_bottom() { return self.bottom_type.clone(); }
+               cts.push(cp);
+            }
+            Type::Product(cts)
+         },
+         Type::Constant(c) => {
+            if projection == &self.constant_kind {
+               tt.clone()
+            } else {
+               self.bottom_type.clone()
+            }
+         }
       }
+   }
+   fn kflat(kinds: &HashMap<Type,Kind>) -> HashSet<Kind> {
+      let mut ks = HashSet::new();
+      for (_,nw) in kinds.iter() {
+      for nw in nw.flatten() {
+         ks.insert(nw.clone());
+      }}
+      ks
    }
    pub fn typeof_var(&mut self, scope: &Option<ScopeId>, v: &str, implied: &Option<Type>, span: &Span) -> Result<Type,Error> {
       if let Some(scope) = scope {
@@ -753,18 +803,12 @@ impl TLC {
                if let Some(it) = implied {
                   let mut tkts = tkts.clone();
                   self.kinds_of(&mut tkts, &tt);
-                  let mut ks = HashSet::new();
-                  //implied type maybe need to be narrowed by kind
-                  for (_,nw) in tkts.iter() {
-                  for nw in nw.flatten() {
-                     ks.insert(nw.clone());
-                  }}
+                  let ks = TLC::kflat(&tkts);
                   self.kinds_of(&mut tkts, &it);
                   for nw in ks.iter() {
                      let narrow_it = self.narrow(&tkts, nw, &it);
                      if let rt = Type::implies(self, &tkts, &narrow_it, &tt) {
                         if rt.is_bottom() { continue; }
-                        println!("{} => {} = {}", self.print_type(&tkts,&narrow_it), self.print_type(&tkts,&tt), self.print_type(&tkts,&rt));
                         matches.push(rt.clone());
                      }
                   }
@@ -1642,23 +1686,31 @@ impl TLC {
             unimplemented!("TODO match lhs with rhs")
          }
          Term::App(g,x) => {
-            let ks = HashMap::new();
+            let mut ks = HashMap::new();
             self.typeck(scope.clone(), x, None)?;
-            println!("1 App term g : {:?}", self.print_type(&ks, &self.rows[g.id].typ));
-            println!("1 App term x : {:?}", self.print_type(&ks, &self.rows[x.id].typ));
-            println!("1 App term t : {:?}", self.print_type(&ks, &self.rows[t.id].typ));
+            println!("1 App term g : {}", self.print_type(&ks, &self.rows[g.id].typ));
+            println!("1 App term x : {}", self.print_type(&ks, &self.rows[x.id].typ));
+            println!("1 App term t : {}", self.print_type(&ks, &self.rows[t.id].typ));
             self.typeck(scope.clone(), g, Some(
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
-            println!("2 App term g : {:?}", self.print_type(&ks, &self.rows[g.id].typ));
-            println!("2 App term x : {:?}", self.print_type(&ks, &self.rows[x.id].typ));
-            println!("2 App term t : {:?}", self.print_type(&ks, &self.rows[t.id].typ));
+            self.kinds_of(&mut ks, &self.rows[g.id].typ);
+            self.kinds_of(&mut ks, &self.rows[x.id].typ);
+            println!("2 App narrow g");
+            for kn in TLC::kflat(&ks).iter() {
+               let nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
+               println!("narrow {} :: {:?} = {:?}", self.print_type(&ks, &self.rows[g.id].typ), kn, &nt);
+            }
+            println!("2 App term g : {}", self.print_type(&ks, &self.rows[g.id].typ));
+            println!("2 App term x : {}", self.print_type(&ks, &self.rows[x.id].typ));
+            println!("2 App term t : {}", self.print_type(&ks, &self.rows[t.id].typ));
+
             self.rows[x.id].typ = self.implies(&self.rows[x.id].typ.clone(), &self.rows[g.id].typ.domain(), &self.rows[t.id].span.clone())?;
             self.rows[t.id].typ = self.implies(&self.rows[g.id].typ.range(), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
-            println!("3 App term g : {:?}", self.print_type(&ks, &self.rows[g.id].typ));
-            println!("3 App term x : {:?}", self.print_type(&ks, &self.rows[x.id].typ));
-            println!("3 App term t : {:?}", self.print_type(&ks, &self.rows[t.id].typ));
+            println!("3 App term g : {}", self.print_type(&ks, &self.rows[g.id].typ));
+            println!("3 App term x : {}", self.print_type(&ks, &self.rows[x.id].typ));
+            println!("3 App term t : {}", self.print_type(&ks, &self.rows[t.id].typ));
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
