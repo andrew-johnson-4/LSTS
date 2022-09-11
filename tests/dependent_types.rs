@@ -166,11 +166,11 @@ fn check_constant_arrows() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
-   tlc.check(Some(si), "let f: [x -> x*x]; f(1): [1]").unwrap();
-   tlc.check(Some(si), "let f: [x -> x*x]; f(1): [2]").unwrap_err();
-   tlc.check(Some(si), "let f: [x -> x*x]; f(2): [4]").unwrap();
-   tlc.check(Some(si), "let f: [x -> x*x]; f(3): [9]").unwrap();
-   tlc.check(Some(si), "let f: [x -> x*x]; f(4): [16]").unwrap();
+   tlc.check(Some(si), "let f: [x] -> [x*x]; f(1): [1]").unwrap();
+   tlc.check(Some(si), "let f: [x] -> [x*x]; f(1): [2]").unwrap_err();
+   tlc.check(Some(si), "let f: [x] -> [x*x]; f(2): [4]").unwrap();
+   tlc.check(Some(si), "let f: [x] -> [x*x]; f(3): [9]").unwrap();
+   tlc.check(Some(si), "let f: [x] -> [x*x]; f(4): [16]").unwrap();
 }
 
 /* TODO unquote

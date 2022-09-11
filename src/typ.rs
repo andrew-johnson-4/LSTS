@@ -25,7 +25,7 @@ pub enum Type {
    Tuple(Vec<Type>),   //Tuple is order-sensitive, Nil is the empty tuple
    Product(Vec<Type>), //Product is order-insensitive
    Ratio(Box<Type>,Box<Type>),
-   Constant(bool,TermId),
+   Constant(TermId),
 }
 
 impl Type {
@@ -41,7 +41,7 @@ impl Type {
          Type::Product(ts) => format!("({})", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join("*") ),
          Type::Arrow(p,b) => format!("({})->({})", p.print(kinds), b.print(kinds)),
          Type::Ratio(n,d) => format!("({})/({})", n.print(kinds), d.print(kinds)),
-         Type::Constant(v,c) => format!("[{}var#{}]", if *v {"'"} else {""}, c.id),
+         Type::Constant(c) => format!("[var#{}]", c.id),
       };
       if let Some(k) = kinds.get(self) {
          format!("{}::{:?}", ts, k)
@@ -71,13 +71,13 @@ impl Type {
    }
    pub fn is_constant(&self) -> bool {
       match self {
-         Type::Constant(_,_) => true,
+         Type::Constant(_) => true,
          _ => false,
       }
    }
    pub fn term_id(&self) -> TermId {
       match self {
-         Type::Constant(_,t) => *t,
+         Type::Constant(t) => *t,
          _ => TermId { id: 0 },
       }
    }
@@ -91,7 +91,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
-         Type::Constant(v,c) => Type::Constant(*v,*c)
+         Type::Constant(c) => Type::Constant(*c)
       }
    }
    pub fn and(&self, other:&Type) -> Type {
@@ -202,7 +202,7 @@ impl Type {
             }
             nv
          },
-         Type::Constant(_,_) => vec![]
+         Type::Constant(_) => vec![]
       }
    }
    pub fn simplify_ratio(&self) -> Type {
@@ -281,7 +281,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
-         Type::Constant(v,c) => Type::Constant(*v,*c)
+         Type::Constant(c) => Type::Constant(*c)
       }.normalize()
    }
    pub fn substitute(&self, subs:&HashMap<Type,Type>) -> Type {
@@ -296,7 +296,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
-         Type::Constant(v,c) => Type::Constant(*v,*c)
+         Type::Constant(c) => Type::Constant(*c)
       }
    }
    pub fn is_concrete(&self) -> bool {
@@ -308,7 +308,7 @@ impl Type {
          Type::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom Typee is also concrete
          Type::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
-         Type::Constant(_,_) => true,
+         Type::Constant(_) => true,
       }
    }
    pub fn kind(&self, kinds: &HashMap<Type,Kind>) -> Kind {
@@ -316,7 +316,7 @@ impl Type {
          return k.clone();
       }
       match self {
-         Type::Constant(_,_) => Kind::Named("Constant".to_string(),Vec::new()),
+         Type::Constant(_) => Kind::Named("Constant".to_string(),Vec::new()),
          Type::And(ats) => {
             let mut aks = Vec::new();
             for at in ats.iter() {
@@ -522,9 +522,9 @@ impl Type {
             Type::Tuple(ts)
          },
 
-         (Type::Constant(lv,lc),Type::Constant(rv,rc)) => {
+         (Type::Constant(lc),Type::Constant(rc)) => {
             if lc.id == rc.id {
-               Type::Constant(*lv || *rv, *lc)
+               Type::Constant(*lc)
             } else {
                Type::And(vec![])
             }
@@ -650,9 +650,9 @@ impl Type {
             Type::Tuple(ts)
          },
 
-         (Type::Constant(lv,lc),Type::Constant(rv,rc)) => {
+         (Type::Constant(lc),Type::Constant(rc)) => {
             if lc.id == rc.id {
-               Type::Constant(*lv || *rv, *lc)
+               Type::Constant(*lc)
             } else {
                Type::And(vec![])
             }
@@ -675,7 +675,7 @@ impl std::fmt::Debug for Type {
            Type::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
            Type::Arrow(p,b) => write!(f, "({:?})->({:?})", p, b),
            Type::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
-           Type::Constant(v,c) => write!(f, "[{}term#{}]", if *v {"'"} else {""}, c.id),
+           Type::Constant(c) => write!(f, "[term#{}]", c.id),
         }
     }
 }

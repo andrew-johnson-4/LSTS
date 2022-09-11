@@ -14,8 +14,8 @@ fn check_structural_equality() {
    let tt1  = Type::Tuple(vec![tn1.clone(),ta1.clone()]);
    let tp1  = Type::Product(vec![tn1.clone(),ta1.clone()]);
    let tr1  = Type::Ratio(Box::new(tt1.clone()),Box::new(tp1.clone()));
-   let tc1  = Type::Constant(false,TermId{id:1});
-   let tc2  = Type::Constant(false,TermId{id:2});
+   let tc1  = Type::Constant(TermId{id:1});
+   let tc2  = Type::Constant(TermId{id:2});
    assert_eq!(tany, tany);
    assert_eq!(tn1, tn1);
    assert_eq!(tn2, tn2);
@@ -58,8 +58,8 @@ fn check_self_unifies() {
    let tt1  = Type::Tuple(vec![tn1.clone(),ta1.clone()]);
    let tp1  = Type::Product(vec![tn1.clone(),ta1.clone()]);
    let tr1  = Type::Ratio(Box::new(tt1.clone()),Box::new(tp1.clone()));
-   let tc1  = Type::Constant(false,TermId{id:1});
-   let tc2  = Type::Constant(false,TermId{id:2});
+   let tc1  = Type::Constant(TermId{id:1});
+   let tc2  = Type::Constant(TermId{id:2});
    assert_eq!(tany, tany.implication_unifier(&tany));
    assert_eq!(tn1, tn1.implication_unifier(&tn1));
    assert_eq!(tn2, tn2.implication_unifier(&tn2));
