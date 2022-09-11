@@ -3,7 +3,7 @@ use crate::term::TermId;
 use crate::kind::Kind;
 use crate::tlc::TLC;
 
-#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
+#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Copy)]
 pub enum InArrow {
    No,
    Lhs,
@@ -411,6 +411,7 @@ impl Type {
       self.__implication_unifier(other, subs, InArrow::No)
    }
    fn __implication_unifier(&self, other: &Type, subs: &mut Vec<(Type,Type)>, inarrow: InArrow) -> Type {
+      println!("try implication unifier {:?} => {:?}", self, other);
       //if the two types don't unify
       //then the mgu will be the bottom type
       let tt = match (self,other) {
@@ -434,7 +435,7 @@ impl Type {
          (Type::And(_lts),Type::And(rts)) => {
             let mut mts = Vec::new();
             for rt in rts.iter() {
-               match self._implication_unifier(rt,subs) {
+               match self.__implication_unifier(rt,subs,inarrow) {
                   Type::And(tts) if tts.len()==0 => { return Type::And(vec![]); },
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
@@ -447,7 +448,7 @@ impl Type {
          (Type::And(lts),rt) => {
             let mut mts = Vec::new();
             for ltt in lts.iter() {
-               match ltt._implication_unifier(rt,subs) {
+               match ltt.__implication_unifier(rt,subs,inarrow) {
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
                }
@@ -459,7 +460,7 @@ impl Type {
          (lt,Type::And(rts)) => {
             let mut mts = Vec::new();
             for rt in rts.iter() {
-               match lt._implication_unifier(rt,subs) {
+               match lt.__implication_unifier(rt,subs,inarrow) {
                   Type::And(tts) if tts.len()==0 => { return Type::And(vec![]); },
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
@@ -472,9 +473,9 @@ impl Type {
 
          //ratio Typees have next precedence
          (Type::Ratio(pl,bl),Type::Ratio(pr,br)) => {
-            let pt = pl._implication_unifier(pr,subs);
+            let pt = pl.__implication_unifier(pr,subs,inarrow);
             if pt.is_bottom() { return pt.clone(); }
-            let bt = bl._implication_unifier(br,subs);
+            let bt = bl.__implication_unifier(br,subs,inarrow);
             if bt.is_bottom() { return bt.clone(); }
             Type::Ratio(Box::new(pt),Box::new(bt))
          },
@@ -482,7 +483,7 @@ impl Type {
             //assert Nil divisor on rhs
             match **br {
                Type::Tuple(ref bs) if bs.len()==0 => {
-                  lt._implication_unifier(pr,subs)
+                  lt.__implication_unifier(pr,subs,inarrow)
                }, _ => { Type::And(vec![]) }
             }
          },
@@ -490,7 +491,7 @@ impl Type {
             //assert Nil divisor on rhs
             match **bl {
                Type::Tuple(ref bs) if bs.len()==0 => {
-                  pl._implication_unifier(rt,subs)
+                  pl.__implication_unifier(rt,subs,inarrow)
                }, _ => { Type::And(vec![]) }
             }
          },
@@ -500,9 +501,9 @@ impl Type {
          if lv==rv && lps.len()==rps.len() => {
             let mut tps = Vec::new();
             for (lp,rp) in std::iter::zip(lps,rps) {
-               let nt = lp._implication_unifier(rp,subs);
+               let nt = lp.__implication_unifier(rp,subs,inarrow);
                if nt.is_bottom() { return nt.clone(); }
-               tps.push(lp._implication_unifier(rp,subs));
+               tps.push(lp.__implication_unifier(rp,subs,inarrow));
             }
             Type::Named(lv.clone(),tps)
          }
@@ -517,7 +518,7 @@ impl Type {
          (Type::Product(la),Type::Product(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               let nt = lt._implication_unifier(rt,subs);
+               let nt = lt.__implication_unifier(rt,subs,inarrow);
                if nt.is_bottom() { return nt.clone(); }
                ts.push(nt.clone());
             }
@@ -526,7 +527,7 @@ impl Type {
          (Type::Tuple(la),Type::Tuple(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               let nt = lt._implication_unifier(rt,subs);
+               let nt = lt.__implication_unifier(rt,subs,inarrow);
                if nt.is_bottom() { return nt.clone(); }
                ts.push(nt.clone());
             }

@@ -342,18 +342,16 @@ fn check_arrow_ratio() {
 
 #[test]
 fn check_constant_arrows() {
-   let tb   = Type::And(vec![]);
    let tany = Type::Any;
    let tc1  = Type::Constant(TermId{id:1});
    let tc2  = Type::Constant(TermId{id:2});
    let tc3  = Type::Constant(TermId{id:3});
+   let tc4  = Type::Constant(TermId{id:4});
    let ta1  = Type::Arrow( Box::new(tc1.clone()), Box::new(tany.clone()) );
    let ta2  = Type::Arrow( Box::new(tc2.clone()), Box::new(tc3.clone()) );
    assert_eq!( ta2, ta1.implication_unifier(&ta2) );
 
-   //({Integer::Term+[1#614]::Constant}::Constant + Term)->(?::Nil) did not match any candidate ([x#655])->([*((x,x))#660])
-   let tn1  = Type::Named("Integer".to_string(),vec![]);
-   let ts1  = Type::And(vec![ tn1.clone(), tc1.clone() ]);
+   let ts1  = Type::And(vec![ tc1.clone(), tc4.clone() ]);
    let ta3  = Type::Arrow( Box::new(ts1.clone()), Box::new(tany.clone()) );
    assert_eq!( ta2, ta3.implication_unifier(&ta2) );
 }
