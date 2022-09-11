@@ -161,7 +161,7 @@ fn check_constant_equivalence() {
    tlc.check(Some(si), "let x:[if False then 0]; x: [()]").unwrap();
 }
 
-/*
+/* TODO unquote
 #[test]
 fn check_constant_arrows() {
    let mut tlc = TLC::new();
