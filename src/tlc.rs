@@ -846,7 +846,7 @@ impl TLC {
          span: span.clone(),
       }) }
    }
-   pub fn reduce_type(&mut self, subs: &HashMap<Type,Type>, tt: &mut Type) {
+   pub fn reduce_type(&mut self, subs: &mut HashMap<String,Constant>, tt: &mut Type) {
       match tt {
          Type::Constant(c) => {
             self.untyped_eval(subs, c);
@@ -898,10 +898,10 @@ impl TLC {
          },
       }
    }
-   pub fn untyped_match(&mut self, subs: &HashMap<Type,Type>, p: &mut TermId, v: Constant) -> Result<(),()> {
+   pub fn untyped_match(&mut self, subs: &mut HashMap<String,Constant>, gp: &mut TermId, gb: &mut TermId, v: Constant) -> Option<Constant> {
       unimplemented!("untyped pattern match")
    }
-   pub fn untyped_eval(&mut self, subs: &HashMap<Type,Type>, t: &mut TermId) -> Option<Constant> {
+   pub fn untyped_eval(&mut self, subs: &mut HashMap<String,Constant>, t: &mut TermId) -> Option<Constant> {
       //reduce constant expressions in untyped context
       //designed for use inside of dependent type signatures
 
@@ -929,21 +929,17 @@ impl TLC {
                t.id = self.push_constant(&c, *t).id;
                return Some(c);
             }
-            for (k,v) in subs.iter() {
-               if let Type::Constant(kt) = k {
-               if let Type::Constant(vt) = v {
-                  //variable substitution
-                  if let Term::Ident(kg) = self.rows[kt.id].term.clone() {
-                  if g==kg {
-                     t.id = vt.id;
-                     return self.maybe_constant(*t);
-                  }}
-               }}
+            if let Some(c) = subs.get(&g) {
+               return Some(c.clone());
             }
          },
          Term::App(ref mut g,ref mut x) => {
-            let gc = self.untyped_eval(subs,g);
             let xc = self.untyped_eval(subs,x);
+            if let Term::Arrow(ref mut gp,ref mut gb) = self.rows[g.id].term.clone() {
+            if let Some(xc) = xc { //Argument must be constant, otherwise don't reduce the expression
+               return self.untyped_match(subs,gp,gb,xc);
+            }}
+            let gc = self.untyped_eval(subs,g);
             match (gc,xc) {
                (Some(Constant::Op(uop)),Some(Constant::Boolean(x))) => {
                   let c = if uop=="not" { Constant::Boolean(!x) }
@@ -1439,7 +1435,7 @@ impl TLC {
       }
       et
    }
-   pub fn is_exhaustive(&mut self, t: TermId) -> Option<(TermId,TermId,TermId,TermId)> {
+   pub fn is_exhaustive(&mut self, t: TermId) -> Option<(TermId,String,TermId,TermId)> {
       if let Term::App(or1,app1) = &self.rows[t.id].term {
       if let Term::Ident(orop) = &self.rows[or1.id].term {
       if orop=="||" {
@@ -1455,9 +1451,9 @@ impl TLC {
             if let Term::Ident(gtop) = &self.rows[gt.id].term {
             if gtop==">" {
             if let Term::Tuple(gt1s) = &self.rows[gt1.id].term {
+            if let Term::Ident(lower_i) = &self.rows[gt1s[1].id].term {
             if gt1s.len()==2 {
                let lower_bounds = gt1s[0];
-               let lower_i = gt1s[1];
                if let Term::App(gt,gt2) = &self.rows[app2s[1].id].term {
                if let Term::Ident(gtop) = &self.rows[gt.id].term {
                if gtop==">" {
@@ -1465,25 +1461,24 @@ impl TLC {
                if gt2s.len()==2 {
                   let upper_i = gt2s[0];
                   let upper_bounds = gt2s[1];
-                  if let Term::Ident(i1) = &self.rows[lower_i.id].term {
                   if let Term::Ident(i2) = &self.rows[upper_i.id].term {
-                  if i1==i2 {
-                     return Some((lower_bounds,lower_i,upper_bounds,prop));
-                  }}}
+                  if lower_i==i2 {
+                     return Some((lower_bounds,lower_i.clone(),upper_bounds,prop));
+                  }}
                }}}}}
-            }}}}}
+            }}}}}}
          }}}}}
       }}}}}
       None
    }
    pub fn check_invariants(&mut self, t: TermId) -> Result<(),Error> {
       let mut ground_types = Vec::new();
-      let mut subs = HashMap::new();
+      let mut subs: HashMap<String,Constant> = HashMap::new();
       let self_term = Term::Ident("self".to_string());
       let self_termid = self.push_term(self_term.clone(), &self.rows[t.id].span.clone());
       self.untyped(self_termid);
       let self_type = self.push_dep_type(&self_term, self_termid);
-      match &self.rows[t.id].typ {
+      match self.rows[t.id].typ.clone() {
          Type::Named(tn,ts) => {
             ground_types.push(Type::Named(tn.clone(),ts.clone()));
          },
@@ -1492,8 +1487,10 @@ impl TLC {
             match tc {
                Type::Named(tn,ts) => {
                   ground_types.push(Type::Named(tn.clone(),ts.clone()));
-               }, Type::Constant(ct) => {
-                  subs.insert(self_type.clone(), Type::Constant(*ct));
+               }, Type::Constant(ref ct) => {
+                  if let Some(ct) = self.untyped_eval(&mut subs, &mut ct.clone()) {
+                     subs.insert("self".to_string(), ct);
+                  }
                }, _ => {},
             }}
          },
@@ -1504,30 +1501,27 @@ impl TLC {
       if let Some(ti) = self.typedef_index.get(tn) {
       if let TypeRule::Typedef(tr) = &self.rules[*ti] {
          for invariant in tr.invariants.clone().iter() {
-            let p = self.untyped_eval(&subs, &mut invariant.prop.clone());
-            let a = self.untyped_eval(&subs, &mut invariant.algs.clone());
+            let p = self.untyped_eval(&mut subs, &mut invariant.prop.clone());
+            let a = self.untyped_eval(&mut subs, &mut invariant.algs.clone());
             if p.is_some() && p==a {
                //pass
             } else if let Some((mut low,i,mut high,prop)) = self.is_exhaustive(invariant.prop) {
-               if let Some(Constant::Integer(low)) = self.untyped_eval(&subs, &mut low) {
-               if let Some(Constant::Integer(high)) = self.untyped_eval(&subs, &mut high) {
-                  let i_type = self.push_dep_type(&self.rows[i.id].term.clone(), i);
+               if let Some(Constant::Integer(low)) = self.untyped_eval(&mut subs, &mut low) {
+               if let Some(Constant::Integer(high)) = self.untyped_eval(&mut subs, &mut high) {
                   for ival in low..=high {
                      let mut prop_mut = prop;
 
                      let ic = Constant::Integer(ival);
-                     let it = self.push_constant(&ic, i);
-                     subs.insert(i_type.clone(), Type::Constant(it));
+                     subs.insert(i.clone(), ic);
 
-                     if let Some(Constant::Boolean(true)) = self.untyped_eval(&subs, &mut prop_mut) {
+                     if let Some(Constant::Boolean(true)) = self.untyped_eval(&mut subs, &mut prop_mut) {
                         //pass
                      } else {
-                        let st = subs.get(&self_type).unwrap_or(&Type::Any);
+                        let st = subs.get("self").unwrap_or(&Constant::NaN);
                         return Err(Error {
                            kind: "Type Error".to_string(),
-                           rule: format!("invariant not satisfied for self={}, {}={}: {}",
-                                 self.print_type(&HashMap::new(), st),
-                                 self.print_term(i), ival, self.print_term(prop)),
+                           rule: format!("invariant not satisfied for self={:?}, {}={}: {}",
+                                 st, i, ival, self.print_term(prop)),
                            span: self.rows[t.id].span.clone(),
                         })
                      }
@@ -1733,9 +1727,9 @@ impl TLC {
          Term::Substitution(e,a,b) => {
             self.typeck(scope.clone(), e, None)?;
             let mut et = self.rows[e.id].typ.clone();
-            self.reduce_type(&HashMap::new(), &mut et);
+            self.reduce_type(&mut HashMap::new(), &mut et);
             let mut et = self.alpha_convert_type(&et, a, b);
-            self.reduce_type(&HashMap::new(), &mut et);
+            self.reduce_type(&mut HashMap::new(), &mut et);
             self.rows[e.id].typ = et.clone();
             self.rows[t.id].typ = et.clone();
          },

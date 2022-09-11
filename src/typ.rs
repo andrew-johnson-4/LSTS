@@ -378,13 +378,13 @@ impl Type {
    }
    pub fn subs_implies(tlc: &mut TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
       let mut lt = tlc.extend_implied(lt);
-      tlc.reduce_type(&HashMap::new(), &mut lt);
+      tlc.reduce_type(&mut HashMap::new(), &mut lt);
       let lt = lt.normalize();
       let mut rt = tlc.extend_implied(rt);
-      tlc.reduce_type(&HashMap::new(), &mut rt);
+      tlc.reduce_type(&mut HashMap::new(), &mut rt);
       let rt = rt.normalize();
       let mut tt = lt.subs_implication_unifier(subs, &rt);
-      tlc.reduce_type(&HashMap::new(), &mut tt);
+      tlc.reduce_type(&mut HashMap::new(), &mut tt);
       tt.normalize()
    }
    pub fn nored_implies(tlc: &TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
