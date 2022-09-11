@@ -36,6 +36,7 @@ pub enum Constant {
    Integer(i64),
    Op(String),
    Tuple(Vec<Constant>),
+   Arrow(TermId,TermId),
 }
 impl std::fmt::Debug for Constant {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -47,6 +48,7 @@ impl std::fmt::Debug for Constant {
         Constant::Tuple(ts) => write!(f, "({})", ts.iter()
            .map(|t|format!("{:?}",t)).collect::<Vec<String>>()
            .join(",") ),
+        Constant::Arrow(p,b) => write!(f, "(#{} -> #{})", p.id, b.id),
       }
    }
 }
@@ -846,6 +848,9 @@ impl TLC {
          },
       }
    }
+   pub fn untyped_match(&mut self, subs: &HashMap<Type,Type>, p: &mut TermId, v: Constant) -> Result<(),()> {
+      unimplemented!("untyped pattern match")
+   }
    pub fn untyped_eval(&mut self, subs: &HashMap<Type,Type>, t: &mut TermId) -> Option<Constant> {
       //reduce constant expressions in untyped context
       //designed for use inside of dependent type signatures
@@ -890,6 +895,13 @@ impl TLC {
             let gc = self.untyped_eval(subs,g);
             let xc = self.untyped_eval(subs,x);
             match (gc,xc) {
+               (Some(Constant::Arrow(ref mut p,ref mut b)),Some(x)) => {
+                  if let Ok(()) = self.untyped_match(subs,p,x) {
+                     return self.untyped_eval(subs,b);
+                  } else {
+                     return None;
+                  }
+               },
                (Some(Constant::Op(uop)),Some(Constant::Boolean(x))) => {
                   let c = if uop=="not" { Constant::Boolean(!x) }
                      else { Constant::NaN };
@@ -953,6 +965,9 @@ impl TLC {
                },
                _ => {},
             }
+         },
+         Term::Arrow(ref mut g,ref mut x) => {
+            return Some(Constant::Arrow(*g,*x));
          },
          Term::Tuple(ref mut ts) => {
             let mut all_const = true;
