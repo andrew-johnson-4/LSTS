@@ -161,6 +161,18 @@ fn check_constant_equivalence() {
    tlc.check(Some(si), "let x:[if False then 0]; x: [()]").unwrap();
 }
 
+#[test]
+fn check_constant_arrows() {
+   let mut tlc = TLC::new();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+
+   tlc.check(Some(si), "let f: [x -> x*x]; f(1): 1").unwrap();
+   tlc.check(Some(si), "let f: [x -> x*x]; f(1): 2").unwrap_err();
+   tlc.check(Some(si), "let f: [x -> x*x]; f(2): 4").unwrap();
+   tlc.check(Some(si), "let f: [x -> x*x]; f(3): 9").unwrap();
+   tlc.check(Some(si), "let f: [x -> x*x]; f(4): 16").unwrap();
+}
+
 /* TODO unquote
 #[test]
 fn check_variable_substitution() {
