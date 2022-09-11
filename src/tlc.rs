@@ -807,7 +807,7 @@ impl TLC {
                   self.kinds_of(&mut tkts, &it);
                   for nw in ks.iter() {
                      let narrow_it = self.narrow(&tkts, nw, &it);
-                     if let rt = Type::implies(self, &tkts, &narrow_it, &tt) {
+                     if let rt = Type::implies(self, &narrow_it, &tt) {
                         if rt.is_bottom() { continue; }
                         matches.push(rt.clone());
                      }
@@ -1110,9 +1110,8 @@ impl TLC {
          if let Some(ref tis) = self.foralls_index.get(&mnt) {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti].clone() {
-            let kinds = HashMap::new();
             let mut subs = Vec::new();
-            if let nt = Type::nored_implies(self, &kinds, &mut subs, &lt, &n) {
+            if let nt = Type::nored_implies(self, &mut subs, &lt, &n) {
             if !nt.is_bottom() {
             if let Ok(subs) = Type::compile_subs(&subs) {
                let srt = rt.substitute(&subs);
@@ -1165,9 +1164,8 @@ impl TLC {
          if let Some(tis) = self.foralls_index.get(&mdt) {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-            let kinds = HashMap::new();
             let mut subs = Vec::new();
-            if let nt = Type::nored_implies(self, &kinds, &mut subs, &lt, &d) {
+            if let nt = Type::nored_implies(self, &mut subs, &lt, &d) {
             if !nt.is_bottom() {
             if let Ok(subs) = Type::compile_subs(&subs) {
                let srt = rt.substitute(&subs);
@@ -1205,22 +1203,18 @@ impl TLC {
          Type::Ratio(Box::new(num),Box::new(den))
       })
    }
-   pub fn kinded_implies(&mut self, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
-      let nt = Type::implies(self, kinds, lt, rt);
+   pub fn implies(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+      let nt = Type::implies(self, lt, rt);
       match nt {
          Type::And(nts) if nts.len()==0 => {
             Err(Error {
                kind: "Type Error".to_string(),
-               rule: format!("failed unification {} (x) {}", self.print_type(kinds,&lt), self.print_type(kinds,&rt)),
+               rule: format!("failed unification {:?} (x) {:?}", lt, rt),
                span: span.clone(),
             })
          },
          _ => { Ok(nt) }
       }
-   }
-   pub fn implies(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
-      let kinds = HashMap::new();
-      self.kinded_implies(&kinds, lt, rt, span)
    }
    pub fn cast_into_kind(&mut self, mut l_only: Type, into: &Type, span: &Span) -> Result<Type,Error> {
 
@@ -1258,9 +1252,8 @@ impl TLC {
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-               let kinds = HashMap::new();
                let mut subs = Vec::new();
-               if let nt = Type::nored_implies(self, &kinds, &mut subs, &lt, &n) {
+               if let nt = Type::nored_implies(self, &mut subs, &lt, &n) {
                if !nt.is_bottom() {
                if let Ok(subs) = Type::compile_subs(&subs) {
                   let srt = rt.substitute(&subs);
@@ -1307,10 +1300,8 @@ impl TLC {
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
-
-               let kinds = HashMap::new();
                let mut subs = Vec::new();
-               if let nt = Type::nored_implies(self, &kinds, &mut subs, &lt, &d) {
+               if let nt = Type::nored_implies(self, &mut subs, &lt, &d) {
                if !nt.is_bottom() {
                if let Ok(subs) = Type::compile_subs(&subs) {
                   let srt = rt.substitute(&subs);

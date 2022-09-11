@@ -372,11 +372,11 @@ impl Type {
       }
       Ok(msubs)
    }
-   pub fn implies(tlc: &mut TLC, kinds: &HashMap<Type,Kind>, lt: &Type, rt: &Type) -> Type {
+   pub fn implies(tlc: &mut TLC, lt: &Type, rt: &Type) -> Type {
       let mut subs = Vec::new();
-      Type::subs_implies(tlc, kinds, &mut subs, lt, rt)
+      Type::subs_implies(tlc, &mut subs, lt, rt)
    }
-   pub fn subs_implies(tlc: &mut TLC, kinds: &HashMap<Type,Kind>, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
+   pub fn subs_implies(tlc: &mut TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
       let mut lt = tlc.extend_implied(lt);
       tlc.reduce_type(&HashMap::new(), &mut lt);
       let lt = lt.normalize();
@@ -387,7 +387,7 @@ impl Type {
       tlc.reduce_type(&HashMap::new(), &mut tt);
       tt.normalize()
    }
-   pub fn nored_implies(tlc: &TLC, kinds: &HashMap<Type,Kind>, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
+   pub fn nored_implies(tlc: &TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
       let mut lt = tlc.extend_implied(lt);
       let lt = lt.normalize();
       let mut rt = tlc.extend_implied(rt);
