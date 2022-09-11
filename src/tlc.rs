@@ -37,6 +37,7 @@ pub enum Constant {
    Op(String),
    Tuple(Vec<Constant>),
    Arrow(TermId,TermId),
+   App(TermId,TermId),
 }
 impl std::fmt::Debug for Constant {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -49,6 +50,7 @@ impl std::fmt::Debug for Constant {
            .map(|t|format!("{:?}",t)).collect::<Vec<String>>()
            .join(",") ),
         Constant::Arrow(p,b) => write!(f, "(#{} -> #{})", p.id, b.id),
+        Constant::App(g,x) => write!(f, "#{}(#{})", g.id, x.id),
       }
    }
 }
@@ -1689,10 +1691,29 @@ impl TLC {
             self.kinds_of(&mut ks, &self.rows[g.id].typ);
             self.kinds_of(&mut ks, &self.rows[x.id].typ);
             println!("2 App narrow g");
+            let mut gs = Vec::new();
+            let mut xs = Vec::new();
+            let mut tcs: Vec<Type> = Vec::new();
             for kn in TLC::kflat(&ks).iter() {
                let nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
-               println!("narrow {} :: {:?} = {:?}", self.print_type(&ks, &self.rows[g.id].typ), kn, &nt);
+               if nt.is_bottom() { continue; }
+               let xt = self.narrow(&ks, kn, &self.rows[x.id].typ);
+               if xt.is_bottom() { continue; }
+               println!("narrow g {} :: {:?} = {:?}", self.print_type(&ks, &self.rows[g.id].typ), kn, &nt);
+               println!("narrow x {} :: {:?} = {:?}", self.print_type(&ks, &self.rows[x.id].typ), kn, &xt);
+               match (&nt, &xt) {
+                  (Type::Arrow(cp,cb), Type::Constant(ref xc)) => {
+                  if let (Type::Constant(ref cp),Type::Constant(ref cb)) = ((**cp).clone(),(**cb).clone()) {
+                     unimplemented!("TODO: implement constant Arrow")
+                  }},
+                  (gt, xt) => { gs.push(gt.clone()); xs.push(xt.clone()); }
+               }
             }
+            self.rows[g.id].typ = if gs.len()==1 { gs[0].clone() }
+            else { Type::And(gs) };
+            self.rows[x.id].typ = if xs.len()==1 { xs[0].clone() }
+            else { Type::And(xs) };
+
             println!("2 App term g : {}", self.print_type(&ks, &self.rows[g.id].typ));
             println!("2 App term x : {}", self.print_type(&ks, &self.rows[x.id].typ));
             println!("2 App term t : {}", self.print_type(&ks, &self.rows[t.id].typ));
