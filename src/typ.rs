@@ -3,6 +3,13 @@ use crate::term::TermId;
 use crate::kind::Kind;
 use crate::tlc::TLC;
 
+#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
+pub enum InArrow {
+   No,
+   Lhs,
+   Rhs
+}
+
 ///Each Term has at least one Type.
 ///
 ///Types are composed of Atomic parts like Nameds.
@@ -401,6 +408,9 @@ impl Type {
       }
    }
    fn _implication_unifier(&self, other: &Type, subs: &mut Vec<(Type,Type)>) -> Type {
+      self.__implication_unifier(other, subs, InArrow::No)
+   }
+   fn __implication_unifier(&self, other: &Type, subs: &mut Vec<(Type,Type)>, inarrow: InArrow) -> Type {
       //if the two types don't unify
       //then the mgu will be the bottom type
       let tt = match (self,other) {
@@ -410,6 +420,7 @@ impl Type {
 
          //wildcard match
          (lt,Type::Any) => { lt.clone() },
+         (Type::Any,Type::Constant(rc)) if inarrow==InArrow::Rhs => { Type::Constant(*rc) },
          (Type::Named(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             subs.push((self.clone(), rt.clone()));
             self.clone()
@@ -496,10 +507,10 @@ impl Type {
             Type::Named(lv.clone(),tps)
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
-            let pt = pr._implication_unifier(pl,subs); //contravariant
+            let pt = pr.__implication_unifier(pl,subs,InArrow::Lhs); //contravariant
             if pt.is_bottom() { return pt.clone(); }
             let bt = if **bl==Type::Any { (**br).clone() }
-            else { bl._implication_unifier(br,subs) };
+            else { bl.__implication_unifier(br,subs,InArrow::Rhs) };
             if bt.is_bottom() { return bt.clone(); }
             Type::Arrow(Box::new(pt),Box::new(bt))
          },
@@ -523,7 +534,11 @@ impl Type {
          },
 
          (Type::Constant(lc),Type::Constant(rc)) => {
-            if lc.id == rc.id {
+            if inarrow == InArrow::Lhs {
+               Type::Constant(*lc)
+            } else if inarrow == InArrow::Rhs {
+               Type::Constant(*rc)
+            } else if lc.id == rc.id {
                Type::Constant(*lc)
             } else {
                Type::And(vec![])

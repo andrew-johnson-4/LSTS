@@ -339,3 +339,16 @@ fn check_arrow_ratio() {
    //Pt/Qt -> ? => X -> X*X = Pt/Qt -> Pt*Pt/Qt*Qt
    assert_eq!( ta3, ta1.implication_unifier(&ta2) );
 }
+
+#[test]
+fn check_constant_arrows() {
+   let tb   = Type::And(vec![]);
+   let tany = Type::Any;
+   let tc1  = Type::Constant(TermId{id:1});
+   let tc2  = Type::Constant(TermId{id:2});
+   let tc3  = Type::Constant(TermId{id:3});
+   let ta1  = Type::Arrow( Box::new(tc1.clone()), Box::new(tany.clone()) );
+   let ta2  = Type::Arrow( Box::new(tc2.clone()), Box::new(tc3.clone()) );
+   assert_eq!( ta2, ta1.implication_unifier(&ta2) );
+   assert_eq!( ta2, ta2.implication_unifier(&ta1) );
+}
