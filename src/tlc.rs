@@ -7,6 +7,7 @@ use crate::scope::{Scope,ScopeId};
 use crate::typ::{Type,InArrow};
 use crate::kind::Kind;
 use crate::token::{Span,TokenReader,tokenize_string,tokenize_file,span_of};
+use crate::constant::Constant;
 use crate::debug::Error;
 use crate::ll::ll1_file;
 
@@ -27,28 +28,6 @@ pub struct TLC {
    pub constant_kind: Kind,
    pub nil_type: Type,
    pub bottom_type: Type,
-}
-
-#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
-pub enum Constant {
-   NaN,
-   Boolean(bool),
-   Integer(i64),
-   Op(String),
-   Tuple(Vec<Constant>),
-}
-impl std::fmt::Debug for Constant {
-   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      match self {
-        Constant::NaN => write!(f, "NaN"),
-        Constant::Boolean(c) => write!(f, "{}", if *c {"True"} else {"False"}),
-        Constant::Integer(i) => write!(f, "{}", i),
-        Constant::Op(op) => write!(f, "{}", op),
-        Constant::Tuple(ts) => write!(f, "({})", ts.iter()
-           .map(|t|format!("{:?}",t)).collect::<Vec<String>>()
-           .join(",") ),
-      }
-   }
 }
 
 pub struct Row {

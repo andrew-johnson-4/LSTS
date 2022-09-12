@@ -1,7 +1,14 @@
 use std::collections::HashMap;
 use crate::term::TermId;
+use crate::constant::Constant;
 use crate::kind::Kind;
 use crate::tlc::TLC;
+
+#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
+pub enum DType {
+   Term(TermId),
+   Value(Constant),
+}
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Copy)]
 pub enum InArrow {
