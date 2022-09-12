@@ -35,18 +35,6 @@ fn check_constant_literals() {
 }
 
 #[test]
-fn check_project_kinded() {
-   let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-
-   //It is ok to let the compiler infer the Term type
-   tlc.check(Some(si), "True").unwrap(); //should be a Boolean
-   tlc.check(Some(si), "1").unwrap(); //should be an Integer number
-   tlc.check(Some(si), "1.2").unwrap(); //should be a Real number
-   tlc.check(Some(si), "1.2+3i").unwrap(); //should be an Complex number
-}
-
-#[test]
 fn check_type_equality() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
@@ -65,6 +53,15 @@ fn check_type_equality() {
    tlc.check(Some(si), "let x:Integer=1:Real;").unwrap_err();
    tlc.check(Some(si), "let x:Integer=1:Complex;").unwrap_err();
    tlc.check(Some(si), "let x:Real=1:Complex;").unwrap_err();
+}
+
+#[test]
+fn check_tik_i() {
+   let mut tlc = TLC::new();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+
+   tlc.check(Some(si), "let xy: Point2D<Integer>").unwrap();
+   tlc.check(Some(si), "let xy: Point2D<Boolean>").unwrap_err();
 }
 
 #[test]
@@ -104,12 +101,34 @@ fn check_compound_types() {
 }
 
 #[test]
-fn check_tik_i() {
+fn check_type_cast() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
-   tlc.check(Some(si), "let xy: Point2D<Integer>").unwrap();
-   tlc.check(Some(si), "let xy: Point2D<Boolean>").unwrap_err();
+   //check type cast of compatible numerical types
+   tlc.check(Some(si), "True as Boolean").unwrap();
+   tlc.check(Some(si), "True as Integer").unwrap_err();
+   tlc.check(Some(si), "1:Integer as Integer").unwrap();
+   tlc.check(Some(si), "1:Integer as Real").unwrap();
+   tlc.check(Some(si), "1:Integer as Complex").unwrap();
+   tlc.check(Some(si), "1:Real as Integer").unwrap_err();
+   tlc.check(Some(si), "1:Real as Real").unwrap();
+   tlc.check(Some(si), "1:Real as Complex").unwrap();
+   tlc.check(Some(si), "1:Complex as Integer").unwrap_err();
+   tlc.check(Some(si), "1:Complex as Real").unwrap_err();
+   tlc.check(Some(si), "1:Complex as Complex").unwrap();
+}
+
+#[test]
+fn check_project_kinded() {
+   let mut tlc = TLC::new();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+
+   //It is ok to let the compiler infer the Term type
+   tlc.check(Some(si), "True").unwrap(); //should be a Boolean
+   tlc.check(Some(si), "1").unwrap(); //should be an Integer number
+   tlc.check(Some(si), "1.2").unwrap(); //should be a Real number
+   tlc.check(Some(si), "1.2+3i").unwrap(); //should be an Complex number
 }
 
 #[test]
@@ -132,30 +151,6 @@ fn check_unit_math() {
    tlc.check(Some(si), "let x: Metre; let y: Metre; x*y:Metre*Second").unwrap_err();
    tlc.check(Some(si), "let x: Metre; let y: Second; x/y:Metre/Second").unwrap();
    tlc.check(Some(si), "let x: Metre; let y: Metre; x/y:Metre/Second").unwrap_err();
-
-   //tlc.check(Some(si), "let x: Metre; (2:Integer)*x:Metre").unwrap();
-   //tlc.check(Some(si), "let x: Metre; (2:Integer)*x:Second").unwrap_err();
-   //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Metre").unwrap();
-   //tlc.check(Some(si), "let x: Metre; (2:Integer)/x:()/Second").unwrap_err();
-}
-
-#[test]
-fn check_type_cast() {
-   let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-
-   //check type cast of compatible numerical types
-   tlc.check(Some(si), "True as Boolean").unwrap();
-   tlc.check(Some(si), "True as Integer").unwrap_err();
-   tlc.check(Some(si), "1:Integer as Integer").unwrap();
-   tlc.check(Some(si), "1:Integer as Real").unwrap();
-   tlc.check(Some(si), "1:Integer as Complex").unwrap();
-   tlc.check(Some(si), "1:Real as Integer").unwrap_err();
-   tlc.check(Some(si), "1:Real as Real").unwrap();
-   tlc.check(Some(si), "1:Real as Complex").unwrap();
-   tlc.check(Some(si), "1:Complex as Integer").unwrap_err();
-   tlc.check(Some(si), "1:Complex as Real").unwrap_err();
-   tlc.check(Some(si), "1:Complex as Complex").unwrap();
 }
 
 #[test]
@@ -238,12 +233,4 @@ fn check_imperial_conversion() {
    tlc.check(Some(si), "(1:Integer+Kilo<Metre>/Second) as Watt/Minute").unwrap_err();
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Mile/Minute").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Watt/Minute").unwrap_err();
-}
-
-#[test]
-fn check_if() {
-   let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
-
-   tlc.check(Some(si), "if False then 1 else 2").unwrap();
 }

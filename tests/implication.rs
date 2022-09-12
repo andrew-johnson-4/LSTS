@@ -14,8 +14,8 @@ fn check_structural_equality() {
    let tt1  = Type::Tuple(vec![tn1.clone(),ta1.clone()]);
    let tp1  = Type::Product(vec![tn1.clone(),ta1.clone()]);
    let tr1  = Type::Ratio(Box::new(tt1.clone()),Box::new(tp1.clone()));
-   let tc1  = Type::Constant(false,TermId{id:1});
-   let tc2  = Type::Constant(false,TermId{id:2});
+   let tc1  = Type::Constant(TermId{id:1});
+   let tc2  = Type::Constant(TermId{id:2});
    assert_eq!(tany, tany);
    assert_eq!(tn1, tn1);
    assert_eq!(tn2, tn2);
@@ -58,8 +58,8 @@ fn check_self_unifies() {
    let tt1  = Type::Tuple(vec![tn1.clone(),ta1.clone()]);
    let tp1  = Type::Product(vec![tn1.clone(),ta1.clone()]);
    let tr1  = Type::Ratio(Box::new(tt1.clone()),Box::new(tp1.clone()));
-   let tc1  = Type::Constant(false,TermId{id:1});
-   let tc2  = Type::Constant(false,TermId{id:2});
+   let tc1  = Type::Constant(TermId{id:1});
+   let tc2  = Type::Constant(TermId{id:2});
    assert_eq!(tany, tany.implication_unifier(&tany));
    assert_eq!(tn1, tn1.implication_unifier(&tn1));
    assert_eq!(tn2, tn2.implication_unifier(&tn2));
@@ -132,6 +132,13 @@ fn check_normalization() {
    let ts1  = Type::And(vec![tn3.clone(),tp1.clone()]);
    let ts2  = Type::And(vec![tp2.clone(),tn3.clone()]);
    assert_eq!(ts1.normalize(), ts1.normalize().implication_unifier(&ts2.normalize()));
+
+   //{(Cd*Bc)+Ab} = {Ab+(Bc*Cd)}
+   let tp3  = Type::Product(vec![tn3.clone(),tn2.clone()]);
+   let tp4  = Type::Product(vec![tn2.clone(),tn3.clone()]);
+   let ts3  = Type::And(vec![tp3.clone(),tn1.clone()]);
+   let ts4  = Type::And(vec![tn1.clone(),tp4.clone()]);
+   assert_eq!(ts3.normalize(), ts4.normalize());
 }
 
 #[test]
@@ -167,6 +174,7 @@ fn check_parameters_subtyping() {
 #[test]
 fn check_compound_subtyping() {
    let td   = Type::And(vec![]);
+   let tnil = Type::Tuple(vec![]);
    let tn1  = Type::Named("Aa".to_string(),vec![]);
    let tn2  = Type::Named("Bb".to_string(),vec![]);
    let ts1  = Type::And(vec![tn1.clone(),tn2.clone()]);
@@ -201,9 +209,9 @@ fn check_compound_subtyping() {
    let tr1  = Type::Ratio(Box::new(tn1.clone()), Box::new(tn1.clone()));
    let tr2  = Type::Ratio(Box::new(ts1.clone()), Box::new(tn1.clone()));
    let tr3  = Type::Ratio(Box::new(tn1.clone()), Box::new(ts1.clone()));
-   assert_eq!(tr1, tr1.implication_unifier(&tr1));
-   assert_eq!(tr1, tr2.implication_unifier(&tr1));
-   assert_eq!(tr1, tr3.implication_unifier(&tr1));
+   assert_eq!(tnil, tr1.implication_unifier(&tr1));
+   assert_eq!(tnil, tr2.implication_unifier(&tr1));
+   assert_eq!(tnil, tr3.implication_unifier(&tr1));
    assert_eq!(td, tr1.implication_unifier(&tr2));
    assert_eq!(td, tr1.implication_unifier(&tr3));
 }
@@ -282,3 +290,74 @@ fn check_parameter_unification() {
    assert_eq!(td,  ta7.implication_unifier(&ta4));
 }
 
+#[test]
+fn check_function_unification() {
+   let td   = Type::And(vec![]);
+   let tany = Type::Any;
+   let tn1  = Type::Named("Integer".to_string(),vec![]);
+   let tn2  = Type::Named("Number".to_string(),vec![]);
+   let tn3  = Type::Named("Point2D".to_string(),vec![]);
+   let tn4  = Type::Named("N".to_string(),vec![]);
+   let tn5  = Type::Named("Point2D".to_string(),vec![ Type::And(vec![tn1.clone(), tn2.clone()]) ]);
+   let tn6  = Type::Named("Point2D".to_string(),vec![ tn4.clone() ]);
+   let ts1  = Type::And(vec![tn1.clone(), tn2.clone()]);
+   let ts2  = Type::And(vec![tn3.clone(), tn5.clone()]);
+
+   //Integer -> ? => N -> N = Integer -> Integer
+   let ta1  = Type::Arrow( Box::new(tn1.clone()), Box::new(tany.clone()) );
+   let ta2  = Type::Arrow( Box::new(tn4.clone()), Box::new(tn4.clone()) );
+   let ta3  = Type::Arrow( Box::new(tn1.clone()), Box::new(tn1.clone()) );
+   assert_eq!(ta3, ta1.implication_unifier(&ta2));
+
+   //Point2D<{Integer+Number}> -> ? => Point2D<N> -> N = Point2D<{Integer+Number}> -> {Integer+Number}
+   let ta4  = Type::Arrow( Box::new(tn5.clone()), Box::new(tany.clone()) );
+   let ta5  = Type::Arrow( Box::new(tn6.clone()), Box::new(tn4.clone()) );
+   let ta6  = Type::Arrow( Box::new(tn5.clone()), Box::new(ts1.clone()) );
+   assert_eq!(ta6, ta4.implication_unifier(&ta5));
+
+   //{Point2D+Point2D<{Integer+Number}>} -> ? => Point2D<N> -> N = {}
+   let ta7  = Type::Arrow( Box::new(ts2.clone()), Box::new(tany.clone()) );
+   let ta8  = Type::Arrow( Box::new(tn6.clone()), Box::new(tn4.clone()) );
+   assert_eq!(td, ta7.implication_unifier(&ta8));
+
+}
+
+#[test]
+fn check_arrow_ratio() {
+   let tany = Type::Any;
+   let tn1  = Type::Named("Pt".to_string(),vec![]);
+   let tn2  = Type::Named("Qt".to_string(),vec![]);
+   let tn3  = Type::Named("X".to_string(),vec![]);
+   let tr1  = Type::Ratio( Box::new(tn1.clone()), Box::new(tn2.clone()) );
+   let tp1  = Type::Product(vec![ tn1.clone(), tn1.clone() ]); 
+   let tp2  = Type::Product(vec![ tn2.clone(), tn2.clone() ]); 
+   let tp3  = Type::Product(vec![ tn3.clone(), tn3.clone() ]); 
+   let tr2  = Type::Ratio( Box::new(tp1.clone()), Box::new(tp2.clone()) );
+   let ta1  = Type::Arrow( Box::new(tr1.clone()), Box::new(tany.clone()) );
+   let ta2  = Type::Arrow( Box::new(tn3.clone()), Box::new(tp3.clone()) );
+   let ta3  = Type::Arrow( Box::new(tr1.clone()), Box::new(tr2.clone()) );
+   //Pt/Qt -> ? => X -> X*X = Pt/Qt -> Pt*Pt/Qt*Qt
+   assert_eq!( ta3, ta1.implication_unifier(&ta2) );
+}
+
+#[test]
+fn check_constant_arrows() {
+   let tany = Type::Any;
+   let tc1  = Type::Constant(TermId{id:1});
+   let tc2  = Type::Constant(TermId{id:2});
+   let tc3  = Type::Constant(TermId{id:3});
+   let tc4  = Type::Constant(TermId{id:4});
+   let ta1  = Type::Arrow( Box::new(tc1.clone()), Box::new(tany.clone()) );
+   let ta2  = Type::Arrow( Box::new(tc2.clone()), Box::new(tc3.clone()) );
+   assert_eq!( ta2, ta1.implication_unifier(&ta2) );
+
+   let ts1  = Type::And(vec![ tc1.clone(), tc4.clone() ]);
+   let ta3  = Type::Arrow( Box::new(ts1.clone()), Box::new(tany.clone()) );
+   assert_eq!( ta2, ta3.implication_unifier(&ta2) );
+
+   let tt1  = Type::Tuple(vec![ tc1.clone(), tc2.clone() ]);
+   let tt2  = Type::Tuple(vec![ tc3.clone(), tc4.clone() ]);
+   let ta4  = Type::Arrow( Box::new(tt1.clone()), Box::new(tt1.clone()) );
+   let ta5  = Type::Arrow( Box::new(tt2.clone()), Box::new(tt2.clone()) );
+   assert_eq!( ta5, ta4.implication_unifier(&ta5) );
+}

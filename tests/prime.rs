@@ -1,4 +1,3 @@
-
 use lsts::tlc::TLC;
 #[test]
 fn check_properties_of_primes() {

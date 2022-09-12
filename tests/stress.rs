@@ -1,3 +1,4 @@
+/*
 use lsts::tlc::TLC;
 
 #[test]
@@ -21,7 +22,6 @@ fn parse_100() {
    tlc.import_file(Some(si), "tests/stress/100.tlc").unwrap();
 }
 
-/*
 #[test]
 fn parse_1k() {
    let mut tlc = TLC::new();

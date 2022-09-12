@@ -88,6 +88,28 @@ fn check_narrow_implication_with_parameters() {
 }
 
 #[test]
+fn check_products_and_ratios() {
+   let mut tlc = TLC::new();
+
+   //ratio types and product types are rational
+   tlc.check(None, "type At; let a: At*At; a:At*At").unwrap();
+   tlc.check(None, "type At; let a: At*At; a:?").unwrap();
+   tlc.check(None, "type At; let a: At*At; a:?/()").unwrap();
+   tlc.check(None, "type At; let a: At*At; a:At").unwrap_err();
+   tlc.check(None, "type At; let a: At*At/At; a:At").unwrap();
+   tlc.check(None, "type At; let a: At*At/At; a:?").unwrap();
+   tlc.check(None, "type At; let a: At*At/At; a:?/()").unwrap();
+   tlc.check(None, "type At; let a: At/At; a:()").unwrap();
+   tlc.check(None, "type At; let a: At/At; a:?").unwrap();
+   tlc.check(None, "type At; let a: At/At; a:?/()").unwrap();
+   tlc.check(None, "type At; let a: At/At; a:At").unwrap_err();
+   tlc.check(None, "type At; let a: At/At*At; a:At").unwrap_err();
+   tlc.check(None, "type At; let a: At/At*At; a:()/At").unwrap();
+   tlc.check(None, "type At; let a: At/At*At; a:()/At*At").unwrap_err();
+   tlc.check(None, "type At; let a: At/At*At; a:?/()").unwrap_err();
+}
+
+#[test]
 fn check_kinded_polymorphism() {
    let mut tlc = TLC::new();
 
@@ -120,28 +142,6 @@ fn check_kinded_parametric_polymorphism() {
 }
 
 #[test]
-fn check_products_and_ratios() {
-   let mut tlc = TLC::new();
-
-   //ratio types and product types are rational
-   tlc.check(None, "type At; let a: At*At; a:At*At").unwrap();
-   tlc.check(None, "type At; let a: At*At; a:?").unwrap();
-   tlc.check(None, "type At; let a: At*At; a:?/()").unwrap();
-   tlc.check(None, "type At; let a: At*At; a:At").unwrap_err();
-   tlc.check(None, "type At; let a: At*At/At; a:At").unwrap();
-   tlc.check(None, "type At; let a: At*At/At; a:?").unwrap();
-   tlc.check(None, "type At; let a: At*At/At; a:?/()").unwrap();
-   tlc.check(None, "type At; let a: At/At; a:()").unwrap();
-   tlc.check(None, "type At; let a: At/At; a:?").unwrap();
-   tlc.check(None, "type At; let a: At/At; a:?/()").unwrap();
-   tlc.check(None, "type At; let a: At/At; a:At").unwrap_err();
-   tlc.check(None, "type At; let a: At/At*At; a:At").unwrap_err();
-   tlc.check(None, "type At; let a: At/At*At; a:()/At").unwrap();
-   tlc.check(None, "type At; let a: At/At*At; a:()/At*At").unwrap_err();
-   tlc.check(None, "type At; let a: At/At*At; a:?/()").unwrap_err();
-}
-
-#[test]
 fn check_functions() {
    let mut tlc = TLC::new();
 
@@ -153,14 +153,4 @@ fn check_functions() {
    //there is no Any kind
    tlc.check(None, "type Aa::Ka; type Bb; let f(X):X; let x: Aa+Bb; f(x): Aa").unwrap_err();
    tlc.check(None, "type Aa::Ka; type Bb; let f(X):X; let x: Aa+Bb; f(x): Bb").unwrap();
-}
-
-#[test]
-fn check_dependent_variable() {
-   let mut tlc = TLC::new();
-
-   tlc.check(None, "let x; let y; x: typeof(x)").unwrap();
-   tlc.check(None, "let x; let y; x: typeof(y)").unwrap_err();
-   tlc.check(None, "let x; let y; y: typeof(x)").unwrap_err();
-   tlc.check(None, "let x; let y; y: typeof(y)").unwrap();
 }

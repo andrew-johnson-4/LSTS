@@ -1,21 +1,13 @@
 use std::collections::HashMap;
 use crate::term::TermId;
 use crate::kind::Kind;
+use crate::tlc::TLC;
 
-#[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
-pub enum IsParameter {
-   Yes,
+#[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Copy)]
+pub enum InArrow {
    No,
-   Top,
-}
-impl std::fmt::Debug for IsParameter {
-   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      match self {
-         IsParameter::Yes => write!(f, "YES"),
-         IsParameter::No => write!(f, "NO"),
-         IsParameter::Top => write!(f, "TOP"),
-      }
-   }
+   Lhs,
+   Rhs
 }
 
 ///Each Term has at least one Type.
@@ -40,7 +32,7 @@ pub enum Type {
    Tuple(Vec<Type>),   //Tuple is order-sensitive, Nil is the empty tuple
    Product(Vec<Type>), //Product is order-insensitive
    Ratio(Box<Type>,Box<Type>),
-   Constant(bool,TermId),
+   Constant(TermId),
 }
 
 impl Type {
@@ -54,9 +46,9 @@ impl Type {
          Type::And(ts) => format!("{{{}}}", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join("+") ),
          Type::Tuple(ts) => format!("({})", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join(",") ),
          Type::Product(ts) => format!("({})", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join("*") ),
-         Type::Arrow(p,b) => format!("({})=>({})", p.print(kinds), b.print(kinds)),
+         Type::Arrow(p,b) => format!("({})->({})", p.print(kinds), b.print(kinds)),
          Type::Ratio(n,d) => format!("({})/({})", n.print(kinds), d.print(kinds)),
-         Type::Constant(v,c) => format!("[{}var#{}]", if *v {"'"} else {""}, c.id),
+         Type::Constant(c) => format!("[var#{}]", c.id),
       };
       if let Some(k) = kinds.get(self) {
          format!("{}::{:?}", ts, k)
@@ -84,15 +76,25 @@ impl Type {
          tt => (vec![tt.clone()], Vec::new())
       }
    }
+   pub fn is_ctuple(&self) -> bool {
+      if let Type::Tuple(cts) = self {
+         for ct in cts.iter() {
+         if !ct.is_constant() { 
+            return false;
+         }}
+         return true;
+      }
+      false
+   }
    pub fn is_constant(&self) -> bool {
       match self {
-         Type::Constant(_,_) => true,
+         Type::Constant(_) => true,
          _ => false,
       }
    }
    pub fn term_id(&self) -> TermId {
       match self {
-         Type::Constant(_,t) => *t,
+         Type::Constant(t) => *t,
          _ => TermId { id: 0 },
       }
    }
@@ -106,7 +108,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
-         Type::Constant(v,c) => Type::Constant(*v,*c)
+         Type::Constant(c) => Type::Constant(*c)
       }
    }
    pub fn and(&self, other:&Type) -> Type {
@@ -217,7 +219,7 @@ impl Type {
             }
             nv
          },
-         Type::Constant(_,_) => vec![]
+         Type::Constant(_) => vec![]
       }
    }
    pub fn simplify_ratio(&self) -> Type {
@@ -238,14 +240,15 @@ impl Type {
       } else {
          Type::Product(num)
       };
-      if rden.len()==0 {
+      let tt = if rden.len()==0 {
          n
       } else if rden.len()==1 {
          Type::Ratio(Box::new(n),Box::new(rden[0].clone()))
       } else {
          let d = Type::Product(rden);
          Type::Ratio(Box::new(n),Box::new(d))
-      }
+      };
+      tt
    }
    pub fn normalize(&self) -> Type {
       match self {
@@ -295,7 +298,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
-         Type::Constant(v,c) => Type::Constant(*v,*c)
+         Type::Constant(c) => Type::Constant(*c)
       }.normalize()
    }
    pub fn substitute(&self, subs:&HashMap<Type,Type>) -> Type {
@@ -310,7 +313,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
-         Type::Constant(v,c) => Type::Constant(*v,*c)
+         Type::Constant(c) => Type::Constant(*c)
       }
    }
    pub fn is_concrete(&self) -> bool {
@@ -322,18 +325,15 @@ impl Type {
          Type::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom Typee is also concrete
          Type::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
-         Type::Constant(_,_) => true,
+         Type::Constant(_) => true,
       }
-   }
-   pub fn unify(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, other: &Type) -> Result<Type,()> {
-      self.unify_impl(&kinds, subs, other).map(|tt|tt.normalize())
    }
    pub fn kind(&self, kinds: &HashMap<Type,Kind>) -> Kind {
       if let Some(k) = kinds.get(&self) {
          return k.clone();
       }
       match self {
-         Type::Constant(_,_) => Kind::Named("Constant".to_string(),Vec::new()),
+         Type::Constant(_) => Kind::Named("Constant".to_string(),Vec::new()),
          Type::And(ats) => {
             let mut aks = Vec::new();
             for at in ats.iter() {
@@ -365,38 +365,84 @@ impl Type {
       };
       tt
    }
-   pub fn unify_impl(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type) -> Result<Type,()> {
-      self.unify_impl_par(kinds,subs,rt,IsParameter::Top)
-   }
    pub fn is_bottom(&self) -> bool {
       match self {
          Type::And(ts) if ts.len()==0 => { true },
          _ => false
       }
    }
-   pub fn implication_unifier(&self, other: &Type) -> Type {
-      let mut subs = Vec::new();
-      let nt = self._implication_unifier(other, &mut subs);
+   pub fn compile_subs(subs: &Vec<(Type,Type)>) -> Result<HashMap<Type,Type>,()> {
       let mut msubs: HashMap<Type,Type> = HashMap::new();
       for (lt,mut rt) in subs.clone().into_iter() {
          if let Some(vt) = msubs.get(&lt) {
             rt = vt.most_general_unifier(&rt);
-            if rt.is_bottom() { return rt.clone(); }
+            if rt.is_bottom() { return Err(()); }
          }
          msubs.insert(lt, rt);
       }
-      nt.substitute(&msubs)
+      Ok(msubs)
+   }
+   pub fn implies(tlc: &mut TLC, lt: &Type, rt: &Type) -> Type {
+      let mut subs = Vec::new();
+      Type::subs_implies(tlc, &mut subs, lt, rt)
+   }
+   pub fn arrow_implies(tlc: &mut TLC, lt: &Type, rt: &Type, inarrow: InArrow) -> Type {
+      let mut subs = Vec::new();
+      let mut lt = tlc.extend_implied(lt);
+      tlc.reduce_type(&mut HashMap::new(), &mut lt);
+      let lt = lt.normalize();
+      let mut rt = tlc.extend_implied(rt);
+      tlc.reduce_type(&mut HashMap::new(), &mut rt);
+      let rt = rt.normalize();
+      let mut tt = lt.__implication_unifier(&rt, &mut subs, inarrow);
+      tlc.reduce_type(&mut HashMap::new(), &mut tt);
+      tt.normalize()
+   }
+   pub fn subs_implies(tlc: &mut TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
+      let mut lt = tlc.extend_implied(lt);
+      tlc.reduce_type(&mut HashMap::new(), &mut lt);
+      let lt = lt.normalize();
+      let mut rt = tlc.extend_implied(rt);
+      tlc.reduce_type(&mut HashMap::new(), &mut rt);
+      let rt = rt.normalize();
+      let mut tt = lt.subs_implication_unifier(subs, &rt);
+      tlc.reduce_type(&mut HashMap::new(), &mut tt);
+      tt.normalize()
+   }
+   pub fn nored_implies(tlc: &TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
+      let mut lt = tlc.extend_implied(lt);
+      let lt = lt.normalize();
+      let mut rt = tlc.extend_implied(rt);
+      let rt = rt.normalize();
+      let mut tt = lt.subs_implication_unifier(subs, &rt);
+      tt.normalize()
+   }
+   pub fn implication_unifier(&self, other: &Type) -> Type {
+      let mut subs = Vec::new();
+      self.subs_implication_unifier(&mut subs, other)
+   }
+   pub fn subs_implication_unifier(&self, subs: &mut Vec<(Type,Type)>, other: &Type) -> Type {
+      let nt = self._implication_unifier(other, subs);
+      if let Ok(msubs) = Type::compile_subs(subs) {
+         nt.substitute(&msubs).normalize()
+      } else {
+         Type::And(vec![])
+      }
    }
    fn _implication_unifier(&self, other: &Type, subs: &mut Vec<(Type,Type)>) -> Type {
+      self.__implication_unifier(other, subs, InArrow::No)
+   }
+   fn __implication_unifier(&self, other: &Type, subs: &mut Vec<(Type,Type)>, inarrow: InArrow) -> Type {
       //if the two types don't unify
       //then the mgu will be the bottom type
-      match (self,other) {
+      let tt = match (self,other) {
          //wildcard failure
          (Type::And(lts),_) if lts.len()==0 => { Type::And(vec![]) },
          (_,Type::And(rts)) if rts.len()==0 => { Type::And(vec![]) },
 
          //wildcard match
          (lt,Type::Any) => { lt.clone() },
+         (Type::Any,Type::Constant(rc)) if inarrow==InArrow::Rhs => { Type::Constant(*rc) },
          (Type::Named(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             subs.push((self.clone(), rt.clone()));
             self.clone()
@@ -410,7 +456,7 @@ impl Type {
          (Type::And(_lts),Type::And(rts)) => {
             let mut mts = Vec::new();
             for rt in rts.iter() {
-               match self._implication_unifier(rt,subs) {
+               match self.__implication_unifier(rt,subs,inarrow) {
                   Type::And(tts) if tts.len()==0 => { return Type::And(vec![]); },
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
@@ -423,7 +469,7 @@ impl Type {
          (Type::And(lts),rt) => {
             let mut mts = Vec::new();
             for ltt in lts.iter() {
-               match ltt._implication_unifier(rt,subs) {
+               match ltt.__implication_unifier(rt,subs,inarrow) {
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
                }
@@ -435,7 +481,7 @@ impl Type {
          (lt,Type::And(rts)) => {
             let mut mts = Vec::new();
             for rt in rts.iter() {
-               match lt._implication_unifier(rt,subs) {
+               match lt.__implication_unifier(rt,subs,inarrow) {
                   Type::And(tts) if tts.len()==0 => { return Type::And(vec![]); },
                   Type::And(mut tts) => { mts.append(&mut tts); },
                   tt => { mts.push(tt); },
@@ -448,9 +494,9 @@ impl Type {
 
          //ratio Typees have next precedence
          (Type::Ratio(pl,bl),Type::Ratio(pr,br)) => {
-            let pt = pl._implication_unifier(pr,subs);
+            let pt = pl.__implication_unifier(pr,subs,inarrow);
             if pt.is_bottom() { return pt.clone(); }
-            let bt = bl._implication_unifier(br,subs);
+            let bt = bl.__implication_unifier(br,subs,inarrow);
             if bt.is_bottom() { return bt.clone(); }
             Type::Ratio(Box::new(pt),Box::new(bt))
          },
@@ -458,7 +504,7 @@ impl Type {
             //assert Nil divisor on rhs
             match **br {
                Type::Tuple(ref bs) if bs.len()==0 => {
-                  lt._implication_unifier(pr,subs)
+                  lt.__implication_unifier(pr,subs,inarrow)
                }, _ => { Type::And(vec![]) }
             }
          },
@@ -466,7 +512,7 @@ impl Type {
             //assert Nil divisor on rhs
             match **bl {
                Type::Tuple(ref bs) if bs.len()==0 => {
-                  pl._implication_unifier(rt,subs)
+                  pl.__implication_unifier(rt,subs,inarrow)
                }, _ => { Type::And(vec![]) }
             }
          },
@@ -476,23 +522,24 @@ impl Type {
          if lv==rv && lps.len()==rps.len() => {
             let mut tps = Vec::new();
             for (lp,rp) in std::iter::zip(lps,rps) {
-               let nt = lp._implication_unifier(rp,subs);
+               let nt = lp.__implication_unifier(rp,subs,inarrow);
                if nt.is_bottom() { return nt.clone(); }
-               tps.push(lp._implication_unifier(rp,subs));
+               tps.push(lp.__implication_unifier(rp,subs,inarrow));
             }
             Type::Named(lv.clone(),tps)
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
-            let pt = pr._implication_unifier(pl,subs); //contravariant
+            let pt = pr.__implication_unifier(pl,subs,InArrow::Lhs); //contravariant
             if pt.is_bottom() { return pt.clone(); }
-            let bt = bl._implication_unifier(br,subs);
+            let bt = if **bl==Type::Any { (**br).clone() }
+            else { bl.__implication_unifier(br,subs,InArrow::Rhs) };
             if bt.is_bottom() { return bt.clone(); }
             Type::Arrow(Box::new(pt),Box::new(bt))
          },
          (Type::Product(la),Type::Product(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               let nt = lt._implication_unifier(rt,subs);
+               let nt = lt.__implication_unifier(rt,subs,inarrow);
                if nt.is_bottom() { return nt.clone(); }
                ts.push(nt.clone());
             }
@@ -501,22 +548,27 @@ impl Type {
          (Type::Tuple(la),Type::Tuple(ra)) if la.len()==ra.len() => {
             let mut ts = Vec::new();
             for (lt,rt) in std::iter::zip(la,ra) {
-               let nt = lt._implication_unifier(rt,subs);
+               let nt = lt.__implication_unifier(rt,subs,inarrow);
                if nt.is_bottom() { return nt.clone(); }
                ts.push(nt.clone());
             }
             Type::Tuple(ts)
          },
 
-         (Type::Constant(lv,lc),Type::Constant(rv,rc)) => {
-            if lc.id == rc.id {
-               Type::Constant(*lv || *rv, *lc)
+         (Type::Constant(lc),Type::Constant(rc)) => {
+            if inarrow == InArrow::Lhs {
+               Type::Constant(*lc)
+            } else if inarrow == InArrow::Rhs {
+               Type::Constant(*rc)
+            } else if lc.id == rc.id {
+               Type::Constant(*lc)
             } else {
                Type::And(vec![])
             }
          },
          _ => Type::And(vec![]),
-      }
+      };
+      tt
    }
    pub fn most_general_unifier(&self, other: &Type) -> Type {
       //if the two types don't unify
@@ -528,6 +580,8 @@ impl Type {
 
          //wildcard match
          (Type::Any,Type::Any) => { self.clone() },
+         (lt,Type::Any) => { lt.clone() },
+         (Type::Any,rt) => { rt.clone() },
          (Type::Named(lv,_lps),Type::Named(rv,_rps)) if lv.chars().all(char::is_uppercase) && lv==rv => {
             self.clone()
          },
@@ -632,9 +686,9 @@ impl Type {
             Type::Tuple(ts)
          },
 
-         (Type::Constant(lv,lc),Type::Constant(rv,rc)) => {
+         (Type::Constant(lc),Type::Constant(rc)) => {
             if lc.id == rc.id {
-               Type::Constant(*lv || *rv, *lc)
+               Type::Constant(*lc)
             } else {
                Type::And(vec![])
             }
@@ -642,168 +696,6 @@ impl Type {
          _ => Type::And(vec![]),
       }
    }
-   pub fn unify_impl_par(&self, kinds: &HashMap<Type,Kind>, subs: &mut HashMap<Type,Type>, rt: &Type, par: IsParameter) -> Result<Type,()> {
-      //lt => rt
-      let lt = self;
-      if (par==IsParameter::Top && !lt.kind(kinds).has(&rt.kind(kinds))) ||
-         (par==IsParameter::Yes && !lt.kind(kinds).has(&rt.kind(kinds))) {
-         return Err(());
-      }
-      match (lt,rt) { //Constants can only match other Constants
-         (Type::Constant(_,_),Type::Constant(_,_)) => {},
-         (Type::Constant(_,_),Type::Any) => {},
-         (Type::Constant(_,_),_) => { return Err(()); },
-         (_,_) => {},
-      }
-      let vt = match (lt,rt) {
-         //wildcard failure
-         (Type::And(lts),_) if lts.len()==0 => { Err(()) },
-
-         //wildcard match
-         //only unify left wildcards when they are returned from a function
-         (Type::Any,r) if par!=IsParameter::Top => Ok(r.substitute(subs)),
-         (l,Type::Any) => Ok(l.substitute(subs)),
-         (Type::Named(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
-            for (sl,sr) in subs.clone().iter() {
-               if lt==sl { return rt.unify_impl_par(kinds,subs,sr,par); }
-            }
-            let rt = rt.narrow(kinds, &lt.kind(kinds));
-            subs.insert(lt.clone(),rt.clone());
-            Ok(rt.clone())
-         },
-         (lt,Type::Named(rv,_rps)) if rv.chars().all(char::is_uppercase) => {
-            for (sl,sr) in subs.clone().iter() {
-               if rt==sl { return lt.unify_impl_par(kinds,subs,sr,par); }
-            }
-            let lt = lt.narrow(kinds, &rt.kind(kinds));
-            subs.insert(rt.clone(),lt.clone());
-            Ok(lt.clone())
-         },
-
-         //conjunctive normal form takes precedence
-         (_,Type::And(rts)) if rts.len()==0 => { Ok(rt.clone()) },
-         (Type::And(_lts),Type::And(rts)) => {
-            //lt => rt
-            let mut mts = Vec::new();
-            for rt in rts.iter() {
-               let mtsl = mts.len();
-               match lt.unify_impl_par(kinds,subs,rt,par) {
-                  Ok(Type::Any) => {},
-                  Ok(Type::And(mut tts)) => { mts.append(&mut tts); },
-                  Ok(tt) => { mts.push(tt); },
-                  Err(()) => {},
-               }
-               if mts.len()==mtsl { return Err(()); }
-            }
-            mts.sort(); mts.dedup();
-            if mts.len()==0 { Err(()) }
-            else if mts.len()==1 { Ok(mts[0].clone()) }
-            else { Ok(Type::And(mts)) }
-         },
-         (Type::And(lts),rt) => {
-            let mut mts = Vec::new();
-            for ltt in lts.iter() {
-               if let Ok(nt) = ltt.unify_impl_par(kinds,subs,rt,par) {
-                  match nt {
-                     Type::Any => {},
-                     Type::And(mut tts) => { mts.append(&mut tts); },
-                     tt => { mts.push(tt); },
-                  }
-               }
-            }
-            mts.sort(); mts.dedup();
-            if mts.len()==0 { Err(()) }
-            else if mts.len()==1 { Ok(mts[0].clone()) }
-            else { Ok(Type::And(mts)) }
-         },
-         (lt,Type::And(rts)) => {
-            let mut mts = Vec::new();
-            for rt in rts.iter() {
-               if let Ok(nt) = lt.unify_impl_par(kinds,subs,rt,par) {
-                  match nt {
-                     Type::And(mut tts) => { mts.append(&mut tts); },
-                     tt => { mts.push(tt); },
-                  }
-               } else { //the rhs can't be narrowed here
-                  return Err(())
-               }
-            }
-            mts.sort(); mts.dedup();
-            if mts.len()==0 { Err(()) }
-            else if mts.len()==1 { Ok(mts[0].clone()) }
-            else { Ok(Type::And(mts)) }
-         }
-
-         //ratio Typees have next precedence
-         (Type::Ratio(pl,bl),Type::Ratio(pr,br)) => {
-            let pt = pl.unify_impl_par(kinds,subs,pr,par)?;
-            let bt = bl.unify_impl_par(kinds,subs,br,par)?;
-            Ok(Type::Ratio(Box::new(pt),Box::new(bt)))
-         },
-         (lt,Type::Ratio(pr,br)) => {
-            //assert Nil divisor on rhs
-            match **br {
-               Type::Tuple(ref bs) if bs.len()==0 => {
-                  lt.unify_impl_par(kinds,subs,pr,par)
-               }, _ => { Err(()) }
-            }
-         },
-
-         //everything else is a mixed bag
-         (Type::Named(lv,lps),Type::Named(rv,rps))
-         if lv==rv && lps.len()==rps.len() => {
-            let mut tps = Vec::new();
-            for (lp,rp) in std::iter::zip(lps,rps) {
-               tps.push(lp.unify_impl_par(kinds,subs,rp,par)?);
-            }
-            Ok(Type::Named(lv.clone(),tps))
-         }
-         (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
-            if let Type::And(ref ps) = **pr {
-            if ps.len() == 0 {
-               return Err(());
-            }}
-            let pt = pl.unify_impl_par(kinds,subs,pr,IsParameter::Yes)?;
-            let bt = bl.unify_impl_par(kinds,subs,br,IsParameter::No)?;
-            Ok(Type::Arrow(Box::new(pt),Box::new(bt)))
-         },
-         (Type::Product(la),Type::Product(ra)) if la.len()==ra.len() => {
-            let mut ts = Vec::new();
-            for (lt,rt) in std::iter::zip(la,ra) {
-               ts.push(lt.unify_impl_par(kinds,subs,rt,par)?);
-            }
-            Ok(Type::Product(ts))
-         },
-         (Type::Tuple(la),Type::Tuple(ra)) if la.len()==ra.len() => {
-            let mut ts = Vec::new();
-            for (lt,rt) in std::iter::zip(la,ra) {
-               ts.push(lt.unify_impl_par(kinds,subs,rt,par)?);
-            }
-            Ok(Type::Tuple(ts))
-         },
-
-         (Type::Constant(lv,lc),Type::Constant(rv,rc)) => {
-            //unify_impl is only capable of comparing term equality
-            //constants need to reduce to actually be the SAME term
-            if lc.id == rc.id {
-               Ok(Type::Constant(*lv || *rv, *lc))
-            //only unify left constants when they parameterize a function
-            } else if par==IsParameter::Yes && *lv {
-               subs.insert(lt.clone(), rt.clone());
-               Ok(rt.clone())
-            } else if *rv {
-               subs.insert(rt.clone(), lt.clone());
-               Ok(lt.clone())
-            } else {
-               Err(())
-            }
-         },
-         _ => Err(()),
-      };
-      vt
-   }
-
-
 }
 
 impl std::fmt::Debug for Type {
@@ -817,9 +709,9 @@ impl std::fmt::Debug for Type {
            Type::And(ts) => write!(f, "{{{}}}", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("+") ),
            Type::Tuple(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ),
            Type::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
-           Type::Arrow(p,b) => write!(f, "({:?})=>({:?})", p, b),
+           Type::Arrow(p,b) => write!(f, "({:?})->({:?})", p, b),
            Type::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
-           Type::Constant(v,c) => write!(f, "[{}term#{}]", if *v {"'"} else {""}, c.id),
+           Type::Constant(c) => write!(f, "[term#{}]", c.id),
         }
     }
 }

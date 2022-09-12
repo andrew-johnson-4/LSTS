@@ -516,7 +516,7 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
       };
       ft = Type::Arrow(Box::new(pt),Box::new(ft));
    }
-   tlc.reduce_type(&HashMap::new(), &mut ft, &span); //destructively reduce constants in type
+   tlc.reduce_type(&mut HashMap::new(), &mut ft); //destructively reduce constants in type
    ft = ft.normalize();
    let vt = tlc.push_term(Term::Ident(ident.clone()), &span);
    tlc.untyped(vt);
@@ -958,12 +958,28 @@ pub fn ll1_as_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRea
    Ok(term)
 }
 
-pub fn ll1_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
+pub fn ll1_asif_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    if peek_is(tokens, &vec![Symbol::If]) {
       ll1_if_term(tlc, scope, tokens)
    } else {
       ll1_as_term(tlc, scope, tokens)
    }
+}
+
+pub fn ll1_arrow_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   let mut term = ll1_asif_term(tlc, scope, tokens)?;
+   while peek_is(tokens, &vec![Symbol::Arrow]) {
+      pop_is("arrow-term", tokens, &vec![Symbol::Arrow])?;
+      let bterm = ll1_asif_term(tlc, scope, tokens)?;
+      let t = Term::Arrow(term, bterm);
+      term = tlc.push_term(t, &span);
+   }
+   Ok(term)
+}
+
+pub fn ll1_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
+   ll1_arrow_term(tlc, scope, tokens)
 }
 
 pub fn ll1_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {

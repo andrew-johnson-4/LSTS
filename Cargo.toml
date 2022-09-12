@@ -1,6 +1,6 @@
 [package]
 name = "lsts"
-version = "0.5.29"
+version = "0.6.3"
 authors = ["Andrew <andrew@subarctic.org>"]
 license = "MIT"
 description = "Large Scale Type Systems"
@@ -16,20 +16,12 @@ regex = { version = "1" }
 [dev-dependencies]
 criterion = "0.3"
 
-[profile.dev]
-lto = true
-opt-level = 3
-
 [profile.release]
 lto = true
 opt-level = 3
 #rustflags = [
 #  "-C", "link-args=-z stack-size=1500000",
 #]
-
-[profile.test]
-lto = true
-opt-level = 3
 
 [[bench]]
 name = "big_file"
