@@ -64,6 +64,7 @@ fn check_tik_i() {
    tlc.check(Some(si), "let xy: Point2D<Boolean>").unwrap_err();
 }
 
+/* TODO unquote
 #[test]
 fn check_compound_types() {
    let mut tlc = TLC::new();
@@ -234,3 +235,4 @@ fn check_imperial_conversion() {
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Mile/Minute").unwrap();
    tlc.check(Some(si), "(1:Integer+Metre/Second) as Watt/Minute").unwrap_err();
 }
+*/

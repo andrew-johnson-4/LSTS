@@ -899,7 +899,15 @@ impl TLC {
       }
    }
    pub fn untyped_match(&mut self, subs: &mut HashMap<String,Constant>, gp: &mut TermId, gb: &mut TermId, v: Constant) -> Option<Constant> {
-      unimplemented!("untyped pattern match")
+      match (&self.rows[gp.id].term.clone(), &v) {
+         (Term::Ident(gn), v) => {
+            subs.insert(gn.clone(), v.clone());
+            self.untyped_eval(subs, gb)
+         },
+         (lhs, rhs) => {
+            unimplemented!("untyped_match {} = {:?}", self.print_term(*gp), v.clone())
+         }
+      }
    }
    pub fn untyped_eval(&mut self, subs: &mut HashMap<String,Constant>, t: &mut TermId) -> Option<Constant> {
       //reduce constant expressions in untyped context
@@ -930,14 +938,18 @@ impl TLC {
                return Some(c);
             }
             if let Some(c) = subs.get(&g) {
+               t.id = self.push_constant(c, *t).id;
                return Some(c.clone());
             }
          },
          Term::App(ref mut g,ref mut x) => {
             let xc = self.untyped_eval(subs,x);
             if let Term::Arrow(ref mut gp,ref mut gb) = self.rows[g.id].term.clone() {
-            if let Some(xc) = xc { //Argument must be constant, otherwise don't reduce the expression
-               return self.untyped_match(subs,gp,gb,xc);
+            if let Some(ref xc) = xc { //Argument must be constant, otherwise don't reduce the expression
+               if let Some(c) = self.untyped_match(subs,gp,gb,xc.clone()) {
+                  t.id = self.push_constant(&c, *t).id;
+                  return Some(c.clone());
+               }
             }}
             let gc = self.untyped_eval(subs,g);
             match (gc,xc) {
@@ -1662,16 +1674,12 @@ impl TLC {
          Term::App(g,x) => {
             let mut ks = HashMap::new();
             self.typeck(scope.clone(), x, None)?;
-            println!("1 App term g : {}", self.print_type(&ks, &self.rows[g.id].typ));
-            println!("1 App term x : {}", self.print_type(&ks, &self.rows[x.id].typ));
-            println!("1 App term t : {}", self.print_type(&ks, &self.rows[t.id].typ));
             self.typeck(scope.clone(), g, Some(
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
             self.kinds_of(&mut ks, &self.rows[g.id].typ);
             self.kinds_of(&mut ks, &self.rows[x.id].typ);
-            println!("2 App narrow g");
             let mut gs = Vec::new();
             let mut xs = Vec::new();
             let mut tcs: Vec<Type> = Vec::new();
@@ -1682,15 +1690,15 @@ impl TLC {
                if xt.is_bottom() { continue; }
                let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
                if tt.is_bottom() { tt = Type::Any; }
-               println!("narrow g {} :: {:?} = {:?}", self.print_type(&ks, &self.rows[g.id].typ), kn, &nt);
-               println!("narrow x {} :: {:?} = {:?}", self.print_type(&ks, &self.rows[x.id].typ), kn, &xt);
                match (&nt, &xt) {
                   (Type::Arrow(cp,cb), Type::Constant(xc)) => {
                   if let (Type::Constant(cp),Type::Constant(cb)) = ((**cp).clone(),(**cb).clone()) {
                      gs.push(nt.clone());
                      xs.push(xt.clone());
                      let gct = self.push_term(Term::Arrow(cp,cb), &self.rows[t.id].span.clone());
+                     self.untyped(gct);
                      let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
+                     self.untyped(gxct);
                      tcs.push(Type::Constant(gxct));
                   }},
                   (gt, xt) => {
@@ -1706,10 +1714,6 @@ impl TLC {
             self.rows[x.id].typ = if xs.len()==1 { xs[0].clone() }
             else { Type::And(xs) };
             self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::And( tcs ));
-
-            println!("2 App term g : {}", self.print_type(&ks, &self.rows[g.id].typ));
-            println!("2 App term x : {}", self.print_type(&ks, &self.rows[x.id].typ));
-            println!("2 App term t : {}", self.print_type(&ks, &self.rows[t.id].typ));
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
