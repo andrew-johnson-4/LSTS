@@ -173,7 +173,6 @@ fn check_constant_arrows() {
    tlc.check(Some(si), "let f: [x] -> [x*x]; f(4): [16]").unwrap();
 }
 
-/* TODO unquote
 #[test]
 fn check_variable_substitution() {
    let mut tlc = TLC::new();
@@ -247,4 +246,3 @@ fn check_variable_substitution() {
    tlc.check(Some(si), "0%1: [NaN]").unwrap_err();
    tlc.check(Some(si), "0%0: [0]").unwrap_err();
 }
-*/

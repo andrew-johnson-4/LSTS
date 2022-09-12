@@ -76,6 +76,16 @@ impl Type {
          tt => (vec![tt.clone()], Vec::new())
       }
    }
+   pub fn is_ctuple(&self) -> bool {
+      if let Type::Tuple(cts) = self {
+         for ct in cts.iter() {
+         if !ct.is_constant() { 
+            return false;
+         }}
+         return true;
+      }
+      false
+   }
    pub fn is_constant(&self) -> bool {
       match self {
          Type::Constant(_) => true,
@@ -375,6 +385,18 @@ impl Type {
    pub fn implies(tlc: &mut TLC, lt: &Type, rt: &Type) -> Type {
       let mut subs = Vec::new();
       Type::subs_implies(tlc, &mut subs, lt, rt)
+   }
+   pub fn arrow_implies(tlc: &mut TLC, lt: &Type, rt: &Type, inarrow: InArrow) -> Type {
+      let mut subs = Vec::new();
+      let mut lt = tlc.extend_implied(lt);
+      tlc.reduce_type(&mut HashMap::new(), &mut lt);
+      let lt = lt.normalize();
+      let mut rt = tlc.extend_implied(rt);
+      tlc.reduce_type(&mut HashMap::new(), &mut rt);
+      let rt = rt.normalize();
+      let mut tt = lt.__implication_unifier(&rt, &mut subs, inarrow);
+      tlc.reduce_type(&mut HashMap::new(), &mut tt);
+      tt.normalize()
    }
    pub fn subs_implies(tlc: &mut TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
       let mut lt = tlc.extend_implied(lt);

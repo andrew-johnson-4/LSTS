@@ -4,7 +4,7 @@ use std::collections::{HashSet,HashMap};
 use regex::Regex;
 use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
-use crate::typ::Type;
+use crate::typ::{Type,InArrow};
 use crate::kind::Kind;
 use crate::token::{Span,TokenReader,tokenize_string,tokenize_file,span_of};
 use crate::debug::Error;
@@ -1200,6 +1200,9 @@ impl TLC {
       })
    }
    pub fn implies(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
+      self.arrow_implies(lt,rt,span,InArrow::No)
+   }
+   pub fn arrow_implies(&mut self, lt: &Type, rt: &Type, span: &Span, inarrow: InArrow) -> Result<Type,Error> {
       let ks = HashMap::new();
       let nt = Type::implies(self, lt, rt);
       match nt {
@@ -1551,8 +1554,13 @@ impl TLC {
       Ok(())
    }
 
+   fn destructure_ctuple(&mut self, lt: &Type, rt: &Type, span: &Span) -> Option<(TermId,TermId)> {
+      unimplemented!("destructure ctuple")
+   }
+
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
+      println!("typeck term {}", self.print_term(t));
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
@@ -1690,9 +1698,11 @@ impl TLC {
                if xt.is_bottom() { continue; }
                let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
                if tt.is_bottom() { tt = Type::Any; }
+               println!("narrow apply: {}({}) = {}", self.print_type(&ks,&nt), self.print_type(&ks,&xt), self.print_type(&ks,&tt) );
                match (&nt, &xt) {
                   (Type::Arrow(cp,cb), Type::Constant(xc)) => {
                   if let (Type::Constant(cp),Type::Constant(cb)) = ((**cp).clone(),(**cb).clone()) {
+                     println!("narrow pattern match");
                      gs.push(nt.clone());
                      xs.push(xt.clone());
                      let gct = self.push_term(Term::Arrow(cp,cb), &self.rows[t.id].span.clone());
@@ -1701,11 +1711,15 @@ impl TLC {
                      self.untyped(gxct);
                      tcs.push(Type::Constant(gxct));
                   }},
+                  (Type::Arrow(cp,cb), xcs) if (**cp).is_ctuple() && xcs.is_ctuple() => {
+                     unimplemented!("constant arrow with tuples")
+                  },
                   (gt, xt) => {
+                     println!("narrow arrow");
                      gs.push(gt.clone());
                      xs.push(xt.clone());
-                     self.implies(&xt, &gt.domain(), &self.rows[t.id].span.clone())?;
-                     self.implies(&gt.range(), &tt, &self.rows[t.id].span.clone())?;
+                     self.arrow_implies(&xt, &gt.domain(), &self.rows[t.id].span.clone(), InArrow::Lhs)?;
+                     self.arrow_implies(&gt.range(), &tt, &self.rows[t.id].span.clone(), InArrow::Rhs)?;
                   }
                }
             }
@@ -1714,6 +1728,10 @@ impl TLC {
             self.rows[x.id].typ = if xs.len()==1 { xs[0].clone() }
             else { Type::And(xs) };
             self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::And( tcs ));
+            println!("narrowed apply: {}({}) = {}",
+                     self.print_type(&ks,&self.rows[g.id].typ),
+                     self.print_type(&ks,&self.rows[x.id].typ),
+                     self.print_type(&ks,&self.rows[t.id].typ) );
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
@@ -1742,6 +1760,7 @@ impl TLC {
          //check that implication is satisfied, but this unification does not change the term's type
          self.implies(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
       }
+      println!("end typeck term {}", self.print_term(t));
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
    }
