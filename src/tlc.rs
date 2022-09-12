@@ -35,6 +35,7 @@ pub struct Row {
    pub typ: Type,
    pub kind: Kind,
    pub span: Span,
+   pub constant: Option<Constant>,
 }
 
 #[derive(Clone)]
@@ -142,6 +143,7 @@ impl TLC {
                linecol_start: (0,0),
                linecol_end: (0,0),
             },
+            constant: None,
          }],
          rules: Vec::new(),
          scopes: Vec::new(),
@@ -172,11 +174,11 @@ impl TLC {
          Type::Product(ts) => format!("({})", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join("*") ),
          Type::Arrow(p,b) => format!("({})->({})", self.print_type(kinds,p), self.print_type(kinds,b)),
          Type::Ratio(n,d) => format!("({})/({})", self.print_type(kinds,n), self.print_type(kinds,d)),
-         Type::Constant(c) => {
-            if let Some(ct) = self.tconstant_index.get(c) {
-               format!("[{:?}#{}]", ct, c.id)
+         Type::Constant(ct,cv) => {
+            if let Some(cv) = cv {
+               format!("[{:?}]", cv)
             } else {
-               format!("[{}#{}]", self.print_term(*c), c.id)
+               format!("[{}#{}]", self.print_term(*ct), ct.id)
             }
          },
       };
@@ -320,7 +322,7 @@ impl TLC {
             kinds.insert(Type::Any, Kind::Nil);
             Some(Kind::Nil)
          },
-         Type::Constant(_) => {
+         Type::Constant(_,_) => {
             kinds.insert(tt.clone(), self.constant_kind.clone());
             Some(self.constant_kind.clone())
          },
@@ -499,13 +501,13 @@ impl TLC {
          Term::Value(ct) => {
             if let Some(c) = self.parse_constant(ct) {
                let ci = self.push_constant(&c, ti);
-               Type::Constant(ci)
+               Type::Constant(ci,Some(c.clone()))
             } else {
-               Type::Constant(ti)
+               Type::Constant(ti,None)
             }
          }, Term::Ident(_) => {
-            Type::Constant(ti)
-         }, _ => Type::Constant(ti),
+            Type::Constant(ti,None)
+         }, _ => Type::Constant(ti,None),
       }
    }
    pub fn push_term_type(&mut self, term: &Term, ti: TermId) -> Type {
@@ -513,7 +515,7 @@ impl TLC {
          Term::Value(ct) => {
             if let Some(c) = self.parse_constant(ct) {
                let ci = self.push_constant(&c, ti);
-               Type::And(vec![Type::Any,Type::Constant(ci)])
+               Type::And(vec![Type::Any,Type::Constant(ci,Some(c.clone()))])
             } else {
                Type::Any
             }
@@ -529,6 +531,7 @@ impl TLC {
          typ: tt,
          kind: self.term_kind.clone(),
          span: span.clone(),
+         constant: None,
       });
       ti
    }
@@ -613,7 +616,7 @@ impl TLC {
             }}}
             Ok(())
          },
-         Type::Constant(_) => Ok(()),
+         Type::Constant(_,_) => Ok(()),
       }
    }
    pub fn extend_implied(&self, tt: &Type) -> Type {
@@ -662,7 +665,7 @@ impl TLC {
          },
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
-         Type::Constant(c) => Type::Constant(*c)
+         Type::Constant(ct,cv) => Type::Constant(*ct,cv.clone())
       }
    }
    pub fn kind(&self, tt:&Type) -> Kind {
@@ -688,7 +691,7 @@ impl TLC {
          Type::Product(ts) => ts.iter().all(|ct|self.is_normal(ct)),
          Type::Arrow(p,b) => self.is_normal(p) && self.is_normal(b),
          Type::Ratio(p,b) => self.is_normal(p) && self.is_normal(b),
-         Type::Constant(_) => true,
+         Type::Constant(_,_) => true,
       }
    }
    pub fn narrow(&self, kinds: &HashMap<Type,Kind>, projection: &Kind, tt: &Type) -> Type {
@@ -744,7 +747,7 @@ impl TLC {
             }
             Type::Product(cts)
          },
-         Type::Constant(_c) => {
+         Type::Constant(_ct,_cv) => {
             if projection == &self.constant_kind {
                tt.clone()
             } else {
@@ -823,8 +826,11 @@ impl TLC {
    }
    pub fn reduce_type(&mut self, subs: &mut HashMap<String,Constant>, tt: &mut Type) {
       match tt {
-         Type::Constant(ref mut c) => {
-            self.untyped_eval(subs, c);
+         Type::Constant(ref mut c, ref mut cv) => {
+            if cv.is_none() {
+            if let Some(ncv) = self.untyped_eval(subs, c) {
+               *cv = Some(ncv);
+            }}
          },
          Type::Any => {},
          Type::Named(_tn,tps) => {
@@ -896,6 +902,9 @@ impl TLC {
       //reduce constant expressions in untyped context
       //designed for use inside of dependent type signatures
 
+      if let Some(ct) = &self.rows[t.id].constant {
+         return Some(ct.clone())
+      }
       if let Some(ct) = self.tconstant_index.get(t) {
          return Some(ct.clone())
       }
@@ -1365,9 +1374,9 @@ impl TLC {
             self.unify_varnames_t(dept,p,lhs);
             self.unify_varnames_t(dept,b,lhs);
          },
-         Type::Constant(t) => {
-            let mut t = *t;
-            self.unify_varnames_lhs(dept, &mut t, lhs);
+         Type::Constant(ct,_cv) => {
+            let mut ct = *ct;
+            self.unify_varnames_lhs(dept, &mut ct, lhs);
          }
       }
    }
@@ -1445,7 +1454,7 @@ impl TLC {
          Type::Any => tt.clone(),
          Type::Named(_,_) => tt.clone(),
          Type::Arrow(_,_) => tt.clone(), //the inner types here are guarded
-         Type::Constant(c) => Type::Constant(self.alpha_convert_term(*c,lt,rt)),
+         Type::Constant(ct,cv) => Type::Constant(self.alpha_convert_term(*ct,lt,rt),cv.clone()),
          Type::Ratio(nt,dt) => Type::Ratio(
             Box::new(self.alpha_convert_type(nt,lt,rt)),
             Box::new(self.alpha_convert_type(dt,lt,rt))
@@ -1526,8 +1535,10 @@ impl TLC {
             match tc {
                Type::Named(tn,ts) => {
                   ground_types.push(Type::Named(tn.clone(),ts.clone()));
-               }, Type::Constant(ref ct) => {
-                  if let Some(ct) = self.untyped_eval(&mut subs, &mut ct.clone()) {
+               }, Type::Constant(ref ct, ref cv) => {
+                  if let Some(ct) = cv {
+                     subs.insert("self".to_string(), ct.clone());
+                  } else if let Some(ct) = self.untyped_eval(&mut subs, &mut ct.clone()) {
                      subs.insert("self".to_string(), ct);
                   }
                }, _ => {},
@@ -1583,12 +1594,12 @@ impl TLC {
          (Type::Tuple(lts), Type::Tuple(rts)) if lts.len()==rts.len() => {
             let mut ls = Vec::new();
             for lc in lts.iter() {
-            if let Type::Constant(lid) = lc {
+            if let Type::Constant(lid,_) = lc {
                ls.push(*lid);
             }}
             let mut rs = Vec::new();
             for rc in rts.iter() {
-            if let Type::Constant(rid) = rc {
+            if let Type::Constant(rid,_) = rc {
                rs.push(*rid);
             }}
             return Some((ls,rs));
@@ -1596,6 +1607,11 @@ impl TLC {
          _ => {}
       }
       None
+   }
+   fn push_dtype(&mut self, t: TermId, c: &Option<Constant>) {
+      if let Some(cv) = c {
+         self.rows[t.id].constant = Some(cv.clone());
+      }
    }
 
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
@@ -1738,19 +1754,23 @@ impl TLC {
                let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
                if tt.is_bottom() { tt = Type::Any; }
                match (&nt, &xt) {
-                  (Type::Arrow(cp,cb), Type::Constant(xc)) => {
-                  if let (Type::Constant(ref mut cp),Type::Constant(ref mut cb)) = ((**cp).clone(),(**cb).clone()) {
+                  (Type::Arrow(cp,cb), Type::Constant(ref xc,ref xcv)) => {
+                  if let (Type::Constant(ref mut cp, ref cpv),Type::Constant(ref mut cb, ref cbv)) = ((**cp).clone(),(**cb).clone()) {
+                     self.push_dtype(*xc,xcv);
+                     self.push_dtype(*cp,cpv);
+                     self.push_dtype(*cb,cbv);
                      gs.push(nt.clone());
                      xs.push(xt.clone());
                      let gct = self.push_term(Term::Arrow(*cp,*cb), &self.rows[t.id].span.clone());
                      self.untyped(gct);
                      let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
                      self.untyped(gxct);
-                     tcs.push(Type::Constant(gxct));
+                     tcs.push(Type::Constant(gxct,None));
                   }},
                   (Type::Arrow(cp,cb), xc) if (**cp).is_ctuple() && xc.is_ctuple() => {
                      if let Some((cps,xcs)) = self.destructure_ctuple(cp,xc) {
-                     if let Type::Constant(ref mut cb) = (**cb).clone() {
+                     if let Type::Constant(ref mut cb, ref cbv) = (**cb).clone() {
+                        self.push_dtype(*cb,cbv);
                         gs.push(nt.clone());
                         xs.push(xt.clone());
                         let cpst = self.push_term(Term::Tuple(cps), &self.rows[t.id].span.clone());
@@ -1761,7 +1781,7 @@ impl TLC {
                         self.untyped(gct);
                         let gxct = self.push_term(Term::App(gct,xcst), &self.rows[t.id].span.clone());
                         self.untyped(gxct);
-                        tcs.push(Type::Constant(gxct));
+                        tcs.push(Type::Constant(gxct,None));
                      }} else {
                         panic!("malformed ctuple {:?} (x) {:?}", **cp, xc);
                      }
