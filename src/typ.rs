@@ -565,7 +565,9 @@ impl Type {
             }
          },
          (Type::Constant(lt,lc),Type::Constant(rt,rc)) => {
-            if inarrow == InArrow::Lhs {
+            if lt.id == rt.id {
+               Type::Constant(*lt, lc.clone().or(rc.clone()))
+            } else if inarrow == InArrow::Lhs {
                Type::Constant(*lt,lc.clone())
             } else if inarrow == InArrow::Rhs {
                Type::Constant(*rt,rc.clone())
@@ -696,6 +698,13 @@ impl Type {
          (Type::Constant(lt,Some(lc)),Type::Constant(_,Some(rc))) => {
             if lc == rc {
                Type::Constant(*lt,Some(lc.clone()))
+            } else {
+               Type::And(vec![])
+            }
+         },
+         (Type::Constant(lt,lc),Type::Constant(rt,rc)) => {
+            if lt.id == rt.id {
+               Type::Constant(*lt, lc.clone().or(rc.clone()))
             } else {
                Type::And(vec![])
             }
