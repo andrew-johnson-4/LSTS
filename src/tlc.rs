@@ -56,7 +56,6 @@ pub struct Row {
    pub typ: Type,
    pub kind: Kind,
    pub span: Span,
-   pub constant: Option<Constant>,
 }
 
 #[derive(Clone)]
@@ -164,7 +163,6 @@ impl TLC {
                linecol_start: (0,0),
                linecol_end: (0,0),
             },
-            constant: None,
          }],
          rules: Vec::new(),
          scopes: Vec::new(),
@@ -552,7 +550,6 @@ impl TLC {
          typ: tt,
          kind: self.term_kind.clone(),
          span: span.clone(),
-         constant: None,
       });
       ti
    }
@@ -848,7 +845,7 @@ impl TLC {
    }
    pub fn reduce_type(&mut self, subs: &mut HashMap<String,Constant>, tt: &mut Type) {
       match tt {
-         Type::Constant(c) => {
+         Type::Constant(ref mut c) => {
             self.untyped_eval(subs, c);
          },
          Type::Any => {},
@@ -879,13 +876,13 @@ impl TLC {
             */
          },
          Type::Tuple(ts) => {
-            for mut ct in ts.iter_mut() {
-               self.reduce_type(subs, &mut ct);
+            for ref mut ct in ts.iter_mut() {
+               self.reduce_type(subs, ct);
             }
          },
          Type::Product(ts) => {
-            for mut ct in ts.iter_mut() {
-               self.reduce_type(subs, &mut ct);
+            for ref mut ct in ts.iter_mut() {
+               self.reduce_type(subs, ct);
             }
          },
          Type::Arrow(ref mut p, ref mut b) => {
@@ -921,6 +918,9 @@ impl TLC {
       //reduce constant expressions in untyped context
       //designed for use inside of dependent type signatures
 
+      if let Some(ct) = self.tconstant_index.get(t) {
+         return Some(ct.clone())
+      }
       match self.rows[t.id].term.clone() {
          //evaluation can change the t.id of a term to the canonical t.id of a constant
          Term::Block(_sid,es) if es.len()==0 => {
@@ -1028,8 +1028,9 @@ impl TLC {
          Term::Tuple(ref mut ts) => {
             let mut all_const = true;
             let mut consts = Vec::new();
-            for tc in ts.iter_mut() {
+            for ref mut tc in ts.iter_mut() {
                if let Some(cc) = self.untyped_eval(subs,tc) {
+                  tc.id = self.push_constant(&cc, **tc).id;
                   consts.push(cc);
                } else {
                   all_const = false;
@@ -1622,7 +1623,6 @@ impl TLC {
 
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
-      println!("typeck term {}", self.print_term(t));
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
@@ -1760,11 +1760,9 @@ impl TLC {
                if xt.is_bottom() { continue; }
                let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
                if tt.is_bottom() { tt = Type::Any; }
-               println!("narrow apply: {}({}) = {}", self.print_type(&ks,&nt), self.print_type(&ks,&xt), self.print_type(&ks,&tt) );
                match (&nt, &xt) {
                   (Type::Arrow(cp,cb), Type::Constant(xc)) => {
                   if let (Type::Constant(ref mut cp),Type::Constant(ref mut cb)) = ((**cp).clone(),(**cb).clone()) {
-                     println!("narrow pattern match");
                      gs.push(nt.clone());
                      xs.push(xt.clone());
                      let gct = self.push_term(Term::Arrow(*cp,*cb), &self.rows[t.id].span.clone());
@@ -1792,7 +1790,6 @@ impl TLC {
                      }
                   },
                   (gt, xt) => {
-                     println!("narrow arrow");
                      gs.push(gt.clone());
                      xs.push(xt.clone());
                      tcs.push(gt.range());
@@ -1806,10 +1803,6 @@ impl TLC {
             self.rows[x.id].typ = if xs.len()==1 { xs[0].clone() }
             else { Type::And(xs) };
             self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::And( tcs ));
-            println!("narrowed apply: {}({}) = {}",
-                     self.print_type(&ks,&self.rows[g.id].typ),
-                     self.print_type(&ks,&self.rows[x.id].typ),
-                     self.print_type(&ks,&self.rows[t.id].typ) );
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
@@ -1838,7 +1831,6 @@ impl TLC {
          //check that implication is satisfied, but this unification does not change the term's type
          self.implies(&self.rows[t.id].typ.clone(), &implied, &self.rows[t.id].span.clone())?;
       }
-      println!("end typeck term {}", self.print_term(t));
       self.soundck(&self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
       Ok(())
    }
