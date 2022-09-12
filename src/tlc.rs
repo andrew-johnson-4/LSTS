@@ -1726,11 +1726,16 @@ impl TLC {
                println!("narrow apply: {}({}) = {}", self.print_type(&ks,&nt), self.print_type(&ks,&xt), self.print_type(&ks,&tt) );
                match (&nt, &xt) {
                   (Type::Arrow(cp,cb), Type::Constant(xc)) => {
-                  if let (Type::Constant(cp),Type::Constant(cb)) = ((**cp).clone(),(**cb).clone()) {
+                  if let (Type::Constant(ref mut cp),Type::Constant(ref mut cb)) = ((**cp).clone(),(**cb).clone()) {
                      println!("narrow pattern match");
                      gs.push(nt.clone());
                      xs.push(xt.clone());
-                     let gct = self.push_term(Term::Arrow(cp,cb), &self.rows[t.id].span.clone());
+
+                     let mut dept = HashMap::new();
+                     self.unify_varnames_lhs(&mut dept, cp, true);
+                     self.unify_varnames_lhs(&mut dept, cb, false);
+
+                     let gct = self.push_term(Term::Arrow(*cp,*cb), &self.rows[t.id].span.clone());
                      self.untyped(gct);
                      let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
                      self.untyped(gxct);
@@ -1738,15 +1743,19 @@ impl TLC {
                   }},
                   (Type::Arrow(cp,cb), xc) if (**cp).is_ctuple() && xc.is_ctuple() => {
                      if let Some((cps,xcs)) = self.destructure_ctuple(cp,xc) {
-                     if let Type::Constant(cb) = (**cb).clone() {
+                     if let Type::Constant(ref mut cb) = (**cb).clone() {
                         gs.push(nt.clone());
                         xs.push(xt.clone());
-                        let cpst = self.push_term(Term::Tuple(cps), &self.rows[t.id].span.clone());
+                        let mut cpst = self.push_term(Term::Tuple(cps), &self.rows[t.id].span.clone());
                         self.untyped(cpst);
                         let xcst = self.push_term(Term::Tuple(xcs), &self.rows[t.id].span.clone());
                         self.untyped(xcst);
 
-                        let gct = self.push_term(Term::Arrow(cpst,cb), &self.rows[t.id].span.clone());
+                        let mut dept = HashMap::new();
+                        self.unify_varnames_lhs(&mut dept, &mut cpst, true);
+                        self.unify_varnames_lhs(&mut dept, cb, false);
+
+                        let gct = self.push_term(Term::Arrow(cpst,*cb), &self.rows[t.id].span.clone());
                         self.untyped(gct);
                         let gxct = self.push_term(Term::App(gct,xcst), &self.rows[t.id].span.clone());
                         self.untyped(gxct);
