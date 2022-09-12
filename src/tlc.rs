@@ -1730,11 +1730,6 @@ impl TLC {
                      println!("narrow pattern match");
                      gs.push(nt.clone());
                      xs.push(xt.clone());
-
-                     let mut dept = HashMap::new();
-                     self.unify_varnames_lhs(&mut dept, cp, true);
-                     self.unify_varnames_lhs(&mut dept, cb, false);
-
                      let gct = self.push_term(Term::Arrow(*cp,*cb), &self.rows[t.id].span.clone());
                      self.untyped(gct);
                      let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
@@ -1750,11 +1745,6 @@ impl TLC {
                         self.untyped(cpst);
                         let xcst = self.push_term(Term::Tuple(xcs), &self.rows[t.id].span.clone());
                         self.untyped(xcst);
-
-                        let mut dept = HashMap::new();
-                        self.unify_varnames_lhs(&mut dept, &mut cpst, true);
-                        self.unify_varnames_lhs(&mut dept, cb, false);
-
                         let gct = self.push_term(Term::Arrow(cpst,*cb), &self.rows[t.id].span.clone());
                         self.untyped(gct);
                         let gxct = self.push_term(Term::App(gct,xcst), &self.rows[t.id].span.clone());
