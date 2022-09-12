@@ -1554,8 +1554,24 @@ impl TLC {
       Ok(())
    }
 
-   fn destructure_ctuple(&mut self, lt: &Type, rt: &Type, span: &Span) -> Option<(TermId,TermId)> {
-      unimplemented!("destructure ctuple")
+   fn destructure_ctuple(&mut self, lt: &Type, rt: &Type) -> Option<(Vec<TermId>,Vec<TermId>)> {
+      match (lt,rt) {
+         (Type::Tuple(lts), Type::Tuple(rts)) if lts.len()==rts.len() => {
+            let mut ls = Vec::new();
+            for lc in lts.iter() {
+            if let Type::Constant(lid) = lc {
+               ls.push(*lid);
+            }}
+            let mut rs = Vec::new();
+            for rc in rts.iter() {
+            if let Type::Constant(rid) = rc {
+               rs.push(*rid);
+            }}
+            return Some((ls,rs));
+         },
+         _ => {}
+      }
+      None
    }
 
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
@@ -1711,8 +1727,12 @@ impl TLC {
                      self.untyped(gxct);
                      tcs.push(Type::Constant(gxct));
                   }},
-                  (Type::Arrow(cp,cb), xcs) if (**cp).is_ctuple() && xcs.is_ctuple() => {
-                     unimplemented!("constant arrow with tuples")
+                  (Type::Arrow(cp,cb), xc) if (**cp).is_ctuple() && xc.is_ctuple() => {
+                     if let Some((cps,xcs)) = self.destructure_ctuple(cp,xc) {
+                        unimplemented!("narrow ctuple match")
+                     } else {
+                        panic!("malformed ctuple {:?} (x) {:?}", **cp, xc);
+                     }
                   },
                   (gt, xt) => {
                      println!("narrow arrow");
