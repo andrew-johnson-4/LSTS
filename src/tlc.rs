@@ -1355,6 +1355,43 @@ impl TLC {
       Ok(l_only)
    }
 
+   pub fn unify_varnames_t(&mut self, dept: &mut HashMap<String,TermId>, tt: &Type, lhs: bool) {
+      match tt {
+         Type::Any => {},
+         Type::Named(tn,tcs) => {
+            for tc in tcs.iter() {
+               self.unify_varnames_t(dept,tc,lhs);
+            }
+         },
+         Type::And(tcs) => {
+            for tc in tcs.iter() {
+               self.unify_varnames_t(dept,tc,lhs);
+            }
+         },
+         Type::Tuple(tcs) => {
+            for tc in tcs.iter() {
+               self.unify_varnames_t(dept,tc,lhs);
+            }
+         },
+         Type::Product(tcs) => {
+            for tc in tcs.iter() {
+               self.unify_varnames_t(dept,tc,lhs);
+            }
+         },
+         Type::Arrow(p,b) => {
+            self.unify_varnames_t(dept,p,true);
+            self.unify_varnames_t(dept,b,lhs);
+         },
+         Type::Ratio(p,b) => {
+            self.unify_varnames_t(dept,p,lhs);
+            self.unify_varnames_t(dept,b,lhs);
+         },
+         Type::Constant(t) => {
+            let mut t = *t;
+            self.unify_varnames_lhs(dept, &mut t, lhs);
+         }
+      }
+   }
    pub fn unify_varnames(&mut self, dept: &mut HashMap<String,TermId>, t: &mut TermId) {
       self.unify_varnames_lhs( dept, t, false );
    }
@@ -1363,15 +1400,15 @@ impl TLC {
          Term::Ident(tn) => {
             if ["self","if","not","pos","neg","+","-","*","/","%","^","==","!=","<","<=",">",">=","&&","||"].contains(&tn.as_str()) {
                             //don't clobber reserved words
-            } else if lhs { //do capture arrow parameters
-               let nn = format!("var#{}", t.id);
-               dept.insert(tn.clone(), *t);
-               self.rows[t.id].term = Term::Ident(nn);
             } else if let Some(dt) = dept.get(&tn) {
                             //do clobber captured variables
                if let Term::Ident(dn) = self.rows[dt.id].term.clone() {
                   self.rows[t.id].term = Term::Ident(dn);
                }
+            } else if lhs { //do capture arrow parameters
+               let nn = format!("var#{}", t.id);
+               dept.insert(tn.clone(), *t);
+               self.rows[t.id].term = Term::Ident(nn);
             } else {}       //don't clobber free variables
          },
          Term::Value(_) => {},
