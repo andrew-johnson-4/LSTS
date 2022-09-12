@@ -1041,6 +1041,7 @@ impl TLC {
                return Some(tsc);
             }
          },
+         Term::Arrow(_,_) => {}, //irreducible
          _ => panic!("TODO: untyped eval {}", self.print_term(*t)),
       };
       None
