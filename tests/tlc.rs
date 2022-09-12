@@ -34,7 +34,6 @@ fn parse_simplytyped() {
    tlc.parse("{a; b}").unwrap();
 }
 
-/* TODO unquote
 #[test]
 fn check_simplytyped() {
    let mut tlc = TLC::new();
@@ -155,4 +154,3 @@ fn check_functions() {
    tlc.check(None, "type Aa::Ka; type Bb; let f(X):X; let x: Aa+Bb; f(x): Aa").unwrap_err();
    tlc.check(None, "type Aa::Ka; type Bb; let f(X):X; let x: Aa+Bb; f(x): Bb").unwrap();
 }
-*/

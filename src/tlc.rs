@@ -1758,8 +1758,9 @@ impl TLC {
                      println!("narrow arrow");
                      gs.push(gt.clone());
                      xs.push(xt.clone());
+                     tcs.push(gt.range());
                      self.arrow_implies(&xt, &gt.domain(), &self.rows[t.id].span.clone(), InArrow::Lhs)?;
-                     self.arrow_implies(&gt.range(), &tt, &self.rows[t.id].span.clone(), InArrow::Rhs)?;
+                     tcs.push(self.arrow_implies(&gt.range(), &tt, &self.rows[t.id].span.clone(), InArrow::Rhs)?);
                   }
                }
             }

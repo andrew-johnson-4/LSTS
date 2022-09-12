@@ -41,7 +41,7 @@ fn check_tensor_covariance() {
    tlc.check(Some(si), "let a:Number[][1]; a: Tensor<Tensor<Number,?>,[1]>").unwrap_err();
 }
 
-/* TODO remove
+/* TODO unquote
 #[test]
 fn check_tensor_invariants() {
    let mut tlc = TLC::new();
