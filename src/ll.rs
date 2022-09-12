@@ -248,6 +248,13 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
       }
    }
 
+   if normal && &kinds == &tlc.term_kind {
+      return Err(Error {
+         kind: "Parse Error".to_string(),
+         rule: format!("Term type {} cannot be normal", &t),
+         span: span.clone(),
+      })
+   }
    if normal {
       if constructors.len()==0 {
          //constructors are preferred normal forms
