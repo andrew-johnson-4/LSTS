@@ -899,10 +899,18 @@ impl TLC {
       }
    }
    pub fn untyped_match(&mut self, subs: &mut HashMap<String,Constant>, gp: &mut TermId, gb: &mut TermId, v: Constant) -> Option<Constant> {
+      self.untyped_destructure(subs, gp, &v);
+      self.untyped_eval(subs, gb)
+   }
+   pub fn untyped_destructure(&mut self, subs: &mut HashMap<String,Constant>, gp: &TermId, v: &Constant) {
       match (&self.rows[gp.id].term.clone(), &v) {
          (Term::Ident(gn), v) => {
-            subs.insert(gn.clone(), v.clone());
-            self.untyped_eval(subs, gb)
+            subs.insert(gn.clone(), (*v).clone());
+         },
+         (Term::Tuple(gs), Constant::Tuple(vs)) if gs.len()==vs.len() => {
+            for (gc,vc) in std::iter::zip(gs,vs) {
+               self.untyped_destructure(subs, gc, vc);
+            }
          },
          (lhs, rhs) => {
             unimplemented!("untyped_match {} = {:?}", self.print_term(*gp), v.clone())
