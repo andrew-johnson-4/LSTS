@@ -1729,8 +1729,20 @@ impl TLC {
                   }},
                   (Type::Arrow(cp,cb), xc) if (**cp).is_ctuple() && xc.is_ctuple() => {
                      if let Some((cps,xcs)) = self.destructure_ctuple(cp,xc) {
-                        unimplemented!("narrow ctuple match")
-                     } else {
+                     if let Type::Constant(cb) = (**cb).clone() {
+                        gs.push(nt.clone());
+                        xs.push(xt.clone());
+                        let cpst = self.push_term(Term::Tuple(cps), &self.rows[t.id].span.clone());
+                        self.untyped(cpst);
+                        let xcst = self.push_term(Term::Tuple(xcs), &self.rows[t.id].span.clone());
+                        self.untyped(xcst);
+
+                        let gct = self.push_term(Term::Arrow(cpst,cb), &self.rows[t.id].span.clone());
+                        self.untyped(gct);
+                        let gxct = self.push_term(Term::App(gct,xcst), &self.rows[t.id].span.clone());
+                        self.untyped(gxct);
+                        tcs.push(Type::Constant(gxct));
+                     }} else {
                         panic!("malformed ctuple {:?} (x) {:?}", **cp, xc);
                      }
                   },
