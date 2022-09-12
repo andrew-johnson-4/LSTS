@@ -715,7 +715,7 @@ impl TLC {
    pub fn narrow(&self, kinds: &HashMap<Type,Kind>, projection: &Kind, tt: &Type) -> Type {
       match tt {
          Type::Any => Type::Any,
-         Type::Named(t,ts) => {
+         Type::Named(_t,_ts) => {
             //should named types protect their parameters from narrowing?
             if let Some(nk) = kinds.get(tt) {
             if nk.has(projection) {
@@ -765,7 +765,7 @@ impl TLC {
             }
             Type::Product(cts)
          },
-         Type::Constant(c) => {
+         Type::Constant(_c) => {
             if projection == &self.constant_kind {
                tt.clone()
             } else {
@@ -787,14 +787,14 @@ impl TLC {
          let mut candidates = Vec::new();
          let mut matches = Vec::new();
          let ref sc = self.scopes[scope.id].clone();
-         for (tn,tkts,tt,vt) in sc.children.iter() {
+         for (tn,tkts,tt,_vt) in sc.children.iter() {
             if tn==v {
                //match variable binding if
                //1) binding is not an arrow
                //2) implied => binding
 
                candidates.push(tt.clone());
-               if let Type::Arrow(tp,_tb) = &tt {
+               if let Type::Arrow(_tp,_tb) = &tt {
                if let Some(it) = implied {
                   let mut tkts = tkts.clone();
                   self.kinds_of(&mut tkts, &tt);
@@ -802,10 +802,9 @@ impl TLC {
                   self.kinds_of(&mut tkts, &it);
                   for nw in ks.iter() {
                      let narrow_it = self.narrow(&tkts, nw, &it);
-                     if let rt = Type::implies(self, &narrow_it, &tt) {
-                        if rt.is_bottom() { continue; }
-                        matches.push(rt.clone());
-                     }
+                     let rt = Type::implies(self, &narrow_it, &tt);
+                     if rt.is_bottom() { continue; }
+                     matches.push(rt.clone());
                   }
                }} else {
                   matches.push(tt.clone());
@@ -909,7 +908,7 @@ impl TLC {
                self.untyped_destructure(subs, gc, vc);
             }
          },
-         (lhs, rhs) => {
+         (_lhs, _rhs) => {
             unimplemented!("untyped_match {} = {:?}", self.print_term(*gp), v.clone())
          }
       }
@@ -1117,7 +1116,7 @@ impl TLC {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti].clone() {
             let mut subs = Vec::new();
-            if let nt = Type::nored_implies(self, &mut subs, &lt, &n) {
+            let nt = Type::nored_implies(self, &mut subs, &lt, &n);
             if !nt.is_bottom() {
             if let Ok(subs) = Type::compile_subs(&subs) {
                let srt = rt.substitute(&subs);
@@ -1128,7 +1127,7 @@ impl TLC {
                   found = true;
                   continue;
                }
-            }}}
+            }}
          }}}}
          if found { continue; }
 
@@ -1171,7 +1170,7 @@ impl TLC {
          for ti in tis.iter() { if !found {
          if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
             let mut subs = Vec::new();
-            if let nt = Type::nored_implies(self, &mut subs, &lt, &d) {
+            let nt = Type::nored_implies(self, &mut subs, &lt, &d);
             if !nt.is_bottom() {
             if let Ok(subs) = Type::compile_subs(&subs) {
                let srt = rt.substitute(&subs);
@@ -1182,7 +1181,7 @@ impl TLC {
                   found = true;
                   continue;
                }
-            }}}
+            }}
          }}}}
          if found { continue; }
 
@@ -1214,7 +1213,7 @@ impl TLC {
    }
    pub fn arrow_implies(&mut self, lt: &Type, rt: &Type, span: &Span, inarrow: InArrow) -> Result<Type,Error> {
       let ks = HashMap::new();
-      let nt = Type::implies(self, lt, rt);
+      let nt = Type::arrow_implies(self, lt, rt, inarrow);
       match nt {
          Type::And(nts) if nts.len()==0 => {
             Err(Error {
@@ -1263,7 +1262,7 @@ impl TLC {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
                let mut subs = Vec::new();
-               if let nt = Type::nored_implies(self, &mut subs, &lt, &n) {
+               let nt = Type::nored_implies(self, &mut subs, &lt, &n);
                if !nt.is_bottom() {
                if let Ok(subs) = Type::compile_subs(&subs) {
                   let srt = rt.substitute(&subs);
@@ -1274,7 +1273,7 @@ impl TLC {
                      found = true;
                      continue;
                   }
-               }}}
+               }}
             }}}}
             if found { continue; }
 
@@ -1311,7 +1310,7 @@ impl TLC {
             for ti in tis.iter() { if !found {
             if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
                let mut subs = Vec::new();
-               if let nt = Type::nored_implies(self, &mut subs, &lt, &d) {
+               let nt = Type::nored_implies(self, &mut subs, &lt, &d);
                if !nt.is_bottom() {
                if let Ok(subs) = Type::compile_subs(&subs) {
                   let srt = rt.substitute(&subs);
@@ -1322,7 +1321,7 @@ impl TLC {
                      found = true;
                      continue;
                   }
-               }}}
+               }}
             }}}}
             if found { continue; }
 
@@ -1359,7 +1358,7 @@ impl TLC {
    pub fn unify_varnames_t(&mut self, dept: &mut HashMap<String,TermId>, tt: &Type, lhs: bool) {
       match tt {
          Type::Any => {},
-         Type::Named(tn,tcs) => {
+         Type::Named(_tn,tcs) => {
             for tc in tcs.iter() {
                self.unify_varnames_t(dept,tc,lhs);
             }
@@ -1539,7 +1538,6 @@ impl TLC {
       let self_term = Term::Ident("self".to_string());
       let self_termid = self.push_term(self_term.clone(), &self.rows[t.id].span.clone());
       self.untyped(self_termid);
-      let self_type = self.push_dep_type(&self_term, self_termid);
       match self.rows[t.id].typ.clone() {
          Type::Named(tn,ts) => {
             ground_types.push(Type::Named(tn.clone(),ts.clone()));
@@ -1738,7 +1736,7 @@ impl TLC {
             }
             self.check_invariants(t)?;
 	 },
-         Term::Arrow(p,b) => {
+         Term::Arrow(_p,_b) => {
             unimplemented!("TODO match lhs with rhs")
          }
          Term::App(g,x) => {
@@ -1776,7 +1774,7 @@ impl TLC {
                      if let Type::Constant(ref mut cb) = (**cb).clone() {
                         gs.push(nt.clone());
                         xs.push(xt.clone());
-                        let mut cpst = self.push_term(Term::Tuple(cps), &self.rows[t.id].span.clone());
+                        let cpst = self.push_term(Term::Tuple(cps), &self.rows[t.id].span.clone());
                         self.untyped(cpst);
                         let xcst = self.push_term(Term::Tuple(xcs), &self.rows[t.id].span.clone());
                         self.untyped(xcst);
