@@ -410,11 +410,11 @@ impl Type {
       tt.normalize()
    }
    pub fn nored_implies(tlc: &TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
-      let mut lt = tlc.extend_implied(lt);
+      let lt = tlc.extend_implied(lt);
       let lt = lt.normalize();
-      let mut rt = tlc.extend_implied(rt);
+      let rt = tlc.extend_implied(rt);
       let rt = rt.normalize();
-      let mut tt = lt.subs_implication_unifier(subs, &rt);
+      let tt = lt.subs_implication_unifier(subs, &rt);
       tt.normalize()
    }
    pub fn implication_unifier(&self, other: &Type) -> Type {
