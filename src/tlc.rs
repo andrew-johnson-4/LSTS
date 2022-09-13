@@ -1505,7 +1505,7 @@ impl TLC {
                }, Type::Constant(ref ct, ref cv) => {
                   if let Some(ct) = cv {
                      subs.insert("self".to_string(), ct.clone());
-                  } else if let Some(ct) = self.untyped_eval(&mut subs, &mut ct.clone(), false) {
+                  } else if let Some(ct) = self.untyped_eval(&mut subs, &mut ct.clone(), true) {
                      subs.insert("self".to_string(), ct);
                   }
                }, _ => {},
@@ -1518,20 +1518,20 @@ impl TLC {
       if let Some(ti) = self.typedef_index.get(tn) {
       if let TypeRule::Typedef(tr) = &self.rules[*ti] {
          for invariant in tr.invariants.clone().iter() {
-            let p = self.untyped_eval(&mut subs, &mut invariant.prop.clone(), false);
-            let a = self.untyped_eval(&mut subs, &mut invariant.algs.clone(), false);
+            let p = self.untyped_eval(&mut subs, &mut invariant.prop.clone(), true);
+            let a = self.untyped_eval(&mut subs, &mut invariant.algs.clone(), true);
             if p.is_some() && p==a {
                //pass
             } else if let Some((mut low,i,mut high,prop)) = self.is_exhaustive(invariant.prop) {
-               if let Some(Constant::Integer(low)) = self.untyped_eval(&mut subs, &mut low, false) {
-               if let Some(Constant::Integer(high)) = self.untyped_eval(&mut subs, &mut high, false) {
+               if let Some(Constant::Integer(low)) = self.untyped_eval(&mut subs, &mut low, true) {
+               if let Some(Constant::Integer(high)) = self.untyped_eval(&mut subs, &mut high, true) {
                   for ival in low..=high {
                      let mut prop_mut = prop;
 
                      let ic = Constant::Integer(ival);
                      subs.insert(i.clone(), ic);
 
-                     if let Some(Constant::Boolean(true)) = self.untyped_eval(&mut subs, &mut prop_mut, false) {
+                     if let Some(Constant::Boolean(true)) = self.untyped_eval(&mut subs, &mut prop_mut, true) {
                         //pass
                      } else {
                         let st = subs.get("self").unwrap_or(&Constant::NaN);
