@@ -388,14 +388,14 @@ impl Type {
       let mut subs = Vec::new();
       Type::subs_implies(tlc, &mut subs, lt, rt)
    }
-   pub fn arrow_implies(tlc: &mut TLC, lt: &Type, rt: &Type, inarrow: InArrow) -> Type {
+   pub fn arrow_implies(tlc: &mut TLC, lt: &mut Type, rt: &mut Type, inarrow: InArrow) -> Type {
       let mut subs = Vec::new();
-      let mut lt = tlc.extend_implied(lt);
-      tlc.reduce_type(&mut HashMap::new(), &mut lt);
-      let lt = lt.normalize();
-      let mut rt = tlc.extend_implied(rt);
-      tlc.reduce_type(&mut HashMap::new(), &mut rt);
-      let rt = rt.normalize();
+      *lt = tlc.extend_implied(lt);
+      tlc.reduce_type(&mut HashMap::new(), lt);
+      *lt = lt.normalize();
+      *rt = tlc.extend_implied(rt);
+      tlc.reduce_type(&mut HashMap::new(), rt);
+      *rt = rt.normalize();
       let mut tt = lt.__implication_unifier(&rt, &mut subs, inarrow);
       tlc.reduce_type(&mut HashMap::new(), &mut tt);
       tt.normalize()

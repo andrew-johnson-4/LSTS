@@ -172,7 +172,7 @@ impl TLC {
          Type::Ratio(n,d) => format!("({})/({})", self.print_type(kinds,n), self.print_type(kinds,d)),
          Type::Constant(ct,cv) => {
             if let Some(cv) = cv {
-               format!("[{:?}]", cv)
+               format!("[{}#{} = {:?}]", self.print_term(*ct), ct.id, cv)
             } else {
                format!("[{}#{}]", self.print_term(*ct), ct.id)
             }
@@ -808,7 +808,7 @@ impl TLC {
    }
    pub fn reduce_type(&mut self, subs: &mut HashMap<String,Constant>, tt: &mut Type) {
       match tt {
-         Type::Constant(ref mut c, ref mut cv) => {
+         Type::Constant(c, cv) => {
             if cv.is_none() {
             if let Some(ncv) = self.untyped_eval(subs, c) {
                *cv = Some(ncv);
@@ -1165,12 +1165,14 @@ impl TLC {
    }
    pub fn arrow_implies(&mut self, lt: &Type, rt: &Type, span: &Span, inarrow: InArrow) -> Result<Type,Error> {
       let ks = HashMap::new();
-      let nt = Type::arrow_implies(self, lt, rt, inarrow);
+      let mut lt = lt.clone();
+      let mut rt = rt.clone();
+      let nt = Type::arrow_implies(self, &mut lt, &mut rt, inarrow);
       match nt {
          Type::And(nts) if nts.len()==0 => {
             Err(Error {
                kind: "Type Error".to_string(),
-               rule: format!("failed unification {} (x) {}", self.print_type(&ks,lt), self.print_type(&ks,rt)),
+               rule: format!("failed unification {} (x) {}", self.print_type(&ks,&lt), self.print_type(&ks,&rt)),
                span: span.clone(),
             })
          },
