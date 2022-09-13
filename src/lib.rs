@@ -4,6 +4,9 @@
 /// The TLC module provides a context object for parsing, typing, and evaluating expressions.
 pub mod tlc;
 
+/// The Constant module provides value constants for dynamic evaluation in dependent types
+pub mod constant;
+
 /// The Typ module provides abstractions over Types.
 pub mod typ;
 
