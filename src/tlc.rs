@@ -681,18 +681,19 @@ impl TLC {
          Type::Any => Type::Any,
          Type::Named(_t,_ts) => {
             //should named types protect their parameters from narrowing?
-            if let Some(nk) = kinds.get(tt) {
+            let nk = if let Some(nk) = kinds.get(tt) { nk.clone() }
+                     else { self.term_kind.clone() };
             if nk.has(projection) {
-               return tt.clone();
-            }}
-            self.bottom_type.clone()
+               tt.clone()
+            } else {
+               self.bottom_type.clone()
+            }
          },
          Type::Arrow(tp,tb) => {
             let tp = self.narrow(kinds,projection,tp);
             if tp.is_bottom() { return tp.clone(); }
-            let tb = self.narrow(kinds,projection,tb);
-            if tb.is_bottom() { return tb.clone(); }
-            Type::Arrow( Box::new(tp), Box::new(tb))
+            //don't narrow return argument
+            Type::Arrow( Box::new(tp), Box::new((**tb).clone()) )
          },
          Type::Ratio(tp,tb) => {
             let tp = self.narrow(kinds,projection,tp);
@@ -767,7 +768,6 @@ impl TLC {
                   for nw in ks.iter() {
                      let narrow_it = self.narrow(&tkts, nw, &it);
                      let rt = Type::implies(self, &narrow_it, &tt);
-                     println!("typeof narrow {:?} => {:?} = {:?}", &narrow_it, &tt, &rt);
                      if rt.is_bottom() { continue; }
                      matches.push(rt.clone());
                   }
@@ -779,8 +779,10 @@ impl TLC {
          if matches.len()==1 {
             Ok(matches[0].clone())
          } else if matches.len()>1 {
+            let rt = Type::And(matches);
+            let rt = rt.normalize();
             //it is OK for multiple functions to match
-            Ok(Type::And(matches).normalize())
+            Ok(rt)
          } else if candidates.len() > 0 {
             let implied = implied.clone().unwrap_or(Type::Any);
             let mut tkts = HashMap::new();
@@ -1793,12 +1795,17 @@ impl TLC {
             let mut xs = Vec::new();
             let mut tcs: Vec<Type> = Vec::new();
             for kn in TLC::kflat(&ks).iter() {
-               let mut nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
+               let nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
                if nt.is_bottom() { continue; }
+               let mut nts = match nt {
+                  Type::And(cts) => { cts.clone() },
+                  ct => { vec![ ct.clone() ] },
+               };
                let xt = self.narrow(&ks, kn, &self.rows[x.id].typ);
                if xt.is_bottom() { continue; }
                let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
                if tt.is_bottom() { tt = Type::Any; }
+               for mut nt in nts.iter_mut() {
                match (&mut nt, &xt) {
                   (Type::Arrow(cp,cb), Type::Constant(ref xc,ref xcv)) => {
                   if let (Type::Constant(ref mut cp, ref cpv),Type::Constant(ref mut cb, ref cbv)) = ((**cp).clone(),(**cb).clone()) {
@@ -1836,16 +1843,13 @@ impl TLC {
                      let mut dvars = HashMap::new();
                      self.unify_dvars(&mut dvars, &gt.domain(), &xt);
                      self.apply_dvars(&dvars, gt);
-                     if dvars.len() > 0 {
-                        println!("applied dvars {}", self.print_type(&HashMap::new(), gt));
-                     }
                      gs.push(gt.clone());
                      xs.push(xt.clone());
                      tcs.push(gt.range());
                      self.arrow_implies(&xt, &gt.domain(), &self.rows[t.id].span.clone(), InArrow::Lhs)?;
                      tcs.push(self.arrow_implies(&gt.range(), &tt, &self.rows[t.id].span.clone(), InArrow::Rhs)?);
                   }
-               }
+               }}
             }
             self.rows[g.id].typ = if gs.len()==1 { gs[0].clone() }
             else { Type::And(gs) };
