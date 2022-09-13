@@ -1586,7 +1586,39 @@ impl TLC {
          self.rows[t.id].constant = Some(cv.clone());
       }
    }
-
+   pub fn unify_dvars(&mut self, dvars: &mut HashMap<String,Constant>, lhs: &Type, rhs: &Type) {
+      match (lhs, rhs) {
+         (Type::Named(ln,lcs), Type::Named(rn,rcs)) if ln==rn && lcs.len()==rcs.len() => {
+            for (lc,rc) in std::iter::zip(lcs,rcs) {
+               self.unify_dvars(dvars, lc, rc);
+            }
+         },
+         (Type::Arrow(lp,lb), Type::Arrow(rp,rb)) => {
+            self.unify_dvars(dvars, lp, rp);
+            self.unify_dvars(dvars, lb, rb);
+         },
+         (Type::Ratio(lp,lb), Type::Ratio(rp,rb)) => {
+            self.unify_dvars(dvars, lp, rp);
+            self.unify_dvars(dvars, lb, rb);
+         },
+         (Type::Tuple(lcs),Type::Tuple(rcs)) if lcs.len()==rcs.len() => {
+            for (lc,rc) in std::iter::zip(lcs,rcs) {
+               self.unify_dvars(dvars, lc, rc);
+            }
+         },
+         (Type::Product(lcs),Type::Product(rcs)) if lcs.len()==rcs.len() => {
+            for (lc,rc) in std::iter::zip(lcs,rcs) {
+               self.unify_dvars(dvars, lc, rc);
+            }
+         },
+         (Type::Constant(lt,lc),Type::Constant(rt,rc)) => {
+            unimplemented!("unify dvars {} (x) {}",
+                           self.print_type(&HashMap::new(), lhs),
+                           self.print_type(&HashMap::new(), rhs))
+         },
+         tt => {},
+      }
+   }
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
       //clone is needed to avoid double mutable borrows?
@@ -1760,6 +1792,8 @@ impl TLC {
                      }
                   },
                   (gt, xt) => {
+                     let mut dvars = HashMap::new();
+                     self.unify_dvars(&mut dvars, &gt.domain(), &xt);
                      gs.push(gt.clone());
                      xs.push(xt.clone());
                      tcs.push(gt.range());
