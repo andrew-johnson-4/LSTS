@@ -1,7 +1,7 @@
 use lsts::tlc::TLC;
 
 #[test]
-fn check_properties_of_primes() {
+fn check_simple_block() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
