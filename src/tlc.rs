@@ -1559,6 +1559,24 @@ impl TLC {
       Ok(())
    }
 
+   fn constant_as_term(&mut self, v: &Constant) -> Option<TermId> {
+      match v {
+         Constant::Integer(vi) => {
+            Some( self.push_term(Term::Value( format!("{}",vi) ), &self.rows[0].span.clone()) )
+         },
+         Constant::Boolean(vi) => {
+            Some(if *vi {
+               self.push_term(Term::Value( format!("True") ), &self.rows[0].span.clone())
+            } else {
+               self.push_term(Term::Value( format!("True") ), &self.rows[0].span.clone())
+            })
+         },
+         _vc => {
+            None
+         }
+      }
+   }
+
    fn destructure_ctuple(&mut self, lt: &Type, rt: &Type) -> Option<(Vec<TermId>,Vec<TermId>)> {
       match (lt,rt) {
          (Type::Tuple(lts), Type::Tuple(rts)) if lts.len()==rts.len() => {
@@ -1569,9 +1587,15 @@ impl TLC {
             }}
             let mut rs = Vec::new();
             for rc in rts.iter() {
-            if let Type::Constant(rid,_) = rc {
-               rs.push(*rid);
-            }}
+               if let Type::Constant(_rid,Some(riv)) = rc {
+               if let Some(vt) = self.constant_as_term(riv) {
+                  rs.push(vt);
+                  continue;
+               }}
+               if let Type::Constant(rid,_) = rc {
+                  rs.push(*rid);
+               }
+            }
             return Some((ls,rs));
          },
          _ => {}
