@@ -810,7 +810,7 @@ impl TLC {
       match tt {
          Type::Constant(c, cv) => {
             if cv.is_none() {
-            if let Some(ncv) = self.untyped_eval(subs, c) {
+            if let Some(ncv) = self.untyped_eval(subs, c, false) {
                *cv = Some(ncv);
             }}
          },
@@ -863,7 +863,7 @@ impl TLC {
    }
    pub fn untyped_match(&mut self, subs: &mut HashMap<String,Constant>, gp: &mut TermId, gb: &mut TermId, v: Constant) -> Option<Constant> {
       self.untyped_destructure(subs, gp, &v);
-      self.untyped_eval(subs, gb)
+      self.untyped_eval(subs, gb, true)
    }
    pub fn untyped_destructure(&mut self, subs: &mut HashMap<String,Constant>, gp: &TermId, v: &Constant) {
       match (&self.rows[gp.id].term.clone(), &v) {
@@ -880,13 +880,14 @@ impl TLC {
          }
       }
    }
-   pub fn untyped_eval(&mut self, subs: &mut HashMap<String,Constant>, t: &mut TermId) -> Option<Constant> {
+   pub fn untyped_eval(&mut self, subs: &mut HashMap<String,Constant>, t: &mut TermId, nested: bool) -> Option<Constant> {
       //reduce constant expressions in untyped context
       //designed for use inside of dependent type signatures
 
+      if !nested { //short circuit known global constants
       if let Some(ct) = &self.rows[t.id].constant {
          return Some(ct.clone())
-      }
+      }}
       match self.rows[t.id].term.clone() {
          //evaluation can change the t.id of a term to the canonical t.id of a constant
          Term::Block(_sid,es) if es.len()==0 => {
@@ -911,14 +912,14 @@ impl TLC {
             }
          },
          Term::App(ref mut g,ref mut x) => {
-            let xc = self.untyped_eval(subs,x);
+            let xc = self.untyped_eval(subs,x,true);
             if let Term::Arrow(ref mut gp,ref mut gb) = self.rows[g.id].term.clone() {
             if let Some(ref xc) = xc { //Argument must be constant, otherwise don't reduce the expression
                if let Some(c) = self.untyped_match(subs,gp,gb,xc.clone()) {
                   return Some(self.push_constant(*t, &c));
                }
             }}
-            let gc = self.untyped_eval(subs,g);
+            let gc = self.untyped_eval(subs,g,true);
             match (gc,xc) {
                (Some(Constant::Op(uop)),Some(Constant::Boolean(x))) => {
                   let c = if uop=="not" { Constant::Boolean(!x) }
@@ -981,7 +982,7 @@ impl TLC {
             let mut all_const = true;
             let mut consts = Vec::new();
             for ref mut tc in ts.iter_mut() {
-               if let Some(cc) = self.untyped_eval(subs,tc) {
+               if let Some(cc) = self.untyped_eval(subs,tc,true) {
                   self.push_constant(**tc, &cc);
                   consts.push(cc);
                } else {
@@ -1504,7 +1505,7 @@ impl TLC {
                }, Type::Constant(ref ct, ref cv) => {
                   if let Some(ct) = cv {
                      subs.insert("self".to_string(), ct.clone());
-                  } else if let Some(ct) = self.untyped_eval(&mut subs, &mut ct.clone()) {
+                  } else if let Some(ct) = self.untyped_eval(&mut subs, &mut ct.clone(), false) {
                      subs.insert("self".to_string(), ct);
                   }
                }, _ => {},
@@ -1517,20 +1518,20 @@ impl TLC {
       if let Some(ti) = self.typedef_index.get(tn) {
       if let TypeRule::Typedef(tr) = &self.rules[*ti] {
          for invariant in tr.invariants.clone().iter() {
-            let p = self.untyped_eval(&mut subs, &mut invariant.prop.clone());
-            let a = self.untyped_eval(&mut subs, &mut invariant.algs.clone());
+            let p = self.untyped_eval(&mut subs, &mut invariant.prop.clone(), false);
+            let a = self.untyped_eval(&mut subs, &mut invariant.algs.clone(), false);
             if p.is_some() && p==a {
                //pass
             } else if let Some((mut low,i,mut high,prop)) = self.is_exhaustive(invariant.prop) {
-               if let Some(Constant::Integer(low)) = self.untyped_eval(&mut subs, &mut low) {
-               if let Some(Constant::Integer(high)) = self.untyped_eval(&mut subs, &mut high) {
+               if let Some(Constant::Integer(low)) = self.untyped_eval(&mut subs, &mut low, false) {
+               if let Some(Constant::Integer(high)) = self.untyped_eval(&mut subs, &mut high, false) {
                   for ival in low..=high {
                      let mut prop_mut = prop;
 
                      let ic = Constant::Integer(ival);
                      subs.insert(i.clone(), ic);
 
-                     if let Some(Constant::Boolean(true)) = self.untyped_eval(&mut subs, &mut prop_mut) {
+                     if let Some(Constant::Boolean(true)) = self.untyped_eval(&mut subs, &mut prop_mut, false) {
                         //pass
                      } else {
                         let st = subs.get("self").unwrap_or(&Constant::NaN);
