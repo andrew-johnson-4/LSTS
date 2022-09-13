@@ -1611,12 +1611,53 @@ impl TLC {
                self.unify_dvars(dvars, lc, rc);
             }
          },
-         (Type::Constant(lt,lc),Type::Constant(rt,rc)) => {
-            unimplemented!("unify dvars {} (x) {}",
-                           self.print_type(&HashMap::new(), lhs),
-                           self.print_type(&HashMap::new(), rhs))
+         (Type::Constant(lt,lc),Type::Constant(_rt,rc)) => {
+            match (lc,rc) {
+               (None,Some(rv)) => {
+                  if let Term::Ident(ln) = &self.rows[lt.id].term.clone() {
+                     dvars.insert(ln.clone(), rv.clone());
+                  }
+               },
+               _ => {}
+            }
          },
-         tt => {},
+         _tt => {},
+      }
+   }
+   pub fn apply_dvars(&mut self, dvars: &HashMap<String,Constant>, g: &mut Type) {
+      match g {
+         Type::Named(_gn,gcs) => {
+            for gc in gcs.iter_mut() {
+               self.apply_dvars(dvars, gc);
+            }
+         },
+         Type::Arrow(gp,gb) => {
+            self.apply_dvars(dvars, gp);
+            self.apply_dvars(dvars, gb);
+         },
+         /* TODO unquote
+         (Type::Ratio(lp,lb), Type::Ratio(rp,rb)) => {
+            self.unify_dvars(dvars, lp, rp);
+            self.unify_dvars(dvars, lb, rb);
+         },
+         (Type::Tuple(lcs),Type::Tuple(rcs)) if lcs.len()==rcs.len() => {
+            for (lc,rc) in std::iter::zip(lcs,rcs) {
+               self.unify_dvars(dvars, lc, rc);
+            }
+         },
+         (Type::Product(lcs),Type::Product(rcs)) if lcs.len()==rcs.len() => {
+            for (lc,rc) in std::iter::zip(lcs,rcs) {
+               self.unify_dvars(dvars, lc, rc);
+            }
+         },
+         */
+         Type::Constant(gt,gc) => {
+            if let Term::Ident(gn) = &self.rows[gt.id].term.clone() {
+            if let Some(gv) = dvars.get(gn) {
+               *gc = Some(gv.clone());
+            }}
+         },
+         _tt => {},
       }
    }
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
@@ -1752,13 +1793,13 @@ impl TLC {
             let mut xs = Vec::new();
             let mut tcs: Vec<Type> = Vec::new();
             for kn in TLC::kflat(&ks).iter() {
-               let nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
+               let mut nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
                if nt.is_bottom() { continue; }
                let xt = self.narrow(&ks, kn, &self.rows[x.id].typ);
                if xt.is_bottom() { continue; }
                let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
                if tt.is_bottom() { tt = Type::Any; }
-               match (&nt, &xt) {
+               match (&mut nt, &xt) {
                   (Type::Arrow(cp,cb), Type::Constant(ref xc,ref xcv)) => {
                   if let (Type::Constant(ref mut cp, ref cpv),Type::Constant(ref mut cb, ref cbv)) = ((**cp).clone(),(**cb).clone()) {
                      self.push_dtype(*xc,xcv);
@@ -1794,6 +1835,10 @@ impl TLC {
                   (gt, xt) => {
                      let mut dvars = HashMap::new();
                      self.unify_dvars(&mut dvars, &gt.domain(), &xt);
+                     self.apply_dvars(&dvars, gt);
+                     if dvars.len() > 0 {
+                        println!("applied dvars {}", self.print_type(&HashMap::new(), gt));
+                     }
                      gs.push(gt.clone());
                      xs.push(xt.clone());
                      tcs.push(gt.range());
