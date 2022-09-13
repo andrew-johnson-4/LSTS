@@ -767,6 +767,7 @@ impl TLC {
                   for nw in ks.iter() {
                      let narrow_it = self.narrow(&tkts, nw, &it);
                      let rt = Type::implies(self, &narrow_it, &tt);
+                     println!("typeof narrow {:?} => {:?} = {:?}", &narrow_it, &tt, &rt);
                      if rt.is_bottom() { continue; }
                      matches.push(rt.clone());
                   }
