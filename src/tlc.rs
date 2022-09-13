@@ -681,18 +681,19 @@ impl TLC {
          Type::Any => Type::Any,
          Type::Named(_t,_ts) => {
             //should named types protect their parameters from narrowing?
-            if let Some(nk) = kinds.get(tt) {
+            let nk = if let Some(nk) = kinds.get(tt) { nk.clone() }
+                     else { self.term_kind.clone() };
             if nk.has(projection) {
-               return tt.clone();
-            }}
-            self.bottom_type.clone()
+               tt.clone()
+            } else {
+               self.bottom_type.clone()
+            }
          },
          Type::Arrow(tp,tb) => {
             let tp = self.narrow(kinds,projection,tp);
             if tp.is_bottom() { return tp.clone(); }
-            let tb = self.narrow(kinds,projection,tb);
-            if tb.is_bottom() { return tb.clone(); }
-            Type::Arrow( Box::new(tp), Box::new(tb))
+            //don't narrow return argument
+            Type::Arrow( Box::new(tp), Box::new((**tb).clone()) )
          },
          Type::Ratio(tp,tb) => {
             let tp = self.narrow(kinds,projection,tp);
@@ -778,8 +779,10 @@ impl TLC {
          if matches.len()==1 {
             Ok(matches[0].clone())
          } else if matches.len()>1 {
+            let rt = Type::And(matches);
+            let rt = rt.normalize();
             //it is OK for multiple functions to match
-            Ok(Type::And(matches).normalize())
+            Ok(rt)
          } else if candidates.len() > 0 {
             let implied = implied.clone().unwrap_or(Type::Any);
             let mut tkts = HashMap::new();
@@ -1556,6 +1559,24 @@ impl TLC {
       Ok(())
    }
 
+   fn constant_as_term(&mut self, v: &Constant) -> Option<TermId> {
+      match v {
+         Constant::Integer(vi) => {
+            Some( self.push_term(Term::Value( format!("{}",vi) ), &self.rows[0].span.clone()) )
+         },
+         Constant::Boolean(vi) => {
+            Some(if *vi {
+               self.push_term(Term::Value( format!("True") ), &self.rows[0].span.clone())
+            } else {
+               self.push_term(Term::Value( format!("True") ), &self.rows[0].span.clone())
+            })
+         },
+         _vc => {
+            None
+         }
+      }
+   }
+
    fn destructure_ctuple(&mut self, lt: &Type, rt: &Type) -> Option<(Vec<TermId>,Vec<TermId>)> {
       match (lt,rt) {
          (Type::Tuple(lts), Type::Tuple(rts)) if lts.len()==rts.len() => {
@@ -1566,9 +1587,15 @@ impl TLC {
             }}
             let mut rs = Vec::new();
             for rc in rts.iter() {
-            if let Type::Constant(rid,_) = rc {
-               rs.push(*rid);
-            }}
+               if let Type::Constant(_rid,Some(riv)) = rc {
+               if let Some(vt) = self.constant_as_term(riv) {
+                  rs.push(vt);
+                  continue;
+               }}
+               if let Type::Constant(rid,_) = rc {
+                  rs.push(*rid);
+               }
+            }
             return Some((ls,rs));
          },
          _ => {}
@@ -1585,7 +1612,80 @@ impl TLC {
          self.rows[t.id].constant = Some(cv.clone());
       }
    }
-
+   pub fn unify_dvars(&mut self, dvars: &mut HashMap<String,Constant>, lhs: &Type, rhs: &Type) {
+      match (lhs, rhs) {
+         (Type::Named(ln,lcs), Type::Named(rn,rcs)) if ln==rn && lcs.len()==rcs.len() => {
+            for (lc,rc) in std::iter::zip(lcs,rcs) {
+               self.unify_dvars(dvars, lc, rc);
+            }
+         },
+         (Type::Arrow(lp,lb), Type::Arrow(rp,rb)) => {
+            self.unify_dvars(dvars, lp, rp);
+            self.unify_dvars(dvars, lb, rb);
+         },
+         (Type::Ratio(lp,lb), Type::Ratio(rp,rb)) => {
+            self.unify_dvars(dvars, lp, rp);
+            self.unify_dvars(dvars, lb, rb);
+         },
+         (Type::Tuple(lcs),Type::Tuple(rcs)) if lcs.len()==rcs.len() => {
+            for (lc,rc) in std::iter::zip(lcs,rcs) {
+               self.unify_dvars(dvars, lc, rc);
+            }
+         },
+         (Type::Product(lcs),Type::Product(rcs)) if lcs.len()==rcs.len() => {
+            for (lc,rc) in std::iter::zip(lcs,rcs) {
+               self.unify_dvars(dvars, lc, rc);
+            }
+         },
+         (Type::Constant(lt,lc),Type::Constant(_rt,rc)) => {
+            match (lc,rc) {
+               (None,Some(rv)) => {
+                  if let Term::Ident(ln) = &self.rows[lt.id].term.clone() {
+                     dvars.insert(ln.clone(), rv.clone());
+                  }
+               },
+               _ => {}
+            }
+         },
+         _tt => {},
+      }
+   }
+   pub fn apply_dvars(&mut self, dvars: &HashMap<String,Constant>, g: &mut Type) {
+      match g {
+         Type::Named(_gn,gcs) => {
+            for gc in gcs.iter_mut() {
+               self.apply_dvars(dvars, gc);
+            }
+         },
+         Type::Arrow(gp,gb) => {
+            self.apply_dvars(dvars, gp);
+            self.apply_dvars(dvars, gb);
+         },
+         /* TODO unquote
+         (Type::Ratio(lp,lb), Type::Ratio(rp,rb)) => {
+            self.unify_dvars(dvars, lp, rp);
+            self.unify_dvars(dvars, lb, rb);
+         },
+         (Type::Tuple(lcs),Type::Tuple(rcs)) if lcs.len()==rcs.len() => {
+            for (lc,rc) in std::iter::zip(lcs,rcs) {
+               self.unify_dvars(dvars, lc, rc);
+            }
+         },
+         (Type::Product(lcs),Type::Product(rcs)) if lcs.len()==rcs.len() => {
+            for (lc,rc) in std::iter::zip(lcs,rcs) {
+               self.unify_dvars(dvars, lc, rc);
+            }
+         },
+         */
+         Type::Constant(gt,gc) => {
+            if let Term::Ident(gn) = &self.rows[gt.id].term.clone() {
+            if let Some(gv) = dvars.get(gn) {
+               *gc = Some(gv.clone());
+            }}
+         },
+         _tt => {},
+      }
+   }
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
       //clone is needed to avoid double mutable borrows?
@@ -1721,11 +1821,16 @@ impl TLC {
             for kn in TLC::kflat(&ks).iter() {
                let nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
                if nt.is_bottom() { continue; }
+               let mut nts = match nt {
+                  Type::And(cts) => { cts.clone() },
+                  ct => { vec![ ct.clone() ] },
+               };
                let xt = self.narrow(&ks, kn, &self.rows[x.id].typ);
                if xt.is_bottom() { continue; }
                let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
                if tt.is_bottom() { tt = Type::Any; }
-               match (&nt, &xt) {
+               for mut nt in nts.iter_mut() {
+               match (&mut nt, &xt) {
                   (Type::Arrow(cp,cb), Type::Constant(ref xc,ref xcv)) => {
                   if let (Type::Constant(ref mut cp, ref cpv),Type::Constant(ref mut cb, ref cbv)) = ((**cp).clone(),(**cb).clone()) {
                      self.push_dtype(*xc,xcv);
@@ -1759,13 +1864,16 @@ impl TLC {
                      }
                   },
                   (gt, xt) => {
+                     let mut dvars = HashMap::new();
+                     self.unify_dvars(&mut dvars, &gt.domain(), &xt);
+                     self.apply_dvars(&dvars, gt);
                      gs.push(gt.clone());
                      xs.push(xt.clone());
                      tcs.push(gt.range());
                      self.arrow_implies(&xt, &gt.domain(), &self.rows[t.id].span.clone(), InArrow::Lhs)?;
                      tcs.push(self.arrow_implies(&gt.range(), &tt, &self.rows[t.id].span.clone(), InArrow::Rhs)?);
                   }
-               }
+               }}
             }
             self.rows[g.id].typ = if gs.len()==1 { gs[0].clone() }
             else { Type::And(gs) };

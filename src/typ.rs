@@ -443,8 +443,8 @@ impl Type {
          (_,Type::And(rts)) if rts.len()==0 => { Type::And(vec![]) },
 
          //wildcard match
-         (lt,Type::Any) => { lt.clone() },
-         (Type::Any,Type::Constant(rt,rc)) if inarrow==InArrow::Rhs => { Type::Constant(*rt,rc.clone()) },
+         (lt,Type::Any) if inarrow != InArrow::Lhs => { lt.clone() },
+         (Type::Any,rt) if inarrow == InArrow::Lhs => { rt.clone() },
          (Type::Named(lv,_lps),rt) if lv.chars().all(char::is_uppercase) => {
             subs.push((self.clone(), rt.clone()));
             self.clone()
