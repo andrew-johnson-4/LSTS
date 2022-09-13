@@ -22,8 +22,6 @@ pub struct TLC {
    pub typedef_index: HashMap<String,usize>,
    pub foralls_index: HashMap<Type,Vec<usize>>,
    pub foralls_rev_index: HashMap<Type,Vec<usize>>,
-   pub constant_index: HashMap<Constant,TermId>,
-   pub tconstant_index: HashMap<TermId,Constant>,
    pub term_kind: Kind,
    pub constant_kind: Kind,
    pub nil_type: Type,
@@ -152,8 +150,6 @@ impl TLC {
          foralls_index: HashMap::new(),
          foralls_rev_index: HashMap::new(),
          typedef_index: HashMap::new(),
-         constant_index: HashMap::new(),
-         tconstant_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
          term_kind: Kind::Named("Term".to_string(),Vec::new()),
@@ -456,20 +452,7 @@ impl TLC {
       ll1_file(self, file_scope, &mut tokens)
    }
    pub fn maybe_constant(&self, t: TermId) -> Option<Constant> {
-      if let Some(c) = self.tconstant_index.get(&t) {
-         Some(c.clone())
-      } else {
-         None
-      }
-   }
-   pub fn push_constant(&mut self, c: &Constant, t: TermId) -> TermId {
-      if let Some(ct) = self.constant_index.get(c) {
-         *ct
-      } else {
-         self.constant_index.insert(c.clone(),t);
-         self.tconstant_index.insert(t,c.clone());
-         t
-      }
+      self.rows[t.id].constant.clone()
    }
    pub fn parse_constant(&self, c: &str) -> Option<Constant> {
       if c=="NaN" { Some(Constant::NaN)
@@ -500,8 +483,8 @@ impl TLC {
       match term {
          Term::Value(ct) => {
             if let Some(c) = self.parse_constant(ct) {
-               let ci = self.push_constant(&c, ti);
-               Type::Constant(ci,Some(c.clone()))
+               self.push_constant(ti, &c);
+               Type::Constant(ti,Some(c.clone()))
             } else {
                Type::Constant(ti,None)
             }
@@ -510,28 +493,27 @@ impl TLC {
          }, _ => Type::Constant(ti,None),
       }
    }
-   pub fn push_term_type(&mut self, term: &Term, ti: TermId) -> Type {
+   pub fn get_term_type(&mut self, term: &Term, ti: TermId) -> (Type,Option<Constant>) {
       match term {
          Term::Value(ct) => {
             if let Some(c) = self.parse_constant(ct) {
-               let ci = self.push_constant(&c, ti);
-               Type::And(vec![Type::Any,Type::Constant(ci,Some(c.clone()))])
+               (Type::And(vec![Type::Any,Type::Constant(ti,Some(c.clone()))]), Some(c.clone()) )
             } else {
-               Type::Any
+               (Type::Any,None)
             }
-         }, _ => Type::Any,
+         }, _ => (Type::Any,None),
       }
    }
    pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
       let index = self.rows.len();
       let ti = TermId { id: index };
-      let tt = self.push_term_type(&term, ti);
+      let (tt,tc) = self.get_term_type(&term, ti);
       self.rows.push(Row {
          term: term,
          typ: tt,
          kind: self.term_kind.clone(),
          span: span.clone(),
-         constant: None,
+         constant: tc,
       });
       ti
    }
@@ -905,36 +887,27 @@ impl TLC {
       if let Some(ct) = &self.rows[t.id].constant {
          return Some(ct.clone())
       }
-      if let Some(ct) = self.tconstant_index.get(t) {
-         return Some(ct.clone())
-      }
       match self.rows[t.id].term.clone() {
          //evaluation can change the t.id of a term to the canonical t.id of a constant
          Term::Block(_sid,es) if es.len()==0 => {
-            let c = Constant::NaN;
-            t.id = self.push_constant(&c, *t).id;
-            return Some(c);
+            return Some(self.push_constant(*t, &Constant::NaN));
          },
          Term::Value(v) => {
             if let Some(c) = self.parse_constant(&v) {
-               t.id = self.push_constant(&c, *t).id;
-               return Some(c);
+               return Some(self.push_constant(*t, &c));
             };
          },
          Term::Constructor(cn,ref mut _fts) => {
             if let Some(c) = self.parse_constant(&cn) {
-               t.id = self.push_constant(&c, *t).id;
-               return Some(c);
+               return Some(self.push_constant(*t, &c));
             };
          },
          Term::Ident(g) => {
             if let Some(c) = self.parse_constant(&g) {
-               t.id = self.push_constant(&c, *t).id;
-               return Some(c);
+               return Some(self.push_constant(*t, &c));
             }
             if let Some(c) = subs.get(&g) {
-               t.id = self.push_constant(c, *t).id;
-               return Some(c.clone());
+               return Some(self.push_constant(*t, &c));
             }
          },
          Term::App(ref mut g,ref mut x) => {
@@ -942,8 +915,7 @@ impl TLC {
             if let Term::Arrow(ref mut gp,ref mut gb) = self.rows[g.id].term.clone() {
             if let Some(ref xc) = xc { //Argument must be constant, otherwise don't reduce the expression
                if let Some(c) = self.untyped_match(subs,gp,gb,xc.clone()) {
-                  t.id = self.push_constant(&c, *t).id;
-                  return Some(c.clone());
+                  return Some(self.push_constant(*t, &c));
                }
             }}
             let gc = self.untyped_eval(subs,g);
@@ -951,15 +923,13 @@ impl TLC {
                (Some(Constant::Op(uop)),Some(Constant::Boolean(x))) => {
                   let c = if uop=="not" { Constant::Boolean(!x) }
                      else { Constant::NaN };
-                  t.id = self.push_constant(&c, *t).id;
-                  return Some(c);
+                  return Some(self.push_constant(*t, &c));
                },
                (Some(Constant::Op(uop)),Some(Constant::Integer(x))) => {
                   let c = if uop=="pos" { Constant::Integer(x) }
                      else if uop=="neg" { Constant::Integer(-x) }
                      else { Constant::NaN };
-                  t.id = self.push_constant(&c, *t).id;
-                  return Some(c);
+                  return Some(self.push_constant(*t, &c));
                }, (Some(Constant::Op(bop)),
                    Some(Constant::Tuple(ps))) if ps.len()==2 => {
                   match (&ps[0], &ps[1]) {
@@ -967,8 +937,7 @@ impl TLC {
                         let c = if bop=="&&" { Constant::Boolean(*a && *b) }
                            else if bop=="||" { Constant::Boolean(*a || *b) }
                            else { Constant::NaN };
-                        t.id = self.push_constant(&c, *t).id;
-                        return Some(c);
+                        return Some(self.push_constant(*t, &c));
                      }, _ => {},
                   };
                   let a = if let Constant::Integer(a) = ps[0] { a
@@ -976,9 +945,7 @@ impl TLC {
                   let b = if let Constant::Integer(b) = ps[1] { b
                   } else { return Some(Constant::NaN); };
                   if b==0 && (bop=="/" || bop=="%") {
-                     let c = Constant::NaN;
-                     t.id = self.push_constant(&c, *t).id;
-                     return Some(c);
+                     return Some(self.push_constant(*t, &Constant::NaN));
                   }
                   let c = if bop=="+" { Constant::Integer(a + b) }
                      else if bop=="-" { Constant::Integer(a - b) }
@@ -993,8 +960,7 @@ impl TLC {
                      else if bop=="==" { Constant::Boolean(a == b) }
                      else if bop=="!=" { Constant::Boolean(a != b) }
                      else { Constant::NaN };
-                  t.id = self.push_constant(&c, *t).id;
-                  return Some(c);
+                  return Some(self.push_constant(*t, &c));
                }, (Some(Constant::Op(top)),
                    Some(Constant::Tuple(ps))) if ps.len()==3 => {
                   let x = if let Constant::Boolean(a) = ps[0] {
@@ -1004,8 +970,7 @@ impl TLC {
                      else if top=="if" && !a { c }
                      else { Constant::NaN }
                   } else { Constant::NaN };
-                  t.id = self.push_constant(&x, *t).id;
-                  return Some(x);
+                  return Some(self.push_constant(*t, &x));
                }, (Some(gc),Some(xc)) => {
                   panic!("TODO: apply {:?} ( {:?} )", gc, xc);
                },
@@ -1017,7 +982,7 @@ impl TLC {
             let mut consts = Vec::new();
             for ref mut tc in ts.iter_mut() {
                if let Some(cc) = self.untyped_eval(subs,tc) {
-                  tc.id = self.push_constant(&cc, **tc).id;
+                  self.push_constant(**tc, &cc);
                   consts.push(cc);
                } else {
                   all_const = false;
@@ -1025,8 +990,7 @@ impl TLC {
             }
             if all_const {
                let tsc = Constant::Tuple(consts);
-               t.id = self.push_constant(&tsc, *t).id;
-               return Some(tsc);
+               return Some(self.push_constant(*t, &tsc));
             }
          },
          Term::Arrow(_,_) => {}, //irreducible
@@ -1608,7 +1572,12 @@ impl TLC {
       }
       None
    }
-   fn push_dtype(&mut self, t: TermId, c: &Option<Constant>) {
+
+   pub fn push_constant(&mut self, t: TermId, c: &Constant) -> Constant {
+      self.rows[t.id].constant = Some(c.clone());
+      c.clone()
+   }
+   pub fn push_dtype(&mut self, t: TermId, c: &Option<Constant>) {
       if let Some(cv) = c {
          self.rows[t.id].constant = Some(cv.clone());
       }
@@ -1848,8 +1817,6 @@ impl TLC {
       let typedef_index_l = self.typedef_index.clone();
       let foralls_index_l = self.foralls_index.clone();
       let foralls_rev_index_l = self.foralls_rev_index.clone();
-      let constant_index_l = self.constant_index.clone();
-      let tconstant_index_l = self.tconstant_index.clone();
 
       let r = self.compile_str(globals, src);
 
@@ -1867,8 +1834,6 @@ impl TLC {
       self.typedef_index = typedef_index_l;
       self.foralls_index = foralls_index_l;
       self.foralls_rev_index = foralls_rev_index_l;
-      self.constant_index = constant_index_l;
-      self.tconstant_index = tconstant_index_l;
 
       r?; Ok(())
    }
