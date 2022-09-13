@@ -225,3 +225,8 @@ type Prime:Integer
 
      //TODO Fermat's little theorem
      //Fermat, Leibniz, Euler elementary primality proof
+
+//: Blocks
+let $"while"(condition: Boolean, body: ()): ();
+let $"loop"(body: (), condition: Boolean): ();
+let $"for"(xs: X[], body: X -> ()): ();
