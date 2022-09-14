@@ -32,3 +32,13 @@ fn check_simple_loop() {
    tlc.check(Some(si), "loop {();} while (True)").unwrap();
    tlc.check(Some(si), "loop {();()} while (True)").unwrap();
 }
+
+#[test]
+fn check_simple_for() {
+   let mut tlc = TLC::new();
+   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+
+   tlc.check(Some(si), "let xs:Integer[]; for (x in xs) {}").unwrap();
+   tlc.check(Some(si), "let xs:Integer[]; for (x in xs) {();}").unwrap();
+   tlc.check(Some(si), "let xs:Integer[]; for (x in xs) {();()}").unwrap();
+}

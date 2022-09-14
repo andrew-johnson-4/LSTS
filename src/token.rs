@@ -91,6 +91,7 @@ pub enum Symbol {
    Loop,
    For,
    While,
+   In,
 }
 impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -148,6 +149,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::Loop               => write!(f, "loop"),
            Symbol::For                => write!(f, "for"),
            Symbol::While              => write!(f, "while"),
+           Symbol::In                 => write!(f, "in"),
         }
     }
 }
@@ -207,6 +209,7 @@ impl std::fmt::Display for Symbol {
            Symbol::Loop               => write!(f, "loop"),
            Symbol::For                => write!(f, "for"),
            Symbol::While              => write!(f, "while"),
+           Symbol::In                 => write!(f, "in"),
         }
     }
 }

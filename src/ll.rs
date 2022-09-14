@@ -583,7 +583,19 @@ pub fn ll1_loop_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
 
 pub fn ll1_for_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   unimplemented!("ll1_for_term")
+   pop_is("for-term", tokens, &vec![Symbol::For])?;
+   pop_is("for-term", tokens, &vec![Symbol::LeftParen])?;
+   let lhs = ll1_expr_term(tlc, scope, tokens)?;
+   pop_is("for-term", tokens, &vec![Symbol::In])?;
+   let iter = ll1_expr_term(tlc, scope, tokens)?;
+   pop_is("for-term", tokens, &vec![Symbol::RightParen])?;
+   let rhs = ll1_block_stmt(tlc, scope, tokens)?;
+ 
+   let arr = tlc.push_term(Term::Arrow( lhs, rhs ),&span);
+   Ok({let t = Term::App(
+      tlc.push_term(Term::Ident("for".to_string()),&span),
+      tlc.push_term(Term::Tuple(vec![iter,arr]),&span),
+   ); tlc.push_term(t,&span)})
 }
 
 pub fn ll1_logical_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
