@@ -88,6 +88,9 @@ pub enum Symbol {
    Type,
    Normal,
    Where,
+   Loop,
+   For,
+   While,
 }
 impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -142,6 +145,9 @@ impl std::fmt::Debug for Symbol {
            Symbol::Type               => write!(f, "type"),
            Symbol::Normal             => write!(f, "normal"),
            Symbol::Where              => write!(f, "where"),
+           Symbol::Loop               => write!(f, "loop"),
+           Symbol::For                => write!(f, "for"),
+           Symbol::While              => write!(f, "while"),
         }
     }
 }
@@ -198,6 +204,9 @@ impl std::fmt::Display for Symbol {
            Symbol::Type               => write!(f, "type"),
            Symbol::Normal             => write!(f, "normal"),
            Symbol::Where              => write!(f, "where"),
+           Symbol::Loop               => write!(f, "loop"),
+           Symbol::For                => write!(f, "for"),
+           Symbol::While              => write!(f, "while"),
         }
     }
 }

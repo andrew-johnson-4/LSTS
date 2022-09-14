@@ -554,6 +554,38 @@ pub fn ll1_if_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRea
    ); tlc.push_term(t,&span)})
 }
 
+pub fn ll1_while_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   pop_is("while-term", tokens, &vec![Symbol::While])?;
+   pop_is("loop-term", tokens, &vec![Symbol::LeftParen])?;
+   let cond = ll1_expr_term(tlc, scope, tokens)?;
+   pop_is("loop-term", tokens, &vec![Symbol::RightParen])?;
+   let body = ll1_block_stmt(tlc, scope, tokens)?;
+   Ok({let t = Term::App(
+      tlc.push_term(Term::Ident("while".to_string()),&span),
+      tlc.push_term(Term::Tuple(vec![cond,body]),&span),
+   ); tlc.push_term(t,&span)})
+}
+
+pub fn ll1_loop_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   pop_is("loop-term", tokens, &vec![Symbol::Loop])?;
+   let body = ll1_block_stmt(tlc, scope, tokens)?;
+   pop_is("loop-term", tokens, &vec![Symbol::While])?;
+   pop_is("loop-term", tokens, &vec![Symbol::LeftParen])?;
+   let cond = ll1_expr_term(tlc, scope, tokens)?;
+   pop_is("loop-term", tokens, &vec![Symbol::RightParen])?;
+   Ok({let t = Term::App(
+      tlc.push_term(Term::Ident("loop".to_string()),&span),
+      tlc.push_term(Term::Tuple(vec![body,cond]),&span),
+   ); tlc.push_term(t,&span)})
+}
+
+pub fn ll1_for_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   unimplemented!("ll1_for_term")
+}
+
 pub fn ll1_logical_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = ll1_compare_term(tlc, scope, tokens)?;
@@ -969,6 +1001,12 @@ pub fn ll1_as_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRea
 pub fn ll1_asif_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    if peek_is(tokens, &vec![Symbol::If]) {
       ll1_if_term(tlc, scope, tokens)
+   } else if peek_is(tokens, &vec![Symbol::Loop]) {
+      ll1_loop_term(tlc, scope, tokens)
+   } else if peek_is(tokens, &vec![Symbol::While]) {
+      ll1_while_term(tlc, scope, tokens)
+   } else if peek_is(tokens, &vec![Symbol::For]) {
+      ll1_for_term(tlc, scope, tokens)
    } else {
       ll1_as_term(tlc, scope, tokens)
    }
