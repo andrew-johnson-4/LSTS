@@ -381,44 +381,11 @@ impl TLC {
       }
    }
    pub fn compile_rules(&mut self, _docname:&str) -> Result<(),Error> {
-
-      //check logical consistency of foralls
       for rule in self.rules.clone().iter() { match rule {
          TypeRule::Forall(_qs,_inf,_t,_k,_sp) => {
-            /* domain check hasn't been working for a while
-               just comment it out until the topic comes up again
-               TODO: add some motivating examples and tests for domain checks
-            //check if domain is explicit
-            if k != &Kind::Nil { continue; }
-
-            //otherwise check that all variables share a domain
-            let mut domains: Vec<(Type,Kind)> = Vec::new();
-            for (_i,t,k) in qs.iter() {
-               match t {
-                  Some(tt) => domains.push((tt.clone(),k.clone())),
-                  _ => domains.push((self.bottom_type.clone(),Kind::Nil))
-               }
-            }
-            for it in inf.types().iter() {
-               if !qs.iter().any(|(_i,t,_k)| &Some(it.clone())==t) {
-                  domains.push((it.clone(),self.kind(it)));
-               }
-            }
-            domains.sort();
-            domains.dedup();
-            let firstkind = if domains.len()==0 { Kind::Nil } else { domains[0].1.clone() };
-            let kind = domains.iter().fold(firstkind,|l,(_,r)| if l==*r {l} else {Kind::Nil});
-            if kind==Kind::Nil {
-               return Err(Error { 
-                  kind: "Type Error".to_string(),
-                  rule: format!("({}) do not share a domain ({})", 
-                     domains.iter().map(|(t,_k)|format!("{:?}",t)).collect::<Vec<String>>().join(","),
-                     domains.iter().map(|(_t,k)|format!("{:?}",k)).collect::<Vec<String>>().join(",")
-                  ),
-                  span: sp.clone(),
-               })
-            }
-            */
+            //TODO: put foralls into a struct like typedefs
+            //TODO: move foralls into term language
+            //TODO: assert that foralls are [True] in typeck
          },
          TypeRule::Typedef(tr) => {
             for td in tr.definition.iter() { match td {
