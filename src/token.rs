@@ -352,6 +352,10 @@ impl<R: Read> TokenReader<R> {
             self.column += token.len();
             let ident = std::str::from_utf8(&token).unwrap();
             match ident {
+               "in" => { return Ok(Some(Token { symbol: Symbol::In, span: span, })); },
+               "while" => { return Ok(Some(Token { symbol: Symbol::While, span: span, })); },
+               "loop" => { return Ok(Some(Token { symbol: Symbol::Loop, span: span, })); },
+               "for" => { return Ok(Some(Token { symbol: Symbol::For, span: span, })); },
                "and" => { return Ok(Some(Token { symbol: Symbol::AndAlso, span: span, })); },
                "typeof" => { return Ok(Some(Token { symbol: Symbol::Typeof, span: span, })); },
                "as" => { return Ok(Some(Token { symbol: Symbol::As, span: span, })); },
