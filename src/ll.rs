@@ -992,14 +992,30 @@ pub fn ll1_type<R: Read>(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope
 pub fn ll1_ascript_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = ll1_algebra_term(tlc, scope, tokens)?;
-   if peek_is(tokens, &vec![Symbol::Ascript]) {
-      pop_is("ascript-term", tokens, &vec![Symbol::Ascript])?;
-      let at = ll1_type(tlc, &mut HashMap::new(), scope, tokens)?;
-      let t = Term::Ascript(
-         term,
-         at
-      );
-      term = tlc.push_term(t, &span);
+   while peek_is(tokens, &vec![Symbol::Ascript, Symbol::At]) {
+      if peek_is(tokens, &vec![Symbol::Ascript]) {
+         pop_is("ascript-term", tokens, &vec![Symbol::Ascript])?;
+         let at = ll1_type(tlc, &mut HashMap::new(), scope, tokens)?;
+         let t = Term::Ascript(
+            term,
+            at
+         );
+         term = tlc.push_term(t, &span);
+      } else if peek_is(tokens, &vec![Symbol::At]) {
+         pop_is("ascript-term", tokens, &vec![Symbol::At])?;
+         let mut at = "".to_string();
+         if let Some(Symbol::Ident(name)) = tokens.peek_symbol()? {
+            tokens.take_symbol()?;
+            at = name.clone();
+         } else {
+            pop_is("ascript-term", tokens, &vec![Symbol::Ident("n".to_string())])?;
+         }
+         let t = Term::RuleApplication(
+            term,
+            at
+         );
+         term = tlc.push_term(t, &span);
+      }
    }
    Ok(term)
 }
