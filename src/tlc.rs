@@ -86,6 +86,7 @@ pub struct TypedefRule {
 
 #[derive(Clone)]
 pub struct ForallRule {
+   pub name: Option<String>,
    pub parameters: Vec<(Option<String>,Option<Type>,Kind)>,
    pub inference: Inference,
    pub transformation: Option<TermId>,
@@ -220,10 +221,11 @@ impl TLC {
          Term::Substitution(e,a,b) => format!("{}\\[{}|{}]", self.print_term(*e), self.print_term(*a), self.print_term(*b)),
       }
    }
-   pub fn push_forall(&mut self, quants: Vec<(Option<String>,Option<Type>,Kind)>,
+   pub fn push_forall(&mut self, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
                              inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
       let fi = self.rules.len();
       self.rules.push(TypeRule::Forall(ForallRule {
+         name: name,
          parameters: quants,
          inference: inference.clone(),
          transformation: term,

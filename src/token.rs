@@ -79,6 +79,7 @@ pub enum Symbol {
    RightBrace,
    AndAlso,
    Typeof,
+   At,
    As,
    If,
    Then,
@@ -127,6 +128,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::SemiColon          => write!(f, ";"),
            Symbol::BackSlash          => write!(f, "\\"),
            Symbol::Arrow              => write!(f, "->"),
+           Symbol::At                 => write!(f, "@"),
 
            Symbol::LeftBracket        => write!(f, "["),
            Symbol::RightBracket       => write!(f, "]"),
@@ -187,6 +189,7 @@ impl std::fmt::Display for Symbol {
            Symbol::SemiColon          => write!(f, ";"),
            Symbol::BackSlash          => write!(f, "\\"),
            Symbol::Arrow              => write!(f, "->"),
+           Symbol::At                 => write!(f, "@"),
 
            Symbol::LeftBracket        => write!(f, "["),
            Symbol::RightBracket       => write!(f, "]"),
@@ -270,6 +273,7 @@ impl<R: Read> TokenReader<R> {
          [b'.', ..] => Some((1,Symbol::Dot)),
          [b',', ..] => Some((1,Symbol::Comma)),
          [b';', ..] => Some((1,Symbol::SemiColon)),
+         [b'@', ..] => Some((1,Symbol::At)),
          [b'\\', ..] => Some((1,Symbol::BackSlash)),
          [b'[', ..] => Some((1,Symbol::LeftBracket)),
          [b']', ..] => Some((1,Symbol::RightBracket)),

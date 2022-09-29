@@ -335,6 +335,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
 
 pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
+   let mut name: Option<String> = None;
    let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
    let inference;
    let mut term = None;
@@ -342,6 +343,13 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
    let mut dept = HashMap::new();
 
    pop_is("forall-stmt", tokens, &vec![Symbol::Forall])?;
+
+   if peek_is(tokens, &vec![Symbol::At]) {
+      pop_is("forall-stmt", tokens, &vec![Symbol::At])?;
+      if let Some(Symbol::Ident(v)) = tokens.take_symbol()? {
+         name = Some(v.clone());
+      }
+   }
 
    while !peek_is(tokens, &vec![Symbol::Dot]) {
       if peek_is(tokens, &vec![Symbol::Comma]) {
@@ -393,6 +401,7 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
    }
 
    tlc.push_forall(
+      name,
       quants.clone(),
       inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
       term,
