@@ -219,6 +219,7 @@ impl TLC {
             format!("{}{{{}}}", cn, kvs.iter().map(|(k,v)|format!("{}={}",k,self.print_term(*v))).collect::<Vec<String>>().join(","))
          },
          Term::Substitution(e,a,b) => format!("{}\\[{}|{}]", self.print_term(*e), self.print_term(*a), self.print_term(*b)),
+         Term::RuleApplication(n) => format!("@{}", n),
       }
    }
    pub fn push_forall(&mut self, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
@@ -1386,7 +1387,8 @@ impl TLC {
             self.unify_varnames_lhs(dept,e,lhs);
             self.unify_varnames_lhs(dept,a,lhs);
             self.unify_varnames_lhs(dept,b,lhs);
-         }
+         },
+         Term::RuleApplication(_) => {},
       }
    }
    pub fn are_terms_equal(&self, lt: TermId, rt: TermId) -> bool {
@@ -1783,9 +1785,12 @@ impl TLC {
             }
             self.check_invariants(t)?;
 	 },
+         Term::RuleApplication(_n) => {
+            unimplemented!("TODO typecheck Term::RuleApplication")
+         },
          Term::Arrow(_p,_b) => {
-            unimplemented!("TODO match lhs with rhs")
-         }
+            unimplemented!("TODO typecheck Term::Arrow")
+         },
          Term::App(g,x) => {
             let mut ks = HashMap::new();
             self.typeck(scope.clone(), x, None)?;
