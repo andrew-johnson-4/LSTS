@@ -26,10 +26,10 @@ type Odd: Integer
 Statements connect logic to form conclusions. Each Statement has a Term part and a Type part. A Statement may optionally have a label so it can be referenced directly later. Statements, when applied, provide new information to the Type of a Term. When a Statement is applied, it must match the pattern of its application context. An application context consists of a Term and a Type, which is then compared to the Term and Type of the Statement. These Term x Type relations form the basis of strict reasoning for LSTS.
 
 ```lsts
-forall @inc_odd x: Odd. Even = x + 1
-forall @dec_odd x: Odd. Even = x - 1
-forall @inc_even x: Even. Odd = x + 1
-forall @dec_even x: Even. Odd = x - 1
+forall @inc_odd x: Odd. Even = x + 1;
+forall @dec_odd x: Odd. Even = x - 1;
+forall @inc_even x: Even. Odd = x + 1;
+forall @dec_even x: Even. Odd = x - 1;
 
 ((x: Even) + 1) @inc_even : Odd
 ```
