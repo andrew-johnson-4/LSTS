@@ -1872,7 +1872,6 @@ impl TLC {
             }
             if let Some((ref tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
                self.rows[t.id].typ = tt.clone();
-               self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::Named(cname.clone(),Vec::new())).normalize();
             } else { return Err(Error {
                kind: "Type Error".to_string(),
                rule: format!("type constructor, none found for: {}", self.print_term(t)),
