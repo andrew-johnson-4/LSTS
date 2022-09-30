@@ -85,16 +85,25 @@ pub struct TypedefRule {
 }
 
 #[derive(Clone)]
+pub struct ForallRule {
+   pub name: Option<String>,
+   pub parameters: Vec<(Option<String>,Option<Type>,Kind)>,
+   pub inference: Inference,
+   pub transformation: Option<TermId>,
+   pub kind: Kind,
+   pub span: Span,
+}
+
+#[derive(Clone)]
 pub enum TypeRule {
    Typedef(TypedefRule),
-
-   Forall(Vec<(Option<String>,Option<Type>,Kind)>, Inference, Option<TermId>, Kind, Span),
+   Forall(ForallRule),
 }
 impl TypeRule {
    pub fn span(&self) -> Span {
       match self {
          TypeRule::Typedef(tr) => tr.span.clone(),
-         TypeRule::Forall(_,_,_,_,sp) => sp.clone(),
+         TypeRule::Forall(fr) => fr.span.clone(),
       }
    }
 }
@@ -113,14 +122,14 @@ impl std::fmt::Debug for TypeRule {
               if let Some(ref ti) = tr.implies { format!(":{:?}",ti) } else { format!("") },
               tr.kind
            ),
-           TypeRule::Forall(itks,inf,_t,tk,_) => write!(f, "forall {}. {:?} :: {:?}", 
-              itks.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
+           TypeRule::Forall(fr) => write!(f, "forall {}. {:?} :: {:?}", 
+              fr.parameters.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
                     i.clone().unwrap_or("_".to_string()),
                     t.clone().unwrap_or(Type::And(Vec::new())),
                     k,
               )).collect::<Vec<String>>().join(","),
-              inf,
-              tk,
+              fr.inference,
+              fr.kind,
            ),
         }
     }
@@ -210,14 +219,20 @@ impl TLC {
             format!("{}{{{}}}", cn, kvs.iter().map(|(k,v)|format!("{}={}",k,self.print_term(*v))).collect::<Vec<String>>().join(","))
          },
          Term::Substitution(e,a,b) => format!("{}\\[{}|{}]", self.print_term(*e), self.print_term(*a), self.print_term(*b)),
+         Term::RuleApplication(t,n) => format!("{} @{}", self.print_term(*t), n),
       }
    }
-   pub fn push_forall(&mut self, quants: Vec<(Option<String>,Option<Type>,Kind)>,
+   pub fn push_forall(&mut self, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
                              inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
       let fi = self.rules.len();
-      self.rules.push(TypeRule::Forall(
-         quants, inference.clone(), term, kind, span
-      ));
+      self.rules.push(TypeRule::Forall(ForallRule {
+         name: name,
+         parameters: quants,
+         inference: inference.clone(),
+         transformation: term,
+         kind: kind,
+         span: span
+      }));
       match &inference {
          Inference::Imply(lt,rt) => {
             let lmt = lt.mask();
@@ -381,44 +396,10 @@ impl TLC {
       }
    }
    pub fn compile_rules(&mut self, _docname:&str) -> Result<(),Error> {
-
-      //check logical consistency of foralls
       for rule in self.rules.clone().iter() { match rule {
-         TypeRule::Forall(_qs,_inf,_t,_k,_sp) => {
-            /* domain check hasn't been working for a while
-               just comment it out until the topic comes up again
-               TODO: add some motivating examples and tests for domain checks
-            //check if domain is explicit
-            if k != &Kind::Nil { continue; }
-
-            //otherwise check that all variables share a domain
-            let mut domains: Vec<(Type,Kind)> = Vec::new();
-            for (_i,t,k) in qs.iter() {
-               match t {
-                  Some(tt) => domains.push((tt.clone(),k.clone())),
-                  _ => domains.push((self.bottom_type.clone(),Kind::Nil))
-               }
-            }
-            for it in inf.types().iter() {
-               if !qs.iter().any(|(_i,t,_k)| &Some(it.clone())==t) {
-                  domains.push((it.clone(),self.kind(it)));
-               }
-            }
-            domains.sort();
-            domains.dedup();
-            let firstkind = if domains.len()==0 { Kind::Nil } else { domains[0].1.clone() };
-            let kind = domains.iter().fold(firstkind,|l,(_,r)| if l==*r {l} else {Kind::Nil});
-            if kind==Kind::Nil {
-               return Err(Error { 
-                  kind: "Type Error".to_string(),
-                  rule: format!("({}) do not share a domain ({})", 
-                     domains.iter().map(|(t,_k)|format!("{:?}",t)).collect::<Vec<String>>().join(","),
-                     domains.iter().map(|(_t,k)|format!("{:?}",k)).collect::<Vec<String>>().join(",")
-                  ),
-                  span: sp.clone(),
-               })
-            }
-            */
+         TypeRule::Forall(_fr) => {
+            //TODO: add foralls into term language also
+            //TODO: assert that foralls are [True] in typeck
          },
          TypeRule::Typedef(tr) => {
             for td in tr.definition.iter() { match td {
@@ -1070,7 +1051,7 @@ impl TLC {
          let mut found = false;
          if let Some(ref tis) = self.foralls_index.get(&mnt) {
          for ti in tis.iter() { if !found {
-         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti].clone() {
+         if let TypeRule::Forall(ForallRule { inference:Inference::Imply(lt,rt), .. }) = &self.rules[*ti].clone() {
             let mut subs = Vec::new();
             let nt = Type::nored_implies(self, &mut subs, &lt, &n);
             if !nt.is_bottom() {
@@ -1124,7 +1105,7 @@ impl TLC {
          let mut found = false;
          if let Some(tis) = self.foralls_index.get(&mdt) {
          for ti in tis.iter() { if !found {
-         if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+         if let TypeRule::Forall(ForallRule { inference:Inference::Imply(lt,rt), .. }) = &self.rules[*ti] {
             let mut subs = Vec::new();
             let nt = Type::nored_implies(self, &mut subs, &lt, &d);
             if !nt.is_bottom() {
@@ -1218,7 +1199,7 @@ impl TLC {
             let mut found = false;
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
-            if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+            if let TypeRule::Forall(ForallRule { inference:Inference::Imply(lt,rt), .. }) = &self.rules[*ti] {
                let mut subs = Vec::new();
                let nt = Type::nored_implies(self, &mut subs, &lt, &n);
                if !nt.is_bottom() {
@@ -1266,7 +1247,7 @@ impl TLC {
             let mut found = false;
             if let Some(tis) = self.foralls_index.get(&mnt) {
             for ti in tis.iter() { if !found {
-            if let TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,_tk,_) = &self.rules[*ti] {
+            if let TypeRule::Forall(ForallRule { inference:Inference::Imply(lt,rt), .. }) = &self.rules[*ti] {
                let mut subs = Vec::new();
                let nt = Type::nored_implies(self, &mut subs, &lt, &d);
                if !nt.is_bottom() {
@@ -1406,7 +1387,8 @@ impl TLC {
             self.unify_varnames_lhs(dept,e,lhs);
             self.unify_varnames_lhs(dept,a,lhs);
             self.unify_varnames_lhs(dept,b,lhs);
-         }
+         },
+         Term::RuleApplication(_,_) => {},
       }
    }
    pub fn are_terms_equal(&self, lt: TermId, rt: TermId) -> bool {
@@ -1739,7 +1721,7 @@ impl TLC {
                } else {
                   let mut accept = false;
                   for tr in self.rules.clone().iter() { match tr {
-                     TypeRule::Forall(_itks,Inference::Imply(lt,rt),_term,k,_) if k==&into_kind => {
+                     TypeRule::Forall(ForallRule { inference:Inference::Imply(lt,rt), kind:k, .. }) if k==&into_kind => {
                         if let Ok(lt) = self.implies(&self.rows[x.id].typ.clone(), lt, &self.rows[t.id].span.clone()) {
                         if let Ok(rt) = self.implies(&rt, &into, &self.rows[t.id].span.clone()) {
                            //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
@@ -1803,9 +1785,12 @@ impl TLC {
             }
             self.check_invariants(t)?;
 	 },
+         Term::RuleApplication(_t,_n) => {
+            unimplemented!("TODO typecheck Term::RuleApplication")
+         },
          Term::Arrow(_p,_b) => {
-            unimplemented!("TODO match lhs with rhs")
-         }
+            unimplemented!("TODO typecheck Term::Arrow")
+         },
          Term::App(g,x) => {
             let mut ks = HashMap::new();
             self.typeck(scope.clone(), x, None)?;
@@ -1887,7 +1872,6 @@ impl TLC {
             }
             if let Some((ref tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
                self.rows[t.id].typ = tt.clone();
-               self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::Named(cname.clone(),Vec::new())).normalize();
             } else { return Err(Error {
                kind: "Type Error".to_string(),
                rule: format!("type constructor, none found for: {}", self.print_term(t)),

@@ -79,6 +79,7 @@ pub enum Symbol {
    RightBrace,
    AndAlso,
    Typeof,
+   At,
    As,
    If,
    Then,
@@ -88,6 +89,10 @@ pub enum Symbol {
    Type,
    Normal,
    Where,
+   Loop,
+   For,
+   While,
+   In,
 }
 impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -123,6 +128,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::SemiColon          => write!(f, ";"),
            Symbol::BackSlash          => write!(f, "\\"),
            Symbol::Arrow              => write!(f, "->"),
+           Symbol::At                 => write!(f, "@"),
 
            Symbol::LeftBracket        => write!(f, "["),
            Symbol::RightBracket       => write!(f, "]"),
@@ -142,6 +148,10 @@ impl std::fmt::Debug for Symbol {
            Symbol::Type               => write!(f, "type"),
            Symbol::Normal             => write!(f, "normal"),
            Symbol::Where              => write!(f, "where"),
+           Symbol::Loop               => write!(f, "loop"),
+           Symbol::For                => write!(f, "for"),
+           Symbol::While              => write!(f, "while"),
+           Symbol::In                 => write!(f, "in"),
         }
     }
 }
@@ -179,6 +189,7 @@ impl std::fmt::Display for Symbol {
            Symbol::SemiColon          => write!(f, ";"),
            Symbol::BackSlash          => write!(f, "\\"),
            Symbol::Arrow              => write!(f, "->"),
+           Symbol::At                 => write!(f, "@"),
 
            Symbol::LeftBracket        => write!(f, "["),
            Symbol::RightBracket       => write!(f, "]"),
@@ -198,6 +209,10 @@ impl std::fmt::Display for Symbol {
            Symbol::Type               => write!(f, "type"),
            Symbol::Normal             => write!(f, "normal"),
            Symbol::Where              => write!(f, "where"),
+           Symbol::Loop               => write!(f, "loop"),
+           Symbol::For                => write!(f, "for"),
+           Symbol::While              => write!(f, "while"),
+           Symbol::In                 => write!(f, "in"),
         }
     }
 }
@@ -258,6 +273,7 @@ impl<R: Read> TokenReader<R> {
          [b'.', ..] => Some((1,Symbol::Dot)),
          [b',', ..] => Some((1,Symbol::Comma)),
          [b';', ..] => Some((1,Symbol::SemiColon)),
+         [b'@', ..] => Some((1,Symbol::At)),
          [b'\\', ..] => Some((1,Symbol::BackSlash)),
          [b'[', ..] => Some((1,Symbol::LeftBracket)),
          [b']', ..] => Some((1,Symbol::RightBracket)),
@@ -340,6 +356,10 @@ impl<R: Read> TokenReader<R> {
             self.column += token.len();
             let ident = std::str::from_utf8(&token).unwrap();
             match ident {
+               "in" => { return Ok(Some(Token { symbol: Symbol::In, span: span, })); },
+               "while" => { return Ok(Some(Token { symbol: Symbol::While, span: span, })); },
+               "loop" => { return Ok(Some(Token { symbol: Symbol::Loop, span: span, })); },
+               "for" => { return Ok(Some(Token { symbol: Symbol::For, span: span, })); },
                "and" => { return Ok(Some(Token { symbol: Symbol::AndAlso, span: span, })); },
                "typeof" => { return Ok(Some(Token { symbol: Symbol::Typeof, span: span, })); },
                "as" => { return Ok(Some(Token { symbol: Symbol::As, span: span, })); },
