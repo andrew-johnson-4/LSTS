@@ -354,7 +354,8 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
 
    if peek_is(tokens, &vec![Symbol::At]) {
       pop_is("forall-stmt", tokens, &vec![Symbol::At])?;
-      if let Some(Symbol::Ident(v)) = tokens.take_symbol()? {
+      if let Some(Symbol::Ident(v)) = tokens.peek_symbol()? {
+         tokens.take_symbol()?;
          name = Some(v.clone());
       }
    }
