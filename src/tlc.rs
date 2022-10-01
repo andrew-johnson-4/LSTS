@@ -1684,7 +1684,11 @@ impl TLC {
                self.typeck(Some(sid), *e, None)?;
                last_typ = self.rows[e.id].typ.clone();
             }
-            self.rows[t.id].typ = self.implies(&last_typ, &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
+            if last_typ.is_bottom() {
+               self.rows[t.id].typ = self.nil_type.clone();
+            } else {
+               self.rows[t.id].typ = last_typ;
+            }
          },
          Term::Tuple(es) => {
             let mut ts = Vec::new();
