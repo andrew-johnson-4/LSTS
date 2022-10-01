@@ -12,6 +12,7 @@ use crate::debug::Error;
 use crate::ll::ll1_file;
 
 pub struct TLC {
+   pub strict: bool,
    pub rows: Vec<Row>,
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
@@ -138,6 +139,7 @@ impl std::fmt::Debug for TypeRule {
 impl TLC {
    pub fn new() -> TLC {
       TLC {
+         strict: false,
          //the first row, index 0, is nullary
          rows: vec![Row {
             term: Term::Tuple(Vec::new()),
@@ -166,6 +168,10 @@ impl TLC {
          nil_type: Type::Tuple(Vec::new()),
          bottom_type: Type::And(Vec::new()),
       }
+   }
+   pub fn strict(mut self) -> TLC {
+      self.strict = true;
+      self
    }
    pub fn print_type(&self, kinds: &HashMap<Type,Kind>, tt: &Type) -> String {
       let ts = match tt {
