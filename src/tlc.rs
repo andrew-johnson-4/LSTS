@@ -14,6 +14,7 @@ use crate::ll::ll1_file;
 pub struct TLC {
    pub strict: bool,
    pub rows: Vec<Row>,
+   pub hints: HashMap<String,ForallRule>,
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
    pub regexes: Vec<(Type,Rc<Regex>)>,
@@ -90,7 +91,7 @@ pub struct ForallRule {
    pub name: Option<String>,
    pub parameters: Vec<(Option<String>,Option<Type>,Kind)>,
    pub inference: Inference,
-   pub transformation: Option<TermId>,
+   pub rhs: Option<TermId>,
    pub kind: Kind,
    pub span: Span,
 }
@@ -157,6 +158,7 @@ impl TLC {
          rules: Vec::new(),
          scopes: Vec::new(),
          regexes: Vec::new(),
+         hints: HashMap::new(),
          constructors: HashMap::new(),
          foralls_index: HashMap::new(),
          foralls_rev_index: HashMap::new(),
@@ -231,14 +233,18 @@ impl TLC {
    pub fn push_forall(&mut self, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
                              inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
       let fi = self.rules.len();
-      self.rules.push(TypeRule::Forall(ForallRule {
-         name: name,
+      let fa = ForallRule {
+         name: name.clone(),
          parameters: quants,
          inference: inference.clone(),
-         transformation: term,
+         rhs: term,
          kind: kind,
          span: span
-      }));
+      };
+      if let Some(h) = name {
+         self.hints.insert(h, fa.clone());
+      }
+      self.rules.push(TypeRule::Forall(fa));
       match &inference {
          Inference::Imply(lt,rt) => {
             let lmt = lt.mask();
@@ -1674,6 +1680,9 @@ impl TLC {
          _tt => {},
       }
    }
+   pub fn typeck_hint(&mut self, lhs: TermId, rhs: TermId) -> Result<(),Error> {
+      unimplemented!("TODO: typeck_hint")
+   }
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
       //clone is needed to avoid double mutable borrows?
@@ -1795,8 +1804,20 @@ impl TLC {
             }
             self.check_invariants(t)?;
 	 },
-         Term::RuleApplication(_t,_n) => {
-            unimplemented!("TODO typecheck Term::RuleApplication")
+         Term::RuleApplication(lhs,h) => {
+            if let Some(fa) = self.hints.get(&h) {
+               if let Some(rhs) = fa.rhs {
+                  self.typeck_hint(lhs, rhs)?;
+               } else { return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("hint rule must have a rhs: {}", h),
+                  span: self.rows[t.id].span.clone(),
+               }) }
+            } else { return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("hint not found in statements: {}", h),
+               span: self.rows[t.id].span.clone(),
+            }) }
          },
          Term::Arrow(_p,_b) => {
             unimplemented!("TODO typecheck Term::Arrow")
