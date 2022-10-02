@@ -315,10 +315,11 @@ fn check_function_unification() {
    let ta6  = Type::Arrow( Box::new(tn5.clone()), Box::new(ts1.clone()) );
    assert_eq!(ta6, ta4.implication_unifier(&ta5));
 
-   //{Point2D+Point2D<{Integer+Number}>} -> ? => Point2D<N> -> N = {}
+   //{Point2D+Point2D<{Integer+Number}>} -> ? => Point2D<N> -> N = Point2D<{Integer+Number}> -> {Integer+Number}
    let ta7  = Type::Arrow( Box::new(ts2.clone()), Box::new(tany.clone()) );
    let ta8  = Type::Arrow( Box::new(tn6.clone()), Box::new(tn4.clone()) );
-   assert_eq!(td, ta7.implication_unifier(&ta8));
+   let ta9  = Type::Arrow( Box::new(tn5.clone()), Box::new(ts1.clone()) );
+   assert_eq!(ta9, ta7.implication_unifier(&ta8));
 
 }
 

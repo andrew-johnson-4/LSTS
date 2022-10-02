@@ -168,6 +168,14 @@ forall u:Yocto<U>::Unit. Yocto<U> => U = 1000000000000000000000000 * u :: Unit;
 //let n_A: Real+()/Mole = 6.022_140_76e23:     Real+()/Mole;         //Avogadro constant
 //let deltavCs: Integer+Hertz = 9_192_631_770: Integer+Hertz;        //caesium hyperfine frequency
 
+//: Number Math
+let pos(x:Integer)             :Integer; //pos
+let neg(x:Integer)             :Integer; //neg
+let $"+"(x:Integer, y:Integer) :Integer; //add
+let $"-"(x:Integer, y:Integer) :Integer; //sub
+let $"*"(x:Integer, y:Integer) :Integer; //mul
+let $"/"(x:Integer, y:Integer) :Integer; //div
+
 //: Unit Math
 let pos(x:X::Unit)             :X   ::Unit; //pos
 let neg(x:X::Unit)             :X   ::Unit; //neg
