@@ -1680,8 +1680,22 @@ impl TLC {
          _tt => {},
       }
    }
-   pub fn typeck_hint(&mut self, lhs: TermId, rhs: TermId) -> Result<(),Error> {
-      unimplemented!("TODO: typeck_hint")
+   pub fn typeck_hint(&mut self, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
+      match ( self.rows[lhs.id].term.clone(), self.rows[rhs.id].term.clone() ) {
+         (Term::Block(lsid,les),Term::Block(rsid,res)) => {
+            unimplemented!("TODO: typeck_hint Term::Block")
+         },
+         (Term::Tuple(les),Term::Tuple(res)) => {
+            unimplemented!("TODO: typeck_hint Term::Tuple")
+         },
+         (_,_) => {
+            return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("hint does not structurally match term: {}", hint),
+               span: self.rows[lhs.id].span.clone(),
+            })
+         }
+      }
    }
    pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
@@ -1807,7 +1821,9 @@ impl TLC {
          Term::RuleApplication(lhs,h) => {
             if let Some(fa) = self.hints.get(&h) {
                if let Some(rhs) = fa.rhs {
-                  self.typeck_hint(lhs, rhs)?;
+                  self.typeck(scope.clone(), lhs, None)?;
+                  self.typeck_hint(&h, lhs, rhs)?;
+                  //TODO type annotate self: self.rows[t.id].typ = self.rows[lhs.id].typ.and();
                } else { return Err(Error {
                   kind: "Type Error".to_string(),
                   rule: format!("hint rule must have a rhs: {}", h),
