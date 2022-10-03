@@ -1682,12 +1682,40 @@ impl TLC {
    }
    pub fn typeck_hint(&mut self, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
       match ( self.rows[lhs.id].term.clone(), self.rows[rhs.id].term.clone() ) {
+         (lhs, Term::Ident(x)) => {
+            unimplemented!("TODO: typeck_hint Term::Ident")
+         },
          (Term::Block(lsid,les),Term::Block(rsid,res)) => {
             unimplemented!("TODO: typeck_hint Term::Block")
          },
          (Term::Tuple(les),Term::Tuple(res)) => {
             unimplemented!("TODO: typeck_hint Term::Tuple")
          },
+         (Term::Let(_,_,_,_,_,_),Term::Let(_,_,_,_,_,_)) => {
+            unimplemented!("TODO: typeck_hint Term::Let")
+         },
+	 (Term::Ascript(lx,ltt),Term::Ascript(rx,rtt)) => {
+            unimplemented!("TODO: typeck_hint Term::Ascript")
+         },
+	 (Term::As(lx,ltt),Term::As(rx,rtt)) => {
+            unimplemented!("TODO: typeck_hint Term::As")
+         },
+	 (Term::RuleApplication(lx,ltt),Term::RuleApplication(rx,rtt)) => {
+            unimplemented!("TODO: typeck_hint Term::RuleApplication")
+         },
+	 (Term::Arrow(llhs,lrhs),Term::Arrow(rlhs,rrhs)) => {
+            unimplemented!("TODO: typeck_hint Term::Arrow")
+         },
+	 (Term::App(lg,lx),Term::App(rg,rx)) => {
+            unimplemented!("TODO: typeck_hint Term::App")
+         },
+         (Term::Constructor(ln,lkvs),Term::Constructor(rn,rkvs)) => {
+            unimplemented!("TODO: typeck_hint Term::Constructor")
+         },
+         (Term::Substitution(le,la,lb),Term::Substitution(re,ra,rb)) => {
+            unimplemented!("TODO: typeck_hint Term::Substitution")
+         },
+	 (Term::Value(lx),Term::Value(rx)) if lx == rx => { Ok(()) },
          (_,_) => {
             return Err(Error {
                kind: "Type Error".to_string(),
