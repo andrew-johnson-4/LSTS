@@ -1880,7 +1880,7 @@ impl TLC {
                   self.typeck_hint(&Some(fa_scope), &h, lhs, rhs)?;
                   //at this point rule must have matched, so apply it
                   if let Inference::Type(fat) = fa_inference {
-                     self.rows[t.id].typ = self.rows[t.id].typ.and( &fat );
+                     self.rows[t.id].typ = self.rows[lhs.id].typ.and( &fat );
                   }
                } else { return Err(Error {
                   kind: "Type Error".to_string(),
