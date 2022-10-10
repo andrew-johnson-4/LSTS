@@ -317,14 +317,14 @@ impl TLC {
    pub fn check_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
       let ast = self.parse_file(globals, filename)?;
       self.compile_rules(filename)?;
-      self.typeck(globals, ast, None)?;
+      self.typeck(&globals, ast, None)?;
       self.sanityck()?;
       Ok(ScopeId {id:0})
    }
    pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
       let ast = self.parse_file(globals, filename)?;
       self.compile_rules(filename)?;
-      self.typeck(globals, ast, None)?;
+      self.typeck(&globals, ast, None)?;
       self.sanityck()?;
       Ok(ScopeId {id:0})
    }
@@ -335,7 +335,7 @@ impl TLC {
       }, &span_of(&mut tokens)));
       let ast = ll1_file(self, file_scope, &mut tokens)?;
       self.compile_rules(docname)?;
-      self.typeck(globals, ast, None)?;
+      self.typeck(&globals, ast, None)?;
       self.sanityck()?;
       Ok(ast)
    }
@@ -1680,10 +1680,12 @@ impl TLC {
          _tt => {},
       }
    }
-   pub fn typeck_hint(&mut self, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
+   pub fn typeck_hint(&mut self, scope: &Option<ScopeId>, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
       match ( self.rows[lhs.id].term.clone(), self.rows[rhs.id].term.clone() ) {
-         (lhs, Term::Ident(x)) => {
-            unimplemented!("TODO: typeck_hint Term::Ident")
+         (lhsx, Term::Ident(x)) => {
+            let xt = self.typeof_var(scope, &x, &None, &self.rows[lhs.id].span.clone())?;
+            //self.rows[t.id].typ = self.implies(&Type::Tuple(ts), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
+            unimplemented!("TODO: typeck_hint Term::Ident : {:?}", xt)
          },
          (Term::Block(lsid,les),Term::Block(rsid,res)) => {
             unimplemented!("TODO: typeck_hint Term::Block")
@@ -1707,7 +1709,9 @@ impl TLC {
             unimplemented!("TODO: typeck_hint Term::Arrow")
          },
 	 (Term::App(lg,lx),Term::App(rg,rx)) => {
-            unimplemented!("TODO: typeck_hint Term::App")
+            self.typeck_hint(scope, hint, lg, rg)?;
+            self.typeck_hint(scope, hint, lx, rx)?;
+            Ok(())
          },
          (Term::Constructor(ln,lkvs),Term::Constructor(rn,rkvs)) => {
             unimplemented!("TODO: typeck_hint Term::Constructor")
@@ -1725,14 +1729,14 @@ impl TLC {
          }
       }
    }
-   pub fn typeck(&mut self, scope: Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
+   pub fn typeck(&mut self, scope: &Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
          Term::Block(sid,es) => {
             let mut last_typ = self.nil_type.clone();
             for e in es.iter() {
-               self.typeck(Some(sid), *e, None)?;
+               self.typeck(&Some(sid), *e, None)?;
                last_typ = self.rows[e.id].typ.clone();
             }
             if last_typ.is_bottom() {
@@ -1754,7 +1758,7 @@ impl TLC {
                //term is untyped
                self.untyped(t);
             } else if let Some(ref b) = b {
-               self.typeck(Some(s), *b, Some(rt.clone()))?;
+               self.typeck(&Some(s), *b, Some(rt.clone()))?;
                self.rows[t.id].typ = self.nil_type.clone();
             } else {
                self.rows[t.id].typ = self.nil_type.clone();
@@ -1762,11 +1766,11 @@ impl TLC {
             self.soundck(&rt, &self.rows[t.id].span.clone())?;
          },
          Term::Ascript(x,tt) => {
-            self.typeck(scope.clone(), x, Some(tt.clone()))?;
+            self.typeck(scope, x, Some(tt.clone()))?;
             self.rows[t.id].typ = self.implies(&self.rows[x.id].typ.clone(), &tt, &self.rows[t.id].span.clone())?;
          },
          Term::As(x,into) => {
-            self.typeck(scope.clone(), x, None)?;
+            self.typeck(scope, x, None)?;
             let into_kind = self.kind(&into).first();
             if let Ok(nt) = self.implies(&self.rows[x.id].typ.clone(), &into, &self.rows[t.id].span.clone()) {
                //if cast is already satisfied, do nothing
@@ -1849,8 +1853,8 @@ impl TLC {
          Term::RuleApplication(lhs,h) => {
             if let Some(fa) = self.hints.get(&h) {
                if let Some(rhs) = fa.rhs {
-                  self.typeck(scope.clone(), lhs, None)?;
-                  self.typeck_hint(&h, lhs, rhs)?;
+                  self.typeck(scope, lhs, None)?;
+                  self.typeck_hint(scope, &h, lhs, rhs)?;
                   //TODO type annotate self: self.rows[t.id].typ = self.rows[lhs.id].typ.and();
                } else { return Err(Error {
                   kind: "Type Error".to_string(),
@@ -1868,8 +1872,8 @@ impl TLC {
          },
          Term::App(g,x) => {
             let mut ks = HashMap::new();
-            self.typeck(scope.clone(), x, None)?;
-            self.typeck(scope.clone(), g, Some(
+            self.typeck(scope, x, None)?;
+            self.typeck(scope, g, Some(
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
                           Box::new(Type::Any))
             ))?;
@@ -1943,7 +1947,7 @@ impl TLC {
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
-               self.typeck(scope.clone(), v, None)?;
+               self.typeck(scope, v, None)?;
             }
             if let Some((ref tt,_tpars,_tkvs)) = self.constructors.get(&cname) {
                self.rows[t.id].typ = tt.clone();
@@ -1954,7 +1958,7 @@ impl TLC {
             }) }
          },
          Term::Substitution(e,a,b) => {
-            self.typeck(scope.clone(), e, None)?;
+            self.typeck(scope, e, None)?;
             let mut et = self.rows[e.id].typ.clone();
             self.reduce_type(&mut HashMap::new(), &mut et);
             let mut et = self.alpha_convert_type(&et, a, b);
