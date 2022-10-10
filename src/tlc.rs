@@ -1683,9 +1683,10 @@ impl TLC {
    pub fn typeck_hint(&mut self, scope: &Option<ScopeId>, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
       match ( self.rows[lhs.id].term.clone(), self.rows[rhs.id].term.clone() ) {
          (lhsx, Term::Ident(x)) => {
-            let xt = self.typeof_var(scope, &x, &None, &self.rows[lhs.id].span.clone())?;
-            //self.rows[t.id].typ = self.implies(&Type::Tuple(ts), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
-            unimplemented!("TODO: typeck_hint Term::Ident : {:?}", xt)
+            let realized = self.rows[lhs.id].typ.clone();
+            let required = self.typeof_var(scope, &x, &Some(realized.clone()), &self.rows[lhs.id].span.clone())?;
+            self.implies(&realized, &required, &self.rows[lhs.id].span.clone())?;
+            Ok(())
          },
          (Term::Block(lsid,les),Term::Block(rsid,res)) => {
             unimplemented!("TODO: typeck_hint Term::Block")
