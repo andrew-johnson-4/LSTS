@@ -90,6 +90,7 @@ pub struct TypedefRule {
 pub struct ForallRule {
    pub name: Option<String>,
    pub parameters: Vec<(Option<String>,Option<Type>,Kind)>,
+   pub scope: ScopeId,
    pub inference: Inference,
    pub rhs: Option<TermId>,
    pub kind: Kind,
@@ -232,10 +233,15 @@ impl TLC {
    }
    pub fn push_forall(&mut self, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
                              inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
+      let fa_scope = self.push_scope(Scope {
+         parent: None,
+         children: Vec::new(),
+      }, &span);
       let fi = self.rules.len();
       let fa = ForallRule {
          name: name.clone(),
          parameters: quants,
+         scope: fa_scope,
          inference: inference.clone(),
          rhs: term,
          kind: kind,
@@ -1682,6 +1688,9 @@ impl TLC {
    }
    pub fn typeck_hint(&mut self, scope: &Option<ScopeId>, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
       match ( self.rows[lhs.id].term.clone(), self.rows[rhs.id].term.clone() ) {
+         (Term::Ident(ln), Term::Ident(rn)) if ln==rn => {
+            Ok(()) //This is unsound, just a workaround for now
+         },
          (lhsx, Term::Ident(x)) => {
             let realized = self.rows[lhs.id].typ.clone();
             let required = self.typeof_var(scope, &x, &Some(realized.clone()), &self.rows[lhs.id].span.clone())?;
@@ -1691,8 +1700,11 @@ impl TLC {
          (Term::Block(lsid,les),Term::Block(rsid,res)) => {
             unimplemented!("TODO: typeck_hint Term::Block")
          },
-         (Term::Tuple(les),Term::Tuple(res)) => {
-            unimplemented!("TODO: typeck_hint Term::Tuple")
+         (Term::Tuple(les),Term::Tuple(res)) if les.len()==res.len() => {
+            for (lx,rx) in std::iter::zip(les,res) {
+               self.typeck_hint(scope, hint, lx, rx)?;
+            }
+            Ok(())
          },
          (Term::Let(_,_,_,_,_,_),Term::Let(_,_,_,_,_,_)) => {
             unimplemented!("TODO: typeck_hint Term::Let")
@@ -1853,9 +1865,10 @@ impl TLC {
 	 },
          Term::RuleApplication(lhs,h) => {
             if let Some(fa) = self.hints.get(&h) {
+               let fa_scope = fa.scope.clone();
                if let Some(rhs) = fa.rhs {
                   self.typeck(scope, lhs, None)?;
-                  self.typeck_hint(scope, &h, lhs, rhs)?;
+                  self.typeck_hint(&Some(fa_scope), &h, lhs, rhs)?;
                   //TODO type annotate self: self.rows[t.id].typ = self.rows[lhs.id].typ.and();
                } else { return Err(Error {
                   kind: "Type Error".to_string(),
