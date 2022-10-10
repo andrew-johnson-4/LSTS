@@ -1874,10 +1874,14 @@ impl TLC {
          Term::RuleApplication(lhs,h) => {
             if let Some(fa) = self.hints.get(&h) {
                let fa_scope = fa.scope.clone();
+               let fa_inference = fa.inference.clone();
                if let Some(rhs) = fa.rhs {
                   self.typeck(scope, lhs, None)?;
                   self.typeck_hint(&Some(fa_scope), &h, lhs, rhs)?;
-                  //TODO type annotate self: self.rows[t.id].typ = self.rows[lhs.id].typ.and();
+                  //at this point rule must have matched, so apply it
+                  if let Inference::Type(fat) = fa_inference {
+                     self.rows[t.id].typ = self.rows[t.id].typ.and( &fat );
+                  }
                } else { return Err(Error {
                   kind: "Type Error".to_string(),
                   rule: format!("hint rule must have a rhs: {}", h),
