@@ -1,8 +1,8 @@
 /* SI Prelude */
 //: Definition of prelude types and kinds
-type Boolean = True | False;
+type constant Boolean = True | False;
 type Number;   //Marker trait for numbers. Require declaration to prevent accidental shadowing.
-type Integer   : Number = /^[0-9][_0-9]*([eE][_0-9]+)?$/; //This is how subtyping relations are defined.
+type constant Integer   : Number = /^[0-9][_0-9]*([eE][_0-9]+)?$/; //This is how subtyping relations are defined.
 type Real      : Number = /^[0-9][_.0-9]*([eE][-]?[_0-9]+)?$/;
 type Complex   : Number = /^[0-9][_.0-9]*([eE][-]?[_0-9]+)?([+][0-9][_.0-9]*([eE][-]?[_0-9]+)?[i])?$/;
 forall i:Integer. Integer => Real    = i; //cast Integer to Real
@@ -167,6 +167,14 @@ forall u:Yocto<U>::Unit. Yocto<U> => U = 1000000000000000000000000 * u :: Unit;
 //let k_cd: Integer+Lumen/Watt = 683:          Integer+Lumen/Watt;   //luminous efficacy of a defined visible radiation
 //let n_A: Real+()/Mole = 6.022_140_76e23:     Real+()/Mole;         //Avogadro constant
 //let deltavCs: Integer+Hertz = 9_192_631_770: Integer+Hertz;        //caesium hyperfine frequency
+
+//: Number Math
+let pos(x:Integer)             :Integer; //pos
+let neg(x:Integer)             :Integer; //neg
+let $"+"(x:Integer, y:Integer) :Integer; //add
+let $"-"(x:Integer, y:Integer) :Integer; //sub
+let $"*"(x:Integer, y:Integer) :Integer; //mul
+let $"/"(x:Integer, y:Integer) :Integer; //div
 
 //: Unit Math
 let pos(x:X::Unit)             :X   ::Unit; //pos

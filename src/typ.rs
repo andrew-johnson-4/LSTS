@@ -531,7 +531,11 @@ impl Type {
             Type::Named(lv.clone(),tps)
          }
          (Type::Arrow(pl,bl),Type::Arrow(pr,br)) => {
-            let pt = pr.__implication_unifier(pl,subs,InArrow::Lhs); //contravariant
+            let pt = if **bl == Type::Any {
+               pl.__implication_unifier(pr,subs,InArrow::Rhs) //not contravariant
+            } else {
+               pr.__implication_unifier(pl,subs,InArrow::Lhs) //contravariant
+            };
             if pt.is_bottom() { return pt.clone(); }
             let bt = if **bl==Type::Any { (**br).clone() }
             else { bl.__implication_unifier(br,subs,InArrow::Rhs) };
