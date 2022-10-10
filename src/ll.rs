@@ -192,7 +192,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
                   vn,
                   HashMap::new(),
                   Type::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
-                  vt
+                  Some(vt)
                ));
                tcrows.push((ki,kt));
             }
@@ -323,7 +323,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
       let ft = Type::Arrow(Box::new(pt),Box::new(rt));
       let vt = tlc.push_term(Term::Ident(gn.clone()),&span);
       tlc.untyped(vt);
-      tlc.scopes[scope.id].children.push((gn.clone(), fkts, ft, vt));
+      tlc.scopes[scope.id].children.push((gn.clone(), fkts, ft, Some(vt)));
    }}}
 
    tlc.rules.push(TypeRule::Typedef(TypedefRule {
@@ -423,7 +423,7 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
          let vn = i.clone().unwrap_or("_".to_string());
          let vt = tlc.push_term(Term::Ident(vn.clone()), &span);
          tlc.untyped(vt);
-         children.push((vn.clone(), HashMap::new(), t.clone().unwrap_or(tlc.bottom_type.clone()), vt));
+         children.push((vn.clone(), HashMap::new(), t.clone().unwrap_or(tlc.bottom_type.clone()), Some(vt)));
       }
       let sid = tlc.push_scope(Scope {
          parent: Some(scope),
@@ -522,7 +522,7 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
          let vn = i.clone().unwrap_or("_".to_string());
          let vt = tlc.push_term(Term::Ident(vn.clone()),&span);
          tlc.untyped(vt);
-         children.push((vn.clone(), ks, t.clone(), vt));
+         children.push((vn.clone(), ks, t.clone(), Some(vt)));
       }
    }
    let mut ft = rt.clone();
@@ -546,7 +546,7 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
    ft = ft.normalize();
    let vt = tlc.push_term(Term::Ident(ident.clone()), &span);
    tlc.untyped(vt);
-   tlc.scopes[scope.id].children.push((ident.clone(), fkts, ft, vt));
+   tlc.scopes[scope.id].children.push((ident.clone(), fkts, ft, Some(vt)));
    let inner_scope = tlc.push_scope(Scope {
       parent: Some(scope),
       children: children,

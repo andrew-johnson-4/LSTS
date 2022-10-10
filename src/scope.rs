@@ -11,5 +11,5 @@ pub struct ScopeId {
 #[derive(Clone)]
 pub struct Scope {
    pub parent: Option<ScopeId>,
-   pub children: Vec<(String,HashMap<Type,Kind>,Type,TermId)>,
+   pub children: Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)>,
 }

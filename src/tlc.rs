@@ -233,9 +233,17 @@ impl TLC {
    }
    pub fn push_forall(&mut self, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
                              inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
+      let mut fa_closed: Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)> = Vec::new();
+      for (qn,qt,qk) in quants.iter() {
+      if let Some(qn) = qn {
+      if let Some(qt) = qt {
+         let mut fk = HashMap::new();
+         fk.insert(qt.clone(), qk.clone());
+         fa_closed.push( (qn.clone(), fk, qt.clone(), None) );
+      }}}
       let fa_scope = self.push_scope(Scope {
          parent: None,
-         children: Vec::new(),
+         children: fa_closed,
       }, &span);
       let fi = self.rules.len();
       let fa = ForallRule {
