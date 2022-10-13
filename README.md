@@ -13,7 +13,7 @@ Proofs in LSTS are built by connecting type definitions to quantified statements
 
 ### Types
 
-Type definitions define logical statements that are then attached to Terms. All valid Terms have at least one Type. Some Terms may have more than one Type. Types may define invariant properties. These invariant properties impose preconditions and postconditions on what values may occupy that Type. Values going into a Type must satisfy that Type's preconditions. Values coming out of a Term are then known to have satisfied each Types' invariants.
+Type definitions define logical statements that are then attached to Terms. All valid Terms have at least one Type. Some Terms may have more than one Type. Types may define invariant properties. These invariant properties impose preconditions and postconditions on what values may occupy that Type. Values going into a Type must satisfy that Type's preconditions. Values coming out of a Term are then known to have satisfied each Type's invariants.
 
 ```lsts
 type Even: Integer
