@@ -31,7 +31,7 @@ forall @dec_odd x: Odd. Even = x - 1;
 forall @inc_even x: Even. Odd = x + 1;
 forall @dec_even x: Even. Odd = x - 1;
 
-((7: Even) + 1) @inc_even : Odd
+((8: Even) + 1) @inc_even : Odd
 ```
     
 ## Tutorial
