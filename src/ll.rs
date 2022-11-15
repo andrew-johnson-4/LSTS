@@ -90,6 +90,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
    let span = span_of(tokens);
    let mut t = "".to_string();
    let mut normal = false;
+   let mut constant = false;
    let mut implies = None;
    let mut tiks: Vec<(String,Option<Type>,Kind)> = Vec::new();
    let mut typedef = Vec::new();
@@ -99,10 +100,17 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
    let mut dept: HashMap<String,TermId> = HashMap::new();
 
    pop_is("type-stmt", tokens, &vec![Symbol::Type])?;
-   if peek_is(tokens, &vec![Symbol::Normal]) {
-      pop_is("type-stmt", tokens, &vec![Symbol::Normal])?;
-      normal = true;
+
+   while peek_is(tokens, &vec![Symbol::Normal,Symbol::Constant]) {
+      if peek_is(tokens, &vec![Symbol::Normal]) {
+         pop_is("type-stmt", tokens, &vec![Symbol::Normal])?;
+         normal = true;
+      } else if peek_is(tokens, &vec![Symbol::Constant]) {
+         pop_is("type-stmt", tokens, &vec![Symbol::Constant])?;
+         constant = true;
+      }
    }
+
    if let Some(Symbol::Typename(tname)) = tokens.peek_symbol()? {
       tokens.take_symbol()?;
       t = tname.clone();
@@ -184,7 +192,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
                   vn,
                   HashMap::new(),
                   Type::Arrow(Box::new(struct_typ.clone()),Box::new(kt.clone())),
-                  vt
+                  Some(vt)
                ));
                tcrows.push((ki,kt));
             }
@@ -315,13 +323,13 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
       let ft = Type::Arrow(Box::new(pt),Box::new(rt));
       let vt = tlc.push_term(Term::Ident(gn.clone()),&span);
       tlc.untyped(vt);
-      tlc.scopes[scope.id].children.push((gn.clone(), fkts, ft, vt));
+      tlc.scopes[scope.id].children.push((gn.clone(), fkts, ft, Some(vt)));
    }}}
 
    tlc.rules.push(TypeRule::Typedef(TypedefRule {
       name: t,
       is_normal: normal,
-      is_constant: false,
+      is_constant: constant,
       parameters: tiks,
       implies: implies,
       definition: typedef,
@@ -346,7 +354,8 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
 
    if peek_is(tokens, &vec![Symbol::At]) {
       pop_is("forall-stmt", tokens, &vec![Symbol::At])?;
-      if let Some(Symbol::Ident(v)) = tokens.take_symbol()? {
+      if let Some(Symbol::Ident(v)) = tokens.peek_symbol()? {
+         tokens.take_symbol()?;
          name = Some(v.clone());
       }
    }
@@ -414,7 +423,7 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
          let vn = i.clone().unwrap_or("_".to_string());
          let vt = tlc.push_term(Term::Ident(vn.clone()), &span);
          tlc.untyped(vt);
-         children.push((vn.clone(), HashMap::new(), t.clone().unwrap_or(tlc.bottom_type.clone()), vt));
+         children.push((vn.clone(), HashMap::new(), t.clone().unwrap_or(tlc.bottom_type.clone()), Some(vt)));
       }
       let sid = tlc.push_scope(Scope {
          parent: Some(scope),
@@ -513,7 +522,7 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
          let vn = i.clone().unwrap_or("_".to_string());
          let vt = tlc.push_term(Term::Ident(vn.clone()),&span);
          tlc.untyped(vt);
-         children.push((vn.clone(), ks, t.clone(), vt));
+         children.push((vn.clone(), ks, t.clone(), Some(vt)));
       }
    }
    let mut ft = rt.clone();
@@ -537,7 +546,7 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
    ft = ft.normalize();
    let vt = tlc.push_term(Term::Ident(ident.clone()), &span);
    tlc.untyped(vt);
-   tlc.scopes[scope.id].children.push((ident.clone(), fkts, ft, vt));
+   tlc.scopes[scope.id].children.push((ident.clone(), fkts, ft, Some(vt)));
    let inner_scope = tlc.push_scope(Scope {
       parent: Some(scope),
       children: children,
