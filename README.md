@@ -11,6 +11,18 @@ LSTS is a proof assistant and maybe a programming language.
 
 Proofs in LSTS are built by connecting type definitions to quantified statements. Types are logic at rest. Statements are logic in motion. A Type knows what it is. A Statement shows what it is.
 
+### Terms
+
+Terms are Lambda Calculus expressions with some extensions.
+
+```lsts
+1;
+3.0;
+"abc";
+2 + 3;
+"[" + [for x in range(1,25) yield x^3].join(",") + "]";
+```
+
 ### Types
 
 Type definitions define logical statements that are then attached to Terms. All valid Terms have at least one Type. Some Terms may have more than one Type. Types may define invariant properties. These invariant properties impose preconditions and postconditions on what values may occupy that Type. Values going into a Type must satisfy that Type's preconditions. Values coming out of a Term are then known to have satisfied each Type's invariants.
