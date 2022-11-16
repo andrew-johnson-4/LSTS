@@ -9,7 +9,7 @@ LSTS is a proof assistant and maybe a programming language.
 
 ## Rules Based Logic
 
-Proofs in LSTS are built by connecting type definitions to quantified statements. Types are logic at rest. Statements are logic in motion. A Type knows what it is. A Statement shows what it is.
+Proofs in LSTS are built by connecting terms, type definitions, and quantified statements. Terms can be evaluated to obtain Values. Types describe properties of Terms. Statements describe relations between Terms and Types.
 
 ### Terms
 
