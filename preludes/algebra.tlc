@@ -1,0 +1,3 @@
+
+//axioms
+axiom @reflexive a. [True] = a == a;
