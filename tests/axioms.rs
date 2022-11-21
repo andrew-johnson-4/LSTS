@@ -1,7 +1,7 @@
 use lsts::tlc::TLC;
 
 #[test]
-fn check_alpha_conversion() {
+fn algebra1() {
    let mut tlc = TLC::new();
    tlc.strict();
    let alg = tlc.import_file(None, "preludes/algebra.tlc").unwrap();
