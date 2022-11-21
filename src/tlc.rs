@@ -172,8 +172,9 @@ impl TLC {
          bottom_type: Type::And(Vec::new()),
       }
    }
-   pub fn strict(&mut self) {
+   pub fn strict(mut self) -> TLC {
       self.strict = true;
+      self
    }
    pub fn print_type(&self, kinds: &HashMap<Type,Kind>, tt: &Type) -> String {
       let ts = match tt {
