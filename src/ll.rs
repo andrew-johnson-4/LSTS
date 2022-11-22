@@ -343,6 +343,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
 
 pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
+   let mut axiom = false;
    let mut name: Option<String> = None;
    let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
    let inference;
@@ -350,7 +351,10 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
    let mut kind = tlc.term_kind.clone();
    let mut dept = HashMap::new();
 
-   pop_is("forall-stmt", tokens, &vec![Symbol::Forall])?;
+   if peek_is(tokens, &vec![Symbol::Axiom]) {
+      axiom = true;
+   }
+   pop_is("forall-stmt", tokens, &vec![Symbol::Forall, Symbol::Axiom])?;
 
    if peek_is(tokens, &vec![Symbol::At]) {
       pop_is("forall-stmt", tokens, &vec![Symbol::At])?;
@@ -410,6 +414,7 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
    }
 
    tlc.push_forall(
+      axiom,
       name,
       quants.clone(),
       inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
@@ -1079,7 +1084,7 @@ pub fn ll1_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader
       ll1_block_stmt(tlc, scope, tokens)
    } else if peek_is(tokens, &vec![Symbol::Type]) {
       ll1_type_stmt(tlc, scope, tokens)
-   } else if peek_is(tokens, &vec![Symbol::Forall]) {
+   } else if peek_is(tokens, &vec![Symbol::Forall, Symbol::Axiom]) {
       ll1_forall_stmt(tlc, scope, tokens)
    } else if peek_is(tokens, &vec![Symbol::Let]) {
       ll1_let_stmt(tlc, scope, tokens)

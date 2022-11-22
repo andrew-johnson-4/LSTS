@@ -88,6 +88,7 @@ pub struct TypedefRule {
 
 #[derive(Clone)]
 pub struct ForallRule {
+   pub axiom: bool,
    pub name: Option<String>,
    pub parameters: Vec<(Option<String>,Option<Type>,Kind)>,
    pub scope: ScopeId,
@@ -231,7 +232,7 @@ impl TLC {
          Term::RuleApplication(t,n) => format!("{} @{}", self.print_term(*t), n),
       }
    }
-   pub fn push_forall(&mut self, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
+   pub fn push_forall(&mut self, axiom: bool, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
                              inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
       let mut fa_closed: Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)> = Vec::new();
       for (qn,qt,qk) in quants.iter() {
@@ -247,6 +248,7 @@ impl TLC {
       }, &span);
       let fi = self.rules.len();
       let fa = ForallRule {
+         axiom: axiom,
          name: name.clone(),
          parameters: quants,
          scope: fa_scope,
