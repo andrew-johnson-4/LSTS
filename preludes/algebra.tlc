@@ -8,8 +8,8 @@ type constant Integer = /^[-]?[0-9]+$/;
 
 //assumed function definitions
 let $"+"(x: Integer, y: Integer): Integer  = |x +  y|;
-let $"-"(x: Integer, y: Integer): Integer  = |x -  y];
-let $"*"(x: Integer, y: Integer): Integer  = |x *  y];
+let $"-"(x: Integer, y: Integer): Integer  = |x -  y|;
+let $"*"(x: Integer, y: Integer): Integer  = |x *  y|;
 
 let $"<"(x: Integer, y: Integer): Boolean  = |x <  y|;
 let $"<="(x: Integer, y: Integer): Boolean = |x <= y|;
