@@ -556,6 +556,13 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
       parent: Some(scope),
       children: children,
    }, &span);
+   if tlc.strict && t.is_none() {
+      return Err(Error {
+         kind: "Type Error".to_string(),
+         rule: format!("in strict mode functions must have bodies"),
+         span: span_of(tokens),
+      })
+   }
    Ok(tlc.push_term(Term::Let(inner_scope,ident,pars,t,rt,rk), &span))
 }
 
