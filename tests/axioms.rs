@@ -6,4 +6,5 @@ fn algebra1() {
    let alg = tlc.import_file(None, "preludes/algebra.tlc").unwrap();
 
    tlc.check(Some(alg), "1 + 2 * 3 == 1 + 2 * 3 @reflexive : [True]").unwrap();
+   tlc.check(Some(alg), "2 * 3 + 1 == 1 + 2 * 3 @reflexive : [True]").unwrap_err();
 }
