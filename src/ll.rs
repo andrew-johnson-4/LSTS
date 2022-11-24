@@ -747,9 +747,9 @@ pub fn ll1_tuple_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Token
 
 pub fn ll1_literal_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   pop_is("tuple-term", tokens, &vec![Symbol::Bar])?;
+   pop_is("literal-term", tokens, &vec![Symbol::Bar])?;
    let t = ll1_term(tlc, scope, tokens)?;
-   pop_is("tuple-term", tokens, &vec![Symbol::Bar])?;
+   pop_is("literal-term", tokens, &vec![Symbol::Bar])?;
    Ok(tlc.push_term(Term::Literal(t),&span))
 }
 
