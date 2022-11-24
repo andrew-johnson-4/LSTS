@@ -21,4 +21,5 @@ pub enum Term {
    Constructor(String,Vec<(String,TermId)>),
    Substitution(TermId,TermId,TermId),
    RuleApplication(TermId,String),
+   Literal(TermId),
 }

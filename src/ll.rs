@@ -745,6 +745,14 @@ pub fn ll1_tuple_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Token
    }
 }
 
+pub fn ll1_literal_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   pop_is("tuple-term", tokens, &vec![Symbol::Bar])?;
+   let t = ll1_term(tlc, scope, tokens)?;
+   pop_is("tuple-term", tokens, &vec![Symbol::Bar])?;
+   Ok(tlc.push_term(Term::Literal(t),&span))
+}
+
 pub fn ll1_value_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    if let Some(sym) = tokens.peek_symbol()? {
@@ -803,6 +811,8 @@ pub fn ll1_atom_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
    let span = span_of(tokens);
    let mut term = if peek_is(tokens, &vec![Symbol::LeftParen]) {
       ll1_tuple_term(tlc, scope, tokens)?
+   } else if peek_is(tokens, &vec![Symbol::Bar]) {
+      ll1_literal_term(tlc, scope, tokens)?
    } else {
       ll1_value_term(tlc, scope, tokens)?
    };

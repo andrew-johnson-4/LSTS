@@ -230,6 +230,7 @@ impl TLC {
          },
          Term::Substitution(e,a,b) => format!("{}\\[{}|{}]", self.print_term(*e), self.print_term(*a), self.print_term(*b)),
          Term::RuleApplication(t,n) => format!("{} @{}", self.print_term(*t), n),
+         Term::Literal(t) => format!("|{}|", self.print_term(*t)),
       }
    }
    pub fn push_forall(&mut self, axiom: bool, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
@@ -1417,6 +1418,9 @@ impl TLC {
             self.unify_varnames_lhs(dept,b,lhs);
          },
          Term::RuleApplication(_,_) => {},
+         Term::Literal(ref mut t) => {
+            self.unify_varnames_lhs(dept,t,lhs);
+         }
       }
    }
    pub fn are_terms_equal(&self, lt: TermId, rt: TermId) -> bool {
@@ -1756,6 +1760,19 @@ impl TLC {
       let implied = implied.map(|tt|tt.normalize());
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
+         Term::Literal(l) => {
+            self.untyped(l);
+            if let Some(ref i) = implied {
+               //TODO: typeck dynamic expression body vs literal pattern definitions
+               self.rows[t.id].typ = i.clone();
+            } else {
+               return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("Literal Expressions must have an Implied Type"),
+                  span: self.rows[t.id].span.clone(),
+               })
+            }
+         },
          Term::Block(sid,es) => {
             let mut last_typ = self.nil_type.clone();
             for e in es.iter() {
