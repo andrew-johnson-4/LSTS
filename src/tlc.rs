@@ -430,7 +430,6 @@ impl TLC {
             if let Some(ref rhs) = fr.rhs {
             if let Inference::Type(ref tt) = fr.inference {
                self.typeck(&Some(fr.scope), *rhs, Some(tt.clone()))?;
-               //TODO typeck term part
             }}
          }},
          TypeRule::Typedef(tr) => {
