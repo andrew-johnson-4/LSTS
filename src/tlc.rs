@@ -233,7 +233,7 @@ impl TLC {
          Term::Literal(t) => format!("|{}|", self.print_term(*t)),
       }
    }
-   pub fn push_forall(&mut self, axiom: bool, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
+   pub fn push_forall(&mut self, globals: ScopeId, axiom: bool, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
                              inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
       let mut fa_closed: Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)> = Vec::new();
       for (qn,qt,qk) in quants.iter() {
@@ -244,7 +244,7 @@ impl TLC {
          fa_closed.push( (qn.clone(), fk, qt.clone(), None) );
       }}}
       let fa_scope = self.push_scope(Scope {
-         parent: None,
+         parent: Some(globals),
          children: fa_closed,
       }, &span);
       let fi = self.rules.len();
@@ -426,10 +426,13 @@ impl TLC {
    }
    pub fn compile_rules(&mut self, _docname:&str) -> Result<(),Error> {
       for rule in self.rules.clone().iter() { match rule {
-         TypeRule::Forall(_fr) => {
-            //TODO: add foralls into term language also
-            //TODO: assert that foralls are [True] in typeck
-         },
+         TypeRule::Forall(fr) => { if !fr.axiom {
+            if let Some(ref rhs) = fr.rhs {
+            if let Inference::Type(ref tt) = fr.inference {
+               self.typeck(&Some(fr.scope), *rhs, Some(tt.clone()))?;
+               //TODO typeck term part
+            }}
+         }},
          TypeRule::Typedef(tr) => {
             for td in tr.definition.iter() { match td {
                TypedefBranch::Regex(pat) => {

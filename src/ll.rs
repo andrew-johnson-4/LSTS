@@ -414,6 +414,7 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
    }
 
    tlc.push_forall(
+      scope,
       axiom,
       name,
       quants.clone(),
