@@ -238,11 +238,11 @@ impl TLC {
       let mut fa_closed: Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)> = Vec::new();
       for (qn,qt,qk) in quants.iter() {
       if let Some(qn) = qn {
-      if let Some(qt) = qt {
+         let qt = if let Some(qt) = qt { qt.clone() } else { Type::Any };
          let mut fk = HashMap::new();
          fk.insert(qt.clone(), qk.clone());
          fa_closed.push( (qn.clone(), fk, qt.clone(), None) );
-      }}}
+      }}
       let fa_scope = self.push_scope(Scope {
          parent: Some(globals),
          children: fa_closed,
