@@ -426,7 +426,7 @@ impl TLC {
    }
    pub fn compile_rules(&mut self, _docname:&str) -> Result<(),Error> {
       for rule in self.rules.clone().iter() { match rule {
-         TypeRule::Forall(fr) => { if !fr.axiom {
+         TypeRule::Forall(fr) => { if self.strict && !fr.axiom {
             if let Some(ref rhs) = fr.rhs {
             if let Inference::Type(ref tt) = fr.inference {
                self.typeck(&Some(fr.scope), *rhs, Some(tt.clone()))?;
@@ -1702,7 +1702,7 @@ impl TLC {
          _tt => {},
       }
    }
-   pub fn typeck_hint(&mut self, scope: &Option<ScopeId>, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
+   pub fn typeck_hint(&mut self, bound: &mut HashMap<String,TermId>, scope: &Option<ScopeId>, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
       match ( self.rows[lhs.id].term.clone(), self.rows[rhs.id].term.clone() ) {
          (Term::Ident(ln), Term::Ident(rn)) if ln==rn => {
             Ok(()) //This is unsound, just a workaround for now
@@ -1711,6 +1711,17 @@ impl TLC {
             let realized = self.rows[lhs.id].typ.clone();
             let required = self.typeof_var(scope, &x, &Some(realized.clone()), &self.rows[lhs.id].span.clone())?;
             self.implies(&realized, &required, &self.rows[lhs.id].span.clone())?;
+            if let Some(prevx) = bound.get(&x) {
+               if !Term::equals(self, lhs, *prevx) {
+                  return Err(Error {
+                     kind: "Type Error".to_string(),
+                     rule: format!("hint parameter does not structurally match in term: {}", hint),
+                     span: self.rows[lhs.id].span.clone(),
+                  })
+               }
+            } else {
+               bound.insert(x.clone(), lhs);
+            }
             Ok(())
          },
          (Term::Block(lsid,les),Term::Block(rsid,res)) => {
@@ -1718,7 +1729,7 @@ impl TLC {
          },
          (Term::Tuple(les),Term::Tuple(res)) if les.len()==res.len() => {
             for (lx,rx) in std::iter::zip(les,res) {
-               self.typeck_hint(scope, hint, lx, rx)?;
+               self.typeck_hint(bound, scope, hint, lx, rx)?;
             }
             Ok(())
          },
@@ -1738,8 +1749,8 @@ impl TLC {
             unimplemented!("TODO: typeck_hint Term::Arrow")
          },
 	 (Term::App(lg,lx),Term::App(rg,rx)) => {
-            self.typeck_hint(scope, hint, lg, rg)?;
-            self.typeck_hint(scope, hint, lx, rx)?;
+            self.typeck_hint(bound, scope, hint, lg, rg)?;
+            self.typeck_hint(bound, scope, hint, lx, rx)?;
             Ok(())
          },
          (Term::Constructor(ln,lkvs),Term::Constructor(rn,rkvs)) => {
@@ -1898,7 +1909,7 @@ impl TLC {
                let fa_inference = fa.inference.clone();
                if let Some(rhs) = fa.rhs {
                   self.typeck(scope, lhs, None)?;
-                  self.typeck_hint(&Some(fa_scope), &h, lhs, rhs)?;
+                  self.typeck_hint(&mut HashMap::new(), &Some(fa_scope), &h, lhs, rhs)?;
                   //at this point rule must have matched, so apply it
                   if let Inference::Type(fat) = fa_inference {
                      self.rows[t.id].typ = self.rows[lhs.id].typ.and( &fat );
