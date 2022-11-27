@@ -343,6 +343,7 @@ pub fn ll1_type_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
 
 pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
+   let mut axiom = false;
    let mut name: Option<String> = None;
    let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
    let inference;
@@ -350,7 +351,10 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
    let mut kind = tlc.term_kind.clone();
    let mut dept = HashMap::new();
 
-   pop_is("forall-stmt", tokens, &vec![Symbol::Forall])?;
+   if peek_is(tokens, &vec![Symbol::Axiom]) {
+      axiom = true;
+   }
+   pop_is("forall-stmt", tokens, &vec![Symbol::Forall, Symbol::Axiom])?;
 
    if peek_is(tokens, &vec![Symbol::At]) {
       pop_is("forall-stmt", tokens, &vec![Symbol::At])?;
@@ -410,6 +414,8 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
    }
 
    tlc.push_forall(
+      scope,
+      axiom,
       name,
       quants.clone(),
       inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
@@ -551,6 +557,13 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
       parent: Some(scope),
       children: children,
    }, &span);
+   if tlc.strict && t.is_none() {
+      return Err(Error {
+         kind: "Type Error".to_string(),
+         rule: format!("in strict mode functions must have bodies"),
+         span: span_of(tokens),
+      })
+   }
    Ok(tlc.push_term(Term::Let(inner_scope,ident,pars,t,rt,rk), &span))
 }
 
@@ -733,6 +746,14 @@ pub fn ll1_tuple_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Token
    }
 }
 
+pub fn ll1_literal_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   pop_is("literal-term", tokens, &vec![Symbol::Bar])?;
+   let t = ll1_term(tlc, scope, tokens)?;
+   pop_is("literal-term", tokens, &vec![Symbol::Bar])?;
+   Ok(tlc.push_term(Term::Literal(t),&span))
+}
+
 pub fn ll1_value_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
    let span = span_of(tokens);
    if let Some(sym) = tokens.peek_symbol()? {
@@ -791,6 +812,8 @@ pub fn ll1_atom_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenR
    let span = span_of(tokens);
    let mut term = if peek_is(tokens, &vec![Symbol::LeftParen]) {
       ll1_tuple_term(tlc, scope, tokens)?
+   } else if peek_is(tokens, &vec![Symbol::Bar]) {
+      ll1_literal_term(tlc, scope, tokens)?
    } else {
       ll1_value_term(tlc, scope, tokens)?
    };
@@ -1079,7 +1102,7 @@ pub fn ll1_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader
       ll1_block_stmt(tlc, scope, tokens)
    } else if peek_is(tokens, &vec![Symbol::Type]) {
       ll1_type_stmt(tlc, scope, tokens)
-   } else if peek_is(tokens, &vec![Symbol::Forall]) {
+   } else if peek_is(tokens, &vec![Symbol::Forall, Symbol::Axiom]) {
       ll1_forall_stmt(tlc, scope, tokens)
    } else if peek_is(tokens, &vec![Symbol::Let]) {
       ll1_let_stmt(tlc, scope, tokens)

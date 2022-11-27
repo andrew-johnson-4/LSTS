@@ -88,6 +88,7 @@ pub struct TypedefRule {
 
 #[derive(Clone)]
 pub struct ForallRule {
+   pub axiom: bool,
    pub name: Option<String>,
    pub parameters: Vec<(Option<String>,Option<Type>,Kind)>,
    pub scope: ScopeId,
@@ -229,24 +230,26 @@ impl TLC {
          },
          Term::Substitution(e,a,b) => format!("{}\\[{}|{}]", self.print_term(*e), self.print_term(*a), self.print_term(*b)),
          Term::RuleApplication(t,n) => format!("{} @{}", self.print_term(*t), n),
+         Term::Literal(t) => format!("|{}|", self.print_term(*t)),
       }
    }
-   pub fn push_forall(&mut self, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
+   pub fn push_forall(&mut self, globals: ScopeId, axiom: bool, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
                              inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
       let mut fa_closed: Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)> = Vec::new();
       for (qn,qt,qk) in quants.iter() {
       if let Some(qn) = qn {
-      if let Some(qt) = qt {
+         let qt = if let Some(qt) = qt { qt.clone() } else { Type::Any };
          let mut fk = HashMap::new();
          fk.insert(qt.clone(), qk.clone());
          fa_closed.push( (qn.clone(), fk, qt.clone(), None) );
-      }}}
+      }}
       let fa_scope = self.push_scope(Scope {
-         parent: None,
+         parent: Some(globals),
          children: fa_closed,
       }, &span);
       let fi = self.rules.len();
       let fa = ForallRule {
+         axiom: axiom,
          name: name.clone(),
          parameters: quants,
          scope: fa_scope,
@@ -423,10 +426,12 @@ impl TLC {
    }
    pub fn compile_rules(&mut self, _docname:&str) -> Result<(),Error> {
       for rule in self.rules.clone().iter() { match rule {
-         TypeRule::Forall(_fr) => {
-            //TODO: add foralls into term language also
-            //TODO: assert that foralls are [True] in typeck
-         },
+         TypeRule::Forall(fr) => { if self.strict && !fr.axiom {
+            if let Some(ref rhs) = fr.rhs {
+            if let Inference::Type(ref tt) = fr.inference {
+               self.typeck(&Some(fr.scope), *rhs, Some(tt.clone()))?;
+            }}
+         }},
          TypeRule::Typedef(tr) => {
             for td in tr.definition.iter() { match td {
                TypedefBranch::Regex(pat) => {
@@ -1415,6 +1420,9 @@ impl TLC {
             self.unify_varnames_lhs(dept,b,lhs);
          },
          Term::RuleApplication(_,_) => {},
+         Term::Literal(ref mut t) => {
+            self.unify_varnames_lhs(dept,t,lhs);
+         }
       }
    }
    pub fn are_terms_equal(&self, lt: TermId, rt: TermId) -> bool {
@@ -1694,7 +1702,7 @@ impl TLC {
          _tt => {},
       }
    }
-   pub fn typeck_hint(&mut self, scope: &Option<ScopeId>, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
+   pub fn typeck_hint(&mut self, bound: &mut HashMap<String,TermId>, scope: &Option<ScopeId>, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
       match ( self.rows[lhs.id].term.clone(), self.rows[rhs.id].term.clone() ) {
          (Term::Ident(ln), Term::Ident(rn)) if ln==rn => {
             Ok(()) //This is unsound, just a workaround for now
@@ -1703,6 +1711,17 @@ impl TLC {
             let realized = self.rows[lhs.id].typ.clone();
             let required = self.typeof_var(scope, &x, &Some(realized.clone()), &self.rows[lhs.id].span.clone())?;
             self.implies(&realized, &required, &self.rows[lhs.id].span.clone())?;
+            if let Some(prevx) = bound.get(&x) {
+               if !Term::equals(self, lhs, *prevx) {
+                  return Err(Error {
+                     kind: "Type Error".to_string(),
+                     rule: format!("hint parameter does not structurally match in term: {}", hint),
+                     span: self.rows[lhs.id].span.clone(),
+                  })
+               }
+            } else {
+               bound.insert(x.clone(), lhs);
+            }
             Ok(())
          },
          (Term::Block(lsid,les),Term::Block(rsid,res)) => {
@@ -1710,7 +1729,7 @@ impl TLC {
          },
          (Term::Tuple(les),Term::Tuple(res)) if les.len()==res.len() => {
             for (lx,rx) in std::iter::zip(les,res) {
-               self.typeck_hint(scope, hint, lx, rx)?;
+               self.typeck_hint(bound, scope, hint, lx, rx)?;
             }
             Ok(())
          },
@@ -1730,8 +1749,8 @@ impl TLC {
             unimplemented!("TODO: typeck_hint Term::Arrow")
          },
 	 (Term::App(lg,lx),Term::App(rg,rx)) => {
-            self.typeck_hint(scope, hint, lg, rg)?;
-            self.typeck_hint(scope, hint, lx, rx)?;
+            self.typeck_hint(bound, scope, hint, lg, rg)?;
+            self.typeck_hint(bound, scope, hint, lx, rx)?;
             Ok(())
          },
          (Term::Constructor(ln,lkvs),Term::Constructor(rn,rkvs)) => {
@@ -1754,6 +1773,19 @@ impl TLC {
       let implied = implied.map(|tt|tt.normalize());
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
+         Term::Literal(l) => {
+            self.untyped(l);
+            if let Some(ref i) = implied {
+               //TODO: typeck dynamic expression body vs literal pattern definitions
+               self.rows[t.id].typ = i.clone();
+            } else {
+               return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("Literal Expressions must have an Implied Type"),
+                  span: self.rows[t.id].span.clone(),
+               })
+            }
+         },
          Term::Block(sid,es) => {
             let mut last_typ = self.nil_type.clone();
             for e in es.iter() {
@@ -1877,7 +1909,7 @@ impl TLC {
                let fa_inference = fa.inference.clone();
                if let Some(rhs) = fa.rhs {
                   self.typeck(scope, lhs, None)?;
-                  self.typeck_hint(&Some(fa_scope), &h, lhs, rhs)?;
+                  self.typeck_hint(&mut HashMap::new(), &Some(fa_scope), &h, lhs, rhs)?;
                   //at this point rule must have matched, so apply it
                   if let Inference::Type(fat) = fa_inference {
                      self.rows[t.id].typ = self.rows[lhs.id].typ.and( &fat );

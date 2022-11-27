@@ -1,0 +1,19 @@
+
+//axioms
+axiom @reflexive a. [True] = a == a;
+
+//type definitions
+type constant Boolean = True | False;
+type constant Integer = /^[-]?[0-9]+$/;
+
+//assumed function definitions
+let $"+"(x: Integer, y: Integer): Integer  = |x +  y|;
+let $"-"(x: Integer, y: Integer): Integer  = |x -  y|;
+let $"*"(x: Integer, y: Integer): Integer  = |x *  y|;
+
+let $"<"(x: Integer, y: Integer): Boolean  = |x <  y|;
+let $"<="(x: Integer, y: Integer): Boolean = |x <= y|;
+let $">"(x: Integer, y: Integer): Boolean  = |x >  y|;
+let $">="(x: Integer, y: Integer): Boolean = |x >= y|;
+let $"=="(x: Integer, y: Integer): Boolean = |x == y|;
+let $"!="(x: Integer, y: Integer): Boolean = |x != y|;
