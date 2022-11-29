@@ -1,3 +1,4 @@
+use crate::tlc::TLC;
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Constant {
@@ -19,5 +20,11 @@ impl std::fmt::Debug for Constant {
            .map(|t|format!("{:?}",t)).collect::<Vec<String>>()
            .join(",") ),
       }
+   }
+}
+
+impl Constant {
+   pub fn parse(tlc: &TLC, v: &str) -> Constant {
+      unimplemented!("Constant::parse({})", v)
    }
 }

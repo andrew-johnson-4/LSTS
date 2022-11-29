@@ -51,6 +51,11 @@ impl Term {
       }
    }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, term: TermId) -> Type {
-      unimplemented!("implement Call-by-Value term reduction")
+      match &tlc.rows[term.id].term {
+         Term::Value(v) => {
+            Type::Constant(term, Some(Constant::parse(tlc, &v)))
+         },
+         _ => unimplemented!("implement Call-by-Value term reduction: {}", tlc.print_term(term))
+      }
    }
 }
