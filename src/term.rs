@@ -2,6 +2,7 @@ use crate::typ::Type;
 use crate::kind::Kind;
 use crate::scope::ScopeId;
 use crate::tlc::TLC;
+use crate::constant::Constant;
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -48,5 +49,8 @@ impl Term {
          },
          _ => false
       }
+   }
+   pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, term: TermId) -> Type {
+      unimplemented!("implement Call-by-Value term reduction")
    }
 }

@@ -1904,7 +1904,10 @@ impl TLC {
             self.check_invariants(t)?;
 	 },
          Term::RuleApplication(lhs,h) => {
-            if let Some(fa) = self.hints.get(&h) {
+            if h == "reduce" {
+               let vt = Term::reduce(self, scope, lhs);
+               self.rows[t.id].typ = self.rows[lhs.id].typ.and( &vt );
+            } else if let Some(fa) = self.hints.get(&h) {
                let fa_scope = fa.scope.clone();
                let fa_inference = fa.inference.clone();
                if let Some(rhs) = fa.rhs {
