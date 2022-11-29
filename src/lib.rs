@@ -31,3 +31,6 @@ pub mod debug;
 
 /// The Token module defines lexical tokens, spans, and a stream tokenizer
 pub mod token;
+
+/// The DFA module defines Deterministic Finite Automata and operations on them
+pub mod dfa;
