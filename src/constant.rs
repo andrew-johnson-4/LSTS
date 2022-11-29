@@ -25,6 +25,10 @@ impl std::fmt::Debug for Constant {
 
 impl Constant {
    pub fn parse(tlc: &TLC, v: &str) -> Constant {
-      unimplemented!("Constant::parse({})", v)
+      if      v=="NaN" { Constant::NaN }
+      else if v=="True" { Constant::Boolean(true) }
+      else if v=="False" { Constant::Boolean(false) }
+      else if let Ok(vi) = v.parse::<i64>() { Constant::Integer(vi) }
+      else { Constant::Op(v.to_string()) }
    }
 }

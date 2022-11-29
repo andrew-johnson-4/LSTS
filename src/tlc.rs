@@ -1905,6 +1905,7 @@ impl TLC {
 	 },
          Term::RuleApplication(lhs,h) => {
             if h == "reduce" {
+               self.typeck(scope, lhs, None)?;
                let vt = Term::reduce(self, scope, lhs);
                self.rows[t.id].typ = self.rows[lhs.id].typ.and( &vt );
             } else if let Some(fa) = self.hints.get(&h) {

@@ -55,6 +55,9 @@ impl Term {
          Term::Value(v) => {
             Type::Constant(term, Some(Constant::parse(tlc, &v)))
          },
+         Term::Constructor(c,cps) if cps.len()==0 => {
+            Type::Constant(term, Some(Constant::parse(tlc, &c)))
+         },
          _ => unimplemented!("implement Call-by-Value term reduction: {}", tlc.print_term(term))
       }
    }
