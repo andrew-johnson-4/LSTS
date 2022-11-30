@@ -52,6 +52,8 @@ impl Term {
       }
    }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, scope_constants: &HashMap<String,Constant>, term: TermId) -> Option<Constant> {
+      //scope is only used to look up functions
+      //all other variables should already be converted to values
       match &tlc.rows[term.id].term {
          Term::Value(v) => {
             Constant::parse(tlc, &v)
