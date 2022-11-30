@@ -24,11 +24,11 @@ impl std::fmt::Debug for Constant {
 }
 
 impl Constant {
-   pub fn parse(tlc: &TLC, v: &str) -> Constant {
-      if      v=="NaN" { Constant::NaN }
-      else if v=="True" { Constant::Boolean(true) }
-      else if v=="False" { Constant::Boolean(false) }
-      else if let Ok(vi) = v.parse::<i64>() { Constant::Integer(vi) }
-      else { Constant::Op(v.to_string()) }
+   pub fn parse(tlc: &TLC, v: &str) -> Option<Constant> {
+      if      v=="NaN" { Some(Constant::NaN) }
+      else if v=="True" { Some(Constant::Boolean(true)) }
+      else if v=="False" { Some(Constant::Boolean(false)) }
+      else if let Ok(vi) = v.parse::<i64>() { Some(Constant::Integer(vi)) }
+      else { Some(Constant::Op(v.to_string())) }
    }
 }

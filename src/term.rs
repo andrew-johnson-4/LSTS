@@ -3,6 +3,7 @@ use crate::kind::Kind;
 use crate::scope::ScopeId;
 use crate::tlc::TLC;
 use crate::constant::Constant;
+use std::collections::HashMap;
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -50,13 +51,13 @@ impl Term {
          _ => false
       }
    }
-   pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, term: TermId) -> Type {
+   pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, scope_constants: &HashMap<String,Constant>, term: TermId) -> Option<Constant> {
       match &tlc.rows[term.id].term {
          Term::Value(v) => {
-            Type::Constant(term, Some(Constant::parse(tlc, &v)))
+            Constant::parse(tlc, &v)
          },
          Term::Constructor(c,cps) if cps.len()==0 => {
-            Type::Constant(term, Some(Constant::parse(tlc, &c)))
+            Constant::parse(tlc, &c)
          },
          _ => unimplemented!("implement Call-by-Value term reduction: {}", tlc.print_term(term))
       }

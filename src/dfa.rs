@@ -9,7 +9,7 @@ pub enum LiteralPattern {
 
 #[derive(Clone)]
 pub struct DFA {
-   start: usize,
-   states: Vec<bool>, //bool = is accept
-   transitions: Vec<(usize,char,usize)>,
+   pub start: usize,
+   pub states: Vec<bool>, //bool = is accept
+   pub transitions: Vec<(usize,char,usize)>,
 }

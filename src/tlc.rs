@@ -1906,8 +1906,14 @@ impl TLC {
          Term::RuleApplication(lhs,h) => {
             if h == "reduce" {
                self.typeck(scope, lhs, None)?;
-               let vt = Term::reduce(self, scope, lhs);
-               self.rows[t.id].typ = self.rows[lhs.id].typ.and( &vt );
+               let vt = Term::reduce(self, scope, &HashMap::new(), lhs);
+               if vt.is_some() {
+                  self.rows[t.id].typ = self.rows[lhs.id].typ.and( &Type::Constant(lhs, vt) );
+               } else { return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("failed to reduce expression: {}", self.print_term(lhs)),
+                  span: self.rows[t.id].span.clone(),
+               }) }
             } else if let Some(fa) = self.hints.get(&h) {
                let fa_scope = fa.scope.clone();
                let fa_inference = fa.inference.clone();
