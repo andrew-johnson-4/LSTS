@@ -59,6 +59,20 @@ impl Term {
          Term::Constructor(c,cps) if cps.len()==0 => {
             Constant::parse(tlc, &c)
          },
+         Term::Tuple(ts) => {
+            let mut cs = Vec::new();
+            for ct in ts.iter() {
+               if let Some(cc) = Term::reduce(tlc, scope, scope_constants, *ct) {
+                  cs.push(cc);
+               } else { return None; }
+            }
+            Some(Constant::Tuple(cs))
+         },
+         Term::App(g,x) => {
+            if let Some(xc) = Term::reduce(tlc, scope, scope_constants, *x) {
+               unimplemented!("implement Call-by-Value function call: {}({:?})", tlc.print_term(*g), xc)
+            } else { return None; }
+         },
          _ => unimplemented!("implement Call-by-Value term reduction: {}", tlc.print_term(term))
       }
    }
