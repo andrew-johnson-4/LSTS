@@ -439,7 +439,6 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
          scope: sid,
          name: "".to_string(),
          parameters: vec![quants.clone()],
-         given: vec![],
          body: Some(t),
          rtype: Type::Any,
          rkind: tlc.term_kind.clone(),
@@ -559,7 +558,6 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
       scope: inner_scope,
       name: ident.clone(),
       parameters: pars,
-      given: vec![],
       body: t,
       rtype: rt,
       rkind: rk
