@@ -89,7 +89,21 @@ impl Term {
                   Term::Ident(gv) => {
                      if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[x.id].typ) {
                         if let Term::Let(lb) = &tlc.rows[binding.id].term {
-                           unimplemented!("TODO: beta-reduce function body {}", tlc.print_term(binding))
+                           if lb.parameters.len() != 1 { unimplemented!("beta-reduce curried functions in Term::reduce") }
+                           let mut new_scope = scope_constants.clone();
+                           let ref pars = lb.parameters[0];
+                           let args = if pars.len()==1 { vec![xc] }
+                                 else if let Constant::Tuple(xs) = xc { xs.clone() }
+                                 else { vec![xc] };
+                           if pars.len() != args.len() { panic!("mismatched arity in Term::reduce {}", tlc.print_term(term)) };
+                           for ((pn,pt,pk),a) in std::iter::zip(pars,args) {
+                              if let Some(pn) = pn {
+                                 new_scope.insert(pn.clone(), a.clone());
+                              }
+                           }
+                           if let Some(body) = lb.body {
+                              Term::reduce(tlc, &Some(lb.scope), &new_scope, body)
+                           } else { return None; }
                         } else {
                            panic!("unexpected lambda format in Term::reduce beta-reduction {}", tlc.print_term(binding))
                         }
