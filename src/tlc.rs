@@ -216,7 +216,7 @@ impl TLC {
          Term::Value(x) => format!("'{}'", x),
          Term::Arrow(p,b) => format!("({} -> {})", self.print_term(*p), self.print_term(*b)),
          Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
-         Term::Let(_sc,v,_ps,_b,_rt,_rk) => format!("let {}", v),
+         Term::Let(lt) => format!("let {}", lt.name),
          Term::Ascript(t,tt) => format!("{}:{:?}", self.print_term(*t), tt),
          Term::As(t,tt) => format!("{} as {:?}", self.print_term(*t), tt),
          Term::Tuple(es) => {
@@ -550,8 +550,8 @@ impl TLC {
          }
          let mut rvars = r.typ.vars();
          match &r.term {
-            Term::Let(_sid,_v,_pars,_t,rt,_rk) => {
-               rvars.append(&mut rt.vars());
+            Term::Let(lt) => {
+               rvars.append(&mut lt.rtype.vars());
                //TODO append parameters vars
             },
             _ => (),
@@ -1031,8 +1031,8 @@ impl TLC {
                self.untyped(*e);
             }
          },
-         Term::Let(_s,_v,_ps,b,_rt,_rk) => {
-            if let Some(b) = b {
+         Term::Let(lt) => {
+            if let Some(b) = lt.body {
                self.untyped(b);
             }
          },
@@ -1392,7 +1392,7 @@ impl TLC {
                self.unify_varnames_lhs(dept,e,lhs);
             }
          },
-         Term::Let(_,_,_,_,_,_) => {
+         Term::Let(ref mut lt) => {
             panic!("TODO: unify_varnames in Let term")
          },
          Term::Arrow(ref mut p,ref mut b) => {
@@ -1733,7 +1733,7 @@ impl TLC {
             }
             Ok(())
          },
-         (Term::Let(_,_,_,_,_,_),Term::Let(_,_,_,_,_,_)) => {
+         (Term::Let(_llt),Term::Let(_rlt)) => {
             unimplemented!("TODO: typeck_hint Term::Let")
          },
 	 (Term::Ascript(lx,ltt),Term::Ascript(rx,rtt)) => {
@@ -1806,17 +1806,17 @@ impl TLC {
             }
             self.rows[t.id].typ = self.implies(&Type::Tuple(ts), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
-         Term::Let(s,v,_ps,b,rt,_rk) => {
-            if v=="" {
+         Term::Let(lt) => {
+            if lt.name=="" {
                //term is untyped
                self.untyped(t);
-            } else if let Some(ref b) = b {
-               self.typeck(&Some(s), *b, Some(rt.clone()))?;
+            } else if let Some(ref b) = lt.body {
+               self.typeck(&Some(lt.scope), *b, Some(lt.rtype.clone()))?;
                self.rows[t.id].typ = self.nil_type.clone();
             } else {
                self.rows[t.id].typ = self.nil_type.clone();
             }
-            self.soundck(&rt, &self.rows[t.id].span.clone())?;
+            self.soundck(&lt.rtype, &self.rows[t.id].span.clone())?;
          },
          Term::Ascript(x,tt) => {
             self.typeck(scope, x, Some(tt.clone()))?;
@@ -1904,7 +1904,17 @@ impl TLC {
             self.check_invariants(t)?;
 	 },
          Term::RuleApplication(lhs,h) => {
-            if let Some(fa) = self.hints.get(&h) {
+            if h == "reduce" {
+               self.typeck(scope, lhs, None)?;
+               let vt = Term::reduce(self, scope, &HashMap::new(), lhs);
+               if vt.is_some() {
+                  self.rows[t.id].typ = self.rows[lhs.id].typ.and( &Type::Constant(lhs, vt) );
+               } else { return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("failed to reduce expression: {}", self.print_term(lhs)),
+                  span: self.rows[t.id].span.clone(),
+               }) }
+            } else if let Some(fa) = self.hints.get(&h) {
                let fa_scope = fa.scope.clone();
                let fa_inference = fa.inference.clone();
                if let Some(rhs) = fa.rhs {
