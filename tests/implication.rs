@@ -292,7 +292,6 @@ fn check_parameter_unification() {
 
 #[test]
 fn check_function_unification() {
-   let td   = Type::And(vec![]);
    let tany = Type::Any;
    let tn1  = Type::Named("Integer".to_string(),vec![]);
    let tn2  = Type::Named("Number".to_string(),vec![]);

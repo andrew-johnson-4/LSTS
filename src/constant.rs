@@ -26,7 +26,7 @@ impl std::fmt::Debug for Constant {
 }
 
 impl Constant {
-   pub fn parse(tlc: &TLC, v: &str) -> Option<Constant> {
+   pub fn parse(_tlc: &TLC, v: &str) -> Option<Constant> {
       if      v=="NaN" { Some(Constant::NaN) }
       else if v=="True" { Some(Constant::Boolean(true)) }
       else if v=="False" { Some(Constant::Boolean(false)) }
@@ -85,7 +85,7 @@ impl Constant {
                unimplemented!("Constant::eval apply {}", tlc.print_term(*g))
             }
          },
-         t => { unimplemented!("Constant::eval {}", tlc.print_term(term)) }
+         _ => { unimplemented!("Constant::eval {}", tlc.print_term(term)) }
       }
    }
 }

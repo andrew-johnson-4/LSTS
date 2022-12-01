@@ -1392,7 +1392,7 @@ impl TLC {
                self.unify_varnames_lhs(dept,e,lhs);
             }
          },
-         Term::Let(ref mut lt) => {
+         Term::Let(ref mut _lt) => {
             panic!("TODO: unify_varnames in Let term")
          },
          Term::Arrow(ref mut p,ref mut b) => {
@@ -1707,7 +1707,7 @@ impl TLC {
          (Term::Ident(ln), Term::Ident(rn)) if ln==rn => {
             Ok(()) //This is unsound, just a workaround for now
          },
-         (lhsx, Term::Ident(x)) => {
+         (_lhsx, Term::Ident(x)) => {
             let realized = self.rows[lhs.id].typ.clone();
             let required = self.typeof_var(scope, &x, &Some(realized.clone()), &self.rows[lhs.id].span.clone())?;
             self.implies(&realized, &required, &self.rows[lhs.id].span.clone())?;
@@ -1724,7 +1724,7 @@ impl TLC {
             }
             Ok(())
          },
-         (Term::Block(lsid,les),Term::Block(rsid,res)) => {
+         (Term::Block(_lsid,_les),Term::Block(_rsid,_res)) => {
             unimplemented!("TODO: typeck_hint Term::Block")
          },
          (Term::Tuple(les),Term::Tuple(res)) if les.len()==res.len() => {
@@ -1736,16 +1736,16 @@ impl TLC {
          (Term::Let(_llt),Term::Let(_rlt)) => {
             unimplemented!("TODO: typeck_hint Term::Let")
          },
-	 (Term::Ascript(lx,ltt),Term::Ascript(rx,rtt)) => {
+	 (Term::Ascript(_lx,_ltt),Term::Ascript(_rx,_rtt)) => {
             unimplemented!("TODO: typeck_hint Term::Ascript")
          },
-	 (Term::As(lx,ltt),Term::As(rx,rtt)) => {
+	 (Term::As(_lx,_ltt),Term::As(_rx,_rtt)) => {
             unimplemented!("TODO: typeck_hint Term::As")
          },
-	 (Term::RuleApplication(lx,ltt),Term::RuleApplication(rx,rtt)) => {
+	 (Term::RuleApplication(_lx,_ltt),Term::RuleApplication(_rx,_rtt)) => {
             unimplemented!("TODO: typeck_hint Term::RuleApplication")
          },
-	 (Term::Arrow(llhs,lrhs),Term::Arrow(rlhs,rrhs)) => {
+	 (Term::Arrow(_llhs,_lrhs),Term::Arrow(_rlhs,_rrhs)) => {
             unimplemented!("TODO: typeck_hint Term::Arrow")
          },
 	 (Term::App(lg,lx),Term::App(rg,rx)) => {
@@ -1753,10 +1753,10 @@ impl TLC {
             self.typeck_hint(bound, scope, hint, lx, rx)?;
             Ok(())
          },
-         (Term::Constructor(ln,lkvs),Term::Constructor(rn,rkvs)) => {
+         (Term::Constructor(_ln,_lkvs),Term::Constructor(_rn,_rkvs)) => {
             unimplemented!("TODO: typeck_hint Term::Constructor")
          },
-         (Term::Substitution(le,la,lb),Term::Substitution(re,ra,rb)) => {
+         (Term::Substitution(_le,_la,_lb),Term::Substitution(_re,_ra,_rb)) => {
             unimplemented!("TODO: typeck_hint Term::Substitution")
          },
 	 (Term::Value(lx),Term::Value(rx)) if lx == rx => { Ok(()) },
