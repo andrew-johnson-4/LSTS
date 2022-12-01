@@ -1,6 +1,6 @@
 use crate::typ::Type;
 use crate::kind::Kind;
-use crate::scope::ScopeId;
+use crate::scope::{Scope,ScopeId};
 use crate::tlc::TLC;
 use crate::constant::Constant;
 use std::collections::HashMap;
@@ -84,7 +84,15 @@ impl Term {
          },
          Term::App(g,x) => {
             if let Some(xc) = Term::reduce(tlc, scope, scope_constants, *x) {
-               unimplemented!("implement Call-by-Value function call: {}({:?})", tlc.print_term(*g), xc)
+               let sc = if let Some(sc) = scope { *sc } else { return None; };
+               match &tlc.rows[g.id].term {
+                  Term::Ident(gv) => {
+                     if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[x.id].typ) {
+                        unimplemented!("TODO: Term::reduce beta-reduction")
+                     } else { return None; }
+                  },
+                  _ => unimplemented!("implement Call-by-Value function call: {}({:?})", tlc.print_term(*g), xc)
+               }
             } else { return None; }
          },
          _ => unimplemented!("implement Call-by-Value term reduction: {}", tlc.print_term(term))
