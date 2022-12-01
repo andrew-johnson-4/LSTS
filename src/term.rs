@@ -113,6 +113,9 @@ impl Term {
                }
             } else { return None; }
          },
+         Term::Literal(v) => {
+            Constant::eval(tlc, scope_constants, *v)
+         },
          _ => unimplemented!("implement Call-by-Value term reduction: {}", tlc.print_term(term))
       }
    }
