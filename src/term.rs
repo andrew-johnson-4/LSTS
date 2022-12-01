@@ -9,6 +9,18 @@ use std::collections::HashMap;
 pub struct TermId {
    pub id: usize,
 }
+
+#[derive(Clone)]
+pub struct LetTerm {
+   pub scope: ScopeId,
+   pub name: String,
+   pub parameters: Vec<Vec<(Option<String>,Option<Type>,Kind)>>,
+   pub given: Vec<(String,Type)>,
+   pub body: Option<TermId>,
+   pub rtype: Type,
+   pub rkind: Kind,
+}
+
 //does not implement Clone because terms are uniquely identified by their id
 #[derive(Clone)] //clone seems to be needed to deconflict mutable borrows :(
 pub enum Term {
@@ -16,7 +28,7 @@ pub enum Term {
    Value(String),
    Arrow(TermId,TermId),
    App(TermId,TermId),
-   Let(ScopeId,String,Vec<Vec<(Option<String>,Option<Type>,Kind)>>,Option<TermId>,Type,Kind),
+   Let(LetTerm),
    Tuple(Vec<TermId>),
    Block(ScopeId,Vec<TermId>),
    Ascript(TermId,Type),

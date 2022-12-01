@@ -1,6 +1,6 @@
 use std::collections::{HashMap};
 use std::io::Read;
-use crate::term::{Term,TermId};
+use crate::term::{Term,TermId,LetTerm};
 use crate::debug::{Error};
 use crate::token::{Symbol,TokenReader,span_of};
 use crate::scope::{ScopeId,Scope};
@@ -435,14 +435,15 @@ pub fn ll1_forall_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut Toke
          parent: Some(scope),
          children: children,
       }, &span);
-      Ok(tlc.push_term(Term::Let(
-         sid,
-         "".to_string(),
-         vec![quants.clone()],
-         Some(t),
-         Type::Any,
-         tlc.term_kind.clone(),
-      ),&span))
+      Ok(tlc.push_term(Term::Let(LetTerm {
+         scope: sid,
+         name: "".to_string(),
+         parameters: vec![quants.clone()],
+         given: vec![],
+         body: Some(t),
+         rtype: Type::Any,
+         rkind: tlc.term_kind.clone(),
+      }), &span))
    } else {
       Ok(TermId { id:0 })
    }
@@ -564,7 +565,14 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
          span: span_of(tokens),
       })
    }
-   Ok(tlc.push_term(Term::Let(inner_scope,ident,pars,t,rt,rk), &span))
+   Ok(tlc.push_term(Term::Let(LetTerm {
+      scope: inner_scope,
+      name: ident,
+      parameters: pars,
+      given: vec![],
+      body: t,
+      rtype: rt,
+      rkind: rk}), &span))
 }
 
 pub fn ll1_if_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
