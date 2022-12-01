@@ -88,7 +88,11 @@ impl Term {
                match &tlc.rows[g.id].term {
                   Term::Ident(gv) => {
                      if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[x.id].typ) {
-                        unimplemented!("TODO: Term::reduce beta-reduction")
+                        if let Term::Let(lb) = &tlc.rows[binding.id].term {
+                           unimplemented!("TODO: beta-reduce function body {}", tlc.print_term(binding))
+                        } else {
+                           panic!("unexpected lambda format in Term::reduce beta-reduction {}", tlc.print_term(binding))
+                        }
                      } else { return None; }
                   },
                   _ => unimplemented!("implement Call-by-Value function call: {}({:?})", tlc.print_term(*g), xc)

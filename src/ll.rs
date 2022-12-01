@@ -551,13 +551,20 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
    tlc.unify_varnames_t(&mut HashMap::new(), &ft, false);
    tlc.reduce_type(&mut HashMap::new(), &mut ft); //destructively reduce constants in type
    ft = ft.normalize();
-   let vt = tlc.push_term(Term::Ident(ident.clone()), &span);
-   tlc.untyped(vt);
-   tlc.scopes[scope.id].children.push((ident.clone(), fkts, ft, Some(vt)));
    let inner_scope = tlc.push_scope(Scope {
       parent: Some(scope),
       children: children,
    }, &span);
+   let vt = tlc.push_term(Term::Let(LetTerm {
+      scope: inner_scope,
+      name: ident.clone(),
+      parameters: pars,
+      given: vec![],
+      body: t,
+      rtype: rt,
+      rkind: rk
+   }), &span);
+   tlc.scopes[scope.id].children.push(( ident.clone(), fkts, ft, Some(vt) ));
    if tlc.strict && t.is_none() {
       return Err(Error {
          kind: "Type Error".to_string(),
@@ -565,14 +572,7 @@ pub fn ll1_let_stmt<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenRe
          span: span_of(tokens),
       })
    }
-   Ok(tlc.push_term(Term::Let(LetTerm {
-      scope: inner_scope,
-      name: ident,
-      parameters: pars,
-      given: vec![],
-      body: t,
-      rtype: rt,
-      rkind: rk}), &span))
+   Ok(vt)
 }
 
 pub fn ll1_if_term<R: Read>(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader<R>) -> Result<TermId,Error> {
