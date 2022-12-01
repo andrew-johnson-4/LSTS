@@ -18,7 +18,7 @@ pub struct Scope {
 impl Scope {
    pub fn lookup_term(tlc: &TLC, scope: ScopeId, v: &str, t: &Type) -> Option<TermId> {
       let mut candidates = Vec::new();
-      for (cv,ck,ct,cb) in tlc.scopes[scope.id].children.iter() {
+      for (cv,_ck,_ct,cb) in tlc.scopes[scope.id].children.iter() {
          if cv == v {
          if let Some(cb) = cb {
             candidates.push(*cb);

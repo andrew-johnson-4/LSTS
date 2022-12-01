@@ -96,7 +96,7 @@ impl Term {
                                  else if let Constant::Tuple(xs) = xc { xs.clone() }
                                  else { vec![xc] };
                            if pars.len() != args.len() { panic!("mismatched arity in Term::reduce {}", tlc.print_term(term)) };
-                           for ((pn,pt,pk),a) in std::iter::zip(pars,args) {
+                           for ((pn,_pt,_pk),a) in std::iter::zip(pars,args) {
                               if let Some(pn) = pn {
                                  new_scope.insert(pn.clone(), a.clone());
                               }
