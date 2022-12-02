@@ -15,7 +15,6 @@ pub struct LetTerm {
    pub scope: ScopeId,
    pub name: String,
    pub parameters: Vec<Vec<(Option<String>,Option<Type>,Kind)>>,
-   pub given: Vec<(String,Type)>,
    pub body: Option<TermId>,
    pub rtype: Type,
    pub rkind: Kind,
