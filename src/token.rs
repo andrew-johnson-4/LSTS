@@ -328,8 +328,9 @@ impl TokenReader {
 
       unsafe {
          let substring = std::str::from_utf8_unchecked(&self.buf[self.buf_at..]);
-         println!("substring: {}", substring);
-         unimplemented!("TODO: try greedy prelexed Values");
+         for r in self.values.iter() {
+            unimplemented!("TODO: try greedy prelexed Values");
+         }
       }
 
       let mut c = self.takec();
@@ -338,7 +339,6 @@ impl TokenReader {
          b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
          b'\n' => { self.column = 1; self.line += 1; self.offset_start += 1; c = self.takec(); },
          b'0'..=b'9' => {
-            //TODO: replace numericals with prelex definitions
             let mut token = vec![c];
             while is_value_char(self.peekc()) {
                token.push(self.takec());
@@ -546,11 +546,28 @@ pub fn tokenize_string(source_name: &str, buf: &str) -> Result<TokenReader,Error
 pub fn tokenize_bytes<'a>(source_name: &str, buf: Vec<u8>) -> Result<TokenReader,Error> {
 
    let mut values: Vec<Regex> = Vec::new();
-   for buf_at in 0..buf.len() {
-   if buf_at+1 < buf.len() {
-   if buf[buf_at]==b'/' && buf[buf_at+1]==b'^' {
-      //TODO prelex Value definitions /^[-]?[0-9]+$/
-   }}}
+   let mut buf_at = 0;
+   while buf_at < buf.len() {
+      if buf_at+1 < buf.len() {
+      if buf[buf_at]==b'/' && buf[buf_at+1]==b'^' {
+         let mut end_at = buf_at + 2;
+         while end_at < buf.len() {
+            if end_at+1 < buf.len() {
+            if buf[end_at]==b'$' && buf[end_at+1]==b'/' {
+               end_at += 2; break;
+            }}
+            end_at += 1;
+         }
+         let rs = std::str::from_utf8(&buf[buf_at+1..end_at-1]).unwrap();
+         if let Ok(r) = Regex::new(&rs) {
+            values.push(r);
+         } else {
+            panic!("invalid regex: {}", rs)
+         }
+         buf_at += rs.len() + 2; continue;
+      }}
+      buf_at += 1;
+   }
 
    Ok(TokenReader {
       source_name:Rc::new(source_name.to_string()),
