@@ -1,5 +1,5 @@
 use crate::debug::Error;
-use crate::tlc::TLC;
+use regex::Regex;
 use std::rc::Rc;
 use std::io::prelude::*;
 use std::fs::File;
@@ -246,6 +246,7 @@ pub struct TokenReader {
    peek: Option<Token>,
    buf: Vec<u8>,
    buf_at: usize,
+   values: Vec<Regex>,
 }
 impl TokenReader {
    pub fn peek(&mut self) -> Result<Option<Token>,Error> {
@@ -323,6 +324,12 @@ impl TokenReader {
          let t = self.peek.clone();
          self.peek = None;
          return Ok(t);
+      }
+
+      unsafe {
+         let substring = std::str::from_utf8_unchecked(&self.buf[self.buf_at..]);
+         println!("substring: {}", substring);
+         unimplemented!("TODO: try greedy prelexed Values");
       }
 
       let mut c = self.takec();
@@ -498,11 +505,11 @@ impl TokenReader {
    }
 }
 
-pub fn tokenize_file<'a>(tlc: &mut TLC, source_name: &str) -> Result<TokenReader,Error> {
+pub fn tokenize_file<'a>(source_name: &str) -> Result<TokenReader,Error> {
    if let Ok(mut f) = File::open(source_name) {
       let mut line = Vec::new();
       if let Ok(_len) = f.read_to_end(&mut line) {
-         tokenize_bytes(tlc, source_name, line)
+         tokenize_bytes(source_name, line)
       } else {
          Err(Error{
             kind: "Tokenization Error".to_string(),
@@ -531,16 +538,24 @@ pub fn tokenize_file<'a>(tlc: &mut TLC, source_name: &str) -> Result<TokenReader
    }
 }
 
-pub fn tokenize_string(tlc: &mut TLC, source_name: &str, buf: &str) -> Result<TokenReader,Error> {
+pub fn tokenize_string(source_name: &str, buf: &str) -> Result<TokenReader,Error> {
    let buf = buf.as_bytes().to_vec();
-   tokenize_bytes(tlc, source_name, buf)
+   tokenize_bytes(source_name, buf)
 }
 
-pub fn tokenize_bytes<'a>(_tlc: &mut TLC, source_name: &str, buf: Vec<u8>) -> Result<TokenReader,Error> {
-   //TODO prelex Value definitions
+pub fn tokenize_bytes<'a>(source_name: &str, buf: Vec<u8>) -> Result<TokenReader,Error> {
+
+   let mut values: Vec<Regex> = Vec::new();
+   for buf_at in 0..buf.len() {
+   if buf_at+1 < buf.len() {
+   if buf[buf_at]==b'/' && buf[buf_at+1]==b'^' {
+      //TODO prelex Value definitions /^[-]?[0-9]+$/
+   }}}
+
    Ok(TokenReader {
       source_name:Rc::new(source_name.to_string()),
       offset_start: 0, line: 1, column: 1,
       buf:buf, buf_at:0, peek: None,
+      values:values,
    })
 }

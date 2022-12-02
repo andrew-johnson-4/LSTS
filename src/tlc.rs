@@ -314,16 +314,16 @@ impl TLC {
    }
 
    pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
-      let tks = tokenize_string(self, "[string]", src)?;
+      let tks = tokenize_string("[string]", src)?;
       self.compile_doc(globals, "[string]", tks)
    }
    pub fn import_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<ScopeId,Error> {
-      let tks = tokenize_string(self, "[string]", src)?;
+      let tks = tokenize_string("[string]", src)?;
       self.compile_doc(globals, "[string]", tks)?;
       Ok(ScopeId {id:0})
    }
    pub fn parse_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {
-      let mut tks = tokenize_file(self, filename)?;
+      let mut tks = tokenize_file(filename)?;
       let file_scope = globals.unwrap_or(self.push_scope(Scope {
          parent: None,
          children: Vec::new(),
@@ -455,7 +455,7 @@ impl TLC {
    }
    pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
       //used mainly in tests
-      let mut tokens = tokenize_string(self, "[string]", src)?;
+      let mut tokens = tokenize_string("[string]", src)?;
       let file_scope = self.push_scope(Scope {
          parent: None,
          children: Vec::new(),
