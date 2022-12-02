@@ -233,7 +233,6 @@ pub fn is_ident_char(c: u8) -> bool {
 
 pub fn is_value_char(c: u8) -> bool {
    let c = c as char;
-   c == 'e' || c == 'E' || c == '+' || c == '-' || c == 'i' || c == '.' ||
    c.is_ascii_digit()
 }
 
@@ -320,6 +319,14 @@ impl TokenReader {
       self.buf[self.buf_at]
    }
    pub fn take(&mut self) -> Result<Option<Token>,Error> {
+      match self.take_impl() {
+         Ok(Some(tok)) => {
+            Ok(Some(tok))
+         },
+         t => t
+      }
+   }
+   pub fn take_impl(&mut self) -> Result<Option<Token>,Error> {
       if self.peek.is_some() {
          let t = self.peek.clone();
          self.peek = None;
@@ -329,7 +336,22 @@ impl TokenReader {
       unsafe {
          let substring = std::str::from_utf8_unchecked(&self.buf[self.buf_at..]);
          for r in self.values.iter() {
-            unimplemented!("TODO: try greedy prelexed Values");
+            let mut longest_match = "".to_string();
+            if let Some(m) = r.find(substring) {
+               let ms = m.as_str().to_string();
+               if ms.len() > longest_match.len() {
+                  longest_match = ms;
+               }
+            }
+            if longest_match.len() > 0 {
+               let byte_len = longest_match.as_bytes().len();
+               for _ in 0..byte_len { self.takec(); }
+               self.column += longest_match.len();
+               return Ok(Some(Token {
+                  symbol: Symbol::Value(longest_match.clone()),
+                  span: self.span_of(longest_match.len()),
+               }))
+            }
          }
       }
 
@@ -558,7 +580,7 @@ pub fn tokenize_bytes<'a>(source_name: &str, buf: Vec<u8>) -> Result<TokenReader
             }}
             end_at += 1;
          }
-         let rs = std::str::from_utf8(&buf[buf_at+1..end_at-1]).unwrap();
+         let rs = std::str::from_utf8(&buf[buf_at+1..end_at-2]).unwrap();
          if let Ok(r) = Regex::new(&rs) {
             values.push(r);
          } else {
