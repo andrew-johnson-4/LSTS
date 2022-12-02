@@ -77,7 +77,6 @@ pub struct Invariant {
 pub struct TypedefRule {
    pub name: String,
    pub is_normal: bool,
-   pub is_constant: bool,
    pub parameters: Vec<(String,Option<Type>,Kind)>,
    pub implies: Option<Type>,
    pub definition: Vec<TypedefBranch>, //having a definition implies that the term is a Valued type
