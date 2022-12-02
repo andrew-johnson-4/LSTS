@@ -1103,17 +1103,19 @@ pub fn ll1_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Resu
 }
 
 pub fn ll1_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
-   if peek_is(tokens, &vec![Symbol::LeftBrace]) {
-      ll1_block_stmt(tlc, scope, tokens)
+   let stmt = if peek_is(tokens, &vec![Symbol::LeftBrace]) {
+      ll1_block_stmt(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Type]) {
-      ll1_type_stmt(tlc, scope, tokens)
+      ll1_type_stmt(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Forall, Symbol::Axiom]) {
-      ll1_forall_stmt(tlc, scope, tokens)
+      ll1_forall_stmt(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Let]) {
-      ll1_let_stmt(tlc, scope, tokens)
+      ll1_let_stmt(tlc, scope, tokens)?
    } else {
-      ll1_term(tlc, scope, tokens)
-   }
+      ll1_term(tlc, scope, tokens)?
+   };
+   pop_is("file", tokens, &vec![Symbol::SemiColon])?;
+   Ok(stmt)
 }
 
 pub fn ll1_block_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
@@ -1139,9 +1141,6 @@ pub fn ll1_file(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Resu
    let mut es = Vec::new();
    while !peek_is(tokens, &vec![Symbol::EOF]) {
       es.push( ll1_stmt(tlc, scope, tokens)? );
-      while peek_is(tokens, &vec![Symbol::SemiColon]) {
-         pop_is("file", tokens, &vec![Symbol::SemiColon])?;
-      }
    }
    pop_is("file", tokens, &vec![Symbol::EOF])?;
    Ok(tlc.push_term(Term::Block(scope,es), &span_of(tokens)))

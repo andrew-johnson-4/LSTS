@@ -5,10 +5,10 @@ fn check_statements() {
    let mut tlc = TLC::new();
    let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
 
-   tlc.check(Some(si), "forall x:Even. Odd = x + 1").unwrap();
-   tlc.check(Some(si), "forall x:Even. Odd = x - 1").unwrap();
-   tlc.check(Some(si), "forall x:Odd. Even = x + 1").unwrap();
-   tlc.check(Some(si), "forall x:Odd. Even = x - 1").unwrap();
+   tlc.check(Some(si), "forall x:Even. Odd = x + 1;").unwrap();
+   tlc.check(Some(si), "forall x:Even. Odd = x - 1;").unwrap();
+   tlc.check(Some(si), "forall x:Odd. Even = x + 1;").unwrap();
+   tlc.check(Some(si), "forall x:Odd. Even = x - 1;").unwrap();
 }
 
 #[test]

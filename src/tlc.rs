@@ -16,6 +16,7 @@ pub struct TLC {
    pub hints: HashMap<String,ForallRule>,
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
+   pub value_regexes: Vec<(String,Regex)>,
    pub regexes: Vec<(Type,Rc<Regex>)>,
    pub constructors: HashMap<String,(Type,Vec<Type>,Vec<(String,Type)>)>,
    pub type_is_normal: HashSet<Type>,
@@ -158,6 +159,7 @@ impl TLC {
          }],
          rules: Vec::new(),
          scopes: Vec::new(),
+         value_regexes: Vec::new(),
          regexes: Vec::new(),
          hints: HashMap::new(),
          constructors: HashMap::new(),
@@ -314,16 +316,16 @@ impl TLC {
    }
 
    pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
-      let tks = tokenize_string("[string]", src)?;
+      let tks = tokenize_string(self, "[string]", src)?;
       self.compile_doc(globals, "[string]", tks)
    }
    pub fn import_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<ScopeId,Error> {
-      let tks = tokenize_string("[string]", src)?;
+      let tks = tokenize_string(self, "[string]", src)?;
       self.compile_doc(globals, "[string]", tks)?;
       Ok(ScopeId {id:0})
    }
    pub fn parse_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {
-      let mut tks = tokenize_file(filename)?;
+      let mut tks = tokenize_file(self, filename)?;
       let file_scope = globals.unwrap_or(self.push_scope(Scope {
          parent: None,
          children: Vec::new(),
@@ -455,7 +457,7 @@ impl TLC {
    }
    pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
       //used mainly in tests
-      let mut tokens = tokenize_string("[string]", src)?;
+      let mut tokens = tokenize_string(self, "[string]", src)?;
       let file_scope = self.push_scope(Scope {
          parent: None,
          children: Vec::new(),
@@ -2045,6 +2047,7 @@ impl TLC {
       let rows_l = self.rows.len();
       let rules_l = self.rules.len();
       let scopes_l = self.scopes.len();
+      let value_regexes_l = self.value_regexes.len();
       let regexes_l = self.regexes.len();
       let globals_l = if let Some(g) = globals {
          if self.scopes.len()>0 {
@@ -2064,6 +2067,7 @@ impl TLC {
       self.rows.truncate(rows_l);
       self.rules.truncate(rules_l);
       self.scopes.truncate(scopes_l);
+      self.value_regexes.truncate(value_regexes_l);
       self.regexes.truncate(regexes_l);
       if let Some(g) = globals {
          if self.scopes.len()>0 {

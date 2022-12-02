@@ -1,4 +1,5 @@
 use crate::debug::Error;
+use crate::tlc::TLC;
 use regex::Regex;
 use std::rc::Rc;
 use std::io::prelude::*;
@@ -245,7 +246,7 @@ pub struct TokenReader {
    peek: Option<Token>,
    buf: Vec<u8>,
    buf_at: usize,
-   values: Vec<Regex>,
+   values: Vec<(String,Regex)>,
 }
 impl TokenReader {
    pub fn peek(&mut self) -> Result<Option<Token>,Error> {
@@ -333,46 +334,11 @@ impl TokenReader {
          return Ok(t);
       }
 
-      unsafe {
-         let substring = std::str::from_utf8_unchecked(&self.buf[self.buf_at..]);
-         for r in self.values.iter() {
-            let mut longest_match = "".to_string();
-            if let Some(m) = r.find(substring) {
-               let ms = m.as_str().to_string();
-               if ms.len() > longest_match.len() {
-                  longest_match = ms;
-               }
-            }
-            if longest_match.len() > 0 {
-               let byte_len = longest_match.as_bytes().len();
-               for _ in 0..byte_len { self.takec(); }
-               self.column += longest_match.len();
-               return Ok(Some(Token {
-                  symbol: Symbol::Value(longest_match.clone()),
-                  span: self.span_of(longest_match.len()),
-               }))
-            }
-         }
-      }
-
       let mut c = self.takec();
       while c > 0 {
       match c {
          b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
          b'\n' => { self.column = 1; self.line += 1; self.offset_start += 1; c = self.takec(); },
-         b'0'..=b'9' => {
-            let mut token = vec![c];
-            while is_value_char(self.peekc()) {
-               token.push(self.takec());
-            }
-            let span = self.span_of(token.len());
-            self.column += token.len();
-            let value = std::str::from_utf8(&token).unwrap();
-            return Ok(Some(Token {
-               symbol: Symbol::Value(value.to_string()),
-               span: span,
-            }));
-         },
          b'A'..=b'Z' => {
             let mut token = vec![c];
             while is_ident_char(self.peekc()) {
@@ -475,6 +441,30 @@ impl TokenReader {
                   c = self.takec();
                },
                _ => {
+
+                  unsafe {
+                     let buf_at = self.buf_at - 1; //untake c
+                     let substring = std::str::from_utf8_unchecked(&self.buf[buf_at..]);
+                     let mut longest_match = "".to_string();
+                     for (_p,r) in self.values.iter() {
+                        if let Some(m) = r.find(substring) {
+                           let ms = m.as_str().to_string();
+                           if ms.len() > longest_match.len() {
+                              longest_match = ms;
+                           }
+                        }
+                     }
+                     if longest_match.len() > 0 {
+                        let byte_len = longest_match.as_bytes().len();
+                        for _ in 1..byte_len { self.takec(); }
+                        self.column += longest_match.len();
+                        return Ok(Some(Token {
+                           symbol: Symbol::Value(longest_match.clone()),
+                           span: self.span_of(longest_match.len()),
+                        }))
+                     }
+                  }
+
                   if let Some((len,sym)) = self.is_operator(&[c,c2]) {
                      let t = Token {
                         symbol: sym.clone(),
@@ -527,11 +517,11 @@ impl TokenReader {
    }
 }
 
-pub fn tokenize_file<'a>(source_name: &str) -> Result<TokenReader,Error> {
+pub fn tokenize_file<'a>(tlc: &mut TLC, source_name: &str) -> Result<TokenReader,Error> {
    if let Ok(mut f) = File::open(source_name) {
       let mut line = Vec::new();
       if let Ok(_len) = f.read_to_end(&mut line) {
-         tokenize_bytes(source_name, line)
+         tokenize_bytes(tlc, source_name, line)
       } else {
          Err(Error{
             kind: "Tokenization Error".to_string(),
@@ -560,14 +550,14 @@ pub fn tokenize_file<'a>(source_name: &str) -> Result<TokenReader,Error> {
    }
 }
 
-pub fn tokenize_string(source_name: &str, buf: &str) -> Result<TokenReader,Error> {
+pub fn tokenize_string(tlc: &mut TLC, source_name: &str, buf: &str) -> Result<TokenReader,Error> {
    let buf = buf.as_bytes().to_vec();
-   tokenize_bytes(source_name, buf)
+   tokenize_bytes(tlc, source_name, buf)
 }
 
-pub fn tokenize_bytes<'a>(source_name: &str, buf: Vec<u8>) -> Result<TokenReader,Error> {
+pub fn tokenize_bytes<'a>(tlc: &mut TLC, source_name: &str, buf: Vec<u8>) -> Result<TokenReader,Error> {
 
-   let mut values: Vec<Regex> = Vec::new();
+   tlc.value_regexes.push(("^[0-9]+$".to_string(), Regex::new("^[0-9]+").unwrap()));
    let mut buf_at = 0;
    while buf_at < buf.len() {
       if buf_at+1 < buf.len() {
@@ -582,7 +572,7 @@ pub fn tokenize_bytes<'a>(source_name: &str, buf: Vec<u8>) -> Result<TokenReader
          }
          let rs = std::str::from_utf8(&buf[buf_at+1..end_at-2]).unwrap();
          if let Ok(r) = Regex::new(&rs) {
-            values.push(r);
+            tlc.value_regexes.push((rs.to_string(),r));
          } else {
             panic!("invalid regex: {}", rs)
          }
@@ -595,6 +585,6 @@ pub fn tokenize_bytes<'a>(source_name: &str, buf: Vec<u8>) -> Result<TokenReader
       source_name:Rc::new(source_name.to_string()),
       offset_start: 0, line: 1, column: 1,
       buf:buf, buf_at:0, peek: None,
-      values:values,
+      values: tlc.value_regexes.clone(),
    })
 }
