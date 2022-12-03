@@ -1790,8 +1790,19 @@ impl TLC {
       let implied = implied.map(|tt|tt.normalize());
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
-         Term::Match(_dv, _lrs) => {
-            unimplemented!("TLC::typeck(Term::Match)")
+         Term::Match(dv, lrs) => {
+            self.typeck(scope, dv, None)?;
+            let mut rts = Vec::new();
+            for (_l,r) in lrs.iter() {
+               //TODO: extract inner scopes
+               self.typeck(scope, *r, None)?;
+               rts.push( self.rows[r.id].typ.clone() );
+            }
+            let mut rt = rts[0].clone();
+            for ri in 1..rts.len() {
+               rt = rt.most_general_unifier(&rts[ri]);
+            }
+            self.rows[t.id].typ = rt;
          },
          Term::Literal(l) => {
             self.untyped(l);
