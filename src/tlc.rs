@@ -13,7 +13,7 @@ use crate::ll::ll1_file;
 pub struct TLC {
    pub strict: bool,
    pub rows: Vec<Row>,
-   pub hints: HashMap<String,ForallRule>,
+   pub hints: HashMap<String,Vec<ForallRule>>,
    pub rules: Vec<TypeRule>,
    pub scopes: Vec<Scope>,
    pub value_regexes: Vec<(String,Regex)>,
@@ -258,8 +258,11 @@ impl TLC {
          kind: kind,
          span: span
       };
-      if let Some(h) = name {
-         self.hints.insert(h, fa.clone());
+      if let Some(ref h) = name {
+         if self.hints.get(h).is_none() {
+            self.hints.insert(h.clone(), Vec::new());
+         };
+         self.hints.get_mut(h).unwrap().push(fa.clone());
       }
       self.rules.push(TypeRule::Forall(fa));
       match &inference {
@@ -1904,6 +1907,7 @@ impl TLC {
             self.check_invariants(t)?;
 	 },
          Term::RuleApplication(lhs,h) => {
+            //borrowing self even in a .clone'd expression fails the borrow checker
             if h == "reduce" {
                self.typeck(scope, lhs, None)?;
                let vt = Term::reduce(self, scope, &HashMap::new(), lhs);
@@ -1914,19 +1918,25 @@ impl TLC {
                   rule: format!("failed to reduce expression: {}", self.print_term(lhs)),
                   span: self.rows[t.id].span.clone(),
                }) }
-            } else if let Some(fa) = self.hints.get(&h) {
-               let fa_scope = fa.scope.clone();
-               let fa_inference = fa.inference.clone();
-               if let Some(rhs) = fa.rhs {
-                  self.typeck(scope, lhs, None)?;
-                  self.typeck_hint(&mut HashMap::new(), &Some(fa_scope), &h, lhs, rhs)?;
-                  //at this point rule must have matched, so apply it
-                  if let Inference::Type(fat) = fa_inference {
-                     self.rows[t.id].typ = self.rows[lhs.id].typ.and( &fat );
-                  }
-               } else { return Err(Error {
+            } else if let Some(fas) = self.hints.get(&h).cloned() {
+               self.typeck(scope, lhs, None)?;
+               let mut matched = false;
+               self.rows[t.id].typ = self.rows[lhs.id].typ.clone();
+               for fa in fas.iter() {
+                  let fa_scope = fa.scope.clone();
+                  let fa_inference = fa.inference.clone();
+                  if let Some(rhs) = fa.rhs {
+                  if let Ok(_) = self.typeck_hint(&mut HashMap::new(), &Some(fa_scope), &h, lhs, rhs) {
+                     //at this point rule must have matched, so apply it
+                     if let Inference::Type(fat) = fa_inference {
+                        self.rows[t.id].typ = self.rows[t.id].typ.and( &fat );
+                     }
+                     matched = true;
+                  }}
+               };
+               if !matched { return Err(Error {
                   kind: "Type Error".to_string(),
-                  rule: format!("hint rule must have a rhs: {}", h),
+                  rule: format!("hint did not match any declared rule: {}", h),
                   span: self.rows[t.id].span.clone(),
                }) }
             } else { return Err(Error {
