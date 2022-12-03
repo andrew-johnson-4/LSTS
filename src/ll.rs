@@ -89,7 +89,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    let span = span_of(tokens);
    let mut t = "".to_string();
    let mut normal = false;
-   let mut constant = false;
    let mut implies = None;
    let mut tiks: Vec<(String,Option<Type>,Kind)> = Vec::new();
    let mut typedef = Vec::new();
@@ -100,14 +99,9 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
 
    pop_is("type-stmt", tokens, &vec![Symbol::Type])?;
 
-   while peek_is(tokens, &vec![Symbol::Normal,Symbol::Constant]) {
-      if peek_is(tokens, &vec![Symbol::Normal]) {
-         pop_is("type-stmt", tokens, &vec![Symbol::Normal])?;
-         normal = true;
-      } else if peek_is(tokens, &vec![Symbol::Constant]) {
-         pop_is("type-stmt", tokens, &vec![Symbol::Constant])?;
-         constant = true;
-      }
+   if peek_is(tokens, &vec![Symbol::Normal]) {
+      pop_is("type-stmt", tokens, &vec![Symbol::Normal])?;
+      normal = true;
    }
 
    if let Some(Symbol::Typename(tname)) = tokens.peek_symbol()? {
@@ -328,7 +322,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    tlc.rules.push(TypeRule::Typedef(TypedefRule {
       name: t,
       is_normal: normal,
-      is_constant: constant,
       parameters: tiks,
       implies: implies,
       definition: typedef,
