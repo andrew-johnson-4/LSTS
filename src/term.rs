@@ -66,8 +66,14 @@ impl Term {
          _ => false
       }
    }
-   pub fn reduce_lhs(tlc: &TLC, _scope_constants: &mut HashMap<String,Constant>, lhs: TermId, dc: &Constant) -> bool {
+   pub fn reduce_lhs(tlc: &TLC, scope_constants: &mut HashMap<String,Constant>, lhs: TermId, dc: &Constant) -> bool {
       match &tlc.rows[lhs.id].term {
+         Term::Ident(n) => {
+            if n != "_" {
+               scope_constants.insert(n.clone(), dc.clone());
+            };
+            true
+         },
          Term::Value(lv) => {
             if let Some(lc) = Constant::parse(tlc, lv) {
                &lc == dc

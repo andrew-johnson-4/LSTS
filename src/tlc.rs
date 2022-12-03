@@ -1789,13 +1789,13 @@ impl TLC {
    }
    pub fn typeck(&mut self, scope: &Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
-      //clone is needed to avoid double mutable borrows?
+      //TODO: remove clone here because it is bloating the memory footprint
       match self.rows[t.id].term.clone() {
          Term::Match(dv, lrs) => {
             self.typeck(scope, dv, None)?;
             let mut rts = Vec::new();
-            for (_l,r) in lrs.iter() {
-               //TODO: extract inner scopes
+            for (l,r) in lrs.iter() {
+               self.untyped(*l);
                self.typeck(scope, *r, None)?;
                rts.push( self.rows[r.id].typ.clone() );
             }
@@ -1808,7 +1808,6 @@ impl TLC {
          Term::Literal(l) => {
             self.untyped(l);
             if let Some(ref i) = implied {
-               //TODO: typeck dynamic expression body vs literal pattern definitions
                self.rows[t.id].typ = i.clone();
             } else {
                return Err(Error {
