@@ -213,7 +213,7 @@ impl TLC {
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
          Term::Ident(x) => format!("{}", x),
-         Term::Value(x) => format!("'{}'", x),
+         Term::Value(x) => format!("{}", x),
          Term::Arrow(p,b) => format!("({} -> {})", self.print_term(*p), self.print_term(*b)),
          Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
          Term::Let(lt) => format!("let {}", lt.name),
@@ -221,8 +221,9 @@ impl TLC {
          Term::As(t,tt) => format!("{} as {:?}", self.print_term(*t), tt),
          Term::Match(dv,lrs) => {
             let mut s = "".to_string();
-            for (l,r) in lrs.iter() {
-               s += &format!("{} => {},", self.print_term(*l), self.print_term(*r));
+            for (i,(l,r)) in lrs.iter().enumerate() {
+               if i>0 { s += ", "; };
+               s += &format!("{} => {}", self.print_term(*l), self.print_term(*r));
             }
             format!("match {} {{ {} }}", self.print_term(*dv), s)
          },
