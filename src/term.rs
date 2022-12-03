@@ -36,7 +36,10 @@ pub enum Term {
    Substitution(TermId,TermId,TermId),
    RuleApplication(TermId,String),
    Literal(TermId),
-   Match(TermId,Vec<(TermId,TermId)>),
+   Match(
+      TermId,
+      Vec<(TermId,TermId)>, //lhs's here don't need scopes because these bindings can't be polymorphic
+   ),
 }
 
 impl Term {
@@ -61,6 +64,16 @@ impl Term {
             true
          },
          _ => false
+      }
+   }
+   pub fn reduce_lhs(tlc: &TLC, scope_constants: &mut HashMap<String,Constant>, lhs: TermId, dc: &Constant) -> bool {
+      match &tlc.rows[lhs.id].term {
+         Term::Value(lv) => {
+            if let Some(lc) = Constant::parse(tlc, lv) {
+               &lc == dc
+            } else { false }
+         },
+         _ => unimplemented!("Term::reduce_lhs({})", tlc.print_term(lhs))
       }
    }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, scope_constants: &HashMap<String,Constant>, term: TermId) -> Option<Constant> {
@@ -115,6 +128,17 @@ impl Term {
          },
          Term::Literal(v) => {
             Constant::eval(tlc, scope_constants, *v)
+         },
+         Term::Match(dv,lrs) => {
+            if let Some(ref dc) = Constant::eval(tlc, scope_constants, *dv) {
+               for (l,r) in lrs.iter() {
+                  let mut sc = scope_constants.clone();
+                  if Term::reduce_lhs(tlc, &mut sc, *l, dc) {
+                     return Term::reduce(tlc, scope, &sc, *r);
+                  }
+               }
+               panic!("pattern was not total: {}", tlc.print_term(term))
+            } else { None }
          },
          _ => unimplemented!("implement Call-by-Value term reduction: {}", tlc.print_term(term))
       }
