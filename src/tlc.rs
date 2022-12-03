@@ -219,6 +219,13 @@ impl TLC {
          Term::Let(lt) => format!("let {}", lt.name),
          Term::Ascript(t,tt) => format!("{}:{:?}", self.print_term(*t), tt),
          Term::As(t,tt) => format!("{} as {:?}", self.print_term(*t), tt),
+         Term::Match(dv,lrs) => {
+            let mut s = "".to_string();
+            for (l,r) in lrs.iter() {
+               s += &format!("{} => {},", self.print_term(*l), self.print_term(*r));
+            }
+            format!("match {} {{ {} }}", self.print_term(*dv), s)
+         },
          Term::Tuple(es) => {
             format!("({})", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(","))
          },
@@ -1398,6 +1405,13 @@ impl TLC {
          Term::Let(ref mut _lt) => {
             panic!("TODO: unify_varnames in Let term")
          },
+         Term::Match(ref mut dv,ref mut lrs) => {
+            self.unify_varnames_lhs(dept,dv,lhs);
+            for (l,r) in lrs.iter_mut() {
+               self.unify_varnames_lhs(dept,l,true);
+               self.unify_varnames_lhs(dept,r,lhs);
+            }
+         },
          Term::Arrow(ref mut p,ref mut b) => {
             self.unify_varnames_lhs(dept,p,true);
             self.unify_varnames_lhs(dept,b,lhs);
@@ -1776,6 +1790,9 @@ impl TLC {
       let implied = implied.map(|tt|tt.normalize());
       //clone is needed to avoid double mutable borrows?
       match self.rows[t.id].term.clone() {
+         Term::Match(_dv, _lrs) => {
+            unimplemented!("TLC::typeck(Term::Match)")
+         },
          Term::Literal(l) => {
             self.untyped(l);
             if let Some(ref i) = implied {

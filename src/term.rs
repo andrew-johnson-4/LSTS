@@ -36,6 +36,7 @@ pub enum Term {
    Substitution(TermId,TermId,TermId),
    RuleApplication(TermId,String),
    Literal(TermId),
+   Match(TermId,Vec<(TermId,TermId)>),
 }
 
 impl Term {

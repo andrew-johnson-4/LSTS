@@ -806,12 +806,36 @@ pub fn ll1_field_term(tlc: &mut TLC, _scope: ScopeId, tokens: &mut TokenReader) 
    unreachable!("field-term")
 }
 
+pub fn ll1_match_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   pop_is("match-term", tokens, &vec![Symbol::Match])?;
+   let dv = ll1_term(tlc, scope, tokens)?;
+   pop_is("match-term", tokens, &vec![Symbol::LeftBrace])?;
+   let mut pats = Vec::new();
+   let mut first_arm = true;
+   while !peek_is(tokens, &vec![Symbol::RightBrace]) {
+      if first_arm { first_arm = false; }
+      else { pop_is("match-term", tokens, &vec![Symbol::Comma])?; }
+      let lhs = ll1_term(tlc, scope, tokens)?;
+      pop_is("match-term", tokens, &vec![Symbol::Imply])?;
+      let rhs = ll1_term(tlc, scope, tokens)?;
+      pats.push((lhs, rhs));
+   }
+   if peek_is(tokens, &vec![Symbol::Comma]) {
+      pop_is("match-term", tokens, &vec![Symbol::Comma])?;
+   }
+   pop_is("match-term", tokens, &vec![Symbol::RightBrace])?;
+   Ok(tlc.push_term(Term::Match(dv, pats),&span))
+}
+
 pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = if peek_is(tokens, &vec![Symbol::LeftParen]) {
       ll1_tuple_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Bar]) {
       ll1_literal_term(tlc, scope, tokens)?
+   } else if peek_is(tokens, &vec![Symbol::Match]) {
+      ll1_match_term(tlc, scope, tokens)?
    } else {
       ll1_value_term(tlc, scope, tokens)?
    };

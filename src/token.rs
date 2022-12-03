@@ -82,6 +82,7 @@ pub enum Symbol {
    Typeof,
    At,
    As,
+   Match,
    If,
    Then,
    Else,
@@ -143,6 +144,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::AndAlso            => write!(f, "and"),
            Symbol::Typeof             => write!(f, "typeof"),
            Symbol::As                 => write!(f, "as"),
+           Symbol::Match              => write!(f, "match"),
            Symbol::If                 => write!(f, "if"),
            Symbol::Then               => write!(f, "then"),
            Symbol::Else               => write!(f, "else"),
@@ -206,6 +208,7 @@ impl std::fmt::Display for Symbol {
            Symbol::AndAlso            => write!(f, "and"),
            Symbol::Typeof             => write!(f, "typeof"),
            Symbol::As                 => write!(f, "as"),
+           Symbol::Match              => write!(f, "match"),
            Symbol::If                 => write!(f, "if"),
            Symbol::Then               => write!(f, "then"),
            Symbol::Else               => write!(f, "else"),
@@ -349,7 +352,7 @@ impl TokenReader {
                span: span,
             }));
          },
-         b'a'..=b'z' => {
+         b'a'..=b'z' | b'_' => {
             let mut token = vec![c];
             while is_ident_char(self.peekc()) {
                token.push(self.takec());
@@ -365,6 +368,7 @@ impl TokenReader {
                "and" => { return Ok(Some(Token { symbol: Symbol::AndAlso, span: span, })); },
                "typeof" => { return Ok(Some(Token { symbol: Symbol::Typeof, span: span, })); },
                "as" => { return Ok(Some(Token { symbol: Symbol::As, span: span, })); },
+               "match" => { return Ok(Some(Token { symbol: Symbol::Match, span: span, })); },
                "if" => { return Ok(Some(Token { symbol: Symbol::If, span: span, })); },
                "then" => { return Ok(Some(Token { symbol: Symbol::Then, span: span, })); },
                "else" => { return Ok(Some(Token { symbol: Symbol::Else, span: span, })); },
