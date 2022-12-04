@@ -1,7 +1,7 @@
 use lsts::tlc::TLC;
 
 #[test]
-fn check_constant_literals() {
+fn check_iterator_syntax() {
    let mut tlc = TLC::new();
    let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
