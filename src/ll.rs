@@ -568,19 +568,40 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
 pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("if-term", tokens, &vec![Symbol::If])?;
-   let cond = ll1_expr_term(tlc, scope, tokens)?;
-   pop_is("if-term", tokens, &vec![Symbol::Then])?;
-   let branch1 = ll1_expr_term(tlc, scope, tokens)?;
-   let branch2 = if peek_is(tokens, &vec![Symbol::Else]) {
-      pop_is("if-term", tokens, &vec![Symbol::Else])?;
-      ll1_term(tlc, scope, tokens)?
+
+   if peek_is(tokens, &vec![Symbol::Let]) {
+      pop_is("if-term", tokens, &vec![Symbol::Let])?;
+      let lhs = ll1_expr_term(tlc, scope, tokens)?;
+      pop_is("if-term", tokens, &vec![Symbol::Is])?;
+      let dv = ll1_expr_term(tlc, scope, tokens)?;
+      pop_is("if-term", tokens, &vec![Symbol::Then])?;
+      let rhs1 = ll1_expr_term(tlc, scope, tokens)?;
+      let rhs2 = if peek_is(tokens, &vec![Symbol::Else]) {
+         pop_is("if-term", tokens, &vec![Symbol::Else])?;
+         ll1_term(tlc, scope, tokens)?
+      } else {
+         tlc.push_term(Term::Tuple(Vec::new()),&span)
+      };
+      let else_lhs = tlc.push_term(Term::Ident("_".to_string()),&span);
+      Ok(tlc.push_term(Term::Match(dv, vec![
+         (lhs, rhs1),
+         (else_lhs, rhs2),
+      ]),&span))
    } else {
-      tlc.push_term(Term::Tuple(Vec::new()),&span)
-   };
-   Ok({let t = Term::App(
-      tlc.push_term(Term::Ident("if".to_string()),&span),
-      tlc.push_term(Term::Tuple(vec![cond,branch1,branch2]),&span),
-   ); tlc.push_term(t,&span)})
+      let cond = ll1_expr_term(tlc, scope, tokens)?;
+      pop_is("if-term", tokens, &vec![Symbol::Then])?;
+      let branch1 = ll1_expr_term(tlc, scope, tokens)?;
+      let branch2 = if peek_is(tokens, &vec![Symbol::Else]) {
+         pop_is("if-term", tokens, &vec![Symbol::Else])?;
+         ll1_term(tlc, scope, tokens)?
+      } else {
+         tlc.push_term(Term::Tuple(Vec::new()),&span)
+      };
+      Ok({let t = Term::App(
+         tlc.push_term(Term::Ident("if".to_string()),&span),
+         tlc.push_term(Term::Tuple(vec![cond,branch1,branch2]),&span),
+      ); tlc.push_term(t,&span)})
+   }
 }
 
 pub fn ll1_while_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
@@ -632,7 +653,7 @@ pub fn ll1_logical_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader)
    let mut term = ll1_compare_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::And,Symbol::Or]) {
       let op = pop_is("logical-term", tokens, &vec![Symbol::And,Symbol::Or])?;
-      let op = format!("{}", op);
+      let op = format!("{:?}", op);
       let term2 = ll1_compare_term(tlc, scope, tokens)?;
       let t = Term::App(
          tlc.push_term(Term::Ident(op),&span),
@@ -648,7 +669,7 @@ pub fn ll1_compare_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader)
    let mut term = ll1_addsub_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Equal,Symbol::NotEqual,Symbol::GreaterThan,Symbol::GreaterThanOrEqual,Symbol::LessThan,Symbol::LessThanOrEqual]) {
       let op = pop_is("compare-term", tokens, &vec![Symbol::Equal,Symbol::NotEqual,Symbol::GreaterThan,Symbol::GreaterThanOrEqual,Symbol::LessThan,Symbol::LessThanOrEqual])?;
-      let op = format!("{}", op);
+      let op = format!("{:?}", op);
       let term2 = ll1_addsub_term(tlc, scope, tokens)?;
       let t = Term::App(
          tlc.push_term(Term::Ident(op),&span),
@@ -664,7 +685,7 @@ pub fn ll1_addsub_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    let mut term = ll1_divmul_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Plus,Symbol::Minus]) {
       let op = pop_is("addsub-term", tokens, &vec![Symbol::Plus,Symbol::Minus])?;
-      let op = format!("{}", op);
+      let op = format!("{:?}", op);
       let term2 = ll1_divmul_term(tlc, scope, tokens)?;
       let t = Term::App(
          tlc.push_term(Term::Ident(op),&span),
@@ -680,7 +701,7 @@ pub fn ll1_divmul_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    let mut term = ll1_power_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Div,Symbol::Mul,Symbol::Mod]) {
       let op = pop_is("divmul-term", tokens, &vec![Symbol::Div,Symbol::Mul,Symbol::Mod])?;
-      let op = format!("{}", op);
+      let op = format!("{:?}", op);
       let term2 = ll1_power_term(tlc, scope, tokens)?;
       let t = Term::App(
          tlc.push_term(Term::Ident(op),&span),
@@ -696,7 +717,7 @@ pub fn ll1_power_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
    let mut term = ll1_prefix_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Pow]) {
       let op = pop_is("power-term", tokens, &vec![Symbol::Pow])?;
-      let op = format!("{}", op);
+      let op = format!("{:?}", op);
       let term2 = ll1_prefix_term(tlc, scope, tokens)?;
       let t = Term::App(
          tlc.push_term(Term::Ident(op),&span),
@@ -806,12 +827,36 @@ pub fn ll1_field_term(tlc: &mut TLC, _scope: ScopeId, tokens: &mut TokenReader) 
    unreachable!("field-term")
 }
 
+pub fn ll1_match_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   pop_is("match-term", tokens, &vec![Symbol::Match])?;
+   let dv = ll1_term(tlc, scope, tokens)?;
+   pop_is("match-term", tokens, &vec![Symbol::LeftBrace])?;
+   let mut pats = Vec::new();
+   let mut first_arm = true;
+   while !peek_is(tokens, &vec![Symbol::RightBrace]) {
+      if first_arm { first_arm = false; }
+      else { pop_is("match-term", tokens, &vec![Symbol::Comma])?; }
+      let lhs = ll1_term(tlc, scope, tokens)?;
+      pop_is("match-term", tokens, &vec![Symbol::Imply])?;
+      let rhs = ll1_term(tlc, scope, tokens)?;
+      pats.push((lhs, rhs));
+   }
+   if peek_is(tokens, &vec![Symbol::Comma]) {
+      pop_is("match-term", tokens, &vec![Symbol::Comma])?;
+   }
+   pop_is("match-term", tokens, &vec![Symbol::RightBrace])?;
+   Ok(tlc.push_term(Term::Match(dv, pats),&span))
+}
+
 pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
    let mut term = if peek_is(tokens, &vec![Symbol::LeftParen]) {
       ll1_tuple_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Bar]) {
       ll1_literal_term(tlc, scope, tokens)?
+   } else if peek_is(tokens, &vec![Symbol::Match]) {
+      ll1_match_term(tlc, scope, tokens)?
    } else {
       ll1_value_term(tlc, scope, tokens)?
    };

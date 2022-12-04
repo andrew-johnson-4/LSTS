@@ -1,0 +1,4 @@
+
+//Types
+type Boolean = True | False;
+type Integer = /^[-]?[0-9]+$/;

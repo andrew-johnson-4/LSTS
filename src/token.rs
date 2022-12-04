@@ -82,6 +82,7 @@ pub enum Symbol {
    Typeof,
    At,
    As,
+   Match,
    If,
    Then,
    Else,
@@ -143,69 +144,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::AndAlso            => write!(f, "and"),
            Symbol::Typeof             => write!(f, "typeof"),
            Symbol::As                 => write!(f, "as"),
-           Symbol::If                 => write!(f, "if"),
-           Symbol::Then               => write!(f, "then"),
-           Symbol::Else               => write!(f, "else"),
-           Symbol::Let                => write!(f, "let"),
-           Symbol::Axiom              => write!(f, "axiom"),
-           Symbol::Forall             => write!(f, "forall"),
-           Symbol::Type               => write!(f, "type"),
-           Symbol::Literal            => write!(f, "literal"),
-           Symbol::Normal             => write!(f, "normal"),
-           Symbol::Where              => write!(f, "where"),
-           Symbol::Loop               => write!(f, "loop"),
-           Symbol::For                => write!(f, "for"),
-           Symbol::While              => write!(f, "while"),
-           Symbol::In                 => write!(f, "in"),
-        }
-    }
-}
-impl std::fmt::Display for Symbol {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-           Symbol::EOF                => write!(f, "EOF"),
-           Symbol::Ident(s)           => write!(f, "{}", s),
-           Symbol::Typename(s)        => write!(f, "{}", s),
-           Symbol::Regex(s)           => write!(f, "{}", s),
-           Symbol::Value(s)           => write!(f, "{}", s),
-           Symbol::Ascript            => write!(f, ":"),
-           Symbol::KAscript           => write!(f, "::"),
-           Symbol::Imply              => write!(f, "=>"),
-           Symbol::Is                 => write!(f, "="),
-           Symbol::Equal              => write!(f, "=="),
-           Symbol::NotEqual           => write!(f, "!="),
-           Symbol::GreaterThan        => write!(f, ">"),
-           Symbol::GreaterThanOrEqual => write!(f, ">="),
-           Symbol::LessThan           => write!(f, "<"),
-           Symbol::LessThanOrEqual    => write!(f, "<="),
-
-           Symbol::Question           => write!(f, "?"),
-           Symbol::And                => write!(f, "&&"),
-           Symbol::Or                 => write!(f, "||"),
-           Symbol::Bar                => write!(f, "|"),
-           Symbol::Div                => write!(f, "/"),
-           Symbol::Mul                => write!(f, "*"),
-           Symbol::Mod                => write!(f, "%"),
-           Symbol::Plus               => write!(f, "+"),
-           Symbol::Minus              => write!(f, "-"),
-           Symbol::Pow                => write!(f, "^"),
-           Symbol::Dot                => write!(f, "."),
-           Symbol::Comma              => write!(f, ","),
-           Symbol::SemiColon          => write!(f, ";"),
-           Symbol::BackSlash          => write!(f, "\\"),
-           Symbol::Arrow              => write!(f, "->"),
-           Symbol::At                 => write!(f, "@"),
-
-           Symbol::LeftBracket        => write!(f, "["),
-           Symbol::RightBracket       => write!(f, "]"),
-           Symbol::LeftParen          => write!(f, "("),
-           Symbol::RightParen         => write!(f, ")"),
-           Symbol::LeftBrace          => write!(f, "{{"),
-           Symbol::RightBrace         => write!(f, "}}"),
-
-           Symbol::AndAlso            => write!(f, "and"),
-           Symbol::Typeof             => write!(f, "typeof"),
-           Symbol::As                 => write!(f, "as"),
+           Symbol::Match              => write!(f, "match"),
            Symbol::If                 => write!(f, "if"),
            Symbol::Then               => write!(f, "then"),
            Symbol::Else               => write!(f, "else"),
@@ -349,7 +288,7 @@ impl TokenReader {
                span: span,
             }));
          },
-         b'a'..=b'z' => {
+         b'a'..=b'z' | b'_' => {
             let mut token = vec![c];
             while is_ident_char(self.peekc()) {
                token.push(self.takec());
@@ -365,6 +304,7 @@ impl TokenReader {
                "and" => { return Ok(Some(Token { symbol: Symbol::AndAlso, span: span, })); },
                "typeof" => { return Ok(Some(Token { symbol: Symbol::Typeof, span: span, })); },
                "as" => { return Ok(Some(Token { symbol: Symbol::As, span: span, })); },
+               "match" => { return Ok(Some(Token { symbol: Symbol::Match, span: span, })); },
                "if" => { return Ok(Some(Token { symbol: Symbol::If, span: span, })); },
                "then" => { return Ok(Some(Token { symbol: Symbol::Then, span: span, })); },
                "else" => { return Ok(Some(Token { symbol: Symbol::Else, span: span, })); },
