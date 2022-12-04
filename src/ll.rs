@@ -634,12 +634,11 @@ pub fn ll1_loop_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
 pub fn ll1_for_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("for-term", tokens, &vec![Symbol::For])?;
-   pop_is("for-term", tokens, &vec![Symbol::LeftParen])?;
-   let lhs = ll1_expr_term(tlc, scope, tokens)?;
+   let lhs = ll1_ascript_term(tlc, scope, tokens)?;
    pop_is("for-term", tokens, &vec![Symbol::In])?;
    let iter = ll1_expr_term(tlc, scope, tokens)?;
-   pop_is("for-term", tokens, &vec![Symbol::RightParen])?;
-   let rhs = ll1_block_stmt(tlc, scope, tokens)?;
+   pop_is("for-term", tokens, &vec![Symbol::Yield])?;
+   let rhs = ll1_expr_term(tlc, scope, tokens)?;
  
    let arr = tlc.push_term(Term::Arrow( lhs, rhs ),&span);
    Ok({let t = Term::App(
@@ -750,18 +749,22 @@ pub fn ll1_prefix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
 pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("tuple-term", tokens, &vec![Symbol::LeftParen])?;
-   let mut ts = Vec::new();
-   while !peek_is(tokens, &vec![Symbol::RightParen]) {
-      if peek_is(tokens, &vec![Symbol::Comma]) {
-         pop_is("tuple-term", tokens, &vec![Symbol::Comma])?;
-      }
-      ts.push( ll1_term(tlc, scope, tokens)? );
-   }
-   pop_is("tuple-term", tokens, &vec![Symbol::RightParen])?;
-   if ts.len()==1 {
-      Ok(ts[0])
+   if peek_is(tokens, &vec![Symbol::For]) {
+      ll1_for_term(tlc, scope, tokens)
    } else {
-      Ok(tlc.push_term(Term::Tuple(ts),&span))
+      let mut ts = Vec::new();
+      while !peek_is(tokens, &vec![Symbol::RightParen]) {
+         if peek_is(tokens, &vec![Symbol::Comma]) {
+            pop_is("tuple-term", tokens, &vec![Symbol::Comma])?;
+         }
+         ts.push( ll1_term(tlc, scope, tokens)? );
+      }
+      pop_is("tuple-term", tokens, &vec![Symbol::RightParen])?;
+      if ts.len()==1 {
+         Ok(ts[0])
+      } else {
+         Ok(tlc.push_term(Term::Tuple(ts),&span))
+      }
    }
 }
 

@@ -2,3 +2,6 @@
 //Types
 type Boolean = True | False;
 type Integer = /^[-]?[0-9]+$/;
+type Tensor<T> = { };
+
+let range(i: Integer): Tensor<Integer>;
