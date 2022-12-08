@@ -214,7 +214,7 @@ impl TLC {
       match &self.rows[t.id].term {
          Term::Ident(x) => format!("{}", x),
          Term::Value(x) => format!("{}", x),
-         Term::Arrow(p,rt,b) => format!("(fn({}){} = {})",
+         Term::Arrow(_sc,p,rt,b) => format!("(fn({}){} = {})",
             self.print_term(*p),
             if let Some(rt) = rt { format!(":{:?}", rt) } else { format!("") },
             self.print_term(*b)),
@@ -942,7 +942,7 @@ impl TLC {
          },
          Term::App(ref mut g, ref mut x) => {
             let xc = self.untyped_eval(subs,x,true);
-            if let Term::Arrow(ref mut gp,ref mut _rt, ref mut gb) = self.rows[g.id].term.clone() {
+            if let Term::Arrow(_sc,ref mut gp,_rt, ref mut gb) = self.rows[g.id].term.clone() {
             if let Some(ref xc) = xc { //Argument must be constant, otherwise don't reduce the expression
                if let Some(c) = self.untyped_match(subs,gp,gb,xc.clone()) {
                   return Some(self.push_constant(*t, &c));
@@ -1023,7 +1023,7 @@ impl TLC {
                return Some(self.push_constant(*t, &tsc));
             }
          },
-         Term::Arrow(_,_,_) => {}, //irreducible
+         Term::Arrow(_,_,_,_) => {}, //irreducible
          _ => panic!("TODO: untyped eval {}", self.print_term(*t)),
       };
       None
@@ -1034,7 +1034,7 @@ impl TLC {
          Term::Ident(_x) => (),
          Term::Value(_x) => (),
          Term::App(g,x) => { self.untyped(g); self.untyped(x); },
-         Term::Arrow(p,_rt,b) => { self.untyped(p); self.untyped(b); },
+         Term::Arrow(_sc,p,_rt,b) => { self.untyped(p); self.untyped(b); },
          Term::Block(_sid,es) => {
             for e in es.iter() {
                self.untyped(*e);
@@ -1416,7 +1416,7 @@ impl TLC {
                self.unify_varnames_lhs(dept,r,lhs);
             }
          },
-         Term::Arrow(ref mut p,ref mut _rt, ref mut b) => {
+         Term::Arrow(_sc,ref mut p,_rt, ref mut b) => {
             self.unify_varnames_lhs(dept,p,true);
             self.unify_varnames_lhs(dept,b,lhs);
          },
@@ -1766,7 +1766,7 @@ impl TLC {
 	 (Term::RuleApplication(_lx,_ltt),Term::RuleApplication(_rx,_rtt)) => {
             unimplemented!("TODO: typeck_hint Term::RuleApplication")
          },
-	 (Term::Arrow(_llhs,_lrt,_lrhs),Term::Arrow(_rlhs,_rrt,_rrhs)) => {
+	 (Term::Arrow(_lsc,_llhs,_lrt,_lrhs),Term::Arrow(_rsc,_rlhs,_rrt,_rrhs)) => {
             unimplemented!("TODO: typeck_hint Term::Arrow")
          },
 	 (Term::App(lg,lx),Term::App(rg,rx)) => {
@@ -1976,7 +1976,7 @@ impl TLC {
                span: self.rows[t.id].span.clone(),
             }) }
          },
-         Term::Arrow(_p,rt,b) => {
+         Term::Arrow(_sc,_p,rt,b) => {
             //TODO destructure argument into scope
             self.typeck(scope, b, rt)?;
          },
@@ -2012,7 +2012,8 @@ impl TLC {
                      self.push_dtype(*cb,cbv);
                      gs.push(nt.clone());
                      xs.push(xt.clone());
-                     let gct = self.push_term(Term::Arrow(*cp,None,*cb), &self.rows[t.id].span.clone());
+                     let sc = Term::scope_of_lhs(self, scope.clone(), *cp, &self.rows[t.id].span.clone());
+                     let gct = self.push_term(Term::Arrow(sc,*cp,None,*cb), &self.rows[t.id].span.clone());
                      self.untyped(gct);
                      let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
                      self.untyped(gxct);
@@ -2028,7 +2029,8 @@ impl TLC {
                         self.untyped(cpst);
                         let xcst = self.push_term(Term::Tuple(xcs), &self.rows[t.id].span.clone());
                         self.untyped(xcst);
-                        let gct = self.push_term(Term::Arrow(cpst,None,*cb), &self.rows[t.id].span.clone());
+                        let sc = Term::scope_of_lhs(self, scope.clone(), cpst, &self.rows[t.id].span.clone());
+                        let gct = self.push_term(Term::Arrow(sc,cpst,None,*cb), &self.rows[t.id].span.clone());
                         self.untyped(gct);
                         let gxct = self.push_term(Term::App(gct,xcst), &self.rows[t.id].span.clone());
                         self.untyped(gxct);

@@ -640,7 +640,8 @@ pub fn ll1_for_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
    pop_is("for-term", tokens, &vec![Symbol::Yield])?;
    let rhs = ll1_expr_term(tlc, scope, tokens)?;
  
-   let arr = tlc.push_term(Term::Arrow( lhs, None, rhs ),&span);
+   let sc = Term::scope_of_lhs(tlc, Some(scope), lhs, &span);
+   let arr = tlc.push_term(Term::Arrow( sc, lhs, None, rhs ),&span);
    Ok({let t = Term::App(
       tlc.push_term(Term::Ident("for".to_string()),&span),
       tlc.push_term(Term::Tuple(vec![iter,arr]),&span),
@@ -1133,6 +1134,12 @@ pub fn ll1_arrow_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
       pop_is("arrow-term", tokens, &vec![Symbol::Fn])?;
       unimplemented!("Parse Term::Arrow");
       /*
+      let mut children = Vec::new();
+      let inner_scope = tlc.push_scope(Scope {
+         parent: Some(scope),
+         children: children,
+      }, &span);
+
       while peek_is(tokens, &vec![Symbol::Arrow]) {
          let bterm = ll1_asif_term(tlc, scope, tokens)?;
          let t = Term::Arrow(term, bterm);

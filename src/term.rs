@@ -3,6 +3,7 @@ use crate::kind::Kind;
 use crate::scope::{Scope,ScopeId};
 use crate::tlc::TLC;
 use crate::constant::Constant;
+use crate::token::{Span};
 use std::collections::HashMap;
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
@@ -25,7 +26,7 @@ pub struct LetTerm {
 pub enum Term {
    Ident(String),
    Value(String),
-   Arrow(TermId,Option<Type>,TermId),
+   Arrow(ScopeId,TermId,Option<Type>,TermId),
    App(TermId,TermId),
    Let(LetTerm),
    Tuple(Vec<TermId>),
@@ -47,7 +48,7 @@ impl Term {
       match (&tlc.rows[lt.id].term, &tlc.rows[rt.id].term) {
          (Term::Ident(li), Term::Ident(ri)) => { li == ri },
          (Term::Value(lv), Term::Value(rv)) => { lv == rv },
-         (Term::Arrow(lp,lr,lb), Term::Arrow(rp,rr,rb)) => {
+         (Term::Arrow(_ls,lp,lr,lb), Term::Arrow(_rs,rp,rr,rb)) => {
             Term::equals(tlc, *lp, *rp) &&
             lr == rr &&
             Term::equals(tlc, *lb, *rb)
@@ -66,6 +67,15 @@ impl Term {
          },
          _ => false
       }
+   }
+   pub fn scope_of_lhs(tlc: &mut TLC, scope: Option<ScopeId>, lhs: TermId, span: &Span) -> ScopeId {
+      let children = Vec::new();
+      unimplemented!("destructure lhs in Term::scope_of_lhs");
+      let sid = tlc.push_scope(Scope {
+         parent: scope,
+         children: children,
+      }, &span);
+      sid
    }
    pub fn reduce_lhs(tlc: &TLC, scope_constants: &mut HashMap<String,Constant>, lhs: TermId, dc: &Constant) -> bool {
       match &tlc.rows[lhs.id].term {
