@@ -3,6 +3,7 @@ use crate::kind::Kind;
 use crate::scope::{Scope,ScopeId};
 use crate::tlc::TLC;
 use crate::constant::Constant;
+use crate::token::{Span};
 use std::collections::HashMap;
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
@@ -25,7 +26,7 @@ pub struct LetTerm {
 pub enum Term {
    Ident(String),
    Value(String),
-   Arrow(TermId,TermId),
+   Arrow(Option<ScopeId>,TermId,Option<Type>,TermId),
    App(TermId,TermId),
    Let(LetTerm),
    Tuple(Vec<TermId>),
@@ -47,8 +48,9 @@ impl Term {
       match (&tlc.rows[lt.id].term, &tlc.rows[rt.id].term) {
          (Term::Ident(li), Term::Ident(ri)) => { li == ri },
          (Term::Value(lv), Term::Value(rv)) => { lv == rv },
-         (Term::Arrow(lp,lb), Term::Arrow(rp,rb)) => {
+         (Term::Arrow(_ls,lp,lr,lb), Term::Arrow(_rs,rp,rr,rb)) => {
             Term::equals(tlc, *lp, *rp) &&
+            lr == rr &&
             Term::equals(tlc, *lb, *rb)
          },
          (Term::App(lp,lb), Term::App(rp,rb)) => {
@@ -65,6 +67,29 @@ impl Term {
          },
          _ => false
       }
+   }
+   fn scope_of_lhs_impl(tlc: &mut TLC, children: &mut Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)>, lhs: TermId) {
+      match &tlc.rows[lhs.id].term.clone() {
+         Term::Ident(n) if n=="_" => {},
+         Term::Ident(n) => {
+            children.push((n.clone(), HashMap::new(), tlc.rows[lhs.id].typ.clone(), None));
+         },
+         Term::Ascript(lt,ltt) => {
+            tlc.rows[lt.id].typ = ltt.clone();
+            tlc.rows[lhs.id].typ = ltt.clone();
+            Term::scope_of_lhs_impl(tlc, children, *lt);
+         },
+         _ => unimplemented!("destructure lhs in Term::scope_of_lhs({})", tlc.print_term(lhs)),
+      }
+   }
+   pub fn scope_of_lhs(tlc: &mut TLC, scope: Option<ScopeId>, lhs: TermId, span: &Span) -> ScopeId {
+      let mut children = Vec::new();
+      Term::scope_of_lhs_impl(tlc, &mut children, lhs);
+      let sid = tlc.push_scope(Scope {
+         parent: scope,
+         children: children,
+      }, &span);
+      sid
    }
    pub fn reduce_lhs(tlc: &TLC, scope_constants: &mut HashMap<String,Constant>, lhs: TermId, dc: &Constant) -> bool {
       match &tlc.rows[lhs.id].term {
