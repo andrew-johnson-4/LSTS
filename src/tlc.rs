@@ -1976,9 +1976,8 @@ impl TLC {
                span: self.rows[t.id].span.clone(),
             }) }
          },
-         Term::Arrow(_sc,_p,rt,b) => {
-            //TODO destructure argument into scope
-            self.typeck(scope, b, rt)?;
+         Term::Arrow(ref sc,_p,rt,b) => {
+            self.typeck(sc, b, rt)?;
          },
          Term::App(g,x) => {
             let mut ks = HashMap::new();
@@ -2012,8 +2011,7 @@ impl TLC {
                      self.push_dtype(*cb,cbv);
                      gs.push(nt.clone());
                      xs.push(xt.clone());
-                     let sc = Term::scope_of_lhs(self, scope.clone(), *cp, &self.rows[t.id].span.clone());
-                     let gct = self.push_term(Term::Arrow(sc,*cp,None,*cb), &self.rows[t.id].span.clone());
+                     let gct = self.push_term(Term::Arrow(None,*cp,None,*cb), &self.rows[t.id].span.clone());
                      self.untyped(gct);
                      let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
                      self.untyped(gxct);
@@ -2029,8 +2027,7 @@ impl TLC {
                         self.untyped(cpst);
                         let xcst = self.push_term(Term::Tuple(xcs), &self.rows[t.id].span.clone());
                         self.untyped(xcst);
-                        let sc = Term::scope_of_lhs(self, scope.clone(), cpst, &self.rows[t.id].span.clone());
-                        let gct = self.push_term(Term::Arrow(sc,cpst,None,*cb), &self.rows[t.id].span.clone());
+                        let gct = self.push_term(Term::Arrow(None,cpst,None,*cb), &self.rows[t.id].span.clone());
                         self.untyped(gct);
                         let gxct = self.push_term(Term::App(gct,xcst), &self.rows[t.id].span.clone());
                         self.untyped(gxct);

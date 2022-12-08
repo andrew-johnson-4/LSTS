@@ -26,7 +26,7 @@ pub struct LetTerm {
 pub enum Term {
    Ident(String),
    Value(String),
-   Arrow(ScopeId,TermId,Option<Type>,TermId),
+   Arrow(Option<ScopeId>,TermId,Option<Type>,TermId),
    App(TermId,TermId),
    Let(LetTerm),
    Tuple(Vec<TermId>),
@@ -70,7 +70,9 @@ impl Term {
    }
    pub fn scope_of_lhs(tlc: &mut TLC, scope: Option<ScopeId>, lhs: TermId, span: &Span) -> ScopeId {
       let children = Vec::new();
-      unimplemented!("destructure lhs in Term::scope_of_lhs");
+      match &tlc.rows[lhs.id].term {
+         _ => unimplemented!("destructure lhs in Term::scope_of_lhs({})", tlc.print_term(lhs)),
+      }
       let sid = tlc.push_scope(Scope {
          parent: scope,
          children: children,

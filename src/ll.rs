@@ -641,7 +641,7 @@ pub fn ll1_for_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
    let rhs = ll1_expr_term(tlc, scope, tokens)?;
  
    let sc = Term::scope_of_lhs(tlc, Some(scope), lhs, &span);
-   let arr = tlc.push_term(Term::Arrow( sc, lhs, None, rhs ),&span);
+   let arr = tlc.push_term(Term::Arrow( Some(sc), lhs, None, rhs ),&span);
    Ok({let t = Term::App(
       tlc.push_term(Term::Ident("for".to_string()),&span),
       tlc.push_term(Term::Tuple(vec![iter,arr]),&span),
