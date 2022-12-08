@@ -759,14 +759,14 @@ pub fn ll1_prefix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    Ok(term)
 }
 
-pub fn ll1_list_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
+pub fn ll1_tensor_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   pop_is("list-term", tokens, &vec![Symbol::LeftBracket])?;
+   pop_is("tensor-term", tokens, &vec![Symbol::LeftBracket])?;
    if peek_is(tokens, &vec![Symbol::For]) {
       let term = ll1_for_term(tlc, scope, tokens)?;
-      pop_is("list-term", tokens, &vec![Symbol::RightBracket])?;
+      pop_is("tensor-term", tokens, &vec![Symbol::RightBracket])?;
       let t = Term::App(
-         tlc.push_term(Term::Ident("list".to_string()),&span),
+         tlc.push_term(Term::Ident("tensor".to_string()),&span),
          term
       );
       Ok(tlc.push_term(t,&span))
@@ -774,12 +774,12 @@ pub fn ll1_list_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
       let mut ts = Vec::new();
       while !peek_is(tokens, &vec![Symbol::RightBracket]) {
          if peek_is(tokens, &vec![Symbol::Comma]) {
-            pop_is("list-term", tokens, &vec![Symbol::Comma])?;
+            pop_is("tensor-term", tokens, &vec![Symbol::Comma])?;
          }
          ts.push( ll1_term(tlc, scope, tokens)? );
       }
-      pop_is("list-term", tokens, &vec![Symbol::RightBracket])?;
-      unimplemented!("TODO ll1_list_term, incrementally construct List");
+      pop_is("tensor-term", tokens, &vec![Symbol::RightBracket])?;
+      unimplemented!("TODO ll1_tensor_term, incrementally construct Tensor");
    }
 }
 
@@ -896,7 +896,7 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    let mut term = if peek_is(tokens, &vec![Symbol::LeftParen]) {
       ll1_tuple_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
-      ll1_list_term(tlc, scope, tokens)?
+      ll1_tensor_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Bar]) {
       ll1_literal_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Match]) {
@@ -1169,7 +1169,7 @@ pub fn ll1_asif_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
 }
 
 pub fn ll1_arrow_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
-   let span = span_of(tokens);
+   let _span = span_of(tokens);
    if peek_is(tokens, &vec![Symbol::Fn]) {
       pop_is("arrow-term", tokens, &vec![Symbol::Fn])?;
       unimplemented!("Parse Term::Arrow");

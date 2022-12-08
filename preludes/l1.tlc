@@ -13,6 +13,7 @@ let $"+"(x:Integer, y:Integer) :Integer; //add
 let $"-"(x:Integer, y:Integer) :Integer; //sub
 let $"*"(x:Integer, y:Integer) :Integer; //mul
 let $"/"(x:Integer, y:Integer) :Integer; //div
+let $"^"(x:Integer, y:Integer) :Integer; //pow
 
 let $"<"(x:Integer, y:Integer)  :Boolean;
 let $"<="(x:Integer, y:Integer) :Boolean;
@@ -26,6 +27,6 @@ let range(i: Integer): Tensor<Integer>;
 let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;
 let $"for"(ls: Tensor<A>, A -> Boolean, A -> B): Tensor<B>;
 
-let list(ls: Tensor<A>): Tensor<A>;
+let tensor(ls: Tensor<A>): Tensor<A>;
 let set(ls: Tensor<A>): Set<A>;
 let map(ls: Tensor<(A,B)>): Map<A,B>;
