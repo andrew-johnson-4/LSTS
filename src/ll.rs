@@ -637,15 +637,27 @@ pub fn ll1_for_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
    let lhs = ll1_ascript_term(tlc, scope, tokens)?;
    pop_is("for-term", tokens, &vec![Symbol::In])?;
    let iter = ll1_expr_term(tlc, scope, tokens)?;
+   let cond = if peek_is(tokens, &vec![Symbol::If]) {
+      pop_is("for-term", tokens, &vec![Symbol::If])?;
+      Some(ll1_expr_term(tlc, scope, tokens)?)
+   } else { None };
    pop_is("for-term", tokens, &vec![Symbol::Yield])?;
    let rhs = ll1_expr_term(tlc, scope, tokens)?;
  
    let sc = Term::scope_of_lhs(tlc, Some(scope), lhs, &span);
-   let arr = tlc.push_term(Term::Arrow( Some(sc), lhs, None, rhs ),&span);
-   Ok({let t = Term::App(
-      tlc.push_term(Term::Ident("for".to_string()),&span),
-      tlc.push_term(Term::Tuple(vec![iter,arr]),&span),
-   ); tlc.push_term(t,&span)})
+   let body = tlc.push_term(Term::Arrow( Some(sc), lhs, None, rhs ),&span);
+   if let Some(cond) = cond {
+      let cond = tlc.push_term(Term::Arrow( Some(sc), lhs, None, cond ),&span);
+      Ok({let t = Term::App(
+         tlc.push_term(Term::Ident("for".to_string()),&span),
+         tlc.push_term(Term::Tuple(vec![iter,cond,body]),&span),
+      ); tlc.push_term(t,&span)})
+   } else {
+      Ok({let t = Term::App(
+         tlc.push_term(Term::Ident("for".to_string()),&span),
+         tlc.push_term(Term::Tuple(vec![iter,body]),&span),
+      ); tlc.push_term(t,&span)})
+   }
 }
 
 pub fn ll1_logical_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {

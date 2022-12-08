@@ -4,5 +4,22 @@ type Boolean = True | False;
 type Integer = /^[-]?[0-9]+$/;
 type Tensor<T> = { };
 
+//Operators
+let pos(x:Integer)             :Integer; //pos
+let neg(x:Integer)             :Integer; //neg
+let $"+"(x:Integer, y:Integer) :Integer; //add
+let $"-"(x:Integer, y:Integer) :Integer; //sub
+let $"*"(x:Integer, y:Integer) :Integer; //mul
+let $"/"(x:Integer, y:Integer) :Integer; //div
+
+let $"<"(x:Integer, y:Integer)  :Boolean;
+let $"<="(x:Integer, y:Integer) :Boolean;
+let $">"(x:Integer, y:Integer)  :Boolean;
+let $">="(x:Integer, y:Integer) :Boolean;
+let $"=="(x:Integer, y:Integer) :Boolean;
+let $"!="(x:Integer, y:Integer) :Boolean;
+
+//Sugar
 let range(i: Integer): Tensor<Integer>;
 let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;
+let $"for"(ls: Tensor<A>, A -> Boolean, A -> B): Tensor<B>;
