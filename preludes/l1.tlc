@@ -23,10 +23,13 @@ let $"=="(x:Integer, y:Integer) :Boolean;
 let $"!="(x:Integer, y:Integer) :Boolean;
 
 //Sugar
-let range(i: Integer): Tensor<Integer>;
 let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;
 let $"for"(ls: Tensor<A>, A -> Boolean, A -> B): Tensor<B>;
 
 let tensor(ls: Tensor<A>): Tensor<A>;
 let set(ls: Tensor<A>): Set<A>;
 let map(ls: Tensor<(A,B)>): Map<A,B>;
+
+let range(end: Integer): Tensor<Integer>;
+let range(start: Integer, end: Integer): Tensor<Integer>;
+let range(start: Integer, end: Integer, step: Integer): Tensor<Integer>;
