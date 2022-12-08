@@ -763,7 +763,9 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
    let span = span_of(tokens);
    pop_is("tuple-term", tokens, &vec![Symbol::LeftParen])?;
    if peek_is(tokens, &vec![Symbol::For]) {
-      ll1_for_term(tlc, scope, tokens)
+      let t = ll1_for_term(tlc, scope, tokens)?;
+      pop_is("tuple-term", tokens, &vec![Symbol::RightParen])?;
+      Ok(t)
    } else {
       let mut ts = Vec::new();
       while !peek_is(tokens, &vec![Symbol::RightParen]) {
