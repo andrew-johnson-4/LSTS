@@ -5,3 +5,4 @@ type Integer = /^[-]?[0-9]+$/;
 type Tensor<T> = { };
 
 let range(i: Integer): Tensor<Integer>;
+let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;

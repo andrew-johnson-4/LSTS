@@ -831,7 +831,7 @@ impl TLC {
          }
       } else { Err(Error {
          kind: "Type Error".to_string(),
-         rule: format!("variable not found in scope: {}", v),
+         rule: format!("variable not found in scope: {} : {:?}", v, implied.clone().unwrap_or(Type::Any) ),
          span: span.clone(),
       }) }
    }
@@ -1976,8 +1976,12 @@ impl TLC {
                span: self.rows[t.id].span.clone(),
             }) }
          },
-         Term::Arrow(ref sc,_p,rt,b) => {
+         Term::Arrow(ref sc,p,rt,b) => {
             self.typeck(sc, b, rt)?;
+            self.rows[t.id].typ = Type::Arrow(
+               Box::new(self.rows[p.id].typ.clone()),
+               Box::new(self.rows[b.id].typ.clone()),
+            );
          },
          Term::App(g,x) => {
             let mut ks = HashMap::new();

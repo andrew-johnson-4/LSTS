@@ -68,11 +68,23 @@ impl Term {
          _ => false
       }
    }
-   pub fn scope_of_lhs(tlc: &mut TLC, scope: Option<ScopeId>, lhs: TermId, span: &Span) -> ScopeId {
-      let children = Vec::new();
-      match &tlc.rows[lhs.id].term {
+   fn scope_of_lhs_impl(tlc: &mut TLC, children: &mut Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)>, lhs: TermId) {
+      match &tlc.rows[lhs.id].term.clone() {
+         Term::Ident(n) if n=="_" => {},
+         Term::Ident(n) => {
+            children.push((n.clone(), HashMap::new(), tlc.rows[lhs.id].typ.clone(), None));
+         },
+         Term::Ascript(lt,ltt) => {
+            tlc.rows[lt.id].typ = ltt.clone();
+            tlc.rows[lhs.id].typ = ltt.clone();
+            Term::scope_of_lhs_impl(tlc, children, *lt);
+         },
          _ => unimplemented!("destructure lhs in Term::scope_of_lhs({})", tlc.print_term(lhs)),
       }
+   }
+   pub fn scope_of_lhs(tlc: &mut TLC, scope: Option<ScopeId>, lhs: TermId, span: &Span) -> ScopeId {
+      let mut children = Vec::new();
+      Term::scope_of_lhs_impl(tlc, &mut children, lhs);
       let sid = tlc.push_scope(Scope {
          parent: scope,
          children: children,
