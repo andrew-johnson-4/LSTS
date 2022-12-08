@@ -640,7 +640,7 @@ pub fn ll1_for_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
    pop_is("for-term", tokens, &vec![Symbol::Yield])?;
    let rhs = ll1_expr_term(tlc, scope, tokens)?;
  
-   let arr = tlc.push_term(Term::Arrow( lhs, rhs ),&span);
+   let arr = tlc.push_term(Term::Arrow( lhs, None, rhs ),&span);
    Ok({let t = Term::App(
       tlc.push_term(Term::Ident("for".to_string()),&span),
       tlc.push_term(Term::Tuple(vec![iter,arr]),&span),
@@ -1129,14 +1129,19 @@ pub fn ll1_asif_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
 
 pub fn ll1_arrow_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   let mut term = ll1_asif_term(tlc, scope, tokens)?;
-   while peek_is(tokens, &vec![Symbol::Arrow]) {
-      pop_is("arrow-term", tokens, &vec![Symbol::Arrow])?;
-      let bterm = ll1_asif_term(tlc, scope, tokens)?;
-      let t = Term::Arrow(term, bterm);
-      term = tlc.push_term(t, &span);
+   if peek_is(tokens, &vec![Symbol::Fn]) {
+      pop_is("arrow-term", tokens, &vec![Symbol::Fn])?;
+      unimplemented!("Parse Term::Arrow");
+      /*
+      while peek_is(tokens, &vec![Symbol::Arrow]) {
+         let bterm = ll1_asif_term(tlc, scope, tokens)?;
+         let t = Term::Arrow(term, bterm);
+         term = tlc.push_term(t, &span);
+      }
+      */
+   } else {
+      ll1_asif_term(tlc, scope, tokens)
    }
-   Ok(term)
 }
 
 pub fn ll1_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {

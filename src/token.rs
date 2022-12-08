@@ -98,6 +98,7 @@ pub enum Symbol {
    While,
    In,
    Yield,
+   Fn,
 }
 impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -161,6 +162,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::While              => write!(f, "while"),
            Symbol::In                 => write!(f, "in"),
            Symbol::Yield              => write!(f, "yield"),
+           Symbol::Fn                 => write!(f, "fn"),
         }
     }
 }
@@ -318,6 +320,7 @@ impl TokenReader {
                "literal" => { return Ok(Some(Token { symbol: Symbol::Literal, span: span, })); },
                "where" => { return Ok(Some(Token { symbol: Symbol::Where, span: span, })); },
                "yield" => { return Ok(Some(Token { symbol: Symbol::Yield, span: span, })); },
+               "fn" => { return Ok(Some(Token { symbol: Symbol::Fn, span: span, })); },
                _ => { return Ok(Some(Token { symbol: Symbol::Ident(ident.to_string()), span: span, })); },
             }
          },

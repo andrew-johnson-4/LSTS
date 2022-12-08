@@ -25,7 +25,7 @@ pub struct LetTerm {
 pub enum Term {
    Ident(String),
    Value(String),
-   Arrow(TermId,TermId),
+   Arrow(TermId,Option<Type>,TermId),
    App(TermId,TermId),
    Let(LetTerm),
    Tuple(Vec<TermId>),
@@ -47,8 +47,9 @@ impl Term {
       match (&tlc.rows[lt.id].term, &tlc.rows[rt.id].term) {
          (Term::Ident(li), Term::Ident(ri)) => { li == ri },
          (Term::Value(lv), Term::Value(rv)) => { lv == rv },
-         (Term::Arrow(lp,lb), Term::Arrow(rp,rb)) => {
+         (Term::Arrow(lp,lr,lb), Term::Arrow(rp,rr,rb)) => {
             Term::equals(tlc, *lp, *rp) &&
+            lr == rr &&
             Term::equals(tlc, *lb, *rb)
          },
          (Term::App(lp,lb), Term::App(rp,rb)) => {
