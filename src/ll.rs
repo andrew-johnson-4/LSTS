@@ -765,12 +765,8 @@ pub fn ll1_tensor_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    if peek_is(tokens, &vec![Symbol::For]) {
       let term = ll1_for_term(tlc, scope, tokens)?;
       pop_is("tensor-term", tokens, &vec![Symbol::RightBracket])?;
-      let t = Term::App(
-         tlc.push_term(Term::Ident("tensor".to_string()),&span),
-         term
-      );
-      Ok(tlc.push_term(t,&span))
-   } else {
+      Ok(term)
+   } else { //a Tensor is a homogenous Tuple
       let mut ts = Vec::new();
       while !peek_is(tokens, &vec![Symbol::RightBracket]) {
          if peek_is(tokens, &vec![Symbol::Comma]) {
@@ -779,7 +775,12 @@ pub fn ll1_tensor_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
          ts.push( ll1_term(tlc, scope, tokens)? );
       }
       pop_is("tensor-term", tokens, &vec![Symbol::RightBracket])?;
-      unimplemented!("TODO ll1_tensor_term, incrementally construct Tensor");
+      let ps = if ts.len()==1 { ts[0] } else { tlc.push_term(Term::Tuple(ts),&span) };
+      let t = Term::App(
+         tlc.push_term(Term::Ident("tensor".to_string()),&span),
+         ps,
+      );
+      Ok(tlc.push_term(t,&span))
    }
 }
 
