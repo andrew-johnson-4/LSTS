@@ -213,12 +213,23 @@ impl TLC {
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
          Term::Ident(x) => format!("{}", x),
-         Term::Value(x) => format!("'{}'", x),
-         Term::Arrow(p,b) => format!("({} -> {})", self.print_term(*p), self.print_term(*b)),
+         Term::Value(x) => format!("{}", x),
+         Term::Arrow(_sc,p,rt,b) => format!("(fn({}){} = {})",
+            self.print_term(*p),
+            if let Some(rt) = rt { format!(":{:?}", rt) } else { format!("") },
+            self.print_term(*b)),
          Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
          Term::Let(lt) => format!("let {}", lt.name),
          Term::Ascript(t,tt) => format!("{}:{:?}", self.print_term(*t), tt),
          Term::As(t,tt) => format!("{} as {:?}", self.print_term(*t), tt),
+         Term::Match(dv,lrs) => {
+            let mut s = "".to_string();
+            for (i,(l,r)) in lrs.iter().enumerate() {
+               if i>0 { s += ", "; };
+               s += &format!("{} => {}", self.print_term(*l), self.print_term(*r));
+            }
+            format!("match {} {{ {} }}", self.print_term(*dv), s)
+         },
          Term::Tuple(es) => {
             format!("({})", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(","))
          },
@@ -820,7 +831,7 @@ impl TLC {
          }
       } else { Err(Error {
          kind: "Type Error".to_string(),
-         rule: format!("variable not found in scope: {}", v),
+         rule: format!("variable not found in scope: {} : {:?}", v, implied.clone().unwrap_or(Type::Any) ),
          span: span.clone(),
       }) }
    }
@@ -929,9 +940,9 @@ impl TLC {
                return Some(self.push_constant(*t, &c));
             }
          },
-         Term::App(ref mut g,ref mut x) => {
+         Term::App(ref mut g, ref mut x) => {
             let xc = self.untyped_eval(subs,x,true);
-            if let Term::Arrow(ref mut gp,ref mut gb) = self.rows[g.id].term.clone() {
+            if let Term::Arrow(_sc,ref mut gp,_rt, ref mut gb) = self.rows[g.id].term.clone() {
             if let Some(ref xc) = xc { //Argument must be constant, otherwise don't reduce the expression
                if let Some(c) = self.untyped_match(subs,gp,gb,xc.clone()) {
                   return Some(self.push_constant(*t, &c));
@@ -1012,7 +1023,7 @@ impl TLC {
                return Some(self.push_constant(*t, &tsc));
             }
          },
-         Term::Arrow(_,_) => {}, //irreducible
+         Term::Arrow(_,_,_,_) => {}, //irreducible
          _ => panic!("TODO: untyped eval {}", self.print_term(*t)),
       };
       None
@@ -1023,7 +1034,7 @@ impl TLC {
          Term::Ident(_x) => (),
          Term::Value(_x) => (),
          Term::App(g,x) => { self.untyped(g); self.untyped(x); },
-         Term::Arrow(p,b) => { self.untyped(p); self.untyped(b); },
+         Term::Arrow(_sc,p,_rt,b) => { self.untyped(p); self.untyped(b); },
          Term::Block(_sid,es) => {
             for e in es.iter() {
                self.untyped(*e);
@@ -1398,7 +1409,14 @@ impl TLC {
          Term::Let(ref mut _lt) => {
             panic!("TODO: unify_varnames in Let term")
          },
-         Term::Arrow(ref mut p,ref mut b) => {
+         Term::Match(ref mut dv,ref mut lrs) => {
+            self.unify_varnames_lhs(dept,dv,lhs);
+            for (l,r) in lrs.iter_mut() {
+               self.unify_varnames_lhs(dept,l,true);
+               self.unify_varnames_lhs(dept,r,lhs);
+            }
+         },
+         Term::Arrow(_sc,ref mut p,_rt, ref mut b) => {
             self.unify_varnames_lhs(dept,p,true);
             self.unify_varnames_lhs(dept,b,lhs);
          },
@@ -1748,7 +1766,7 @@ impl TLC {
 	 (Term::RuleApplication(_lx,_ltt),Term::RuleApplication(_rx,_rtt)) => {
             unimplemented!("TODO: typeck_hint Term::RuleApplication")
          },
-	 (Term::Arrow(_llhs,_lrhs),Term::Arrow(_rlhs,_rrhs)) => {
+	 (Term::Arrow(_lsc,_llhs,_lrt,_lrhs),Term::Arrow(_rsc,_rlhs,_rrt,_rrhs)) => {
             unimplemented!("TODO: typeck_hint Term::Arrow")
          },
 	 (Term::App(lg,lx),Term::App(rg,rx)) => {
@@ -1774,12 +1792,25 @@ impl TLC {
    }
    pub fn typeck(&mut self, scope: &Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
-      //clone is needed to avoid double mutable borrows?
+      //TODO: remove clone here because it is bloating the memory footprint
       match self.rows[t.id].term.clone() {
+         Term::Match(dv, lrs) => {
+            self.typeck(scope, dv, None)?;
+            let mut rts = Vec::new();
+            for (l,r) in lrs.iter() {
+               self.untyped(*l);
+               self.typeck(scope, *r, None)?;
+               rts.push( self.rows[r.id].typ.clone() );
+            }
+            let mut rt = rts[0].clone();
+            for ri in 1..rts.len() {
+               rt = rt.most_general_unifier(&rts[ri]);
+            }
+            self.rows[t.id].typ = rt;
+         },
          Term::Literal(l) => {
             self.untyped(l);
             if let Some(ref i) = implied {
-               //TODO: typeck dynamic expression body vs literal pattern definitions
                self.rows[t.id].typ = i.clone();
             } else {
                return Err(Error {
@@ -1945,83 +1976,96 @@ impl TLC {
                span: self.rows[t.id].span.clone(),
             }) }
          },
-         Term::Arrow(_p,_b) => {
-            unimplemented!("TODO typecheck Term::Arrow")
+         Term::Arrow(ref sc,p,rt,b) => {
+            self.typeck(sc, b, rt)?;
+            self.rows[t.id].typ = Type::Arrow(
+               Box::new(self.rows[p.id].typ.clone()),
+               Box::new(self.rows[b.id].typ.clone()),
+            );
          },
          Term::App(g,x) => {
             let mut ks = HashMap::new();
             self.typeck(scope, x, None)?;
+            let grt = match &self.rows[x.id].typ {
+               Type::Tuple(ts) if ts.len()==0 => { implied.clone().unwrap_or(Type::Any) },
+               _ => Type::Any,
+            };
             self.typeck(scope, g, Some(
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
-                          Box::new(Type::Any))
+                          Box::new(grt.clone()))
             ))?;
-            self.kinds_of(&mut ks, &self.rows[g.id].typ);
-            self.kinds_of(&mut ks, &self.rows[x.id].typ);
-            let mut gs = Vec::new();
-            let mut xs = Vec::new();
-            let mut tcs: Vec<Type> = Vec::new();
-            for kn in TLC::kflat(&ks).iter() {
-               let nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
-               if nt.is_bottom() { continue; }
-               let mut nts = match nt {
-                  Type::And(cts) => { cts.clone() },
-                  ct => { vec![ ct.clone() ] },
-               };
-               let xt = self.narrow(&ks, kn, &self.rows[x.id].typ);
-               if xt.is_bottom() { continue; }
-               let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
-               if tt.is_bottom() { tt = Type::Any; }
-               for mut nt in nts.iter_mut() {
-               match (&mut nt, &xt) {
-                  (Type::Arrow(cp,cb), Type::Constant(ref xc,ref xcv)) => {
-                  if let (Type::Constant(ref mut cp, ref cpv),Type::Constant(ref mut cb, ref cbv)) = ((**cp).clone(),(**cb).clone()) {
-                     self.push_dtype(*xc,xcv);
-                     self.push_dtype(*cp,cpv);
-                     self.push_dtype(*cb,cbv);
-                     gs.push(nt.clone());
-                     xs.push(xt.clone());
-                     let gct = self.push_term(Term::Arrow(*cp,*cb), &self.rows[t.id].span.clone());
-                     self.untyped(gct);
-                     let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
-                     self.untyped(gxct);
-                     tcs.push(Type::Constant(gxct,None));
-                  }},
-                  (Type::Arrow(cp,cb), xc) if (**cp).is_ctuple() && xc.is_ctuple() => {
-                     if let Some((cps,xcs)) = self.destructure_ctuple(cp,xc) {
-                     if let Type::Constant(ref mut cb, ref cbv) = (**cb).clone() {
+
+            if grt != Type::Any {
+               self.rows[t.id].typ = self.rows[g.id].typ.range();
+            } else {
+               self.kinds_of(&mut ks, &self.rows[g.id].typ);
+               self.kinds_of(&mut ks, &self.rows[x.id].typ);
+               let mut gs = Vec::new();
+               let mut xs = Vec::new();
+               let mut tcs: Vec<Type> = Vec::new();
+               for kn in TLC::kflat(&ks).iter() {
+                  let nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
+                  if nt.is_bottom() { continue; }
+                  let mut nts = match nt {
+                     Type::And(cts) => { cts.clone() },
+                     ct => { vec![ ct.clone() ] },
+                  };
+                  let xt = self.narrow(&ks, kn, &self.rows[x.id].typ);
+                  if xt.is_bottom() { continue; }
+                  let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
+                  if tt.is_bottom() { tt = Type::Any; }
+                  for mut nt in nts.iter_mut() {
+                  match (&mut nt, &xt) {
+                     (Type::Arrow(cp,cb), Type::Constant(ref xc,ref xcv)) => {
+                     if let (Type::Constant(ref mut cp, ref cpv),Type::Constant(ref mut cb, ref cbv)) = ((**cp).clone(),(**cb).clone()) {
+                        self.push_dtype(*xc,xcv);
+                        self.push_dtype(*cp,cpv);
                         self.push_dtype(*cb,cbv);
                         gs.push(nt.clone());
                         xs.push(xt.clone());
-                        let cpst = self.push_term(Term::Tuple(cps), &self.rows[t.id].span.clone());
-                        self.untyped(cpst);
-                        let xcst = self.push_term(Term::Tuple(xcs), &self.rows[t.id].span.clone());
-                        self.untyped(xcst);
-                        let gct = self.push_term(Term::Arrow(cpst,*cb), &self.rows[t.id].span.clone());
+                        let gct = self.push_term(Term::Arrow(None,*cp,None,*cb), &self.rows[t.id].span.clone());
                         self.untyped(gct);
-                        let gxct = self.push_term(Term::App(gct,xcst), &self.rows[t.id].span.clone());
+                        let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
                         self.untyped(gxct);
                         tcs.push(Type::Constant(gxct,None));
-                     }} else {
-                        panic!("malformed ctuple {:?} (x) {:?}", **cp, xc);
+                     }},
+                     (Type::Arrow(cp,cb), xc) if (**cp).is_ctuple() && xc.is_ctuple() => {
+                        if let Some((cps,xcs)) = self.destructure_ctuple(cp,xc) {
+                        if let Type::Constant(ref mut cb, ref cbv) = (**cb).clone() {
+                           self.push_dtype(*cb,cbv);
+                           gs.push(nt.clone());
+                           xs.push(xt.clone());
+                           let cpst = self.push_term(Term::Tuple(cps), &self.rows[t.id].span.clone());
+                           self.untyped(cpst);
+                           let xcst = self.push_term(Term::Tuple(xcs), &self.rows[t.id].span.clone());
+                           self.untyped(xcst);
+                           let gct = self.push_term(Term::Arrow(None,cpst,None,*cb), &self.rows[t.id].span.clone());
+                           self.untyped(gct);
+                           let gxct = self.push_term(Term::App(gct,xcst), &self.rows[t.id].span.clone());
+                           self.untyped(gxct);
+                           tcs.push(Type::Constant(gxct,None));
+                        }} else {
+                           panic!("malformed ctuple {:?} (x) {:?}", **cp, xc);
+                        }
+                     },
+                     (gt, xt) => {
+                        let mut dvars = HashMap::new();
+                        self.unify_dvars(&mut dvars, &gt.domain(), &xt);
+                        self.apply_dvars(&dvars, gt);
+                        gs.push(gt.clone());
+                        xs.push(xt.clone());
+                        tcs.push(gt.range());
+                        self.arrow_implies(&xt, &gt.domain(), &self.rows[t.id].span.clone(), InArrow::Lhs)?;
+                        tcs.push(self.arrow_implies(&gt.range(), &tt, &self.rows[t.id].span.clone(), InArrow::Rhs)?);
                      }
-                  },
-                  (gt, xt) => {
-                     let mut dvars = HashMap::new();
-                     self.unify_dvars(&mut dvars, &gt.domain(), &xt);
-                     self.apply_dvars(&dvars, gt);
-                     gs.push(gt.clone());
-                     xs.push(xt.clone());
-                     tcs.push(gt.range());
-                     self.arrow_implies(&xt, &gt.domain(), &self.rows[t.id].span.clone(), InArrow::Lhs)?;
-                     tcs.push(self.arrow_implies(&gt.range(), &tt, &self.rows[t.id].span.clone(), InArrow::Rhs)?);
-                  }
-               }}
+                  }}
+               }
+               self.rows[g.id].typ = if gs.len()==1 { gs[0].clone() }
+               else { Type::And(gs) };
+               self.rows[x.id].typ = if xs.len()==1 { xs[0].clone() }
+               else { Type::And(xs) };
+               self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::And( tcs ));
             }
-            self.rows[g.id].typ = if gs.len()==1 { gs[0].clone() }
-            else { Type::And(gs) };
-            self.rows[x.id].typ = if xs.len()==1 { xs[0].clone() }
-            else { Type::And(xs) };
-            self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::And( tcs ));
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {

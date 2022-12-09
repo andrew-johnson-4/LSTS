@@ -35,6 +35,9 @@ impl Constant {
    }
    pub fn eval(tlc: &TLC, ctx: &HashMap<String,Constant>, term: TermId) -> Option<Constant> {
       match &tlc.rows[term.id].term {
+         Term::Value(v) => {
+            Constant::parse(tlc, v)
+         },
          Term::Ident(v) => {
             ctx.get(v).cloned()
          },

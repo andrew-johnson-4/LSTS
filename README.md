@@ -7,7 +7,7 @@
 
 LSTS is a proof assistant and maybe a programming language.
 
-## Rules Based Logic
+## Casual Typing
 
 Proofs in LSTS are built by connecting terms, type definitions, and quantified statements. Terms can be evaluated to obtain Values. Types describe properties of Terms. Statements describe relations between Terms and Types.
 

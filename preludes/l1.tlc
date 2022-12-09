@@ -1,0 +1,39 @@
+
+//Types
+type Boolean = True | False;
+type Integer = /^[-]?[0-9]+$/;
+type Tensor<T> = { };
+type Set<E> = { };
+type Map<K,V> = { };
+
+//Operators
+let pos(x:Integer)             :Integer; //pos
+let neg(x:Integer)             :Integer; //neg
+let $"+"(x:Integer, y:Integer) :Integer; //add
+let $"-"(x:Integer, y:Integer) :Integer; //sub
+let $"*"(x:Integer, y:Integer) :Integer; //mul
+let $"/"(x:Integer, y:Integer) :Integer; //div
+let $"^"(x:Integer, y:Integer) :Integer; //pow
+
+let $"<"(x:Integer, y:Integer)  :Boolean;
+let $"<="(x:Integer, y:Integer) :Boolean;
+let $">"(x:Integer, y:Integer)  :Boolean;
+let $">="(x:Integer, y:Integer) :Boolean;
+let $"=="(x:Integer, y:Integer) :Boolean;
+let $"!="(x:Integer, y:Integer) :Boolean;
+
+//Sugar
+let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;
+let $"for"(ls: Tensor<A>, A -> Boolean, A -> B): Tensor<B>;
+
+let set(ls: Tensor<A>): Set<A>;
+let map(ls: Tensor<(A,B)>): Map<A,B>;
+
+let range(end: Integer): Tensor<Integer>;
+let range(start: Integer, end: Integer): Tensor<Integer>;
+let range(start: Integer, end: Integer, step: Integer): Tensor<Integer>;
+
+let tensor(): Tensor<A>;
+let tensor(a: A): Tensor<A>;
+let tensor(a: A, b: A): Tensor<A>;
+let tensor(a: A, b: A, c: A): Tensor<A>;
