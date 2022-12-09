@@ -1986,77 +1986,86 @@ impl TLC {
          Term::App(g,x) => {
             let mut ks = HashMap::new();
             self.typeck(scope, x, None)?;
+            let grt = match &self.rows[x.id].typ {
+               Type::Tuple(ts) if ts.len()==0 => { implied.clone().unwrap_or(Type::Any) },
+               _ => Type::Any,
+            };
             self.typeck(scope, g, Some(
                Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
-                          Box::new(Type::Any))
+                          Box::new(grt.clone()))
             ))?;
-            self.kinds_of(&mut ks, &self.rows[g.id].typ);
-            self.kinds_of(&mut ks, &self.rows[x.id].typ);
-            let mut gs = Vec::new();
-            let mut xs = Vec::new();
-            let mut tcs: Vec<Type> = Vec::new();
-            for kn in TLC::kflat(&ks).iter() {
-               let nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
-               if nt.is_bottom() { continue; }
-               let mut nts = match nt {
-                  Type::And(cts) => { cts.clone() },
-                  ct => { vec![ ct.clone() ] },
-               };
-               let xt = self.narrow(&ks, kn, &self.rows[x.id].typ);
-               if xt.is_bottom() { continue; }
-               let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
-               if tt.is_bottom() { tt = Type::Any; }
-               for mut nt in nts.iter_mut() {
-               match (&mut nt, &xt) {
-                  (Type::Arrow(cp,cb), Type::Constant(ref xc,ref xcv)) => {
-                  if let (Type::Constant(ref mut cp, ref cpv),Type::Constant(ref mut cb, ref cbv)) = ((**cp).clone(),(**cb).clone()) {
-                     self.push_dtype(*xc,xcv);
-                     self.push_dtype(*cp,cpv);
-                     self.push_dtype(*cb,cbv);
-                     gs.push(nt.clone());
-                     xs.push(xt.clone());
-                     let gct = self.push_term(Term::Arrow(None,*cp,None,*cb), &self.rows[t.id].span.clone());
-                     self.untyped(gct);
-                     let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
-                     self.untyped(gxct);
-                     tcs.push(Type::Constant(gxct,None));
-                  }},
-                  (Type::Arrow(cp,cb), xc) if (**cp).is_ctuple() && xc.is_ctuple() => {
-                     if let Some((cps,xcs)) = self.destructure_ctuple(cp,xc) {
-                     if let Type::Constant(ref mut cb, ref cbv) = (**cb).clone() {
+
+            if grt != Type::Any {
+               self.rows[t.id].typ = self.rows[g.id].typ.range();
+            } else {
+               self.kinds_of(&mut ks, &self.rows[g.id].typ);
+               self.kinds_of(&mut ks, &self.rows[x.id].typ);
+               let mut gs = Vec::new();
+               let mut xs = Vec::new();
+               let mut tcs: Vec<Type> = Vec::new();
+               for kn in TLC::kflat(&ks).iter() {
+                  let nt = self.narrow(&ks, kn, &self.rows[g.id].typ);
+                  if nt.is_bottom() { continue; }
+                  let mut nts = match nt {
+                     Type::And(cts) => { cts.clone() },
+                     ct => { vec![ ct.clone() ] },
+                  };
+                  let xt = self.narrow(&ks, kn, &self.rows[x.id].typ);
+                  if xt.is_bottom() { continue; }
+                  let mut tt = self.narrow(&ks, kn, &self.rows[t.id].typ);
+                  if tt.is_bottom() { tt = Type::Any; }
+                  for mut nt in nts.iter_mut() {
+                  match (&mut nt, &xt) {
+                     (Type::Arrow(cp,cb), Type::Constant(ref xc,ref xcv)) => {
+                     if let (Type::Constant(ref mut cp, ref cpv),Type::Constant(ref mut cb, ref cbv)) = ((**cp).clone(),(**cb).clone()) {
+                        self.push_dtype(*xc,xcv);
+                        self.push_dtype(*cp,cpv);
                         self.push_dtype(*cb,cbv);
                         gs.push(nt.clone());
                         xs.push(xt.clone());
-                        let cpst = self.push_term(Term::Tuple(cps), &self.rows[t.id].span.clone());
-                        self.untyped(cpst);
-                        let xcst = self.push_term(Term::Tuple(xcs), &self.rows[t.id].span.clone());
-                        self.untyped(xcst);
-                        let gct = self.push_term(Term::Arrow(None,cpst,None,*cb), &self.rows[t.id].span.clone());
+                        let gct = self.push_term(Term::Arrow(None,*cp,None,*cb), &self.rows[t.id].span.clone());
                         self.untyped(gct);
-                        let gxct = self.push_term(Term::App(gct,xcst), &self.rows[t.id].span.clone());
+                        let gxct = self.push_term(Term::App(gct,*xc), &self.rows[t.id].span.clone());
                         self.untyped(gxct);
                         tcs.push(Type::Constant(gxct,None));
-                     }} else {
-                        panic!("malformed ctuple {:?} (x) {:?}", **cp, xc);
+                     }},
+                     (Type::Arrow(cp,cb), xc) if (**cp).is_ctuple() && xc.is_ctuple() => {
+                        if let Some((cps,xcs)) = self.destructure_ctuple(cp,xc) {
+                        if let Type::Constant(ref mut cb, ref cbv) = (**cb).clone() {
+                           self.push_dtype(*cb,cbv);
+                           gs.push(nt.clone());
+                           xs.push(xt.clone());
+                           let cpst = self.push_term(Term::Tuple(cps), &self.rows[t.id].span.clone());
+                           self.untyped(cpst);
+                           let xcst = self.push_term(Term::Tuple(xcs), &self.rows[t.id].span.clone());
+                           self.untyped(xcst);
+                           let gct = self.push_term(Term::Arrow(None,cpst,None,*cb), &self.rows[t.id].span.clone());
+                           self.untyped(gct);
+                           let gxct = self.push_term(Term::App(gct,xcst), &self.rows[t.id].span.clone());
+                           self.untyped(gxct);
+                           tcs.push(Type::Constant(gxct,None));
+                        }} else {
+                           panic!("malformed ctuple {:?} (x) {:?}", **cp, xc);
+                        }
+                     },
+                     (gt, xt) => {
+                        let mut dvars = HashMap::new();
+                        self.unify_dvars(&mut dvars, &gt.domain(), &xt);
+                        self.apply_dvars(&dvars, gt);
+                        gs.push(gt.clone());
+                        xs.push(xt.clone());
+                        tcs.push(gt.range());
+                        self.arrow_implies(&xt, &gt.domain(), &self.rows[t.id].span.clone(), InArrow::Lhs)?;
+                        tcs.push(self.arrow_implies(&gt.range(), &tt, &self.rows[t.id].span.clone(), InArrow::Rhs)?);
                      }
-                  },
-                  (gt, xt) => {
-                     let mut dvars = HashMap::new();
-                     self.unify_dvars(&mut dvars, &gt.domain(), &xt);
-                     self.apply_dvars(&dvars, gt);
-                     gs.push(gt.clone());
-                     xs.push(xt.clone());
-                     tcs.push(gt.range());
-                     self.arrow_implies(&xt, &gt.domain(), &self.rows[t.id].span.clone(), InArrow::Lhs)?;
-                     tcs.push(self.arrow_implies(&gt.range(), &tt, &self.rows[t.id].span.clone(), InArrow::Rhs)?);
-                  }
-               }}
+                  }}
+               }
+               self.rows[g.id].typ = if gs.len()==1 { gs[0].clone() }
+               else { Type::And(gs) };
+               self.rows[x.id].typ = if xs.len()==1 { xs[0].clone() }
+               else { Type::And(xs) };
+               self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::And( tcs ));
             }
-            self.rows[g.id].typ = if gs.len()==1 { gs[0].clone() }
-            else { Type::And(gs) };
-            self.rows[x.id].typ = if xs.len()==1 { xs[0].clone() }
-            else { Type::And(xs) };
-            self.rows[t.id].typ = self.rows[t.id].typ.and(&Type::And( tcs ));
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {
