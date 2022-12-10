@@ -16,6 +16,11 @@ pub struct Scope {
 }
 
 impl Scope {
+   pub fn globals(tlc: &TLC, scope: ScopeId) -> ScopeId {
+      if let Some(sup) = tlc.scopes[scope.id].parent {
+         Scope::globals(tlc, sup)
+      } else { scope }
+   }
    pub fn lookup_term(tlc: &TLC, scope: ScopeId, v: &str, t: &Type) -> Option<TermId> {
       let mut candidates = Vec::new();
       for (cv,_ck,_ct,cb) in tlc.scopes[scope.id].children.iter() {

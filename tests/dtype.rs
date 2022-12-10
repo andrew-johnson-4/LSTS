@@ -1,3 +1,4 @@
+/* TODO add si rules for @reduce
 use lsts::tlc::TLC;
 
 #[test]
@@ -10,3 +11,4 @@ fn check_unification_clobbering() {
    tlc.check(Some(si), "-(-2) @reduce :[2];").unwrap();
    tlc.check(Some(si), "-(-1) @reduce :[-1];").unwrap_err();
 }
+*/

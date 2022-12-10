@@ -35,7 +35,6 @@ pub enum Term {
    As(TermId,Type),
    Constructor(String,Vec<(String,TermId)>),
    RuleApplication(TermId,String),
-   Literal(TermId),
    Match(
       TermId,
       Vec<(TermId,TermId)>, //lhs's here don't need scopes because these bindings can't be polymorphic
@@ -155,9 +154,6 @@ impl Term {
                   _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({:?})", tlc.print_term(*g), xc)
                }
             } else { return None; }
-         },
-         Term::Literal(v) => {
-            Constant::eval(tlc, scope_constants, *v)
          },
          Term::Match(dv,lrs) => {
             if let Some(ref dc) = Constant::eval(tlc, scope_constants, *dv) {

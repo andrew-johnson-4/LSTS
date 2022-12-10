@@ -70,7 +70,7 @@ pub enum TypedefBranch {
 pub struct Invariant {
    pub itks: Vec<(Option<String>,Option<Type>,Kind)>,
    pub prop: TermId,
-   pub algs: TermId,
+   pub algs: Constant,
 }
 
 #[derive(Clone)]
@@ -234,7 +234,6 @@ impl TLC {
             format!("{}{{{}}}", cn, kvs.iter().map(|(k,v)|format!("{}={}",k,self.print_term(*v))).collect::<Vec<String>>().join(","))
          },
          Term::RuleApplication(t,n) => format!("{} @{}", self.print_term(*t), n),
-         Term::Literal(t) => format!("|{}|", self.print_term(*t)),
       }
    }
    pub fn push_forall(&mut self, globals: ScopeId, axiom: bool, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
@@ -454,7 +453,6 @@ impl TLC {
             }}
             for p in tr.invariants.iter() {
                self.untyped(p.prop);
-               self.untyped(p.algs);
             }
          },
       }}
@@ -472,31 +470,6 @@ impl TLC {
    }
    pub fn maybe_constant(&self, t: TermId) -> Option<Constant> {
       self.rows[t.id].constant.clone()
-   }
-   pub fn parse_constant(&self, c: &str) -> Option<Constant> {
-      if c=="NaN" { Some(Constant::NaN)
-      } else if c=="True" { Some(Constant::Boolean(true))
-      } else if c=="False" { Some(Constant::Boolean(false))
-      } else if c=="if" { Some(Constant::Op(c.to_string()))
-      } else if c=="not" { Some(Constant::Op(c.to_string()))
-      } else if c=="pos" { Some(Constant::Op(c.to_string()))
-      } else if c=="neg" { Some(Constant::Op(c.to_string()))
-      } else if c=="+" { Some(Constant::Op(c.to_string()))
-      } else if c=="-" { Some(Constant::Op(c.to_string()))
-      } else if c=="*" { Some(Constant::Op(c.to_string()))
-      } else if c=="/" { Some(Constant::Op(c.to_string()))
-      } else if c=="^" { Some(Constant::Op(c.to_string()))
-      } else if c=="%" { Some(Constant::Op(c.to_string()))
-      } else if c=="==" { Some(Constant::Op(c.to_string()))
-      } else if c=="!=" { Some(Constant::Op(c.to_string()))
-      } else if c=="<" { Some(Constant::Op(c.to_string()))
-      } else if c=="<=" { Some(Constant::Op(c.to_string()))
-      } else if c==">" { Some(Constant::Op(c.to_string()))
-      } else if c==">=" { Some(Constant::Op(c.to_string()))
-      } else if c=="&&" { Some(Constant::Op(c.to_string()))
-      } else if c=="||" { Some(Constant::Op(c.to_string()))
-      } else if let Ok(ci) = c.parse::<i64>() { Some(Constant::Integer(ci))
-      } else { None }
    }
    pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
       let index = self.rows.len();
@@ -1159,12 +1132,10 @@ impl TLC {
       }}}}}
       None
    }
-   pub fn check_invariants(&mut self, t: TermId) -> Result<(),Error> {
+   pub fn check_invariants(&mut self, scope: &Option<ScopeId>, t: TermId) -> Result<(),Error> {
+      let scope = scope.map(|sc| Scope::globals(self,sc));
       let mut ground_types = Vec::new();
       let mut subs: HashMap<String,Constant> = HashMap::new();
-      let self_term = Term::Ident("self".to_string());
-      let self_termid = self.push_term(self_term.clone(), &self.rows[t.id].span.clone());
-      self.untyped(self_termid);
       match self.rows[t.id].typ.clone() {
          Type::Named(tn,ts) => {
             ground_types.push(Type::Named(tn.clone(),ts.clone()));
@@ -1186,12 +1157,16 @@ impl TLC {
       if let Some(ti) = self.typedef_index.get(tn) {
       if let TypeRule::Typedef(tr) = &self.rules[*ti] {
          for invariant in tr.invariants.clone().iter() {
-            unimplemented!("TODO TLC check invariants")
+            let p = Term::reduce(self, &scope, &mut subs, invariant.prop);
+            if let Some(p) = p { if p == invariant.algs {
+               continue;
+            }}
+            return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("invariant not satisfied {}: {} | {:?}", tn, self.print_term(invariant.prop), invariant.algs),
+               span: self.rows[t.id].span.clone(),
+            })
             /*
-            let p = self.untyped_eval(&mut subs, &mut invariant.prop.clone(), true);
-            let a = self.untyped_eval(&mut subs, &mut invariant.algs.clone(), true);
-            if p.is_some() && p==a {
-               //pass
             } else if let Some((mut low,i,mut high,prop)) = self.is_exhaustive(invariant.prop) {
                if let Some(Constant::Integer(low)) = self.untyped_eval(&mut subs, &mut low, true) {
                if let Some(Constant::Integer(high)) = self.untyped_eval(&mut subs, &mut high, true) {
@@ -1214,13 +1189,6 @@ impl TLC {
                      }
                   }
                }}
-            } else {
-               return Err(Error {
-                  kind: "Type Error".to_string(),
-                  rule: format!("invariant not satisfied {}: {} | {}", tn, self.print_term(invariant.prop), self.print_term(invariant.algs)),
-                  span: self.rows[t.id].span.clone(),
-               })
-            }
             */
          }
       }}}}
@@ -1318,18 +1286,6 @@ impl TLC {
             }
             self.rows[t.id].typ = rt;
          },
-         Term::Literal(l) => {
-            self.untyped(l);
-            if let Some(ref i) = implied {
-               self.rows[t.id].typ = i.clone();
-            } else {
-               return Err(Error {
-                  kind: "Type Error".to_string(),
-                  rule: format!("Literal Expressions must have an Implied Type"),
-                  span: self.rows[t.id].span.clone(),
-               })
-            }
-         },
          Term::Block(sid,es) => {
             let mut last_typ = self.nil_type.clone();
             for e in es.iter() {
@@ -1407,7 +1363,7 @@ impl TLC {
                   }
                }
             }
-            self.check_invariants(t)?;
+            self.check_invariants(scope, t)?;
          },
          Term::Ident(x) => {
             self.rows[t.id].typ = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span.clone())?;
@@ -1419,7 +1375,7 @@ impl TLC {
             for (pat,re) in self.regexes.clone().into_iter() {
                if let Ok(nt) = self.implies(&ki,&pat,&self.rows[t.id].span.clone()) { //Term kinded is not []
                   r = Some(re.clone());
-                  self.rows[t.id].typ = nt;
+                  self.rows[t.id].typ = nt.and(&ki);
                   break;
                }
                else if ki==self.bottom_type && re.is_match(&x) { //Term kinded is []
@@ -1443,7 +1399,7 @@ impl TLC {
                   span: self.rows[t.id].span.clone(),
                })
             }
-            self.check_invariants(t)?;
+            self.check_invariants(scope, t)?;
 	 },
          Term::RuleApplication(lhs,h) => {
             //borrowing self even in a .clone'd expression fails the borrow checker

@@ -177,6 +177,7 @@ let $"*"(x:Integer, y:Integer) :Integer; //mul
 let $"/"(x:Integer, y:Integer) :Integer; //div
 
 //: Unit Math
+/*
 let pos(x:X::Unit)             :X   ::Unit; //pos
 let neg(x:X::Unit)             :X   ::Unit; //neg
 let $"+"(x:X::Unit, y:X::Unit) :X   ::Unit; //add
@@ -187,6 +188,7 @@ let $"*"(x:X::Unit, y:Number)  :X   ::Unit; //mul constant
 let $"/"(x:X::Unit, y:Y::Unit) :X/Y ::Unit; //div
 let $"/"(x:Number, y:Y::Unit)  :()/Y::Unit; //div constant
 let $"/"(x:X::Unit, y:Number)  :X   ::Unit; //div constant
+*/
 
 //: Tensor Properties
 //let .length(a: ?[]): Integer;

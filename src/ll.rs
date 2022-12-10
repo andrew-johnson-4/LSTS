@@ -210,8 +210,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
       while peek_is(tokens, &vec![Symbol::Where,Symbol::AndAlso]) {
          pop_is("type-stmt", tokens, &vec![Symbol::Where,Symbol::AndAlso])?;
          let mut itks = Vec::new();
-         let prop;
-         let mut algs = None;
 
          while !peek_is(tokens, &vec![Symbol::Dot]) {
             if peek_is(tokens, &vec![Symbol::Comma]) {
@@ -235,16 +233,16 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
             itks.push((idn,inf,kind));
          }
          pop_is("type-stmt", tokens, &vec![Symbol::Dot])?;
-         prop = Some( ll1_term(tlc, scope, tokens)? );
-         if peek_is(tokens, &vec![Symbol::Bar]) {
+         let prop = ll1_term(tlc, scope, tokens)?;
+         let algs = if peek_is(tokens, &vec![Symbol::Bar]) {
             pop_is("type-stmt", tokens, &vec![Symbol::Bar])?;
-            algs = Some( ll1_term(tlc, scope, tokens)? );
-         }
-         let algs = if let Some(a) = algs { a }
-         else { tlc.push_term(Term::Ident("True".to_string()),&span) };
+            ll1_constant(tlc, scope, tokens)?
+         } else {
+            Constant::parse(tlc, "True").unwrap()
+         };
          props.push(Invariant {
             itks: itks,
-            prop: prop.expect("TLC Grammar Error in rule [typ_invariant]"),
+            prop: prop,
             algs: algs,
          });
       }
@@ -763,14 +761,6 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
    }
 }
 
-pub fn ll1_literal_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
-   let span = span_of(tokens);
-   pop_is("literal-term", tokens, &vec![Symbol::Bar])?;
-   let t = ll1_term(tlc, scope, tokens)?;
-   pop_is("literal-term", tokens, &vec![Symbol::Bar])?;
-   Ok(tlc.push_term(Term::Literal(t),&span))
-}
-
 pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
    if let Some(sym) = tokens.peek_symbol()? {
@@ -853,8 +843,6 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
       ll1_tuple_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
       ll1_tensor_term(tlc, scope, tokens)?
-   } else if peek_is(tokens, &vec![Symbol::Bar]) {
-      ll1_literal_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Match]) {
       ll1_match_term(tlc, scope, tokens)?
    } else {
@@ -947,6 +935,13 @@ pub fn ll1_constant(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
       } else if let Symbol::Typename(cname) = sym {
          tokens.take_symbol()?;
          return Ok(Constant::parse(tlc,&cname).unwrap())
+        //TODO tuples like (1,2,3)
+        //TODO structs as Tuples like (Point2D,1,2), order fields by alphabetical order
+      } else {
+         pop_is("constant-term",tokens,&vec![
+            Symbol::Typename("A".to_string()),
+            Symbol::Value("1".to_string()),
+         ])?;
       }
    }
    pop_is("constant-term",tokens,&vec![
