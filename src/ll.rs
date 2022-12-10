@@ -771,6 +771,9 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
       } else if let Symbol::Value(x) = sym {
          tokens.take_symbol()?;
          return Ok(tlc.push_term(Term::Value(x.clone()), &span))
+      } else if let Symbol::Fail = sym {
+         tokens.take_symbol()?;
+         return Ok(tlc.push_term(Term::Fail, &span))
       } else if let Symbol::Typename(cname) = sym {
          tokens.take_symbol()?;
          let mut kvs = Vec::new();
@@ -795,6 +798,12 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
             cname.clone(),
             kvs
          ),&span));
+      } else {
+         pop_is("value-term",tokens,&vec![
+            Symbol::Ident("x".to_string()),
+            Symbol::Typename("A".to_string()),
+            Symbol::Value("1".to_string()),
+         ])?;
       }
    }
    pop_is("value-term",tokens,&vec![
@@ -822,17 +831,17 @@ pub fn ll1_match_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
    let dv = ll1_term(tlc, scope, tokens)?;
    pop_is("match-term", tokens, &vec![Symbol::LeftBrace])?;
    let mut pats = Vec::new();
-   let mut first_arm = true;
-   while !peek_is(tokens, &vec![Symbol::RightBrace]) {
-      if first_arm { first_arm = false; }
-      else { pop_is("match-term", tokens, &vec![Symbol::Comma])?; }
+   let mut comma_ok = true;
+   while comma_ok && !peek_is(tokens, &vec![Symbol::RightBrace]) {
+      if comma_ok { comma_ok = false; }
       let lhs = ll1_term(tlc, scope, tokens)?;
       pop_is("match-term", tokens, &vec![Symbol::Imply])?;
       let rhs = ll1_term(tlc, scope, tokens)?;
       pats.push((lhs, rhs));
-   }
-   if peek_is(tokens, &vec![Symbol::Comma]) {
-      pop_is("match-term", tokens, &vec![Symbol::Comma])?;
+      if peek_is(tokens, &vec![Symbol::Comma]) {
+         pop_is("match-term", tokens, &vec![Symbol::Comma])?;
+         comma_ok = true;
+      }
    }
    pop_is("match-term", tokens, &vec![Symbol::RightBrace])?;
    Ok(tlc.push_term(Term::Match(dv, pats),&span))

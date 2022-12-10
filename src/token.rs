@@ -91,7 +91,6 @@ pub enum Symbol {
    Forall,
    Type,
    Normal,
-   Literal,
    Where,
    Loop,
    For,
@@ -99,6 +98,8 @@ pub enum Symbol {
    In,
    Yield,
    Fn,
+   Literal,
+   Fail,
 }
 impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -154,7 +155,6 @@ impl std::fmt::Debug for Symbol {
            Symbol::Axiom              => write!(f, "axiom"),
            Symbol::Forall             => write!(f, "forall"),
            Symbol::Type               => write!(f, "type"),
-           Symbol::Literal            => write!(f, "literal"),
            Symbol::Normal             => write!(f, "normal"),
            Symbol::Where              => write!(f, "where"),
            Symbol::Loop               => write!(f, "loop"),
@@ -163,6 +163,8 @@ impl std::fmt::Debug for Symbol {
            Symbol::In                 => write!(f, "in"),
            Symbol::Yield              => write!(f, "yield"),
            Symbol::Fn                 => write!(f, "fn"),
+           Symbol::Literal            => write!(f, "literal"),
+           Symbol::Fail               => write!(f, "fail"),
         }
     }
 }
@@ -317,10 +319,11 @@ impl TokenReader {
                "axiom" => { return Ok(Some(Token { symbol: Symbol::Axiom, span: span, })); },
                "type" => { return Ok(Some(Token { symbol: Symbol::Type, span: span, })); },
                "normal" => { return Ok(Some(Token { symbol: Symbol::Normal, span: span, })); },
-               "literal" => { return Ok(Some(Token { symbol: Symbol::Literal, span: span, })); },
                "where" => { return Ok(Some(Token { symbol: Symbol::Where, span: span, })); },
                "yield" => { return Ok(Some(Token { symbol: Symbol::Yield, span: span, })); },
                "fn" => { return Ok(Some(Token { symbol: Symbol::Fn, span: span, })); },
+               "literal" => { return Ok(Some(Token { symbol: Symbol::Literal, span: span, })); },
+               "fail" => { return Ok(Some(Token { symbol: Symbol::Fail, span: span, })); },
                _ => { return Ok(Some(Token { symbol: Symbol::Ident(ident.to_string()), span: span, })); },
             }
          },

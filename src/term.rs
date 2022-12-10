@@ -39,6 +39,7 @@ pub enum Term {
       TermId,
       Vec<(TermId,TermId)>, //lhs's here don't need scopes because these bindings can't be polymorphic
    ),
+   Fail, //indicates that Term does not return a Value
 }
 
 impl Term {

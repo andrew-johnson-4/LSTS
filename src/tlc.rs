@@ -207,6 +207,7 @@ impl TLC {
    }
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
+         Term::Fail => format!("fail"),
          Term::Ident(x) => format!("{}", x),
          Term::Value(x) => format!("{}", x),
          Term::Arrow(_sc,p,rt,b) => format!("(fn({}){} = {})",
@@ -1272,6 +1273,9 @@ impl TLC {
       let implied = implied.map(|tt|tt.normalize());
       //TODO: remove clone here because it is bloating the memory footprint
       match self.rows[t.id].term.clone() {
+         Term::Fail => {
+            self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
+         },
          Term::Match(dv, lrs) => {
             self.typeck(scope, dv, None)?;
             let mut rts = Vec::new();
