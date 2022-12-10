@@ -4,6 +4,7 @@ use crate::debug::{Error};
 use crate::token::{Symbol,TokenReader,span_of};
 use crate::scope::{ScopeId,Scope};
 use crate::tlc::{TLC,TypeRule,Invariant,TypedefRule,TypedefBranch,Inference};
+use crate::constant::{Constant};
 use crate::typ::{Type};
 use crate::kind::{Kind};
 
@@ -274,50 +275,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
       if &t==c { continue; } //constructor has same name as type
       tlc.typedef_index.insert(c.clone(), tlc.rules.len());
    }
-   for inv in props.iter() {
-   if let Term::App(g,x) = &tlc.rows[inv.prop.id].term.clone() {
-   if let Term::Ident(gn) = &tlc.rows[g.id].term.clone() {
-      let mut xs = Vec::new();
-      let mut fkts = HashMap::new();
-      match &tlc.rows[x.id].term.clone() {
-         Term::Tuple(ts) => {
-            for ct in ts.iter() {
-               if let Term::Ident(ctn) = &tlc.rows[ct.id].term.clone() {
-               if ctn == "self" { //replace "self" in invariants with this type rule
-                  xs.push(Type::Named(t.clone(),Vec::new()));
-                  fkts.insert(xs[xs.len()-1].clone(), tlc.term_kind.clone());
-                  continue;
-               }}
-               let ctt = tlc.rows[ct.id].term.clone();
-               xs.push(tlc.push_dep_type(&ctt, *ct));
-               fkts.insert(xs[xs.len()-1].clone(), tlc.constant_kind.clone());
-            }
-         }, pt => {
-            let mut is_self = false;
-            if let Term::Ident(ctn) = pt {
-            if ctn == "self" { //replace "self" in invariants with this type rule
-               xs.push(Type::Named(t.clone(),Vec::new()));
-               fkts.insert(xs[xs.len()-1].clone(), tlc.term_kind.clone());
-               is_self = true;
-            }}
-            if !is_self {
-               xs.push(tlc.push_dep_type(&pt, *x));
-               fkts.insert(xs[xs.len()-1].clone(), tlc.constant_kind.clone());
-            }
-         }
-      }
-      let rt = tlc.push_dep_type(&tlc.rows[inv.algs.id].term.clone(), inv.algs);
-
-      let pt = if xs.len()==1 {
-         xs[0].clone()
-      } else {
-         Type::Tuple(xs)
-      };
-      let ft = Type::Arrow(Box::new(pt),Box::new(rt));
-      let vt = tlc.push_term(Term::Ident(gn.clone()),&span);
-      tlc.untyped(vt);
-      tlc.scopes[scope.id].children.push((gn.clone(), fkts, ft, Some(vt)));
-   }}}
 
    tlc.rules.push(TypeRule::Typedef(TypedefRule {
       name: t,
@@ -539,8 +496,6 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
       };
       ft = Type::Arrow(Box::new(pt),Box::new(ft));
    }
-   tlc.unify_varnames_t(&mut HashMap::new(), &ft, false);
-   tlc.reduce_type(&mut HashMap::new(), &mut ft); //destructively reduce constants in type
    ft = ft.normalize();
    let inner_scope = tlc.push_scope(Scope {
       parent: Some(scope),
@@ -929,27 +884,6 @@ pub fn ll1_expr_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    ll1_logical_term(tlc, scope, tokens)
 }
 
-pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
-   let span = span_of(tokens);
-   let mut term = ll1_expr_term(tlc, scope, tokens)?;
-   while peek_is(tokens, &vec![Symbol::BackSlash]) {
-      pop_is("algebra-term", tokens, &vec![Symbol::BackSlash])?;
-      pop_is("algebra-term", tokens, &vec![Symbol::LeftBracket])?;
-      let mut a = ll1_expr_term(tlc, scope, tokens)?;
-      pop_is("algebra-term", tokens, &vec![Symbol::Bar])?;
-      let mut b = ll1_expr_term(tlc, scope, tokens)?;
-      pop_is("algebra-term", tokens, &vec![Symbol::RightBracket])?;
-      tlc.untyped(a); tlc.unify_varnames(&mut HashMap::new(),&mut a);
-      tlc.untyped(b); tlc.unify_varnames(&mut HashMap::new(),&mut b);
-      term = {let t = Term::Substitution(
-         term,
-         a,
-         b
-      ); tlc.push_term(t,&span)};
-   }
-   Ok(term)
-}
-
 pub fn ll1_paren_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
    pop_is("paren-type", tokens, &vec![Symbol::LeftParen])?;
    let mut ts = Vec::new();
@@ -1004,14 +938,15 @@ pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
    Ok(Type::Named(tn,tps))
 }
 
+pub fn ll1_constant(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Constant,Error> {
+   unimplemented!("TODO ll1_constant")
+}
+
 pub fn ll1_dep_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
    pop_is("dependent-type", tokens, &vec![Symbol::LeftBracket])?;
-   let mut t = ll1_term(tlc, scope, tokens)?;
+   let mut cv = ll1_constant(tlc, scope, tokens)?;
    pop_is("dependent-type", tokens, &vec![Symbol::RightBracket])?;
-   tlc.untyped(t);
-   tlc.unify_varnames(dept,&mut t);
-   let ct = tlc.push_dep_type(&tlc.rows[t.id].term.clone(), t);
-   Ok(ct)
+   Ok(Type::Constant(cv))
 }
 
 pub fn ll1_atom_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
@@ -1043,6 +978,8 @@ pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: 
       pop_is("suffix-type", tokens, &vec![Symbol::RightBracket])?;
    }
    for bracketed in ts.iter().rev() {
+      unimplemented!("suffix-type array syntax")
+      /*
       let mut dt = if let Some(br) = bracketed {
          *br
       } else {
@@ -1055,6 +992,7 @@ pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: 
          base,
          ct
       ]);
+      */
    }
    Ok(base)
 }
@@ -1111,7 +1049,7 @@ pub fn ll1_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId
 
 pub fn ll1_ascript_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   let mut term = ll1_algebra_term(tlc, scope, tokens)?;
+   let mut term = ll1_expr_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Ascript, Symbol::At]) {
       if peek_is(tokens, &vec![Symbol::Ascript]) {
          pop_is("ascript-term", tokens, &vec![Symbol::Ascript])?;

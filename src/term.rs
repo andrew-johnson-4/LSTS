@@ -34,7 +34,6 @@ pub enum Term {
    Ascript(TermId,Type),
    As(TermId,Type),
    Constructor(String,Vec<(String,TermId)>),
-   Substitution(TermId,TermId,TermId),
    RuleApplication(TermId,String),
    Literal(TermId),
    Match(

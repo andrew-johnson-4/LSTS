@@ -1,5 +1,5 @@
 use lsts::typ::*;
-use lsts::term::TermId;
+use lsts::constant::Constant;
 
 #[test]
 fn check_structural_equality() {
@@ -14,8 +14,8 @@ fn check_structural_equality() {
    let tt1  = Type::Tuple(vec![tn1.clone(),ta1.clone()]);
    let tp1  = Type::Product(vec![tn1.clone(),ta1.clone()]);
    let tr1  = Type::Ratio(Box::new(tt1.clone()),Box::new(tp1.clone()));
-   let tc1  = Type::Constant(TermId{id:1},None);
-   let tc2  = Type::Constant(TermId{id:2},None);
+   let tc1  = Type::Constant(Constant::Integer(1));
+   let tc2  = Type::Constant(Constant::Integer(1));
    assert_eq!(tany, tany);
    assert_eq!(tn1, tn1);
    assert_eq!(tn2, tn2);
@@ -58,8 +58,8 @@ fn check_self_unifies() {
    let tt1  = Type::Tuple(vec![tn1.clone(),ta1.clone()]);
    let tp1  = Type::Product(vec![tn1.clone(),ta1.clone()]);
    let tr1  = Type::Ratio(Box::new(tt1.clone()),Box::new(tp1.clone()));
-   let tc1  = Type::Constant(TermId{id:1},None);
-   let tc2  = Type::Constant(TermId{id:2},None);
+   let tc1  = Type::Constant(Constant::Integer(1));
+   let tc2  = Type::Constant(Constant::Integer(2));
    assert_eq!(tany, tany.implication_unifier(&tany));
    assert_eq!(tn1, tn1.implication_unifier(&tn1));
    assert_eq!(tn2, tn2.implication_unifier(&tn2));
@@ -343,10 +343,10 @@ fn check_arrow_ratio() {
 #[test]
 fn check_constant_arrows() {
    let tany = Type::Any;
-   let tc1  = Type::Constant(TermId{id:1},None);
-   let tc2  = Type::Constant(TermId{id:2},None);
-   let tc3  = Type::Constant(TermId{id:3},None);
-   let tc4  = Type::Constant(TermId{id:4},None);
+   let tc1  = Type::Constant(Constant::Integer(1));
+   let tc2  = Type::Constant(Constant::Integer(2));
+   let tc3  = Type::Constant(Constant::Integer(3));
+   let tc4  = Type::Constant(Constant::Integer(4));
    let ta1  = Type::Arrow( Box::new(tc1.clone()), Box::new(tany.clone()) );
    let ta2  = Type::Arrow( Box::new(tc2.clone()), Box::new(tc3.clone()) );
    assert_eq!( ta2, ta1.implication_unifier(&ta2) );

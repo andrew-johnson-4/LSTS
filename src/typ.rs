@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use crate::term::TermId;
 use crate::constant::Constant;
 use crate::kind::Kind;
 use crate::tlc::TLC;
@@ -33,7 +32,7 @@ pub enum Type {
    Tuple(Vec<Type>),   //Tuple is order-sensitive, Nil is the empty tuple
    Product(Vec<Type>), //Product is order-insensitive
    Ratio(Box<Type>,Box<Type>),
-   Constant(TermId,Option<Constant>),
+   Constant(Constant),
 }
 
 impl Type {
@@ -49,8 +48,7 @@ impl Type {
          Type::Product(ts) => format!("({})", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join("*") ),
          Type::Arrow(p,b) => format!("({})->({})", p.print(kinds), b.print(kinds)),
          Type::Ratio(n,d) => format!("({})/({})", n.print(kinds), d.print(kinds)),
-         Type::Constant(_,Some(cv)) => format!("[{:?}]", cv),
-         Type::Constant(ct,_) => format!("[term#{}]", ct.id),
+         Type::Constant(cv) => format!("[{:?}]", cv),
       };
       if let Some(k) = kinds.get(self) {
          format!("{}::{:?}", ts, k)
@@ -90,14 +88,8 @@ impl Type {
    }
    pub fn is_constant(&self) -> bool {
       match self {
-         Type::Constant(_,_) => true,
+         Type::Constant(_) => true,
          _ => false,
-      }
-   }
-   pub fn term_id(&self) -> TermId {
-      match self {
-         Type::Constant(t,_) => *t,
-         _ => TermId { id: 0 },
       }
    }
    pub fn mask(&self) -> Type {
@@ -110,7 +102,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
-         Type::Constant(ct,cv) => Type::Constant(*ct,cv.clone())
+         Type::Constant(cv) => Type::Constant(cv.clone())
       }
    }
    pub fn and(&self, other:&Type) -> Type {
@@ -221,7 +213,7 @@ impl Type {
             }
             nv
          },
-         Type::Constant(_,_) => vec![]
+         Type::Constant(_) => vec![]
       }
    }
    pub fn simplify_ratio(&self) -> Type {
@@ -300,7 +292,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
-         Type::Constant(ct,cv) => Type::Constant(*ct,cv.clone())
+         Type::Constant(cv) => Type::Constant(cv.clone())
       }.normalize()
    }
    pub fn substitute(&self, subs:&HashMap<Type,Type>) -> Type {
@@ -315,7 +307,7 @@ impl Type {
          Type::And(ts) => Type::And(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
-         Type::Constant(ct,cv) => Type::Constant(*ct,cv.clone())
+         Type::Constant(cv) => Type::Constant(cv.clone())
       }
    }
    pub fn is_concrete(&self) -> bool {
@@ -327,7 +319,7 @@ impl Type {
          Type::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom Typee is also concrete
          Type::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
-         Type::Constant(_,_) => true,
+         Type::Constant(_) => true,
       }
    }
    pub fn kind(&self, kinds: &HashMap<Type,Kind>) -> Kind {
@@ -335,7 +327,7 @@ impl Type {
          return k.clone();
       }
       match self {
-         Type::Constant(_,_) => Kind::Named("Constant".to_string(),Vec::new()),
+         Type::Constant(_) => Kind::Named("Constant".to_string(),Vec::new()),
          Type::And(ats) => {
             let mut aks = Vec::new();
             for at in ats.iter() {
@@ -391,24 +383,18 @@ impl Type {
    pub fn arrow_implies(tlc: &mut TLC, lt: &mut Type, rt: &mut Type, inarrow: InArrow) -> Type {
       let mut subs = Vec::new();
       *lt = tlc.extend_implied(lt);
-      tlc.reduce_type(&mut HashMap::new(), lt);
       *lt = lt.normalize();
       *rt = tlc.extend_implied(rt);
-      tlc.reduce_type(&mut HashMap::new(), rt);
       *rt = rt.normalize();
       let mut tt = lt.__implication_unifier(&rt, &mut subs, inarrow);
-      tlc.reduce_type(&mut HashMap::new(), &mut tt);
       tt.normalize()
    }
    pub fn subs_implies(tlc: &mut TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
       let mut lt = tlc.extend_implied(lt);
-      tlc.reduce_type(&mut HashMap::new(), &mut lt);
       let lt = lt.normalize();
       let mut rt = tlc.extend_implied(rt);
-      tlc.reduce_type(&mut HashMap::new(), &mut rt);
       let rt = rt.normalize();
       let mut tt = lt.subs_implication_unifier(subs, &rt);
-      tlc.reduce_type(&mut HashMap::new(), &mut tt);
       tt.normalize()
    }
    pub fn nored_implies(tlc: &TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
@@ -561,23 +547,8 @@ impl Type {
             Type::Tuple(ts)
          },
 
-         (Type::Constant(lt,Some(lc)),Type::Constant(_,Some(rc))) => {
-            if lc == rc {
-               Type::Constant(*lt,Some(lc.clone()))
-            } else {
-               Type::And(vec![])
-            }
-         },
-         (Type::Constant(lt,lc),Type::Constant(rt,rc)) => {
-            if lt.id == rt.id {
-               Type::Constant(*lt, lc.clone().or(rc.clone()))
-            } else if inarrow == InArrow::Lhs {
-               Type::Constant(*lt,lc.clone())
-            } else if inarrow == InArrow::Rhs {
-               Type::Constant(*rt,rc.clone())
-            } else {
-               Type::And(vec![])
-            }
+         (Type::Constant(lv),Type::Constant(rv)) if lv==rv => {
+            Type::Constant(lv.clone())
          },
          _ => Type::And(vec![]),
       };
@@ -699,19 +670,8 @@ impl Type {
             Type::Tuple(ts)
          },
 
-         (Type::Constant(lt,Some(lc)),Type::Constant(_,Some(rc))) => {
-            if lc == rc {
-               Type::Constant(*lt,Some(lc.clone()))
-            } else {
-               Type::And(vec![])
-            }
-         },
-         (Type::Constant(lt,lc),Type::Constant(rt,rc)) => {
-            if lt.id == rt.id {
-               Type::Constant(*lt, lc.clone().or(rc.clone()))
-            } else {
-               Type::And(vec![])
-            }
+         (Type::Constant(lv),Type::Constant(rv)) if lv==rv => {
+            Type::Constant(lv.clone())
          },
          _ => Type::And(vec![]),
       }
@@ -731,8 +691,7 @@ impl std::fmt::Debug for Type {
            Type::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
            Type::Arrow(p,b) => write!(f, "({:?})->({:?})", p, b),
            Type::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
-           Type::Constant(_,Some(cv)) => write!(f, "[{:?}]", cv),
-           Type::Constant(ct,_) => write!(f, "[term#{}]", ct.id),
+           Type::Constant(cv) => write!(f, "[{:?}]", cv),
         }
     }
 }
