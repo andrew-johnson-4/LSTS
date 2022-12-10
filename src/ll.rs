@@ -939,7 +939,21 @@ pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
 }
 
 pub fn ll1_constant(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Constant,Error> {
-   unimplemented!("TODO ll1_constant")
+   let span = span_of(tokens);
+   if let Some(sym) = tokens.peek_symbol()? {
+      if let Symbol::Value(x) = sym {
+         tokens.take_symbol()?;
+         return Ok(Constant::parse(tlc,&x).unwrap())
+      } else if let Symbol::Typename(cname) = sym {
+         tokens.take_symbol()?;
+         return Ok(Constant::parse(tlc,&cname).unwrap())
+      }
+   }
+   pop_is("constant-term",tokens,&vec![
+      Symbol::Typename("A".to_string()),
+      Symbol::Value("1".to_string()),
+   ])?;
+   unreachable!("constant-term expected Ident, Typename, or Value")
 }
 
 pub fn ll1_dep_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
