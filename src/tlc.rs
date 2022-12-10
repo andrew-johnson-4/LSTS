@@ -238,6 +238,12 @@ impl TLC {
          Term::RuleApplication(t,n) => format!("{} @{}", self.print_term(*t), n),
       }
    }
+   pub fn fails(&self, t: TermId) -> bool {
+      match &self.rows[t.id].term {
+         Term::Fail => true,
+         _ => false,
+      }
+   }
    pub fn push_forall(&mut self, globals: ScopeId, axiom: bool, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
                              inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
       let mut fa_closed: Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)> = Vec::new();
@@ -1277,11 +1283,18 @@ impl TLC {
             self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
          },
          Term::Match(dv, lrs) => {
+            if lrs.len()==0 {
+               return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("pattern cannot match because it has no branches"),
+                  span: self.rows[t.id].span.clone(),
+               })
+            };
             self.typeck(scope, dv, None)?;
             let mut rts = Vec::new();
             for (l,r) in lrs.iter() {
                self.untyped(*l);
-               self.typeck(scope, *r, None)?;
+               self.typeck(scope, *r, implied.clone())?;
                rts.push( self.rows[r.id].typ.clone() );
             }
             let mut rt = rts[0].clone();

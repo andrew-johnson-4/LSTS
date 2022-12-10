@@ -13,6 +13,11 @@ pub struct Span {
    pub linecol_start: (usize,usize),
    pub linecol_end: (usize,usize),
 }
+impl std::fmt::Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{},{}\n", self.filename, self.linecol_start.0, self.linecol_start.1)
+    }
+}
 
 pub fn span_of(ts: &mut TokenReader) -> Span {
    if let Ok(Some(t)) = ts.peek() {

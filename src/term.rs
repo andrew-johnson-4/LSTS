@@ -162,14 +162,18 @@ impl Term {
             } else { return None; }
          },
          Term::Match(dv,lrs) => {
+            //These panics are OK, because the type-checker should disprove them
             if let Some(ref dc) = Constant::eval(tlc, scope_constants, *dv) {
                for (l,r) in lrs.iter() {
                   let mut sc = scope_constants.clone();
                   if Term::reduce_lhs(tlc, &mut sc, *l, dc) {
+                     if tlc.fails(*r) {
+                        panic!("Term::reduce match failed on {:?} at {:?}", tlc.print_term(*l), &tlc.rows[r.id].span)
+                     }
                      return Term::reduce(tlc, scope, &sc, *r);
                   }
                }
-               panic!("Term::reduce, pattern was not total: {}", tlc.print_term(term))
+               panic!("Term::reduce match failed at {:?}", &tlc.rows[term.id].span)
             } else { None }
          },
          _ => unimplemented!("Term::reduce, implement Call-by-Value term reduction: {}", tlc.print_term(term))
