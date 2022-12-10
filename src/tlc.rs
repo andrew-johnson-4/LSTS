@@ -68,6 +68,7 @@ pub enum TypedefBranch {
 
 #[derive(Clone)]
 pub struct Invariant {
+   pub scope: ScopeId,
    pub itks: Vec<(Option<String>,Option<Type>,Kind)>,
    pub prop: TermId,
    pub algs: Constant,
@@ -1133,7 +1134,6 @@ impl TLC {
       None
    }
    pub fn check_invariants(&mut self, scope: &Option<ScopeId>, t: TermId) -> Result<(),Error> {
-      let scope = scope.map(|sc| Scope::globals(self,sc));
       let mut ground_types = Vec::new();
       let mut subs: HashMap<String,Constant> = HashMap::new();
       match self.rows[t.id].typ.clone() {
@@ -1157,7 +1157,7 @@ impl TLC {
       if let Some(ti) = self.typedef_index.get(tn) {
       if let TypeRule::Typedef(tr) = &self.rules[*ti] {
          for invariant in tr.invariants.clone().iter() {
-            let p = Term::reduce(self, &scope, &mut subs, invariant.prop);
+            let p = Term::reduce(self, &Some(invariant.scope), &mut subs, invariant.prop);
             if let Some(p) = p { if p == invariant.algs {
                continue;
             }}
@@ -1399,6 +1399,7 @@ impl TLC {
                   span: self.rows[t.id].span.clone(),
                })
             }
+            self.rows[t.id].typ = self.rows[t.id].typ.and( &Type::Constant(Constant::parse(self,&x).unwrap()) );
             self.check_invariants(scope, t)?;
 	 },
          Term::RuleApplication(lhs,h) => {

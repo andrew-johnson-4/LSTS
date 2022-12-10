@@ -109,6 +109,11 @@ impl Term {
       //scope is only used to look up functions
       //all other variables should already be converted to values
       match &tlc.rows[term.id].term {
+         Term::Ident(n) => {
+            if let Some(nv) = scope_constants.get(n) {
+               Some(nv.clone())
+            } else { panic!("Term::reduce free variable: {}", n) }
+         },
          Term::Value(v) => {
             Constant::parse(tlc, &v)
          },
@@ -145,11 +150,11 @@ impl Term {
                            }
                            if let Some(body) = lb.body {
                               Term::reduce(tlc, &Some(lb.scope), &new_scope, body)
-                           } else { return None; }
+                           } else { panic!("Term::reduce, applied function has no body: {}", gv) }
                         } else {
                            panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
                         }
-                     } else { return None; }
+                     } else { panic!("Term::reduce, failed to lookup function {}", gv) }
                   },
                   _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({:?})", tlc.print_term(*g), xc)
                }

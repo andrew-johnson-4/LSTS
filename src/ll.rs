@@ -241,6 +241,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
             Constant::parse(tlc, "True").unwrap()
          };
          props.push(Invariant {
+            scope: scope,
             itks: itks,
             prop: prop,
             algs: algs,
