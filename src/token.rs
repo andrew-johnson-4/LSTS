@@ -291,6 +291,52 @@ impl TokenReader {
          return Ok(t);
       }
 
+      if self.in_literal {
+         let mut c = self.takec();
+         while c > 0 {
+         match c {
+            b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
+            b'\n' => { self.column = 1; self.line += 1; self.offset_start += 1; c = self.takec(); },
+            b'\'' => {
+               let e = self.takec();
+               if e == b'\'' { return self.error(e as char); }
+               let close = self.takec();
+               if close != b'\'' { return self.error(close as char); }
+               let mut n = Vec::new();
+               while [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm',
+                      b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z'].contains(&self.peekc()) {
+                  n.push(self.takec());
+               }
+               let span = self.span_of(n.len()+3);
+               let n = std::str::from_utf8(&n).unwrap();
+               return Ok(Some(Token {
+                  symbol: Symbol::LiteralC(e as char, n.to_string()),
+                  span: span,
+               }));
+            },
+            b'"' => {
+               let mut e = Vec::new();
+               while self.peekc() != b'"' {
+                  e.push(self.takec());
+               }
+               let e = std::str::from_utf8(&e).unwrap();
+               self.takec(); // '"'
+               let mut n = Vec::new();
+               while [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm',
+                      b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z'].contains(&self.peekc()) {
+                  n.push(self.takec());
+               }
+               let span = self.span_of(e.len()+n.len()+2);
+               let n = std::str::from_utf8(&n).unwrap();
+               return Ok(Some(Token {
+                  symbol: Symbol::LiteralS(e.to_string(), n.to_string()),
+                  span: span,
+               }));
+            },
+            _ => unimplemented!("tokenize in literal: '{}'", c as char),
+         }}
+      }
+
       let mut c = self.takec();
       while c > 0 {
       match c {
@@ -337,7 +383,7 @@ impl TokenReader {
                "where" => { return Ok(Some(Token { symbol: Symbol::Where, span: span, })); },
                "yield" => { return Ok(Some(Token { symbol: Symbol::Yield, span: span, })); },
                "fn" => { return Ok(Some(Token { symbol: Symbol::Fn, span: span, })); },
-               "literal" => { return Ok(Some(Token { symbol: Symbol::Literal, span: span, })); },
+               "literal" => { self.in_literal=true; return Ok(Some(Token { symbol: Symbol::Literal, span: span, })); },
                "fail" => { return Ok(Some(Token { symbol: Symbol::Fail, span: span, })); },
                _ => { return Ok(Some(Token { symbol: Symbol::Ident(ident.to_string()), span: span, })); },
             }
@@ -434,17 +480,7 @@ impl TokenReader {
                      if len==2 { self.takec(); }
                      return Ok(Some(t));
                   } else {
-                     return Err(Error{
-                        kind: "Tokenization Error".to_string(),
-                        rule: format!("Unexpected character '{}'", c as char),
-                        span: Span {
-                           filename: self.source_name.clone(),
-                           offset_start: self.offset_start,
-                           offset_end: self.offset_start+1,
-                           linecol_start: (self.line,self.column),
-                           linecol_end: (self.line,self.column+1),
-                        },
-                     });
+                     return self.error(c as char);
                   }
                }
             }
@@ -474,6 +510,19 @@ impl TokenReader {
       } else if let Err(err) = t {
          Err(err)
       } else { unreachable!("peek symbol") }
+   }
+   pub fn error(&mut self, c: char) -> Result<Option<Token>,Error> {
+      Err(Error{
+         kind: "Tokenization Error".to_string(),
+         rule: format!("Unexpected character '{}'", c),
+         span: Span {
+            filename: self.source_name.clone(),
+            offset_start: self.offset_start,
+            offset_end: self.offset_start+1,
+            linecol_start: (self.line,self.column),
+            linecol_end: (self.line,self.column+1),
+         },
+      })
    }
 }
 
