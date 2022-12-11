@@ -386,24 +386,17 @@ impl Type {
       *lt = lt.normalize();
       *rt = tlc.extend_implied(rt);
       *rt = rt.normalize();
-      let mut tt = lt.__implication_unifier(&rt, &mut subs, inarrow);
-      tt.normalize()
+      lt.__implication_unifier(&rt, &mut subs, inarrow).normalize()
    }
    pub fn subs_implies(tlc: &mut TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
-      let mut lt = tlc.extend_implied(lt);
-      let lt = lt.normalize();
-      let mut rt = tlc.extend_implied(rt);
-      let rt = rt.normalize();
-      let mut tt = lt.subs_implication_unifier(subs, &rt);
-      tt.normalize()
+      let lt = tlc.extend_implied(lt).normalize();
+      let rt = tlc.extend_implied(rt).normalize();
+      lt.subs_implication_unifier(subs, &rt).normalize()
    }
    pub fn nored_implies(tlc: &TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
-      let lt = tlc.extend_implied(lt);
-      let lt = lt.normalize();
-      let rt = tlc.extend_implied(rt);
-      let rt = rt.normalize();
-      let tt = lt.subs_implication_unifier(subs, &rt);
-      tt.normalize()
+      let lt = tlc.extend_implied(lt).normalize();
+      let rt = tlc.extend_implied(rt).normalize();
+      lt.subs_implication_unifier(subs, &rt).normalize()
    }
    pub fn implication_unifier(&self, other: &Type) -> Type {
       let mut subs = Vec::new();

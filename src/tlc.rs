@@ -707,7 +707,7 @@ impl TLC {
             }
             Type::Product(cts)
          },
-         Type::Constant(cv) => {
+         Type::Constant(_cv) => {
             if projection == &self.constant_kind {
                tt.clone()
             } else {
@@ -1144,7 +1144,7 @@ impl TLC {
       }}}}}
       None
    }
-   pub fn check_invariants(&mut self, scope: &Option<ScopeId>, t: TermId) -> Result<(),Error> {
+   pub fn check_invariants(&mut self, _scope: &Option<ScopeId>, t: TermId) -> Result<(),Error> {
       let mut ground_types = Vec::new();
       let mut subs: HashMap<String,Constant> = HashMap::new();
       match self.rows[t.id].typ.clone() {

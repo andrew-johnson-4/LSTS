@@ -129,6 +129,10 @@ impl Term {
       //scope is only used to look up functions
       //all other variables should already be converted to values
       match &tlc.rows[term.id].term {
+         Term::Ascript(t,_tt) => {
+            Term::reduce(tlc, scope, scope_constants, *t)
+            //TODO, dynamically check that Value satisfies Type
+         },
          Term::Ident(n) => {
             if let Some(nv) = scope_constants.get(n) {
                Some(nv.clone())
