@@ -105,6 +105,10 @@ pub enum Symbol {
    Fn,
    Literal,
    Fail,
+   LiteralV(String),
+   LiteralC(char,String),
+   LiteralS(String,String),
+   LiteralR(Vec<(char,char)>,String),
 }
 impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -170,6 +174,11 @@ impl std::fmt::Debug for Symbol {
            Symbol::Fn                 => write!(f, "fn"),
            Symbol::Literal            => write!(f, "literal"),
            Symbol::Fail               => write!(f, "fail"),
+
+           Symbol::LiteralV(v)        => write!(f, "{}", v),
+           Symbol::LiteralC(c,v)      => write!(f, "'{}'{}", c, v),
+           Symbol::LiteralS(s,v)      => write!(f, r#""{}"{}"#, s, v),
+           Symbol::LiteralR(_r,v)     => write!(f, "[?]{}", v),
         }
     }
 }
@@ -194,6 +203,7 @@ pub struct TokenReader {
    buf: Vec<u8>,
    buf_at: usize,
    values: Vec<(String,Regex)>,
+   in_literal: bool,
 }
 impl TokenReader {
    pub fn peek(&mut self) -> Result<Option<Token>,Error> {
@@ -536,5 +546,6 @@ pub fn tokenize_bytes<'a>(tlc: &mut TLC, source_name: &str, buf: Vec<u8>) -> Res
       offset_start: 0, line: 1, column: 1,
       buf:buf, buf_at:0, peek: None,
       values: tlc.value_regexes.clone(),
+      in_literal: false,
    })
 }
