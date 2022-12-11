@@ -186,7 +186,7 @@ impl Term {
          },
          Term::Match(dv,lrs) => {
             //These panics are OK, because the type-checker should disprove them
-            if let Some(ref dc) = Constant::eval(tlc, scope_constants, *dv) {
+            if let Some(ref dc) = Term::reduce(tlc, scope, scope_constants, *dv) {
                for (l,r) in lrs.iter() {
                   let mut sc = scope_constants.clone();
                   if Term::reduce_lhs(tlc, &mut sc, *l, dc) {

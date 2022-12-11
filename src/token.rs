@@ -605,7 +605,6 @@ pub fn tokenize_string(tlc: &mut TLC, source_name: &str, buf: &str) -> Result<To
 
 pub fn tokenize_bytes<'a>(tlc: &mut TLC, source_name: &str, buf: Vec<u8>) -> Result<TokenReader,Error> {
 
-   tlc.value_regexes.push(("^[0-9]+$".to_string(), Regex::new("^[0-9]+").unwrap()));
    let mut buf_at = 0;
    while buf_at < buf.len() {
       if buf_at+1 < buf.len() {
