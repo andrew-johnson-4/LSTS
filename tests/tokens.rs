@@ -1,17 +1,17 @@
-/*
-use lsts::token::{Symbol,tokenize_file};
+use lsts::tlc::TLC;
+use lsts::token::{Symbol,tokenize_string};
 
 #[test]
-fn check_file_tokens() {
-   let mut tks = tokenize_file("preludes/si.tlc").unwrap();
-   while let Ok(Some(t)) = tks.peek() {
-      eprintln!("{:?} {} {},{}", t.symbol, t.span.filename, t.span.linecol_start.0, t.span.linecol_start.1);
-      if let Ok(Some(t)) = tks.take() {
-         eprintln!("{:?} {} {},{}", t.symbol, t.span.filename, t.span.linecol_start.0, t.span.linecol_start.1);
-      }
-      if t.symbol == Symbol::EOF { break; }
-   }
-   assert!(false);
+fn tokenize_literals() {
+   let mut tlc = TLC::new();
+   let mut tks = tokenize_string(&mut tlc, "[string]", r#"literal 'a' 'b'b "c" "d"d [e-f] [g-h]gh i"#).unwrap();
+   assert!( tks.take().unwrap().unwrap().symbol == Symbol::Literal );
+   assert!( tks.take().unwrap().unwrap().symbol == Symbol::LiteralC('a',"".to_string()) );
+   assert!( tks.take().unwrap().unwrap().symbol == Symbol::LiteralC('b',"b".to_string()) );
+   assert!( tks.take().unwrap().unwrap().symbol == Symbol::LiteralS("c".to_string(),"".to_string()) );
+   assert!( tks.take().unwrap().unwrap().symbol == Symbol::LiteralS("d".to_string(),"d".to_string()) );
+   assert!( tks.take().unwrap().unwrap().symbol == Symbol::LiteralR(vec![('e','f')],"".to_string()) );
+   assert!( tks.take().unwrap().unwrap().symbol == Symbol::LiteralR(vec![('g','h')],"gh".to_string()) );
+   assert!( tks.take().unwrap().unwrap().symbol == Symbol::LiteralV("i".to_string()) );
+   assert!( tks.take().unwrap().unwrap().symbol == Symbol::EOF );
 }
-*/
-
