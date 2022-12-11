@@ -291,8 +291,9 @@ impl TokenReader {
          return Ok(t);
       }
 
+      let mut c = self.takec();
+
       if self.in_literal {
-         let mut c = self.takec();
          while c > 0 {
          match c {
             b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
@@ -333,11 +334,49 @@ impl TokenReader {
                   span: span,
                }));
             },
-            _ => unimplemented!("tokenize in literal: '{}'", c as char),
+            b'[' => {
+               let mut rs = Vec::new();
+               let mut rc = 0;
+               while self.peekc() != b']' {
+                  let ra = self.takec(); rc += 1;
+                  if self.peekc() == b'-' {
+                     self.takec(); rc += 1;
+                     let rb = self.takec(); rc += 1;
+                     rs.push((ra as char, rb as char));
+                  } else {
+                     rs.push((ra as char, ra as char));
+                  }
+               }
+               self.takec(); //]
+               let mut n = Vec::new();
+               while [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm',
+                      b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z'].contains(&self.peekc()) {
+                  n.push(self.takec());
+               }
+               let span = self.span_of(rc+n.len()+2);
+               let n = std::str::from_utf8(&n).unwrap();
+               return Ok(Some(Token {
+                  symbol: Symbol::LiteralR(rs, n.to_string()),
+                  span: span,
+               }));
+            },
+            b'a'..=b'z' => {
+               let mut n = vec![c];
+               while [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm',
+                      b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z'].contains(&self.peekc()) {
+                  n.push(self.takec());
+               }
+               let span = self.span_of(n.len());
+               let n = std::str::from_utf8(&n).unwrap();
+               return Ok(Some(Token {
+                  symbol: Symbol::LiteralV(n.to_string()),
+                  span: span,
+               }));
+            },
+            _ => { break; },
          }}
       }
 
-      let mut c = self.takec();
       while c > 0 {
       match c {
          b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
