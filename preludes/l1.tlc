@@ -19,6 +19,7 @@ let $"-"(x:Integer, y:Integer) :Integer; //sub
 let $"*"(x:Integer, y:Integer) :Integer; //mul
 let $"/"(x:Integer, y:Integer) :Integer; //div
 let $"%"(x:Integer, y:Integer) :Integer = match (x,y) {
+   literal '0' => literal '0',
    (literal '0', literal '1') => literal '0',
    (literal '0'a, literal '1') => literal a,
    (literal '0'a b, literal '1') => literal a b,

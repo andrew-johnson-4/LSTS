@@ -24,17 +24,19 @@ fn check_iflet_literal() {
 #[test]
 fn destructure_literal() {
    let mut tlc = TLC::new();
-   tlc.check(None, r#"match 0 { literal '0' => literal '0' } : Integer @reduce : [0]"#).unwrap();
-   tlc.check(None, r#"match 0 { literal '0' => literal '0' } : Integer @reduce : [00]"#).unwrap_err();
-   tlc.check(None, r#"match 0 { literal '0'a => literal a } : Integer @reduce : [0]"#).unwrap();
-   tlc.check(None, r#"match 00 { literal "00" => literal "00" } : Integer @reduce : [0]"#).unwrap_err();
-   tlc.check(None, r#"match 00 { literal "00" => literal "00" } : Integer @reduce : [00]"#).unwrap();
-   tlc.check(None, r#"match 00 { literal "00"a => literal a } : Integer @reduce : [00]"#).unwrap();
-   tlc.check(None, r#"match 00 { literal '0' a => literal '0' a } : Integer @reduce : [00]"#).unwrap();
-   tlc.check(None, r#"match 00 { literal '0' a '0' => literal '0' a '0' } : Integer @reduce : [00]"#).unwrap();
-   tlc.check(None, r#"match 000 { literal '0' a '0' => literal '0' a '0' } : Integer @reduce : [000]"#).unwrap();
-   tlc.check(None, r#"match 0 { literal [0-9]a => literal a } : Integer @reduce : [0]"#).unwrap();
-   tlc.check(None, r#"match 0 { literal [0-9]a b => literal a b } : Integer @reduce : [0]"#).unwrap();
-   tlc.check(None, r#"match 00 { literal [0-9]a b [0-9]c => literal a b c } : Integer @reduce : [00]"#).unwrap();
-   tlc.check(None, r#"match 000 { literal [0-9]a b [0-9]c => literal a b c } : Integer @reduce : [000]"#).unwrap();
+   let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
+
+   tlc.check(Some(l1), r#"match 0 { literal '0' => literal '0' } : Integer @reduce : [0];"#).unwrap();
+   tlc.check(Some(l1), r#"match 0 { literal '0' => literal '0' } : Integer @reduce : [00];"#).unwrap_err();
+   tlc.check(Some(l1), r#"match 0 { literal '0'a => literal a } : Integer @reduce : [0];"#).unwrap();
+   tlc.check(Some(l1), r#"match 00 { literal "00" => literal "00" } : Integer @reduce : [0];"#).unwrap_err();
+   tlc.check(Some(l1), r#"match 00 { literal "00" => literal "00" } : Integer @reduce : [00];"#).unwrap();
+   tlc.check(Some(l1), r#"match 00 { literal "00"a => literal a } : Integer @reduce : [00];"#).unwrap();
+   tlc.check(Some(l1), r#"match 00 { literal '0' a => literal '0' a } : Integer @reduce : [00];"#).unwrap();
+   tlc.check(Some(l1), r#"match 00 { literal '0' a '0' => literal '0' a '0' } : Integer @reduce : [00];"#).unwrap();
+   tlc.check(Some(l1), r#"match 000 { literal '0' a '0' => literal '0' a '0' } : Integer @reduce : [000];"#).unwrap();
+   tlc.check(Some(l1), r#"match 0 { literal [0-9]a => literal a } : Integer @reduce : [0];"#).unwrap();
+   tlc.check(Some(l1), r#"match 0 { literal [0-9]a b => literal a b } : Integer @reduce : [0];"#).unwrap();
+   tlc.check(Some(l1), r#"match 00 { literal [0-9]a b [0-9]c => literal a b c } : Integer @reduce : [00];"#).unwrap();
+   tlc.check(Some(l1), r#"match 000 { literal [0-9]a b [0-9]c => literal a b c } : Integer @reduce : [000];"#).unwrap();
 }

@@ -1,5 +1,5 @@
 use std::collections::{HashMap};
-use crate::term::{Term,TermId,LetTerm};
+use crate::term::{Term,TermId,LetTerm,Literal};
 use crate::debug::{Error};
 use crate::token::{Symbol,TokenReader,span_of};
 use crate::scope::{ScopeId,Scope};
@@ -774,6 +774,20 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
       } else if let Symbol::Fail = sym {
          tokens.take_symbol()?;
          return Ok(tlc.push_term(Term::Fail, &span))
+      } else if let Symbol::Literal = sym {
+         tokens.take_symbol()?;
+         let mut lps = Vec::new();
+         while true {
+            match tokens.peek_symbol()? {
+               Some(Symbol::LiteralV(n)) => lps.push(Literal::Var(n.clone())),
+               Some(Symbol::LiteralC(c,n)) => lps.push(Literal::Char(c,n.clone())),
+               Some(Symbol::LiteralS(s,n)) => lps.push(Literal::String(s.clone(),n.clone())),
+               Some(Symbol::LiteralR(r,n)) => lps.push(Literal::Range(r.clone(),n.clone())),
+               _ => { break; },
+            };
+            tokens.take_symbol()?; 
+         }
+         return Ok(tlc.push_term(Term::Literal(lps), &span))
       } else if let Symbol::Typename(cname) = sym {
          tokens.take_symbol()?;
          let mut kvs = Vec::new();
@@ -800,6 +814,7 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
          ),&span));
       } else {
          pop_is("value-term",tokens,&vec![
+            Symbol::Literal,
             Symbol::Ident("x".to_string()),
             Symbol::Typename("A".to_string()),
             Symbol::Value("1".to_string()),
@@ -807,6 +822,7 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
       }
    }
    pop_is("value-term",tokens,&vec![
+      Symbol::Literal,
       Symbol::Ident("x".to_string()),
       Symbol::Typename("A".to_string()),
       Symbol::Value("1".to_string()),
@@ -834,9 +850,9 @@ pub fn ll1_match_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
    let mut comma_ok = true;
    while comma_ok && !peek_is(tokens, &vec![Symbol::RightBrace]) {
       if comma_ok { comma_ok = false; }
-      let lhs = ll1_term(tlc, scope, tokens)?;
+      let lhs = ll1_atom_term(tlc, scope, tokens)?;
       pop_is("match-term", tokens, &vec![Symbol::Imply])?;
-      let rhs = ll1_term(tlc, scope, tokens)?;
+      let rhs = ll1_atom_term(tlc, scope, tokens)?;
       pats.push((lhs, rhs));
       if peek_is(tokens, &vec![Symbol::Comma]) {
          pop_is("match-term", tokens, &vec![Symbol::Comma])?;

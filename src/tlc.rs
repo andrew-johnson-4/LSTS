@@ -207,6 +207,9 @@ impl TLC {
    }
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
+         Term::Literal(lps) => format!("literal {}",
+            lps.iter().map(|lp| format!("{:?}",lp)).collect::<Vec<String>>().join(" ")
+         ),
          Term::Fail => format!("fail"),
          Term::Ident(x) => format!("{}", x),
          Term::Value(x) => format!("{}", x),
@@ -786,6 +789,7 @@ impl TLC {
    pub fn untyped(&mut self, t: TermId) {
       self.rows[t.id].typ = self.bottom_type.clone();
       match self.rows[t.id].term.clone() {
+         Term::Literal(_lp) => (),
          Term::Ident(_x) => (),
          Term::Value(_x) => (),
          Term::App(g,x) => { self.untyped(g); self.untyped(x); },
@@ -1279,6 +1283,9 @@ impl TLC {
       let implied = implied.map(|tt|tt.normalize());
       //TODO: remove clone here because it is bloating the memory footprint
       match self.rows[t.id].term.clone() {
+         Term::Literal(_lp) => {
+            self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
+         },
          Term::Fail => {
             self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
          },

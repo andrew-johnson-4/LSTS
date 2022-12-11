@@ -373,7 +373,7 @@ impl TokenReader {
                   span: span,
                }));
             },
-            _ => { break; },
+            _ => { self.in_literal = false; break; },
          }}
       }
 
