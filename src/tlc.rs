@@ -362,6 +362,13 @@ impl TLC {
       self.sanityck()?;
       Ok(ScopeId {id:0})
    }
+   pub fn reduce_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<Constant,Error> {
+      let ast = self.parse_file(globals, filename)?;
+      self.compile_rules(filename)?;
+      self.typeck(&globals, ast, None)?;
+      self.sanityck()?;
+      Ok(Constant::Literal("0".to_string()))
+   }
    pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, mut tokens: TokenReader) -> Result<TermId,Error> {
       let file_scope = globals.unwrap_or(self.push_scope(Scope {
          parent: None,
