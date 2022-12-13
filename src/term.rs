@@ -149,7 +149,25 @@ impl Term {
                      let s = dlp.remove(0).to_string();
                      scope_constants.insert(pv.clone(), Constant::Literal(s));
                   },
-                  _ => unimplemented!("Term::reduce TODO.1, match pattern literal {:?}", p),
+                  Literal::String(ps,pv) => {
+                     if dlp.len()<ps.len() { return false; }
+                     for pc in ps.chars() {
+                        if dlp.remove(0) != pc { return false; }
+                     }
+                     scope_constants.insert(pv.clone(), Constant::Literal(ps.clone()));
+                  },
+                  Literal::Range(pr,pv) => {
+                     if dlp.len()==0 { return false; }
+                     let mut matched = false;
+                     for (low,high) in pr.iter() {
+                     if *low<=dlp[0] && dlp[0]<=*high {
+                        matched = true; break;
+                     }}
+                     if !matched { return false; }
+                     let s = dlp.remove(0).to_string();
+                     scope_constants.insert(pv.clone(), Constant::Literal(s));
+                  },
+                  Literal::Var(_) => panic!("Term::reduce prefix somehow got a Var: {}", tlc.print_term(lhs)),
                }}
                for p in suf_lhs.iter() {
                match p {
@@ -159,7 +177,25 @@ impl Term {
                      let s = dlp.remove(dlp.len()-1).to_string();
                      scope_constants.insert(pv.clone(), Constant::Literal(s));
                   },
-                  _ => unimplemented!("Term::reduce TODO.2, match pattern literal {:?}", p),
+                  Literal::String(ps,pv) => {
+                     if dlp.len()<ps.len() { return false; }
+                     for pc in ps.chars().rev() {
+                        if dlp.remove(dlp.len()-1) != pc { return false; }
+                     }
+                     scope_constants.insert(pv.clone(), Constant::Literal(ps.clone()));
+                  },
+                  Literal::Range(pr,pv) => {
+                     if dlp.len()==0 { return false; }
+                     let mut matched = false;
+                     for (low,high) in pr.iter() {
+                     if *low<=dlp[dlp.len()-1] && dlp[dlp.len()-1]<=*high {
+                        matched = true; break;
+                     }}
+                     if !matched { return false; }
+                     let s = dlp.remove(dlp.len()-1).to_string();
+                     scope_constants.insert(pv.clone(), Constant::Literal(s));
+                  },
+                  Literal::Var(_) => panic!("Term::reduce suffix somehow got a Var: {}", tlc.print_term(lhs)),
                }}
                if v_lhs != "" {
                   scope_constants.insert(v_lhs.clone(), Constant::Literal(String::from_iter(dlp)));
