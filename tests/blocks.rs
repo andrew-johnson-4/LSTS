@@ -13,6 +13,7 @@ fn check_simple_block() {
    tlc.check(Some(si), "{();();};").unwrap();
 }
 
+/* TODO: revist why these even exist vs iterators
 #[test]
 fn check_simple_while() {
    let mut tlc = TLC::new();
@@ -33,7 +34,6 @@ fn check_simple_loop() {
    tlc.check(Some(si), "loop {();();} while (True);").unwrap();
 }
 
-/*
 #[test]
 fn check_simple_for() {
    let mut tlc = TLC::new();

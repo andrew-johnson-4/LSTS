@@ -13,6 +13,11 @@ pub struct Span {
    pub linecol_start: (usize,usize),
    pub linecol_end: (usize,usize),
 }
+impl std::fmt::Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{},{}\n", self.filename, self.linecol_start.0, self.linecol_start.1)
+    }
+}
 
 pub fn span_of(ts: &mut TokenReader) -> Span {
    if let Ok(Some(t)) = ts.peek() {
@@ -91,7 +96,6 @@ pub enum Symbol {
    Forall,
    Type,
    Normal,
-   Literal,
    Where,
    Loop,
    For,
@@ -99,6 +103,12 @@ pub enum Symbol {
    In,
    Yield,
    Fn,
+   Literal,
+   Fail,
+   LiteralV(String),
+   LiteralC(char,String),
+   LiteralS(String,String),
+   LiteralR(Vec<(char,char)>,String),
 }
 impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -154,7 +164,6 @@ impl std::fmt::Debug for Symbol {
            Symbol::Axiom              => write!(f, "axiom"),
            Symbol::Forall             => write!(f, "forall"),
            Symbol::Type               => write!(f, "type"),
-           Symbol::Literal            => write!(f, "literal"),
            Symbol::Normal             => write!(f, "normal"),
            Symbol::Where              => write!(f, "where"),
            Symbol::Loop               => write!(f, "loop"),
@@ -163,6 +172,13 @@ impl std::fmt::Debug for Symbol {
            Symbol::In                 => write!(f, "in"),
            Symbol::Yield              => write!(f, "yield"),
            Symbol::Fn                 => write!(f, "fn"),
+           Symbol::Literal            => write!(f, "literal"),
+           Symbol::Fail               => write!(f, "fail"),
+
+           Symbol::LiteralV(v)        => write!(f, "{}", v),
+           Symbol::LiteralC(c,v)      => write!(f, "'{}'{}", c, v),
+           Symbol::LiteralS(s,v)      => write!(f, r#""{}"{}"#, s, v),
+           Symbol::LiteralR(_r,v)     => write!(f, "[?]{}", v),
         }
     }
 }
@@ -187,6 +203,7 @@ pub struct TokenReader {
    buf: Vec<u8>,
    buf_at: usize,
    values: Vec<(String,Regex)>,
+   in_literal: bool,
 }
 impl TokenReader {
    pub fn peek(&mut self) -> Result<Option<Token>,Error> {
@@ -275,6 +292,91 @@ impl TokenReader {
       }
 
       let mut c = self.takec();
+
+      if self.in_literal {
+         while c > 0 {
+         match c {
+            b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
+            b'\n' => { self.column = 1; self.line += 1; self.offset_start += 1; c = self.takec(); },
+            b'\'' => {
+               let e = self.takec();
+               if e == b'\'' { return self.error(e as char); }
+               let close = self.takec();
+               if close != b'\'' { return self.error(close as char); }
+               let mut n = Vec::new();
+               while [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm',
+                      b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z'].contains(&self.peekc()) {
+                  n.push(self.takec());
+               }
+               let span = self.span_of(n.len()+3);
+               let n = std::str::from_utf8(&n).unwrap();
+               return Ok(Some(Token {
+                  symbol: Symbol::LiteralC(e as char, n.to_string()),
+                  span: span,
+               }));
+            },
+            b'"' => {
+               let mut e = Vec::new();
+               while self.peekc() != b'"' {
+                  e.push(self.takec());
+               }
+               let e = std::str::from_utf8(&e).unwrap();
+               self.takec(); // '"'
+               let mut n = Vec::new();
+               while [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm',
+                      b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z'].contains(&self.peekc()) {
+                  n.push(self.takec());
+               }
+               let span = self.span_of(e.len()+n.len()+2);
+               let n = std::str::from_utf8(&n).unwrap();
+               return Ok(Some(Token {
+                  symbol: Symbol::LiteralS(e.to_string(), n.to_string()),
+                  span: span,
+               }));
+            },
+            b'[' => {
+               let mut rs = Vec::new();
+               let mut rc = 0;
+               while self.peekc() != b']' {
+                  let ra = self.takec(); rc += 1;
+                  if self.peekc() == b'-' {
+                     self.takec(); rc += 1;
+                     let rb = self.takec(); rc += 1;
+                     rs.push((ra as char, rb as char));
+                  } else {
+                     rs.push((ra as char, ra as char));
+                  }
+               }
+               self.takec(); //]
+               let mut n = Vec::new();
+               while [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm',
+                      b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z'].contains(&self.peekc()) {
+                  n.push(self.takec());
+               }
+               let span = self.span_of(rc+n.len()+2);
+               let n = std::str::from_utf8(&n).unwrap();
+               return Ok(Some(Token {
+                  symbol: Symbol::LiteralR(rs, n.to_string()),
+                  span: span,
+               }));
+            },
+            b'a'..=b'z' => {
+               let mut n = vec![c];
+               while [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm',
+                      b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z'].contains(&self.peekc()) {
+                  n.push(self.takec());
+               }
+               let span = self.span_of(n.len());
+               let n = std::str::from_utf8(&n).unwrap();
+               return Ok(Some(Token {
+                  symbol: Symbol::LiteralV(n.to_string()),
+                  span: span,
+               }));
+            },
+            _ => { self.in_literal = false; break; },
+         }}
+      }
+
       while c > 0 {
       match c {
          b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
@@ -317,10 +419,11 @@ impl TokenReader {
                "axiom" => { return Ok(Some(Token { symbol: Symbol::Axiom, span: span, })); },
                "type" => { return Ok(Some(Token { symbol: Symbol::Type, span: span, })); },
                "normal" => { return Ok(Some(Token { symbol: Symbol::Normal, span: span, })); },
-               "literal" => { return Ok(Some(Token { symbol: Symbol::Literal, span: span, })); },
                "where" => { return Ok(Some(Token { symbol: Symbol::Where, span: span, })); },
                "yield" => { return Ok(Some(Token { symbol: Symbol::Yield, span: span, })); },
                "fn" => { return Ok(Some(Token { symbol: Symbol::Fn, span: span, })); },
+               "literal" => { self.in_literal=true; return Ok(Some(Token { symbol: Symbol::Literal, span: span, })); },
+               "fail" => { return Ok(Some(Token { symbol: Symbol::Fail, span: span, })); },
                _ => { return Ok(Some(Token { symbol: Symbol::Ident(ident.to_string()), span: span, })); },
             }
          },
@@ -416,17 +519,7 @@ impl TokenReader {
                      if len==2 { self.takec(); }
                      return Ok(Some(t));
                   } else {
-                     return Err(Error{
-                        kind: "Tokenization Error".to_string(),
-                        rule: format!("Unexpected character '{}'", c as char),
-                        span: Span {
-                           filename: self.source_name.clone(),
-                           offset_start: self.offset_start,
-                           offset_end: self.offset_start+1,
-                           linecol_start: (self.line,self.column),
-                           linecol_end: (self.line,self.column+1),
-                        },
-                     });
+                     return self.error(c as char);
                   }
                }
             }
@@ -456,6 +549,19 @@ impl TokenReader {
       } else if let Err(err) = t {
          Err(err)
       } else { unreachable!("peek symbol") }
+   }
+   pub fn error(&mut self, c: char) -> Result<Option<Token>,Error> {
+      Err(Error{
+         kind: "Tokenization Error".to_string(),
+         rule: format!("Unexpected character '{}'", c),
+         span: Span {
+            filename: self.source_name.clone(),
+            offset_start: self.offset_start,
+            offset_end: self.offset_start+1,
+            linecol_start: (self.line,self.column),
+            linecol_end: (self.line,self.column+1),
+         },
+      })
    }
 }
 
@@ -499,7 +605,6 @@ pub fn tokenize_string(tlc: &mut TLC, source_name: &str, buf: &str) -> Result<To
 
 pub fn tokenize_bytes<'a>(tlc: &mut TLC, source_name: &str, buf: Vec<u8>) -> Result<TokenReader,Error> {
 
-   tlc.value_regexes.push(("^[0-9]+$".to_string(), Regex::new("^[0-9]+").unwrap()));
    let mut buf_at = 0;
    while buf_at < buf.len() {
       if buf_at+1 < buf.len() {
@@ -528,5 +633,6 @@ pub fn tokenize_bytes<'a>(tlc: &mut TLC, source_name: &str, buf: Vec<u8>) -> Res
       offset_start: 0, line: 1, column: 1,
       buf:buf, buf_at:0, peek: None,
       values: tlc.value_regexes.clone(),
+      in_literal: false,
    })
 }

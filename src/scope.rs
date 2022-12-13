@@ -33,7 +33,7 @@ impl Scope {
       } else if candidates.len() == 1 {
          return Some(candidates[0]);
       } else {
-         panic!("Scope::lookup_term multiple viable candidate functions found")
+         panic!("Scope::lookup_term multiple viable candidate functions found for symbol {}", v)
       }
    }
 }

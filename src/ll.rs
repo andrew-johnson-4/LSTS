@@ -1,9 +1,10 @@
 use std::collections::{HashMap};
-use crate::term::{Term,TermId,LetTerm};
+use crate::term::{Term,TermId,LetTerm,Literal};
 use crate::debug::{Error};
 use crate::token::{Symbol,TokenReader,span_of};
 use crate::scope::{ScopeId,Scope};
 use crate::tlc::{TLC,TypeRule,Invariant,TypedefRule,TypedefBranch,Inference};
+use crate::constant::{Constant};
 use crate::typ::{Type};
 use crate::kind::{Kind};
 
@@ -95,7 +96,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    let mut kinds = tlc.term_kind.clone();
    let mut props: Vec<Invariant> = Vec::new();
    let mut constructors: Vec<String> = Vec::new();
-   let mut dept: HashMap<String,TermId> = HashMap::new();
 
    pop_is("type-stmt", tokens, &vec![Symbol::Type])?;
 
@@ -129,7 +129,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
          }
          if peek_is(tokens, &vec![Symbol::Ascript]) {
             pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
-            inf = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
+            inf = Some( ll1_type(tlc, scope, tokens)? );
          }
          if peek_is(tokens, &vec![Symbol::KAscript]) {
             pop_is("type-stmt", tokens, &vec![Symbol::KAscript])?;
@@ -144,7 +144,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
 
    if peek_is(tokens, &vec![Symbol::Ascript]) {
       pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
-      implies = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
+      implies = Some( ll1_type(tlc, scope, tokens)? );
    }
 
    if peek_is(tokens, &vec![Symbol::Is]) {
@@ -177,7 +177,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
                   unreachable!("type-stmt")
                };
                pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
-               let kt = ll1_type(tlc, &mut dept, scope, tokens)?;
+               let kt = ll1_type(tlc, scope, tokens)?;
                let vn = format!(".{}", ki.clone());
                let vt = tlc.push_term(Term::Ident(vn.clone()),&span);
                tlc.untyped(vt);
@@ -209,8 +209,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
       while peek_is(tokens, &vec![Symbol::Where,Symbol::AndAlso]) {
          pop_is("type-stmt", tokens, &vec![Symbol::Where,Symbol::AndAlso])?;
          let mut itks = Vec::new();
-         let prop;
-         let mut algs = None;
 
          while !peek_is(tokens, &vec![Symbol::Dot]) {
             if peek_is(tokens, &vec![Symbol::Comma]) {
@@ -225,7 +223,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
             }
             if peek_is(tokens, &vec![Symbol::Ascript]) {
                pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
-               inf = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
+               inf = Some( ll1_type(tlc, scope, tokens)? );
             }
             if peek_is(tokens, &vec![Symbol::KAscript]) {
                pop_is("type-stmt", tokens, &vec![Symbol::KAscript])?;
@@ -234,16 +232,17 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
             itks.push((idn,inf,kind));
          }
          pop_is("type-stmt", tokens, &vec![Symbol::Dot])?;
-         prop = Some( ll1_term(tlc, scope, tokens)? );
-         if peek_is(tokens, &vec![Symbol::Bar]) {
+         let prop = ll1_term(tlc, scope, tokens)?;
+         let algs = if peek_is(tokens, &vec![Symbol::Bar]) {
             pop_is("type-stmt", tokens, &vec![Symbol::Bar])?;
-            algs = Some( ll1_term(tlc, scope, tokens)? );
-         }
-         let algs = if let Some(a) = algs { a }
-         else { tlc.push_term(Term::Ident("True".to_string()),&span) };
+            ll1_constant(tlc, scope, tokens)?
+         } else {
+            Constant::parse(tlc, "True").unwrap()
+         };
          props.push(Invariant {
+            scope: scope,
             itks: itks,
-            prop: prop.expect("TLC Grammar Error in rule [typ_invariant]"),
+            prop: prop,
             algs: algs,
          });
       }
@@ -274,50 +273,6 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
       if &t==c { continue; } //constructor has same name as type
       tlc.typedef_index.insert(c.clone(), tlc.rules.len());
    }
-   for inv in props.iter() {
-   if let Term::App(g,x) = &tlc.rows[inv.prop.id].term.clone() {
-   if let Term::Ident(gn) = &tlc.rows[g.id].term.clone() {
-      let mut xs = Vec::new();
-      let mut fkts = HashMap::new();
-      match &tlc.rows[x.id].term.clone() {
-         Term::Tuple(ts) => {
-            for ct in ts.iter() {
-               if let Term::Ident(ctn) = &tlc.rows[ct.id].term.clone() {
-               if ctn == "self" { //replace "self" in invariants with this type rule
-                  xs.push(Type::Named(t.clone(),Vec::new()));
-                  fkts.insert(xs[xs.len()-1].clone(), tlc.term_kind.clone());
-                  continue;
-               }}
-               let ctt = tlc.rows[ct.id].term.clone();
-               xs.push(tlc.push_dep_type(&ctt, *ct));
-               fkts.insert(xs[xs.len()-1].clone(), tlc.constant_kind.clone());
-            }
-         }, pt => {
-            let mut is_self = false;
-            if let Term::Ident(ctn) = pt {
-            if ctn == "self" { //replace "self" in invariants with this type rule
-               xs.push(Type::Named(t.clone(),Vec::new()));
-               fkts.insert(xs[xs.len()-1].clone(), tlc.term_kind.clone());
-               is_self = true;
-            }}
-            if !is_self {
-               xs.push(tlc.push_dep_type(&pt, *x));
-               fkts.insert(xs[xs.len()-1].clone(), tlc.constant_kind.clone());
-            }
-         }
-      }
-      let rt = tlc.push_dep_type(&tlc.rows[inv.algs.id].term.clone(), inv.algs);
-
-      let pt = if xs.len()==1 {
-         xs[0].clone()
-      } else {
-         Type::Tuple(xs)
-      };
-      let ft = Type::Arrow(Box::new(pt),Box::new(rt));
-      let vt = tlc.push_term(Term::Ident(gn.clone()),&span);
-      tlc.untyped(vt);
-      tlc.scopes[scope.id].children.push((gn.clone(), fkts, ft, Some(vt)));
-   }}}
 
    tlc.rules.push(TypeRule::Typedef(TypedefRule {
       name: t,
@@ -341,7 +296,6 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    let inference;
    let mut term = None;
    let mut kind = tlc.term_kind.clone();
-   let mut dept = HashMap::new();
 
    if peek_is(tokens, &vec![Symbol::Axiom]) {
       axiom = true;
@@ -371,7 +325,7 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
       }
       if peek_is(tokens, &vec![Symbol::Ascript]) {
          pop_is("forall-stmt", tokens, &vec![Symbol::Ascript])?;
-         typ = Some( ll1_type(tlc, &mut dept, scope, tokens)? );
+         typ = Some( ll1_type(tlc, scope, tokens)? );
       }
       if peek_is(tokens, &vec![Symbol::KAscript]) {
          pop_is("forall-stmt", tokens, &vec![Symbol::KAscript])?;
@@ -386,10 +340,10 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    }
 
    pop_is("forall-stmt", tokens, &vec![Symbol::Dot])?;
-   let inf1 = ll1_type(tlc, &mut dept, scope, tokens)?;
+   let inf1 = ll1_type(tlc, scope, tokens)?;
    if peek_is(tokens, &vec![Symbol::Imply]) {
       pop_is("forall-stmt", tokens, &vec![Symbol::Imply])?;
-      let inf2 = ll1_type(tlc, &mut dept, scope, tokens)?;
+      let inf2 = ll1_type(tlc, scope, tokens)?;
       inference = Some(Inference::Imply(inf1,inf2));
    } else {
       inference = Some(Inference::Type(inf1));
@@ -460,7 +414,6 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
    let mut rt = tlc.nil_type.clone();
    let mut rk = tlc.term_kind.clone();
    let mut t: Option<TermId> = None;
-   let mut dept = HashMap::new();
 
    while peek_is(tokens, &vec![Symbol::LeftParen]) {
       pop_is("let-stmt", tokens, &vec![Symbol::LeftParen])?;
@@ -480,7 +433,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
             pop_is("let-stmt", tokens, &vec![Symbol::Ascript])?;
          }
          if !peek_is(tokens, &vec![Symbol::RightParen,Symbol::Comma,Symbol::KAscript]) {
-            typ = Some(ll1_type(tlc, &mut dept, scope, tokens)?);
+            typ = Some(ll1_type(tlc, scope, tokens)?);
          }
          if peek_is(tokens, &vec![Symbol::KAscript]) {
             pop_is("let-stmt", tokens, &vec![Symbol::KAscript])?;
@@ -498,7 +451,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
 
    if peek_is(tokens, &vec![Symbol::Ascript]) {
       pop_is("let-stmt", tokens, &vec![Symbol::Ascript])?;
-      rt = ll1_type(tlc, &mut dept, scope, tokens)?;
+      rt = ll1_type(tlc, scope, tokens)?;
    }
    if peek_is(tokens, &vec![Symbol::KAscript]) {
       pop_is("let-stmt", tokens, &vec![Symbol::KAscript])?;
@@ -539,8 +492,6 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
       };
       ft = Type::Arrow(Box::new(pt),Box::new(ft));
    }
-   tlc.unify_varnames_t(&mut HashMap::new(), &ft, false);
-   tlc.reduce_type(&mut HashMap::new(), &mut ft); //destructively reduce constants in type
    ft = ft.normalize();
    let inner_scope = tlc.push_scope(Scope {
       parent: Some(scope),
@@ -808,14 +759,6 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
    }
 }
 
-pub fn ll1_literal_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
-   let span = span_of(tokens);
-   pop_is("literal-term", tokens, &vec![Symbol::Bar])?;
-   let t = ll1_term(tlc, scope, tokens)?;
-   pop_is("literal-term", tokens, &vec![Symbol::Bar])?;
-   Ok(tlc.push_term(Term::Literal(t),&span))
-}
-
 pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
    if let Some(sym) = tokens.peek_symbol()? {
@@ -825,6 +768,23 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
       } else if let Symbol::Value(x) = sym {
          tokens.take_symbol()?;
          return Ok(tlc.push_term(Term::Value(x.clone()), &span))
+      } else if let Symbol::Fail = sym {
+         tokens.take_symbol()?;
+         return Ok(tlc.push_term(Term::Fail, &span))
+      } else if let Symbol::Literal = sym {
+         tokens.take_symbol()?;
+         let mut lps = Vec::new();
+         loop {
+            match tokens.peek_symbol()? {
+               Some(Symbol::LiteralV(n)) => lps.push(Literal::Var(n.clone())),
+               Some(Symbol::LiteralC(c,n)) => lps.push(Literal::Char(c,n.clone())),
+               Some(Symbol::LiteralS(s,n)) => lps.push(Literal::String(s.clone(),n.clone())),
+               Some(Symbol::LiteralR(r,n)) => lps.push(Literal::Range(r.clone(),n.clone())),
+               _ => { break; },
+            };
+            tokens.take_symbol()?; 
+         }
+         return Ok(tlc.push_term(Term::Literal(lps), &span))
       } else if let Symbol::Typename(cname) = sym {
          tokens.take_symbol()?;
          let mut kvs = Vec::new();
@@ -849,9 +809,17 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
             cname.clone(),
             kvs
          ),&span));
+      } else {
+         pop_is("value-term",tokens,&vec![
+            Symbol::Literal,
+            Symbol::Ident("x".to_string()),
+            Symbol::Typename("A".to_string()),
+            Symbol::Value("1".to_string()),
+         ])?;
       }
    }
    pop_is("value-term",tokens,&vec![
+      Symbol::Literal,
       Symbol::Ident("x".to_string()),
       Symbol::Typename("A".to_string()),
       Symbol::Value("1".to_string()),
@@ -876,17 +844,17 @@ pub fn ll1_match_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
    let dv = ll1_term(tlc, scope, tokens)?;
    pop_is("match-term", tokens, &vec![Symbol::LeftBrace])?;
    let mut pats = Vec::new();
-   let mut first_arm = true;
-   while !peek_is(tokens, &vec![Symbol::RightBrace]) {
-      if first_arm { first_arm = false; }
-      else { pop_is("match-term", tokens, &vec![Symbol::Comma])?; }
-      let lhs = ll1_term(tlc, scope, tokens)?;
+   let mut comma_ok = true;
+   while comma_ok && !peek_is(tokens, &vec![Symbol::RightBrace]) {
+      if comma_ok { comma_ok = false; }
+      let lhs = ll1_atom_term(tlc, scope, tokens)?;
       pop_is("match-term", tokens, &vec![Symbol::Imply])?;
-      let rhs = ll1_term(tlc, scope, tokens)?;
+      let rhs = ll1_atom_term(tlc, scope, tokens)?;
       pats.push((lhs, rhs));
-   }
-   if peek_is(tokens, &vec![Symbol::Comma]) {
-      pop_is("match-term", tokens, &vec![Symbol::Comma])?;
+      if peek_is(tokens, &vec![Symbol::Comma]) {
+         pop_is("match-term", tokens, &vec![Symbol::Comma])?;
+         comma_ok = true;
+      }
    }
    pop_is("match-term", tokens, &vec![Symbol::RightBrace])?;
    Ok(tlc.push_term(Term::Match(dv, pats),&span))
@@ -898,8 +866,6 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
       ll1_tuple_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
       ll1_tensor_term(tlc, scope, tokens)?
-   } else if peek_is(tokens, &vec![Symbol::Bar]) {
-      ll1_literal_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Match]) {
       ll1_match_term(tlc, scope, tokens)?
    } else {
@@ -929,35 +895,14 @@ pub fn ll1_expr_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    ll1_logical_term(tlc, scope, tokens)
 }
 
-pub fn ll1_algebra_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
-   let span = span_of(tokens);
-   let mut term = ll1_expr_term(tlc, scope, tokens)?;
-   while peek_is(tokens, &vec![Symbol::BackSlash]) {
-      pop_is("algebra-term", tokens, &vec![Symbol::BackSlash])?;
-      pop_is("algebra-term", tokens, &vec![Symbol::LeftBracket])?;
-      let mut a = ll1_expr_term(tlc, scope, tokens)?;
-      pop_is("algebra-term", tokens, &vec![Symbol::Bar])?;
-      let mut b = ll1_expr_term(tlc, scope, tokens)?;
-      pop_is("algebra-term", tokens, &vec![Symbol::RightBracket])?;
-      tlc.untyped(a); tlc.unify_varnames(&mut HashMap::new(),&mut a);
-      tlc.untyped(b); tlc.unify_varnames(&mut HashMap::new(),&mut b);
-      term = {let t = Term::Substitution(
-         term,
-         a,
-         b
-      ); tlc.push_term(t,&span)};
-   }
-   Ok(term)
-}
-
-pub fn ll1_paren_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+pub fn ll1_paren_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
    pop_is("paren-type", tokens, &vec![Symbol::LeftParen])?;
    let mut ts = Vec::new();
    while !peek_is(tokens, &vec![Symbol::RightParen]) {
       if peek_is(tokens, &vec![Symbol::Comma]) {
          pop_is("paren-type", tokens, &vec![Symbol::Comma])?;
       }
-      ts.push( ll1_type(tlc, dept, scope, tokens)? );
+      ts.push( ll1_type(tlc, scope, tokens)? );
    }
    pop_is("paren-type", tokens, &vec![Symbol::RightParen])?;
    if ts.len()==1 {
@@ -967,7 +912,7 @@ pub fn ll1_paren_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
    }
 }
 
-pub fn ll1_typeof_type(tlc: &mut TLC, _dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+pub fn ll1_typeof_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
    let span = span_of(tokens);
    pop_is("atom-type", tokens, &vec![Symbol::Typeof])?;
    pop_is("atom-type", tokens, &vec![Symbol::LeftParen])?;
@@ -982,7 +927,7 @@ pub fn ll1_typeof_type(tlc: &mut TLC, _dept: &mut HashMap<String,TermId>, scope:
    Ok(vt)
 }
 
-pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+pub fn ll1_ident_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
    let tn = if let Some(Symbol::Typename(tn)) = tokens.peek_symbol()? {
       tokens.take_symbol()?;
       tn.clone()
@@ -997,41 +942,63 @@ pub fn ll1_ident_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: S
          if peek_is(tokens, &vec![Symbol::Comma]) {
             pop_is("ident-type", tokens, &vec![Symbol::Comma])?;
          }
-         tps.push( ll1_type(tlc, dept, scope, tokens)? );
+         tps.push( ll1_type(tlc, scope, tokens)? );
       }
       pop_is("ident-type", tokens, &vec![Symbol::GreaterThan])?;
    }
    Ok(Type::Named(tn,tps))
 }
 
-pub fn ll1_dep_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
-   pop_is("dependent-type", tokens, &vec![Symbol::LeftBracket])?;
-   let mut t = ll1_term(tlc, scope, tokens)?;
-   pop_is("dependent-type", tokens, &vec![Symbol::RightBracket])?;
-   tlc.untyped(t);
-   tlc.unify_varnames(dept,&mut t);
-   let ct = tlc.push_dep_type(&tlc.rows[t.id].term.clone(), t);
-   Ok(ct)
+pub fn ll1_constant(tlc: &mut TLC, _scope: ScopeId, tokens: &mut TokenReader) -> Result<Constant,Error> {
+   let _span = span_of(tokens);
+   if let Some(sym) = tokens.peek_symbol()? {
+      if let Symbol::Value(x) = sym {
+         tokens.take_symbol()?;
+         return Ok(Constant::parse(tlc,&x).unwrap())
+      } else if let Symbol::Typename(cname) = sym {
+         tokens.take_symbol()?;
+         return Ok(Constant::parse(tlc,&cname).unwrap())
+        //TODO tuples like (1,2,3)
+        //TODO structs as Tuples like (Point2D,1,2), order fields by alphabetical order
+      } else {
+         pop_is("constant-term",tokens,&vec![
+            Symbol::Typename("A".to_string()),
+            Symbol::Value("1".to_string()),
+         ])?;
+      }
+   }
+   pop_is("constant-term",tokens,&vec![
+      Symbol::Typename("A".to_string()),
+      Symbol::Value("1".to_string()),
+   ])?;
+   unreachable!("constant-term expected Ident, Typename, or Value")
 }
 
-pub fn ll1_atom_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+pub fn ll1_dep_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+   pop_is("dependent-type", tokens, &vec![Symbol::LeftBracket])?;
+   let cv = ll1_constant(tlc, scope, tokens)?;
+   pop_is("dependent-type", tokens, &vec![Symbol::RightBracket])?;
+   Ok(Type::Constant(cv))
+}
+
+pub fn ll1_atom_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
    if peek_is(tokens, &vec![Symbol::Question]) {
       pop_is("atom-type", tokens, &vec![Symbol::Question])?;
       Ok(Type::Any)
    } else if peek_is(tokens, &vec![Symbol::LeftParen]) {
-      ll1_paren_type(tlc, dept, scope, tokens)
+      ll1_paren_type(tlc, scope, tokens)
    } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
-      ll1_dep_type(tlc, dept, scope, tokens)
+      ll1_dep_type(tlc, scope, tokens)
    } else if peek_is(tokens, &vec![Symbol::Typeof]) {
-      ll1_typeof_type(tlc, dept, scope, tokens)
+      ll1_typeof_type(tlc, scope, tokens)
    } else {
-      ll1_ident_type(tlc, dept, scope, tokens)
+      ll1_ident_type(tlc, scope, tokens)
    }
 }
 
-pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
-   let span = span_of(tokens);
-   let mut base = ll1_atom_type(tlc, dept, scope, tokens)?;
+pub fn ll1_suffix_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+   let _span = span_of(tokens);
+   let base = ll1_atom_type(tlc, scope, tokens)?;
    let mut ts = Vec::new();
    while peek_is(tokens, &vec![Symbol::LeftBracket]) {
       pop_is("suffix-type", tokens, &vec![Symbol::LeftBracket])?;
@@ -1042,28 +1009,30 @@ pub fn ll1_suffix_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: 
       };
       pop_is("suffix-type", tokens, &vec![Symbol::RightBracket])?;
    }
-   for bracketed in ts.iter().rev() {
+   for _bracketed in ts.iter().rev() {
+      unimplemented!("suffix-type array syntax")
+      /*
       let mut dt = if let Some(br) = bracketed {
          *br
       } else {
          tlc.push_term(Term::Ident("length".to_string()), &span)
       };
       tlc.untyped(dt);
-      tlc.unify_varnames(dept,&mut dt);
       let ct = tlc.push_dep_type(&tlc.rows[dt.id].term.clone(), dt);
       base = Type::Named("Tensor".to_string(), vec![
          base,
          ct
       ]);
+      */
    }
    Ok(base)
 }
 
-pub fn ll1_product_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
-   let mut types = vec![ ll1_suffix_type(tlc, dept, scope, tokens)? ];
+pub fn ll1_product_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+   let mut types = vec![ ll1_suffix_type(tlc, scope, tokens)? ];
    while peek_is(tokens, &vec![Symbol::Mul]) {
       pop_is("product-type", tokens, &vec![Symbol::Mul])?;
-      types.push( ll1_suffix_type(tlc, dept, scope, tokens)? );
+      types.push( ll1_suffix_type(tlc, scope, tokens)? );
    }
    if types.len()==1 {
       Ok(types[0].clone())
@@ -1072,31 +1041,31 @@ pub fn ll1_product_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope:
    }
 }
 
-pub fn ll1_ratio_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
-   let mut typ = ll1_product_type(tlc, dept, scope, tokens)?;
+pub fn ll1_ratio_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+   let mut typ = ll1_product_type(tlc, scope, tokens)?;
    if peek_is(tokens, &vec![Symbol::Div]) {
       pop_is("ratio-type", tokens, &vec![Symbol::Div])?;
-      let typ2 = ll1_product_type(tlc, dept, scope, tokens)?;
+      let typ2 = ll1_product_type(tlc, scope, tokens)?;
       typ = Type::Ratio(Box::new(typ), Box::new(typ2));
    }
    Ok(typ)
 }
 
-pub fn ll1_arrow_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
-   let mut typ = ll1_ratio_type(tlc, dept, scope, tokens)?;
+pub fn ll1_arrow_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+   let mut typ = ll1_ratio_type(tlc, scope, tokens)?;
    if peek_is(tokens, &vec![Symbol::Arrow]) {
       pop_is("and-type", tokens, &vec![Symbol::Arrow])?;
-      let typ2 = ll1_arrow_type(tlc, dept, scope, tokens)?;
+      let typ2 = ll1_arrow_type(tlc, scope, tokens)?;
       typ = Type::Arrow(Box::new(typ), Box::new(typ2));
    }
    Ok(typ)
 }
 
-pub fn ll1_and_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
-   let mut types = vec![ ll1_arrow_type(tlc, dept, scope, tokens)? ];
+pub fn ll1_and_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+   let mut types = vec![ ll1_arrow_type(tlc, scope, tokens)? ];
    while peek_is(tokens, &vec![Symbol::Plus]) {
       pop_is("and-type", tokens, &vec![Symbol::Plus])?;
-      types.push( ll1_arrow_type(tlc, dept, scope, tokens)? );
+      types.push( ll1_arrow_type(tlc, scope, tokens)? );
    }
    if types.len()==1 {
       Ok(types[0].clone())
@@ -1105,17 +1074,17 @@ pub fn ll1_and_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: Sco
    }
 }
 
-pub fn ll1_type(tlc: &mut TLC, dept: &mut HashMap<String,TermId>, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
-   ll1_and_type(tlc, dept, scope, tokens)
+pub fn ll1_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
+   ll1_and_type(tlc, scope, tokens)
 }
 
 pub fn ll1_ascript_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   let mut term = ll1_algebra_term(tlc, scope, tokens)?;
+   let mut term = ll1_expr_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Ascript, Symbol::At]) {
       if peek_is(tokens, &vec![Symbol::Ascript]) {
          pop_is("ascript-term", tokens, &vec![Symbol::Ascript])?;
-         let at = ll1_type(tlc, &mut HashMap::new(), scope, tokens)?;
+         let at = ll1_type(tlc, scope, tokens)?;
          let t = Term::Ascript(
             term,
             at
@@ -1145,7 +1114,7 @@ pub fn ll1_as_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> R
    let mut term = ll1_ascript_term(tlc, scope, tokens)?;
    if peek_is(tokens, &vec![Symbol::As]) {
       pop_is("as-term", tokens, &vec![Symbol::As])?;
-      let at = ll1_type(tlc, &mut HashMap::new(), scope, tokens)?;
+      let at = ll1_type(tlc, scope, tokens)?;
       let t = Term::As(
          term,
          at

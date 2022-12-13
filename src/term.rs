@@ -5,6 +5,7 @@ use crate::tlc::TLC;
 use crate::constant::Constant;
 use crate::token::{Span};
 use std::collections::HashMap;
+use std::iter::FromIterator;
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -21,6 +22,24 @@ pub struct LetTerm {
    pub rkind: Kind,
 }
 
+#[derive(Clone)]
+pub enum Literal {
+   Var(String),
+   Char(char,String),
+   String(String,String),
+   Range(Vec<(char,char)>,String),
+}
+impl std::fmt::Debug for Literal {
+   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      match self {
+         Literal::Var(v)          => write!(f, "{}", v),
+         Literal::Char(c,v)       => write!(f, "'{}'{}", c, v),
+         Literal::String(s,v)     => write!(f, r#""{}"{}"#, s, v),
+         Literal::Range(_r,v)     => write!(f, "[?]{}", v),
+      }
+   }
+}
+
 //does not implement Clone because terms are uniquely identified by their id
 #[derive(Clone)] //clone seems to be needed to deconflict mutable borrows :(
 pub enum Term {
@@ -34,13 +53,13 @@ pub enum Term {
    Ascript(TermId,Type),
    As(TermId,Type),
    Constructor(String,Vec<(String,TermId)>),
-   Substitution(TermId,TermId,TermId),
    RuleApplication(TermId,String),
-   Literal(TermId),
    Match(
       TermId,
       Vec<(TermId,TermId)>, //lhs's here don't need scopes because these bindings can't be polymorphic
    ),
+   Fail, //indicates that Term does not return a Value
+   Literal(Vec<Literal>),
 }
 
 impl Term {
@@ -99,11 +118,103 @@ impl Term {
             };
             true
          },
+         Term::Tuple(ts) => {
+            if let Constant::Tuple(cs) = dc {
+            if ts.len() == cs.len() {
+               for (lt,rc) in std::iter::zip(ts,cs) {
+                  if !Term::reduce_lhs(tlc, scope_constants, *lt, rc) {
+                     return false;
+                  }
+               }
+               return true;
+            }}
+            false
+         },
          Term::Value(lv) => {
             if let Some(lc) = Constant::parse(tlc, lv) {
                &lc == dc
             } else { false }
          },
+         Term::Literal(lps) => {
+            if let Constant::Literal(dlp) = dc {
+               let mut pre_lhs: Vec<Literal> = Vec::new();
+               let mut v_lhs = "".to_string();
+               let mut suf_lhs: Vec<Literal> = Vec::new();
+               for li in 0..lps.len() {
+                  match &lps[li] {
+                     Literal::Char(_,_) | Literal::String(_,_) | Literal::Range(_,_) => {
+                        if v_lhs=="" { pre_lhs.push(lps[li].clone()) }
+                        else { suf_lhs.push(lps[li].clone()) }
+                     },
+                     Literal::Var(v) => {
+                        if v_lhs=="" { v_lhs = v.clone(); }
+                        else { panic!("Term::reduce_lhs({}) has two variables in the middle", tlc.print_term(lhs)) }
+                     },
+                  }
+               }
+               let mut dlp = dlp.chars().collect::<Vec<char>>();
+               for p in pre_lhs.iter() {
+               match p {
+                  Literal::Char(pc,pv) => {
+                     if dlp.len()==0 { return false; }
+                     if &dlp[0] != pc { return false; }
+                     let s = dlp.remove(0).to_string();
+                     scope_constants.insert(pv.clone(), Constant::Literal(s));
+                  },
+                  Literal::String(ps,pv) => {
+                     if dlp.len()<ps.len() { return false; }
+                     for pc in ps.chars() {
+                        if dlp.remove(0) != pc { return false; }
+                     }
+                     scope_constants.insert(pv.clone(), Constant::Literal(ps.clone()));
+                  },
+                  Literal::Range(pr,pv) => {
+                     if dlp.len()==0 { return false; }
+                     let mut matched = false;
+                     for (low,high) in pr.iter() {
+                     if *low<=dlp[0] && dlp[0]<=*high {
+                        matched = true; break;
+                     }}
+                     if !matched { return false; }
+                     let s = dlp.remove(0).to_string();
+                     scope_constants.insert(pv.clone(), Constant::Literal(s));
+                  },
+                  Literal::Var(_) => panic!("Term::reduce prefix somehow got a Var: {}", tlc.print_term(lhs)),
+               }}
+               for p in suf_lhs.iter() {
+               match p {
+                  Literal::Char(pc,pv) => {
+                     if dlp.len()==0 { return false; }
+                     if &dlp[dlp.len()-1] != pc { return false; }
+                     let s = dlp.remove(dlp.len()-1).to_string();
+                     scope_constants.insert(pv.clone(), Constant::Literal(s));
+                  },
+                  Literal::String(ps,pv) => {
+                     if dlp.len()<ps.len() { return false; }
+                     for pc in ps.chars().rev() {
+                        if dlp.remove(dlp.len()-1) != pc { return false; }
+                     }
+                     scope_constants.insert(pv.clone(), Constant::Literal(ps.clone()));
+                  },
+                  Literal::Range(pr,pv) => {
+                     if dlp.len()==0 { return false; }
+                     let mut matched = false;
+                     for (low,high) in pr.iter() {
+                     if *low<=dlp[dlp.len()-1] && dlp[dlp.len()-1]<=*high {
+                        matched = true; break;
+                     }}
+                     if !matched { return false; }
+                     let s = dlp.remove(dlp.len()-1).to_string();
+                     scope_constants.insert(pv.clone(), Constant::Literal(s));
+                  },
+                  Literal::Var(_) => panic!("Term::reduce suffix somehow got a Var: {}", tlc.print_term(lhs)),
+               }}
+               if v_lhs != "" {
+                  scope_constants.insert(v_lhs.clone(), Constant::Literal(String::from_iter(dlp)));
+               }
+               true
+            } else { false }
+         }
          _ => unimplemented!("Term::reduce_lhs({})", tlc.print_term(lhs))
       }
    }
@@ -111,6 +222,15 @@ impl Term {
       //scope is only used to look up functions
       //all other variables should already be converted to values
       match &tlc.rows[term.id].term {
+         Term::Ascript(t,_tt) => {
+            Term::reduce(tlc, scope, scope_constants, *t)
+            //TODO, dynamically check that Value satisfies Type
+         },
+         Term::Ident(n) => {
+            if let Some(nv) = scope_constants.get(n) {
+               Some(nv.clone())
+            } else { panic!("Term::reduce free variable: {}", n) }
+         },
          Term::Value(v) => {
             Constant::parse(tlc, &v)
          },
@@ -125,6 +245,21 @@ impl Term {
                } else { return None; }
             }
             Some(Constant::Tuple(cs))
+         },
+         Term::Literal(lps) => {
+            let mut v = "".to_string();
+            for lp in lps.iter() {
+            match lp {
+               Literal::Char(lc,_) => { v += &lc.to_string(); },
+               Literal::String(ls,_) => { v += ls; },
+               Literal::Range(_,_) => { return None; }, //not a Literal Value
+               Literal::Var(lv) => {
+                  if let Some(Constant::Literal(ls)) = scope_constants.get(lv) {
+                     v += ls;
+                  } else { return None; }
+               },
+            }}
+            Some(Constant::Literal(v))
          },
          Term::App(g,x) => {
             if let Some(xc) = Term::reduce(tlc, scope, scope_constants, *x) {
@@ -147,28 +282,29 @@ impl Term {
                            }
                            if let Some(body) = lb.body {
                               Term::reduce(tlc, &Some(lb.scope), &new_scope, body)
-                           } else { return None; }
+                           } else { panic!("Term::reduce, applied function has no body: {}", gv) }
                         } else {
                            panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
                         }
-                     } else { return None; }
+                     } else { panic!("Term::reduce, failed to lookup function {}", gv) }
                   },
                   _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({:?})", tlc.print_term(*g), xc)
                }
             } else { return None; }
          },
-         Term::Literal(v) => {
-            Constant::eval(tlc, scope_constants, *v)
-         },
          Term::Match(dv,lrs) => {
-            if let Some(ref dc) = Constant::eval(tlc, scope_constants, *dv) {
+            //These panics are OK, because the type-checker should disprove them
+            if let Some(ref dc) = Term::reduce(tlc, scope, scope_constants, *dv) {
                for (l,r) in lrs.iter() {
                   let mut sc = scope_constants.clone();
                   if Term::reduce_lhs(tlc, &mut sc, *l, dc) {
+                     if tlc.fails(*r) {
+                        panic!("Term::reduce match failed on {:?} at {:?}", tlc.print_term(*l), &tlc.rows[r.id].span)
+                     }
                      return Term::reduce(tlc, scope, &sc, *r);
                   }
                }
-               panic!("Term::reduce, pattern was not total: {}", tlc.print_term(term))
+               panic!("Term::reduce match failed at {:?} on Value: {:?}", &tlc.rows[term.id].span, dc)
             } else { None }
          },
          _ => unimplemented!("Term::reduce, implement Call-by-Value term reduction: {}", tlc.print_term(term))

@@ -3,7 +3,7 @@ use lsts::tlc::TLC;
 #[test]
 fn check_statements() {
    let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
    tlc.check(Some(si), "forall x:Even. Odd = x + 1;").unwrap();
    tlc.check(Some(si), "forall x:Even. Odd = x - 1;").unwrap();
@@ -11,10 +11,11 @@ fn check_statements() {
    tlc.check(Some(si), "forall x:Odd. Even = x - 1;").unwrap();
 }
 
+/* TODO: define arithmetic
 #[test]
 fn check_hints() {
    let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
    tlc.check(Some(si), "forall @inc_even x:Even. Odd = x + 1; (8: Even) + 1 @inc_even : Odd;").unwrap();
    tlc.check(Some(si), "forall @dec_even x:Even. Odd = x - 1; (8: Even) - 1 @dec_even : Odd;").unwrap();
@@ -30,12 +31,13 @@ fn check_hints() {
 #[test]
 fn check_pun() {
    let mut tlc = TLC::new();
-   let si = tlc.import_file(None, "preludes/si.tlc").unwrap();
+   let si = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
    tlc.check(Some(si), "forall @ch x:Even. [True] = x; forall @ch x:Odd. [True] = x; (8: Even) @ch : [True];").unwrap();
    tlc.check(Some(si), "forall @ch x:Even. [True] = x; forall @ch x:Odd. [True] = x; (3: Odd) @ch : [True];").unwrap();
    tlc.check(Some(si), "forall @ch x:Even. [True] = x; forall @ch x:Odd. [True] = x; (8: Integer) @ch : [True];").unwrap_err();
 }
+*/
 
 /* TODO: strict mode checks internal validity of statements
 #[test]

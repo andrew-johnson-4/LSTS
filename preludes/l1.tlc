@@ -6,6 +6,11 @@ type Tensor<T> = { };
 type Set<E> = { };
 type Map<K,V> = { };
 
+type Even:Integer
+     where. self%2 | 0;
+type Odd:Integer
+     where. self%2 | 1;
+
 //Operators
 let pos(x:Integer)             :Integer; //pos
 let neg(x:Integer)             :Integer; //neg
@@ -13,6 +18,21 @@ let $"+"(x:Integer, y:Integer) :Integer; //add
 let $"-"(x:Integer, y:Integer) :Integer; //sub
 let $"*"(x:Integer, y:Integer) :Integer; //mul
 let $"/"(x:Integer, y:Integer) :Integer; //div
+let $"%"(x:Integer, y:Integer) :Integer = match (x,y) {
+   literal '0' => literal '0',
+   (literal '0', literal '1') => literal '0',
+   (literal '0'a, literal '1') => literal a,
+   (literal '0'a b, literal '1') => literal a b,
+   (literal '0'a b '0', literal '1') => literal a b,
+   (literal '0'a b '0'c, literal '1') => literal a b c,
+   (literal '0'a '0'b, literal '1') => literal a b,
+   (literal "00", literal '1') => literal "00",
+   (literal "00"a, literal '1') => literal a,
+   (literal [0-9], literal '1') => literal '0',
+   (literal [0-9]a, literal '1') => literal a,
+   (literal [0-9]a b, literal '1') => literal a b,
+   (literal [0-9]a b [0-9]c, literal '1') => literal a b c,
+};
 let $"^"(x:Integer, y:Integer) :Integer; //pow
 
 let $"<"(x:Integer, y:Integer)  :Boolean;

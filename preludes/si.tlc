@@ -174,9 +174,11 @@ let neg(x:Integer)             :Integer; //neg
 let $"+"(x:Integer, y:Integer) :Integer; //add
 let $"-"(x:Integer, y:Integer) :Integer; //sub
 let $"*"(x:Integer, y:Integer) :Integer; //mul
+let $"%"(x:Integer, y:Integer) :Integer; //mod
 let $"/"(x:Integer, y:Integer) :Integer; //div
 
 //: Unit Math
+/*
 let pos(x:X::Unit)             :X   ::Unit; //pos
 let neg(x:X::Unit)             :X   ::Unit; //neg
 let $"+"(x:X::Unit, y:X::Unit) :X   ::Unit; //add
@@ -187,31 +189,13 @@ let $"*"(x:X::Unit, y:Number)  :X   ::Unit; //mul constant
 let $"/"(x:X::Unit, y:Y::Unit) :X/Y ::Unit; //div
 let $"/"(x:Number, y:Y::Unit)  :()/Y::Unit; //div constant
 let $"/"(x:X::Unit, y:Number)  :X   ::Unit; //div constant
-
-//: Constant Math
-let pos([x]): [x]           ; //pos                   : [x] -> [x]
-let neg([x]): [-x]          ; //neg                   : [x] -> [-x]
-let $"+"([x], [y]): [x+y]   ; //add                   : [(x,y)] -> [x+y]
-let $"-"([x], [y]): [x-y]   ; //sub                   : [(x,y)] -> [x-y]
-let $"*"([x], [y]): [x*y]   ; //mul                   : [(x,y)] -> [x*y]
-let $"/"([x], [y]): [x/y]   ; //div                   : [(x,y)] -> [x/y]
-let $"%"([x], [y]): [x%y]   ; //mod                   : [(x,y)] -> [x%y]
-let $"^"([x], [y]): [x^y]   ; //pow                   : [(x,y)] -> [x^y]
-let not([x]): [not(x)]      ; //not                   : [x] -> [not(x)
-let $"&&"([x], [y]): [x&&y] ; //and                   : [(x,y)] -> [x&&y]
-let $"||"([x], [y]): [x||y] ; //or                    : [(x,y)] -> [x||y]
-let $"<"([x], [y]): [x<y]   ; //less than             : [(x,y)] -> [x<y]
-let $"<="([x], [y]): [x<=y] ; //less than or equal    : [(x,y)] -> [x<=y]
-let $">"([x], [y]): [x>y]   ; //greater than          : [(x,y)] -> [x>y]
-let $">="([x], [y]): [x>=y] ; //greater than or equal : [(x,y)] -> [x>=y]
-let $"=="([x], [y]): [x==y] ; //equal                 : [(x,y)] -> [x==y]
-let $"!="([x], [y]): [x!=y] ; //not equal             : [(x,y)] -> [x!=y]
+*/
 
 //: Tensor Properties
-let .length(a: ?[]): Integer;
-let .length(a: ?[x]): [x];
-let .sum(xs: Number[]): Number;
-let .product(xs: Number[]): Number;
+//let .length(a: ?[]): Integer;
+//let .length(a: ?[x]): [x];
+//let .sum(xs: Number[]): Number;
+//let .product(xs: Number[]): Number;
 
 //: Dependent Types
 type Even:Integer
@@ -234,7 +218,3 @@ type Prime:Integer
      //TODO Fermat's little theorem
      //Fermat, Leibniz, Euler elementary primality proof
 
-//: Blocks
-let $"while"(condition: Boolean, body: ()): ();
-let $"loop"(body: (), condition: Boolean): ();
-let $"for"(xs: X[], body: X -> ()): ();

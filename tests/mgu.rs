@@ -1,5 +1,5 @@
 use lsts::typ::*;
-use lsts::term::TermId;
+use lsts::constant::Constant;
 
 #[test]
 fn check_structural_equality() {
@@ -14,8 +14,8 @@ fn check_structural_equality() {
    let tt1  = Type::Tuple(vec![tn1.clone(),ta1.clone()]);
    let tp1  = Type::Product(vec![tn1.clone(),ta1.clone()]);
    let tr1  = Type::Ratio(Box::new(tt1.clone()),Box::new(tp1.clone()));
-   let tc1  = Type::Constant(TermId{id:1},None);
-   let tc2  = Type::Constant(TermId{id:2},None);
+   let tc1  = Type::Constant(Constant::Literal("1".to_string()));
+   let tc2  = Type::Constant(Constant::Literal("2".to_string()));
    assert_eq!(tany, tany);
    assert_eq!(tn1, tn1);
    assert_eq!(tn2, tn2);
@@ -58,8 +58,8 @@ fn check_self_unifies() {
    let tt1  = Type::Tuple(vec![tn1.clone(),ta1.clone()]);
    let tp1  = Type::Product(vec![tn1.clone(),ta1.clone()]);
    let tr1  = Type::Ratio(Box::new(tt1.clone()),Box::new(tp1.clone()));
-   let tc1  = Type::Constant(TermId{id:1},None);
-   let tc2  = Type::Constant(TermId{id:2},None);
+   let tc1  = Type::Constant(Constant::Literal("1".to_string()));
+   let tc2  = Type::Constant(Constant::Literal("2".to_string()));
    assert_eq!(tany, tany.most_general_unifier(&tany));
    assert_eq!(tn1, tn1.most_general_unifier(&tn1));
    assert_eq!(tn2, tn2.most_general_unifier(&tn2));
@@ -85,8 +85,8 @@ fn check_plural_mgu() {
    let tt1  = Type::Tuple(vec![tn1.clone(), tn2.clone()]);
    let tp1  = Type::Product(vec![tn1.clone(), tn2.clone()]);
    let tr1  = Type::Ratio(Box::new(tn1.clone()), Box::new(tn2.clone()));
-   let tc1  = Type::Constant(TermId{id:1},None);
-   let tc2  = Type::Constant(TermId{id:2},None);
+   let tc1  = Type::Constant(Constant::Literal("1".to_string()));
+   let tc2  = Type::Constant(Constant::Literal("2".to_string()));
    assert_eq!(
       Type::And(vec![tany.clone(), tn1.clone()]).most_general_unifier(&tany), 
       Type::And(vec![tany.clone(), tn1.clone()]) 
