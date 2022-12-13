@@ -5,6 +5,7 @@ use crate::tlc::TLC;
 use crate::constant::Constant;
 use crate::token::{Span};
 use std::collections::HashMap;
+use std::iter::FromIterator;
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -122,6 +123,50 @@ impl Term {
                &lc == dc
             } else { false }
          },
+         Term::Literal(lps) => {
+            if let Constant::Literal(dlp) = dc {
+               let mut pre_lhs: Vec<Literal> = Vec::new();
+               let mut v_lhs = "".to_string();
+               let mut suf_lhs: Vec<Literal> = Vec::new();
+               for li in 0..lps.len() {
+                  match &lps[li] {
+                     Literal::Char(_,_) | Literal::String(_,_) | Literal::Range(_,_) => {
+                        if v_lhs=="" { pre_lhs.push(lps[li].clone()) }
+                        else { suf_lhs.push(lps[li].clone()) }
+                     },
+                     Literal::Var(v) => {
+                        if v_lhs=="" { v_lhs = v.clone(); }
+                        else { panic!("Term::reduce_lhs({}) has two variables in the middle", tlc.print_term(lhs)) }
+                     },
+                  }
+               }
+               let mut dlp = dlp.chars().collect::<Vec<char>>();
+               for p in pre_lhs.iter() {
+               match p {
+                  Literal::Char(pc,pv) => {
+                     if dlp.len()==0 { return false; }
+                     if &dlp[0] != pc { return false; }
+                     let s = dlp.remove(0).to_string();
+                     scope_constants.insert(pv.clone(), Constant::Literal(s));
+                  },
+                  _ => unimplemented!("Term::reduce TODO.1, match pattern literal {:?}", p),
+               }}
+               for p in suf_lhs.iter() {
+               match p {
+                  Literal::Char(pc,pv) => {
+                     if dlp.len()==0 { return false; }
+                     if &dlp[dlp.len()-1] != pc { return false; }
+                     let s = dlp.remove(dlp.len()-1).to_string();
+                     scope_constants.insert(pv.clone(), Constant::Literal(s));
+                  },
+                  _ => unimplemented!("Term::reduce TODO.2, match pattern literal {:?}", p),
+               }}
+               if v_lhs != "" {
+                  scope_constants.insert(v_lhs.clone(), Constant::Literal(String::from_iter(dlp)));
+               }
+               true
+            } else { false }
+         }
          _ => unimplemented!("Term::reduce_lhs({})", tlc.print_term(lhs))
       }
    }
@@ -152,6 +197,21 @@ impl Term {
                } else { return None; }
             }
             Some(Constant::Tuple(cs))
+         },
+         Term::Literal(lps) => {
+            let mut v = "".to_string();
+            for lp in lps.iter() {
+            match lp {
+               Literal::Char(lc,_) => { v += &lc.to_string(); },
+               Literal::String(ls,_) => { v += ls; },
+               Literal::Range(_,_) => { return None; }, //not a Literal Value
+               Literal::Var(lv) => {
+                  if let Some(Constant::Literal(ls)) = scope_constants.get(lv) {
+                     v += ls;
+                  } else { return None; }
+               },
+            }}
+            Some(Constant::Literal(v))
          },
          Term::App(g,x) => {
             if let Some(xc) = Term::reduce(tlc, scope, scope_constants, *x) {
