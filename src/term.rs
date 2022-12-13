@@ -118,6 +118,18 @@ impl Term {
             };
             true
          },
+         Term::Tuple(ts) => {
+            if let Constant::Tuple(cs) = dc {
+            if ts.len() == cs.len() {
+               for (lt,rc) in std::iter::zip(ts,cs) {
+                  if !Term::reduce_lhs(tlc, scope_constants, *lt, rc) {
+                     return false;
+                  }
+               }
+               return true;
+            }}
+            false
+         },
          Term::Value(lv) => {
             if let Some(lc) = Constant::parse(tlc, lv) {
                &lc == dc
@@ -292,7 +304,7 @@ impl Term {
                      return Term::reduce(tlc, scope, &sc, *r);
                   }
                }
-               panic!("Term::reduce match failed at {:?}", &tlc.rows[term.id].span)
+               panic!("Term::reduce match failed at {:?} on Value: {:?}", &tlc.rows[term.id].span, dc)
             } else { None }
          },
          _ => unimplemented!("Term::reduce, implement Call-by-Value term reduction: {}", tlc.print_term(term))
