@@ -219,7 +219,16 @@ impl Term {
                   Literal::Var(_) => panic!("Term::reduce suffix somehow got a Var: {}", tlc.print_term(lhs)),
                }}
                if v_lhs != "" {
-                  scope_constants.insert(v_lhs.clone(), Constant::Literal(String::from_iter(dlp)));
+                  if dlp.len()==0 { return false; }
+                  if v_lhs == "_" { return true; }
+                  let vlv = Constant::Literal(String::from_iter(dlp));
+                  if let Some(prev) = scope_constants.get(&v_lhs) {
+                     return prev == &vlv;
+                  } else {
+                     scope_constants.insert(v_lhs.clone(), vlv);
+                  }
+               } else {
+                  if dlp.len()!=0 { return false; }
                }
                true
             } else { false }
@@ -231,9 +240,24 @@ impl Term {
       //scope is only used to look up functions
       //all other variables should already be converted to values
       match &tlc.rows[term.id].term {
-         Term::Ascript(t,_tt) => {
-            Term::reduce(tlc, scope, scope_constants, *t)
-            //TODO, dynamically check that Value satisfies Type
+         Term::Ascript(t,tt) => {
+            if let Some(Constant::Literal(cl)) = Term::reduce(tlc, scope, scope_constants, *t) {
+               let mut tried = false;
+               for (rt, rgx) in tlc.regexes.iter() {
+               if tt == rt {
+                  tried = true;
+                  if !rgx.is_match(&cl) {
+                      panic!("Term::reduce Value {:?} did not match regex for Type: {:?} at {:?}", cl, tt, &tlc.rows[term.id].span);
+                  }
+               }}
+               if !tried {
+                  panic!("Term::reduce could not find regex for Type: {:?}", tt);
+               }
+               Some(Constant::Literal(cl))
+            } else if let Some(c) = Term::reduce(tlc, scope, scope_constants, *t) {
+               //TODO Term::reduce, dynamically check that Value satisfies Type
+               Some(c)
+            } else { None }
          },
          Term::Ident(n) => {
             if let Some(nv) = scope_constants.get(n) {
@@ -275,7 +299,7 @@ impl Term {
                let sc = if let Some(sc) = scope { *sc } else { return None; };
                match &tlc.rows[g.id].term {
                   Term::Ident(gv) => {
-                     if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[x.id].typ) {
+                     if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[g.id].typ) {
                         if let Term::Let(lb) = &tlc.rows[binding.id].term {
                            if lb.parameters.len() != 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
                            let mut new_scope = scope_constants.clone();
@@ -295,7 +319,7 @@ impl Term {
                         } else {
                            panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
                         }
-                     } else { panic!("Term::reduce, failed to lookup function {}", gv) }
+                     } else { panic!("Term::reduce, failed to lookup function {}: {:?}", gv, &tlc.rows[x.id].typ) }
                   },
                   _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({:?})", tlc.print_term(*g), xc)
                }

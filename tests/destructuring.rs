@@ -33,10 +33,9 @@ fn destructure_literal() {
    tlc.check(Some(l1), r#"match 00 { literal "00" => literal "00" } : Integer @reduce : [00];"#).unwrap();
    tlc.check(Some(l1), r#"match 00 { literal "00"a => literal a } : Integer @reduce : [00];"#).unwrap();
    tlc.check(Some(l1), r#"match 00 { literal '0' a => literal '0' a } : Integer @reduce : [00];"#).unwrap();
-   tlc.check(Some(l1), r#"match 00 { literal '0' a '0' => literal '0' a '0' } : Integer @reduce : [00];"#).unwrap();
    tlc.check(Some(l1), r#"match 000 { literal '0' a '0' => literal '0' a '0' } : Integer @reduce : [000];"#).unwrap();
    tlc.check(Some(l1), r#"match 0 { literal [0-9]a => literal a } : Integer @reduce : [0];"#).unwrap();
-   tlc.check(Some(l1), r#"match 0 { literal [0-9]a b => literal a b } : Integer @reduce : [0];"#).unwrap();
-   tlc.check(Some(l1), r#"match 00 { literal [0-9]a b [0-9]c => literal a b c } : Integer @reduce : [00];"#).unwrap();
    tlc.check(Some(l1), r#"match 000 { literal [0-9]a b [0-9]c => literal a b c } : Integer @reduce : [000];"#).unwrap();
+   tlc.check(Some(l1), r#"match (1,2) { (literal a, literal b) => 0 } : Integer @reduce : [0];"#).unwrap();
+   tlc.check(Some(l1), r#"match (2,3) { (literal _, literal _) => 0 } : Integer @reduce : [0];"#).unwrap();
 }

@@ -18,11 +18,12 @@ pub struct Scope {
 impl Scope {
    pub fn lookup_term(tlc: &TLC, scope: ScopeId, v: &str, t: &Type) -> Option<TermId> {
       let mut candidates = Vec::new();
-      for (cv,_ck,_ct,cb) in tlc.scopes[scope.id].children.iter() {
+      for (cv,_ck,ct,cb) in tlc.scopes[scope.id].children.iter() {
          if cv == v {
+         if !Type::implies(tlc, t, ct).is_bottom() {
          if let Some(cb) = cb {
-            candidates.push(*cb);
-         }}
+            candidates.push((ct.clone(), *cb));
+         }}}
       }
       if candidates.len() == 0 {
          if let Some(psc) = tlc.scopes[scope.id].parent {
@@ -31,9 +32,13 @@ impl Scope {
             return None;
          }
       } else if candidates.len() == 1 {
-         return Some(candidates[0]);
+         return Some(candidates[0].1);
       } else {
-         panic!("Scope::lookup_term multiple viable candidate functions found for symbol {}", v)
+         let mut cs = "".to_string();
+         for (ct,_) in candidates.iter() {
+            cs += &format!("\n{} : {:?}", v, ct);
+         };
+         panic!("Scope::lookup_term multiple viable candidate functions found for symbol {} : {:?}{}", v, t, cs)
       }
    }
 }
