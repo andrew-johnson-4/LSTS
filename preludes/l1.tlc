@@ -16,10 +16,6 @@ let not(b:Boolean)             :Boolean = match b {
    True => False,
    False => True,
 };
-let $"if"(c:Boolean, t:A, f:A) :A       = match c {
-   True => t,
-   False => f,
-};
 let $"&&"(a:Boolean, b:Boolean):Boolean = match (a,b) {
    (True,True) => True,
    _ => False,
