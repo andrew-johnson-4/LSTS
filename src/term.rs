@@ -135,6 +135,11 @@ impl Term {
                &lc == dc
             } else { false }
          },
+         Term::Constructor(cname,cs) if cs.len()==0 => {
+            if let Some(lc) = Constant::parse(tlc, cname) {
+               &lc == dc
+            } else { false }
+         },
          Term::Literal(lps) => {
             if let Constant::Literal(dlp) = dc {
                let mut pre_lhs: Vec<Literal> = Vec::new();

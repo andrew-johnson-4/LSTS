@@ -321,6 +321,7 @@ impl TLC {
          Type::And(ats)
       }
    }
+
    pub fn remove_kinded(&self, k: &Kind, t: &Type) -> Type {
       let ts = match t {
          Type::And(ts) => ts.clone(),
@@ -331,48 +332,64 @@ impl TLC {
       Type::And(ts)
    }
 
-   pub fn compile_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
-      let tks = tokenize_string(self, "[string]", src)?;
-      self.compile_doc(globals, "[string]", tks)
-   }
-   pub fn import_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<ScopeId,Error> {
-      let tks = tokenize_string(self, "[string]", src)?;
-      self.compile_doc(globals, "[string]", tks)?;
-      Ok(ScopeId {id:0})
-   }
-   pub fn parse_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {
-      let mut tks = tokenize_file(self, filename)?;
+   pub fn parse_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<TermId,Error> {
       let file_scope = globals.unwrap_or(self.push_scope(Scope {
-         parent: None,
-         children: Vec::new(),
-      }, &span_of(&mut tks)));
-      Ok(ll1_file(self, file_scope, &mut tks)?)
+         parent: None, children: Vec::new(),
+      }, &span_of(tks)));
+      Ok(ll1_file(self, file_scope, tks)?)
    }
-   pub fn check_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
-      let ast = self.parse_file(globals, filename)?;
-      self.compile_rules(filename)?;
-      self.typeck(&globals, ast, None)?;
-      self.sanityck()?;
-      Ok(ScopeId {id:0})
-   }
-   pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
-      let ast = self.parse_file(globals, filename)?;
-      self.compile_rules(filename)?;
-      self.typeck(&globals, ast, None)?;
-      self.sanityck()?;
-      Ok(ScopeId {id:0})
-   }
-   pub fn compile_doc(&mut self, globals: Option<ScopeId>, docname:&str, mut tokens: TokenReader) -> Result<TermId,Error> {
-      let file_scope = globals.unwrap_or(self.push_scope(Scope {
-         parent: None,
-         children: Vec::new(),
-      }, &span_of(&mut tokens)));
-      let ast = ll1_file(self, file_scope, &mut tokens)?;
-      self.compile_rules(docname)?;
+   pub fn check_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<TermId,Error> {
+      let ast = self.parse_toks(globals, tks)?;
+      self.compile_rules()?;
       self.typeck(&globals, ast, None)?;
       self.sanityck()?;
       Ok(ast)
    }
+   pub fn import_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<ScopeId,Error> {
+      self.check_toks(globals, tks)?;
+      Ok(ScopeId {id:0})
+   }
+   pub fn reduce_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<Constant,Error> {
+      let _ast = self.check_toks(globals, tks)?;
+      //TODO: call Term::reduce
+      Ok(Constant::Literal("0".to_string()))
+   }
+
+   pub fn parse_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {
+      let mut tks = tokenize_file(self, filename)?;
+      self.parse_toks(globals, &mut tks)
+   }
+   pub fn check_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {
+      let mut tks = tokenize_file(self, filename)?;
+      self.check_toks(globals, &mut tks)
+   }
+   pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
+      let mut tks = tokenize_file(self, filename)?;
+      self.import_toks(globals, &mut tks)
+   }
+   pub fn reduce_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<Constant,Error> {
+      let mut tks = tokenize_file(self, filename)?;
+      self.reduce_toks(globals, &mut tks)
+   }
+
+   pub fn parse_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
+      let mut tks = tokenize_string(self, "[string]", src)?;
+      self.parse_toks(globals, &mut tks)
+   }
+   pub fn check_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
+      let mut tks = tokenize_string(self, "[string]", src)?;
+      self.check_toks(globals, &mut tks)
+   }
+   pub fn import_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<ScopeId,Error> {
+      let mut tks = tokenize_string(self, "[string]", src)?;
+      self.import_toks(globals, &mut tks)
+   }
+   pub fn reduce_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<Constant,Error> {
+      let mut tks = tokenize_string(self, "[string]", src)?;
+      self.reduce_toks(globals, &mut tks)
+   }
+
+
    pub fn kinds_of(&self, kinds: &mut HashMap<Type,Kind>, tt: &Type) -> Option<Kind> {
       match tt {
          Type::Any => {
@@ -441,7 +458,7 @@ impl TLC {
          },
       }
    }
-   pub fn compile_rules(&mut self, _docname:&str) -> Result<(),Error> {
+   pub fn compile_rules(&mut self) -> Result<(),Error> {
       for rule in self.rules.clone().iter() { match rule {
          TypeRule::Forall(fr) => { if self.strict && !fr.axiom {
             if let Some(ref rhs) = fr.rhs {
@@ -1523,7 +1540,7 @@ impl TLC {
       let foralls_index_l = self.foralls_index.clone();
       let foralls_rev_index_l = self.foralls_rev_index.clone();
 
-      let r = self.compile_str(globals, src);
+      let r = self.import_str(globals, src);
 
       self.rows.truncate(rows_l);
       self.rules.truncate(rules_l);

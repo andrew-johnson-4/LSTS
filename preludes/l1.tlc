@@ -1,7 +1,7 @@
 
 //Types
 type Boolean = True | False;
-type Integer = /^[-]?[0-9]+$/;
+type Integer = /^(0|([-]?[1-9][0-9]*))$/;
 type Tensor<T> = { };
 type Set<E> = { };
 type Map<K,V> = { };
@@ -12,8 +12,25 @@ type Odd:Integer
      where. self%2 | 1;
 
 //Operators
-let pos(x:Integer)             :Integer; //pos
-let neg(x:Integer)             :Integer; //neg
+let not(b:Boolean)             :Boolean = match b {
+   True => False,
+   False => True,
+};
+let $"&&"(a:Boolean, b:Boolean):Boolean = match (a,b) {
+   (True,True) => True,
+   _ => False,
+};
+let $"||"(a:Boolean, b:Boolean):Boolean = match (a,b) {
+   (False,False) => False,
+   _ => True,
+};
+
+let pos(x:Integer)             :Integer = x;
+let neg(x:Integer)             :Integer = match x {
+   literal '0' => literal '0',
+   literal '-' xs => literal xs,
+   literal xs => literal '-' xs,
+};
 let $"+"(x:Integer, y:Integer) :Integer; //add
 let $"-"(x:Integer, y:Integer) :Integer; //sub
 let $"*"(x:Integer, y:Integer) :Integer; //mul
