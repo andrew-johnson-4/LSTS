@@ -548,10 +548,9 @@ pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> R
       } else {
          tlc.push_term(Term::Tuple(Vec::new()),&span)
       };
-      Ok({let t = Term::App(
-         tlc.push_term(Term::Ident("if".to_string()),&span),
-         tlc.push_term(Term::Tuple(vec![cond,branch1,branch2]),&span),
-      ); tlc.push_term(t,&span)})
+      let tlhs = tlc.push_term(Term::Constructor("True".to_string(),Vec::new()),&span);
+      let flhs = tlc.push_term(Term::Constructor("False".to_string(),Vec::new()),&span);
+      Ok(tlc.push_term(Term::Match(cond, vec![(tlhs,branch1),(flhs,branch2)]),&span))
    }
 }
 
