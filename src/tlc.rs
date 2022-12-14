@@ -338,37 +338,55 @@ impl TLC {
       }, &span_of(tks)));
       Ok(ll1_file(self, file_scope, tks)?)
    }
-   pub fn import_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<ScopeId,Error> {
+   pub fn check_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<TermId,Error> {
       let ast = self.parse_toks(globals, tks)?;
       self.compile_rules()?;
       self.typeck(&globals, ast, None)?;
       self.sanityck()?;
+      Ok(ast)
+   }
+   pub fn import_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<ScopeId,Error> {
+      self.check_toks(globals, tks)?;
       Ok(ScopeId {id:0})
+   }
+   pub fn reduce_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<Constant,Error> {
+      let _ast = self.check_toks(globals, tks)?;
+      //TODO: call Term::reduce
+      Ok(Constant::Literal("0".to_string()))
    }
 
    pub fn parse_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {
       let mut tks = tokenize_file(self, filename)?;
       self.parse_toks(globals, &mut tks)
    }
+   pub fn check_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {
+      let mut tks = tokenize_file(self, filename)?;
+      self.check_toks(globals, &mut tks)
+   }
    pub fn import_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<ScopeId,Error> {
       let mut tks = tokenize_file(self, filename)?;
       self.import_toks(globals, &mut tks)
    }
    pub fn reduce_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<Constant,Error> {
-      let ast = self.parse_file(globals, filename)?;
-      self.compile_rules()?;
-      self.typeck(&globals, ast, None)?;
-      self.sanityck()?;
-      Ok(Constant::Literal("0".to_string()))
+      let mut tks = tokenize_file(self, filename)?;
+      self.reduce_toks(globals, &mut tks)
    }
 
    pub fn parse_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
       let mut tks = tokenize_string(self, "[string]", src)?;
       self.parse_toks(globals, &mut tks)
    }
+   pub fn check_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<TermId,Error> {
+      let mut tks = tokenize_string(self, "[string]", src)?;
+      self.check_toks(globals, &mut tks)
+   }
    pub fn import_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<ScopeId,Error> {
       let mut tks = tokenize_string(self, "[string]", src)?;
       self.import_toks(globals, &mut tks)
+   }
+   pub fn reduce_str(&mut self, globals: Option<ScopeId>, src:&str) -> Result<Constant,Error> {
+      let mut tks = tokenize_string(self, "[string]", src)?;
+      self.reduce_toks(globals, &mut tks)
    }
 
 
