@@ -114,7 +114,11 @@ impl Term {
       match &tlc.rows[lhs.id].term {
          Term::Ident(n) => {
             if n != "_" {
-               scope_constants.insert(n.clone(), dc.clone());
+               if let Some(prev) = scope_constants.get(n) {
+                  return prev == dc;
+               } else {
+                  scope_constants.insert(n.clone(), dc.clone());
+               }
             };
             true
          },
