@@ -72,10 +72,10 @@ let $"=="(x:Integer, y:Integer):Boolean = match (x,y) {
 let $"!="(x:Integer, y:Integer):Boolean = not(x == y);
 let $"<"(x:Integer, y:Integer)  :Boolean = match (x,y) {
    (literal n, literal n) => False,
-   (literal '-' xs, literal '-' ys) => not((xs as Whole) < (ys as Whole)),
+   (literal '-' xs, literal '-' ys) => not((literal xs: Whole) < (literal ys: Whole)),
    (literal '-' _, _) => True,
    (_, literal '-' _) => False,
-   _ => ((x as Whole) < (y as Whole)),
+   (literal xs, literal ys) => ((literal xs: Whole) < (literal ys: Whole)),
 };
 let $"<="(x:Integer, y:Integer) :Boolean = x==y || x<y;
 let $">"(x:Integer, y:Integer)  :Boolean = not(x <= y);
