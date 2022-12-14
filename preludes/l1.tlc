@@ -1,7 +1,8 @@
 
 //Types
 type Boolean = True | False;
-type Integer = /^(0|([-]?[1-9][0-9]*))$/;
+type Whole: Integer = /^(0|([1-9][0-9]*))$/;
+type Integer        = /^(0|([-]?[1-9][0-9]*))$/;
 type Tensor<T> = { };
 type Set<E> = { };
 type Map<K,V> = { };
@@ -69,10 +70,16 @@ let $"=="(x:Integer, y:Integer):Boolean = match (x,y) {
    _ => False,
 };
 let $"!="(x:Integer, y:Integer):Boolean = not(x == y);
-let $"<"(x:Integer, y:Integer)  :Boolean;
-let $"<="(x:Integer, y:Integer) :Boolean;
-let $">"(x:Integer, y:Integer)  :Boolean;
-let $">="(x:Integer, y:Integer) :Boolean;
+let $"<"(x:Integer, y:Integer)  :Boolean = match (x,y) {
+   (literal n, literal n) => False,
+   (literal '-' xs, literal '-' ys) => not((xs as Whole) < (ys as Whole)),
+   (literal '-' _, _) => True,
+   (_, literal '-' _) => False,
+   _ => ((x as Whole) < (y as Whole)),
+};
+let $"<="(x:Integer, y:Integer) :Boolean = x==y || x<y;
+let $">"(x:Integer, y:Integer)  :Boolean = not(x <= y);
+let $">="(x:Integer, y:Integer) :Boolean = not(x < y);
 
 //Sugar
 let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;
