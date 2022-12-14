@@ -24,7 +24,7 @@ fn check_iflet_literal() {
 #[test]
 fn destructure_literal() {
    let mut tlc = TLC::new();
-   let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
+   let l1 = tlc.import_str(None, "type Integer = /^[0-9]+$/;").unwrap();
 
    tlc.check(Some(l1), r#"match 0 { literal '0' => literal '0' } : Integer @reduce : [0];"#).unwrap();
    tlc.check(Some(l1), r#"match 0 { literal '0' => literal '0' } : Integer @reduce : [00];"#).unwrap_err();

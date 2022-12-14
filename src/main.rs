@@ -31,7 +31,7 @@ fn main() {
       let mut env = None;
       for fp in args.iter() {
          println!("Typechecking: {}", fp);
-         env = Some(tlc.check_file(env, fp).unwrap());
+         env = Some(tlc.import_file(env, fp).unwrap());
       }
    } else {
       println!("lsts help");
