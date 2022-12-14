@@ -14,6 +14,15 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "-1 @reduce :[-1];").unwrap();
    tlc.check(Some(l1), "-1 @reduce :[0];").unwrap_err();
 
+   tlc.check(Some(l1), "+0 @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "+ 0 @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "+ +0 @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "+1 @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "+ 1 @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "+ +1 @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "+ 1 @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "+ +1 @reduce :[1];").unwrap();
+
    tlc.check(Some(l1), "-0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "- 0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "- -0 @reduce :[0];").unwrap();
@@ -23,15 +32,15 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "- 1 @reduce :[1];").unwrap_err();
    tlc.check(Some(l1), "- -1 @reduce :[-1];").unwrap_err();
 
+   tlc.check(Some(l1), "True @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "False @reduce :[False];").unwrap();
+
+   tlc.check(Some(l1), "not(True) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "not(not(True)) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "not(False) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "not(not(False)) @reduce :[False];").unwrap();
+
    /*
-   tlc.check(Some(l1), "let x:[-0]; x: [-0];").unwrap();
-   tlc.check(Some(l1), "let x:[-1]; x: [-1];").unwrap();
-   tlc.check(Some(l1), "let x:[-2]; x: [-2];").unwrap();
-   tlc.check(Some(l1), "let x:[-2]; x: [2];").unwrap_err();
-   tlc.check(Some(l1), "let x:[-(-0)]; x: [0];").unwrap();
-   tlc.check(Some(l1), "let x:[-(-1)]; x: [1];").unwrap();
-   tlc.check(Some(l1), "let x:[-(-2)]; x: [2];").unwrap();
-   tlc.check(Some(l1), "let x:[-(-1)]; x: [-1];").unwrap_err();
 
    tlc.check(Some(l1), "let x:[not(True)]; x: [True];").unwrap_err();
    tlc.check(Some(l1), "let x:[not(True)]; x: [False];").unwrap();

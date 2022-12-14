@@ -12,6 +12,11 @@ type Odd:Integer
      where. self%2 | 1;
 
 //Operators
+let not(b:Boolean)             :Boolean = match b {
+   True => False,
+   False => True,
+};
+
 let pos(x:Integer)             :Integer = x;
 let neg(x:Integer)             :Integer = match x {
    literal '0' => literal '0',
