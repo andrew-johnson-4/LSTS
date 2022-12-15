@@ -231,7 +231,7 @@ impl Term {
                   if dlp.len()!=0 { return false; }
                }
                true
-            } else { false }
+            } else { panic!("Term::reduce_lhs({}) tried to match a literal of a non-literal: {:?}", tlc.print_term(lhs), dc) }
          }
          _ => unimplemented!("Term::reduce_lhs({})", tlc.print_term(lhs))
       }
@@ -312,7 +312,7 @@ impl Term {
                      if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[g.id].typ) {
                         if let Term::Let(lb) = &tlc.rows[binding.id].term {
                            if lb.parameters.len() != 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
-                           let mut new_scope = scope_constants.clone();
+                           let mut new_scope = HashMap::new();
                            let ref pars = lb.parameters[0];
                            let args = if pars.len()==1 { vec![xc] }
                                  else if let Constant::Tuple(xs) = xc { xs.clone() }
@@ -347,7 +347,7 @@ impl Term {
                      return Term::reduce(tlc, scope, &sc, *r);
                   }
                }
-               panic!("Term::reduce match failed at {:?} on Value: {:?}", &tlc.rows[term.id].span, dc)
+               panic!("Term::reduce match failed on default={:?} at {:?}", dc, &tlc.rows[term.id].span)
             } else { None }
          },
          _ => unimplemented!("Term::reduce, implement Call-by-Value term reduction: {}", tlc.print_term(term))

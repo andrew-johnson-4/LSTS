@@ -38,4 +38,7 @@ fn destructure_literal() {
    tlc.check(Some(l1), r#"match 000 { literal [0-9]a b [0-9]c => literal a b c } : Integer @reduce : [000];"#).unwrap();
    tlc.check(Some(l1), r#"match (1,2) { (literal a, literal b) => 0 } : Integer @reduce : [0];"#).unwrap();
    tlc.check(Some(l1), r#"match (2,3) { (literal _, literal _) => 0 } : Integer @reduce : [0];"#).unwrap();
+   tlc.check(Some(l1), r#"match (2,12) { (literal [0-9]xs, literal yp [0-9]ys) => 0 } : Integer @reduce : [0];"#).unwrap();
+   tlc.check(Some(l1), r#"match (2,12) { (literal [0-9]xs, literal yp [0-9]ys) => (literal xs yp ys) } : Integer @reduce : [212];"#).unwrap();
+   tlc.check(Some(l1), r#"match (25,125) { (literal xp [0-9]xs, literal yp [0-9]ys) => (literal xp xs yp ys) } : Integer @reduce : [25125];"#).unwrap();
 }

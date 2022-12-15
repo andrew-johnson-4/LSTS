@@ -158,11 +158,17 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(7 + 8) @reduce :[15];").unwrap();
    tlc.check(Some(l1), "(10 + 1) @reduce :[11];").unwrap();
    tlc.check(Some(l1), "(1 + 11) @reduce :[12];").unwrap();
+   tlc.check(Some(l1), "(2 + 12) @reduce :[14];").unwrap();
+   tlc.check(Some(l1), "(25 + 125) @reduce :[150];").unwrap();
+   /*
+   tlc.check(Some(l1), "(1 + 999) @reduce :[1000];").unwrap();
+   tlc.check(Some(l1), "(999 + 1) @reduce :[1000];").unwrap();
    tlc.check(Some(l1), "(0 + -1) @reduce :[-1];").unwrap();
    tlc.check(Some(l1), "(-1 + 5) @reduce :[4];").unwrap();
    tlc.check(Some(l1), "(345 + 67) @reduce :[412];").unwrap();
    tlc.check(Some(l1), "(890 + -5) @reduce :[885];").unwrap();
    tlc.check(Some(l1), "(-123 + 45) @reduce :[-78];").unwrap();
+   */
 
    /*
    tlc.check(Some(l1), "(0 - 0) @reduce :[0];").unwrap();
