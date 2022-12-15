@@ -1378,30 +1378,10 @@ impl TLC {
                   //quod erat demonstrandum
                   self.rows[t.id].typ = self.implies(&l_only,&into,&self.rows[t.id].span.clone())?.and(&l_alts);
                } else {
-                  let mut accept = false;
-                  for tr in self.rules.clone().iter() { match tr {
-                     TypeRule::Forall(ForallRule { inference:Inference::Imply(lt,rt), kind:k, .. }) if k==&into_kind => {
-                        if let Ok(lt) = self.implies(&self.rows[x.id].typ.clone(), lt, &self.rows[t.id].span.clone()) {
-                        if let Ok(rt) = self.implies(&rt, &into, &self.rows[t.id].span.clone()) {
-                           //if conversion rule matches, (L=>R), typeof(x) => L, R => Into :: kindof(Into)
-                           //eliminate typeof(x) :: kindof(Into)
-                           let l_narrowed = self.remove_kinded(&into_kind, &lt);
-                           //introduce typeof(x) (x) R
-                           let l_widened = rt.and(&l_narrowed);
-                           self.rows[t.id].typ = l_widened;
-                           //TODO: substitute term t into macro body if exists
-                           accept = true;
-                           break;
-                        }}
-                     }, _ => {} 
-                  }}
-                  if !accept {
-                     return Err(Error {
-                        kind: "Type Error".to_string(),
-                        rule: format!("could not cast {:?} into {:?}", &self.rows[x.id].typ, &into),
-                        span: self.rows[t.id].span.clone(),
-                     })
-                  }
+                  //non-normal casts are hard casts
+                  //in strict mode, hard casts much be proven as subsets
+                  //in casual mode, hard casts are gradually typed in @reduce
+                  self.rows[t.id].typ = into.clone();
                }
             }
             self.check_invariants(scope, t)?;

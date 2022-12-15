@@ -376,11 +376,11 @@ impl Type {
       }
       Ok(msubs)
    }
-   pub fn implies(tlc: &mut TLC, lt: &Type, rt: &Type) -> Type {
+   pub fn implies(tlc: &TLC, lt: &Type, rt: &Type) -> Type {
       let mut subs = Vec::new();
       Type::subs_implies(tlc, &mut subs, lt, rt)
    }
-   pub fn arrow_implies(tlc: &mut TLC, lt: &mut Type, rt: &mut Type, inarrow: InArrow) -> Type {
+   pub fn arrow_implies(tlc: &TLC, lt: &mut Type, rt: &mut Type, inarrow: InArrow) -> Type {
       let mut subs = Vec::new();
       *lt = tlc.extend_implied(lt);
       *lt = lt.normalize();
@@ -388,7 +388,7 @@ impl Type {
       *rt = rt.normalize();
       lt.__implication_unifier(&rt, &mut subs, inarrow).normalize()
    }
-   pub fn subs_implies(tlc: &mut TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
+   pub fn subs_implies(tlc: &TLC, subs: &mut Vec<(Type,Type)>, lt: &Type, rt: &Type) -> Type {
       let lt = tlc.extend_implied(lt).normalize();
       let rt = tlc.extend_implied(rt).normalize();
       lt.subs_implication_unifier(subs, &rt).normalize()

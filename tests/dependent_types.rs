@@ -61,27 +61,134 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(False || False || True) @reduce :[True];").unwrap();
    tlc.check(Some(l1), "(False || False || False) @reduce :[False];").unwrap();
 
+   tlc.check(Some(l1), "(0 == 0) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(0 == 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 == 0) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 == 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(2 == 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 == 2) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(10 == 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 == 11) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(0 == -1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(-1 == 5) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(345 == 67) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(890 == -5) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(-123 == 45) @reduce :[False];").unwrap();
+
+   tlc.check(Some(l1), "(0 != 0) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(0 != 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 != 0) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 != 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(2 != 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 != 2) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(10 != 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 != 11) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(0 != -1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(-1 != 5) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(345 != 67) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(890 != -5) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(-123 != 45) @reduce :[True];").unwrap();
+
+   tlc.check(Some(l1), "(0 < 0) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(0 < 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 < 0) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 < 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(2 < 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 < 2) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(10 < 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 < 11) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(0 < -1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(-1 < 5) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(345 < 67) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(67 < 345) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(890 < -5) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(-123 < 45) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(-123 < -45) @reduce :[True];").unwrap();
+
+   tlc.check(Some(l1), "(0 <= 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 <= 0) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 <= 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(2 <= 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 <= 2) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(10 <= 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 <= 11) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(0 <= -1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(-1 <= 5) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(345 <= 67) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(890 <= -5) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(-123 <= 45) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(-123 <= -45) @reduce :[True];").unwrap();
+
+   tlc.check(Some(l1), "(0 > 0) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(0 > 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 > 0) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 > 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(2 > 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 > 2) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(10 > 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 > 11) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(0 > -1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(-1 > 5) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(345 > 67) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(890 > -5) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(-123 > 45) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(-123 > -45) @reduce :[False];").unwrap();
+
+   tlc.check(Some(l1), "(0 >= 0) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(0 >= 1) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(1 >= 0) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 >= 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(2 >= 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 >= 2) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(10 >= 1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(1 >= 11) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(0 >= -1) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(-1 >= 5) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(345 >= 67) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(890 >= -5) @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "(-123 >= 45) @reduce :[False];").unwrap();
+   tlc.check(Some(l1), "(-123 > -45) @reduce :[False];").unwrap();
+
+   tlc.check(Some(l1), "(0 + 0) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(0 + 1) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(1 + 0) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(1 + 1) @reduce :[2];").unwrap();
+   tlc.check(Some(l1), "(2 + 1) @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "(1 + 2) @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "(7 + 8) @reduce :[15];").unwrap();
+   tlc.check(Some(l1), "(10 + 1) @reduce :[11];").unwrap();
+   tlc.check(Some(l1), "(1 + 11) @reduce :[12];").unwrap();
+   tlc.check(Some(l1), "(2 + 12) @reduce :[14];").unwrap();
+   tlc.check(Some(l1), "(25 + 125) @reduce :[150];").unwrap();
+   tlc.check(Some(l1), "(1 + 999) @reduce :[1000];").unwrap();
+   tlc.check(Some(l1), "(999 + 1) @reduce :[1000];").unwrap();
+
+   tlc.check(Some(l1), "((0:Whole) - (0:Whole)) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "((8:Whole) - (3:Whole)) @reduce :[5];").unwrap();
+   tlc.check(Some(l1), "((12:Whole) - (3:Whole)) @reduce :[9];").unwrap();
+   tlc.check(Some(l1), "((123:Whole) - (45:Whole)) @reduce :[78];").unwrap();
+
+   tlc.check(Some(l1), "(0 + -1) @reduce :[-1];").unwrap();
+   tlc.check(Some(l1), "(-1 + 5) @reduce :[4];").unwrap();
+   tlc.check(Some(l1), "(345 + 67) @reduce :[412];").unwrap();
+   tlc.check(Some(l1), "(890 + -5) @reduce :[885];").unwrap();
+   tlc.check(Some(l1), "(-123 + 45) @reduce :[-78];").unwrap();
+
+   tlc.check(Some(l1), "(0 - 0) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(0 - 1) @reduce :[-1];").unwrap();
+   tlc.check(Some(l1), "(1 - 0) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(1 - 1) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(2 - 1) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(1 - 2) @reduce :[-1];").unwrap();
+   tlc.check(Some(l1), "(10 - 1) @reduce :[9];").unwrap();
+   tlc.check(Some(l1), "(1 - 11) @reduce :[-10];").unwrap();
+   tlc.check(Some(l1), "(0 - -1) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(-1 - 5) @reduce :[-6];").unwrap();
+   tlc.check(Some(l1), "(345 - 67) @reduce :[278];").unwrap();
+   tlc.check(Some(l1), "(890 - -5) @reduce :[895];").unwrap();
+   tlc.check(Some(l1), "(-123 - 45) @reduce :[-168];").unwrap();
+
    /*
-   tlc.check(Some(l1), "let x:[0 + 0]; x: [0];").unwrap();
-   tlc.check(Some(l1), "let x:[0 + 1]; x: [1];").unwrap();
-   tlc.check(Some(l1), "let x:[1 + 0]; x: [1];").unwrap();
-   tlc.check(Some(l1), "let x:[1 + 1]; x: [2];").unwrap();
-   tlc.check(Some(l1), "let x:[2 + 1]; x: [3];").unwrap();
-   tlc.check(Some(l1), "let x:[1 + 2]; x: [3];").unwrap();
-   tlc.check(Some(l1), "let x:[2 + 2]; x: [4];").unwrap();
-   tlc.check(Some(l1), "let x:[1 + 1]; x: [3];").unwrap_err();
-   tlc.check(Some(l1), "let x:[2 + 2]; x: [5];").unwrap_err();
-
-   tlc.check(Some(l1), "let x:[0 - 0]; x: [0];").unwrap();
-   tlc.check(Some(l1), "let x:[0 - 1]; x: [-1];").unwrap();
-   tlc.check(Some(l1), "let x:[1 - 0]; x: [1];").unwrap();
-   tlc.check(Some(l1), "let x:[1 - 1]; x: [0];").unwrap();
-   tlc.check(Some(l1), "let x:[2 - 1]; x: [1];").unwrap();
-   tlc.check(Some(l1), "let x:[1 - 2]; x: [-1];").unwrap();
-   tlc.check(Some(l1), "let x:[2 - 2]; x: [0];").unwrap();
-   tlc.check(Some(l1), "let x:[5 - 2]; x: [0];").unwrap_err();
-   tlc.check(Some(l1), "let x:[2 - 5]; x: [1];").unwrap_err();
-
    tlc.check(Some(l1), "let x:[0*0]; x: [0];").unwrap();
    tlc.check(Some(l1), "let x:[0*1]; x: [0];").unwrap();
    tlc.check(Some(l1), "let x:[1*0]; x: [0];").unwrap();
