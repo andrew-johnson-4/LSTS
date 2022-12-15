@@ -272,7 +272,7 @@ impl Term {
          Term::Ident(n) => {
             if let Some(nv) = scope_constants.get(n) {
                Some(nv.clone())
-            } else { panic!("Term::reduce free variable: {}", n) }
+            } else { panic!("Term::reduce free variable: {} at {:?}", n, &tlc.rows[term.id].span) }
          },
          Term::Value(v) => {
             Constant::parse(tlc, &v)
@@ -299,7 +299,7 @@ impl Term {
                Literal::Var(lv) => {
                   if let Some(Constant::Literal(ls)) = scope_constants.get(lv) {
                      v += ls;
-                  } else { return None; }
+                  } else { panic!("Term::reduce free variable in literal {} at {:?}", lv, &tlc.rows[term.id].span) }
                },
             }}
             Some(Constant::Literal(v))

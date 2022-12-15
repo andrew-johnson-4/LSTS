@@ -33,6 +33,30 @@ let neg(x:Integer)             :Integer = match x {
    literal '-' xs => literal xs,
    literal xs => literal '-' xs,
 };
+let $"<"(x:Digit, y:Digit) :Boolean = match (x,y) {
+   (literal [0-8], literal '9') => True,
+   (literal [0-7], literal '8') => True,
+   (literal [0-6], literal '7') => True,
+   (literal [0-5], literal '6') => True,
+   (literal [0-4], literal '5') => True,
+   (literal [0-3], literal '4') => True,
+   (literal [0-2], literal '3') => True,
+   (literal [0-1], literal '2') => True,
+   (literal '0', literal '1') => True,
+   _ => False,
+};
+let inv(x:Digit) :Digit = match x {
+   (literal '0') => literal '0',
+   (literal '1') => literal '9',
+   (literal '2') => literal '8',
+   (literal '3') => literal '7',
+   (literal '4') => literal '6',
+   (literal '5') => literal '5',
+   (literal '6') => literal '4',
+   (literal '7') => literal '3',
+   (literal '8') => literal '2',
+   (literal '9') => literal '1',
+};
 let $"-"(x:Digit, y:Digit) :Digit = match (x,y) {
    //10x10 subtraction table
    (literal '0', literal '0') => literal "0",
@@ -100,6 +124,29 @@ let $"-"(x:Digit, y:Digit) :Digit = match (x,y) {
    (literal '9', literal '8') => literal "1",
    (literal '9', literal '9') => literal "0",
 
+   _ => fail, //x-y is undefined if x<y
+};
+let cat(x:Whole, y:Whole) :Whole = match (x,y) {
+   (literal '0', literal ys) => literal ys,
+   (literal '0' xs, literal ys) => literal xs ys,
+   _ => literal x y,
+};
+let $"-"(x:Whole, y:Whole) :Whole = match (x,y) {
+   (literal [0-9]xc, literal [0-9]yc) => (((literal xc:Digit) - (literal yc:Digit)) as Whole),
+   (literal xp [0-9]xc, literal [0-9]yc) => (
+      if (literal xc:Digit)<(literal yc:Digit)
+      then cat( (literal xp:Whole)-(1:Whole),
+                inv((literal yc:Digit)-(literal xc:Digit)) as Whole )
+      else cat( literal xp:Whole,
+                ((literal xc:Digit)-(literal yc:Digit) as Whole) )
+   ),
+   (literal xp [0-9]xc, literal yp [0-9]yc) => (
+      if (literal xc:Digit)<(literal yc:Digit)
+      then cat( ((literal xp:Whole)-(literal yp:Whole))-(1:Whole),
+                inv((literal yc:Digit)-(literal xc:Digit)) as Whole )
+      else cat( (literal xp:Whole)-(literal yp:Whole),
+                ((literal yc:Digit)-(literal xc:Digit) as Whole) )
+   ),
    _ => fail, //x-y is undefined if x<y
 };
 
@@ -217,15 +264,15 @@ let $"+"(x:Digit, y:Digit) :Whole = match (x,y) {
 };
 let cat_with_carry(pre: Whole, suf: Whole) :Whole = match (pre,suf) {
    (literal p, literal [0-9]s) => literal p s,
-   (literal '1', literal '1' ss) => literal '2' pp,
-   (literal '2', literal '1' ss) => literal '3' pp,
-   (literal '3', literal '1' ss) => literal '4' pp,
-   (literal '4', literal '1' ss) => literal '5' pp,
-   (literal '5', literal '1' ss) => literal '6' pp,
-   (literal '6', literal '1' ss) => literal '7' pp,
-   (literal '7', literal '1' ss) => literal '8' pp,
-   (literal '8', literal '1' ss) => literal '9' pp,
-   (literal '9', literal '1' ss) => literal "10" pp,
+   (literal '1', literal '1' ss) => literal '2' ss,
+   (literal '2', literal '1' ss) => literal '3' ss,
+   (literal '3', literal '1' ss) => literal '4' ss,
+   (literal '4', literal '1' ss) => literal '5' ss,
+   (literal '5', literal '1' ss) => literal '6' ss,
+   (literal '6', literal '1' ss) => literal '7' ss,
+   (literal '7', literal '1' ss) => literal '8' ss,
+   (literal '8', literal '1' ss) => literal '9' ss,
+   (literal '9', literal '1' ss) => literal "10" ss,
    (literal pp '0', literal '1' ss) => literal pp '1' ss,
    (literal pp '1', literal '1' ss) => literal pp '2' ss,
    (literal pp '2', literal '1' ss) => literal pp '3' ss,
@@ -247,8 +294,11 @@ let $"+"(x:Integer, y:Integer) :Integer = match (x,y) {
    (literal '0', _) => y,
    (_, literal '0') => x,
    (literal '-' xs, literal '-' ys) => neg(((literal xs:Whole) + (literal ys:Whole)) as Integer),
-   (literal '-' xs, literal ys) => fail,
-   (literal xs, literal '-' ys) => fail,
+   (literal '-' xs, literal ys) => (y + x),
+   (literal xs, literal '-' ys) => (
+      if (literal xs:Integer)>=(literal ys:Integer) then ((literal xs:Whole)-(literal ys:Whole) as Integer)
+      else neg(((literal ys:Whole)-(literal xs:Whole)) as Integer)
+   ),
    (literal xs, literal ys) => (((literal xs:Whole) + (literal ys:Whole)) as Integer),
 };
 let $"-"(x:Integer, y:Integer) :Integer = x + -y;
@@ -294,8 +344,8 @@ let $"<"(x:Whole, y:Whole)  :Boolean = match (x,y) {
    (literal '7', literal [8-9]) => True,
    (literal '8', literal '9') => True,
    (literal [0-9], literal [0-9]) => False,
-   (literal [0-9], literal [1-9] [0-9]) => True,
-   (literal [1-9] [0-9], literal [0-9]) => False,
+   (literal [0-9], literal _ [0-9]) => True,
+   (literal _ [0-9], literal [0-9]) => False,
    (literal p [0-9]sx, literal p [0-9]sy) => ((literal sx: Whole) < (literal sy: Whole)),
    (literal px [0-9]sx, literal py [0-9]) => ((literal px: Whole) < (literal py: Whole)),
 };

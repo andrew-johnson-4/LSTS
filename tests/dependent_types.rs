@@ -160,17 +160,20 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(1 + 11) @reduce :[12];").unwrap();
    tlc.check(Some(l1), "(2 + 12) @reduce :[14];").unwrap();
    tlc.check(Some(l1), "(25 + 125) @reduce :[150];").unwrap();
-   /*
    tlc.check(Some(l1), "(1 + 999) @reduce :[1000];").unwrap();
    tlc.check(Some(l1), "(999 + 1) @reduce :[1000];").unwrap();
+
+   tlc.check(Some(l1), "((0:Whole) - (0:Whole)) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "((8:Whole) - (3:Whole)) @reduce :[5];").unwrap();
+   tlc.check(Some(l1), "((12:Whole) - (3:Whole)) @reduce :[9];").unwrap();
+   tlc.check(Some(l1), "((123:Whole) - (45:Whole)) @reduce :[78];").unwrap();
+
    tlc.check(Some(l1), "(0 + -1) @reduce :[-1];").unwrap();
    tlc.check(Some(l1), "(-1 + 5) @reduce :[4];").unwrap();
    tlc.check(Some(l1), "(345 + 67) @reduce :[412];").unwrap();
    tlc.check(Some(l1), "(890 + -5) @reduce :[885];").unwrap();
    tlc.check(Some(l1), "(-123 + 45) @reduce :[-78];").unwrap();
-   */
 
-   /*
    tlc.check(Some(l1), "(0 - 0) @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(0 - 1) @reduce :[-1];").unwrap();
    tlc.check(Some(l1), "(1 - 0) @reduce :[1];").unwrap();
@@ -184,7 +187,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(345 - 67) @reduce :[278];").unwrap();
    tlc.check(Some(l1), "(890 - -5) @reduce :[895];").unwrap();
    tlc.check(Some(l1), "(-123 - 45) @reduce :[-168];").unwrap();
-   */
 
    /*
    tlc.check(Some(l1), "let x:[0*0]; x: [0];").unwrap();
