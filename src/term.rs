@@ -236,21 +236,21 @@ impl Term {
          _ => unimplemented!("Term::reduce_lhs({})", tlc.print_term(lhs))
       }
    }
-   pub fn check_hard_cast(tlc: &TLC, c: &Constant, ct: &Type) {
+   pub fn check_hard_cast(tlc: &TLC, c: &Constant, ct: &Type, t: TermId) {
       if let Constant::Literal(cl) = c {
          let mut tried = false;
          for (rt, rgx) in tlc.regexes.iter() {
          if ct == rt {
             tried = true;
             if !rgx.is_match(&cl) {
-               panic!("Term::reduce Value {:?} did not match regex for Type: {:?}", cl, ct);
+               panic!("Term::reduce Value {:?} did not match regex for Type: {:?} at {:?}", cl, ct, &tlc.rows[t.id].span);
             }
          }}
          if !tried {
-            panic!("Term::reduce could not find regex for Type: {:?}", ct);
+            panic!("Term::reduce could not find regex for Type: {:?} at {:?}", ct, &tlc.rows[t.id].span);
          }
       } else {
-         unimplemented!("TODO Term::reduce, dynamically check hard cast with gradual typing, {:?}: {:?}", c, ct)
+         unimplemented!("TODO Term::reduce, dynamically check hard cast with gradual typing, {:?}: {:?} at {:?}", c, ct, &tlc.rows[t.id].span)
       }
    }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, scope_constants: &HashMap<String,Constant>, term: TermId) -> Option<Constant> {
@@ -259,13 +259,13 @@ impl Term {
       match &tlc.rows[term.id].term {
          Term::Ascript(t,tt) => {
             if let Some(c) = Term::reduce(tlc, scope, scope_constants, *t) {
-               Term::check_hard_cast(tlc, &c, tt);
+               Term::check_hard_cast(tlc, &c, tt, term);
                Some(c)
             } else { None }
          },
          Term::As(t,tt) => {
             if let Some(c) = Term::reduce(tlc, scope, scope_constants, *t) {
-               Term::check_hard_cast(tlc, &c, tt);
+               Term::check_hard_cast(tlc, &c, tt, term);
                Some(c)
             } else { None }
          },
@@ -342,7 +342,7 @@ impl Term {
                   let mut sc = scope_constants.clone();
                   if Term::reduce_lhs(tlc, &mut sc, *l, dc) {
                      if tlc.fails(*r) {
-                        panic!("Term::reduce match failed on {:?} at {:?}", tlc.print_term(*l), &tlc.rows[r.id].span)
+                        panic!("Term::reduce match failed on {:?}={:?} at {:?}", tlc.print_term(*l), dc, &tlc.rows[r.id].span)
                      }
                      return Term::reduce(tlc, scope, &sc, *r);
                   }

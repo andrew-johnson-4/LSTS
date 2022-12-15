@@ -32,7 +32,25 @@ let neg(x:Integer)             :Integer = match x {
    literal '-' xs => literal xs,
    literal xs => literal '-' xs,
 };
+let cat_with_carry(x:Whole, xs:Whole) :Whole = match (x,xs) {
+   (_, literal d) => literal x d,
+   (literal '0', literal '1' d) => literal '1' d,
+   (literal '1', literal '1' d) => literal '2' d,
+   (literal '2', literal '1' d) => literal '3' d,
+   (literal '3', literal '1' d) => literal '4' d,
+   (literal '4', literal '1' d) => literal '5' d,
+   (literal '5', literal '1' d) => literal '6' d,
+   (literal '6', literal '1' d) => literal '7' d,
+   (literal '7', literal '1' d) => literal '8' d,
+   (literal '8', literal '1' d) => literal '9' d,
+   (literal '9', literal '1' d) => literal "10" d,
+   _ => fail
+};
 let $"+"(x:Whole, y:Whole) :Whole = match (x,y) {
+   (literal xp [0-9]xs, literal [0-9]ys) => cat_with_carry(literal xp:Whole, (literal xs:Whole)+(literal ys:Whole) ),
+   (literal [0-9]xs, literal yp [0-9]ys) => cat_with_carry(literal yp:Whole, (literal xs:Whole)+(literal ys:Whole) ),
+   (literal xp [0-9]xs, literal yp [0-9]ys) => cat_with_carry( (literal xp:Whole)+(literal yp:Whole), (literal xs:Whole)+(literal ys:Whole) ),
+
    //10x10 addition table
    (literal '0', literal '0') => literal "0",
    (literal '0', literal '1') => literal "1",
@@ -143,19 +161,16 @@ let $"+"(x:Whole, y:Whole) :Whole = match (x,y) {
    (literal '9', literal '7') => literal "16",
    (literal '9', literal '8') => literal "17",
    (literal '9', literal '9') => literal "18",
-
-   _ => fail,
 };
 let $"+"(x:Integer, y:Integer) :Integer = match (x,y) {
    (literal '0', _) => y,
    (_, literal '0') => x,
-   (literal '-' xs, literal '-' ys) => fail,
-   (literal '-' xs, literal '-' ys) => fail,
-   (literal '-' xs, literal '-' ys) => fail,
+   (literal '-' xs, literal '-' ys) => neg(((literal xs:Whole) + (literal ys:Whole)) as Integer),
+   (literal '-' xs, literal ys) => fail,
+   (literal xs, literal '-' ys) => fail,
    (literal xs, literal ys) => (((literal xs:Whole) + (literal ys:Whole)) as Integer),
-   //(literal '-' xs, literal '-' ys) => neg((literal xs:Whole) + (literal ys:Whole)),
 };
-let $"-"(x:Integer, y:Integer) :Integer; //sub
+let $"-"(x:Integer, y:Integer) :Integer = x + -y;
 let $"*"(x:Integer, y:Integer) :Integer; //mul
 let $"/"(x:Integer, y:Integer) :Integer; //div
 let $"%"(x:Integer, y:Integer) :Integer = match (x,y) {
