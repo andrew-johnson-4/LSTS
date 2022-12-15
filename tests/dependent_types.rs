@@ -194,8 +194,9 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(1 * 1) @reduce :[1];").unwrap();
    tlc.check(Some(l1), "(2 * 1) @reduce :[2];").unwrap();
    tlc.check(Some(l1), "(1 * 2) @reduce :[2];").unwrap();
-   tlc.check(Some(l1), "(10 * 1) @reduce :[10];").unwrap();
    tlc.check(Some(l1), "(1 * 11) @reduce :[11];").unwrap();
+   tlc.check(Some(l1), "(4 * 123) @reduce :[492];").unwrap();
+   tlc.check(Some(l1), "(10 * 1) @reduce :[10];").unwrap();
    tlc.check(Some(l1), "(0 * -1) @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(-1 * 5) @reduce :[-5];").unwrap();
    tlc.check(Some(l1), "(345 * 67) @reduce :[23115];").unwrap();

@@ -385,6 +385,10 @@ let $"*"(x:Digit, y:Digit) :Whole = match (x,y) {
 };
 let $"*"(x:Whole, y:Whole) :Whole = match (x,y) {
    (literal [0-9]xs, literal [0-9]ys) => ((literal xs:Digit) * (literal ys:Digit)),
+   (_, literal yp '0') => (match (x * (literal yp:Whole)) { literal xy => literal xy '0' }),
+   (_, literal yp [1-9]ys) => (x * (literal yp '0':Whole) + x * (literal ys:Whole)),
+   (literal xp '0', _) => (match (y * (literal xp:Whole)) { literal xy => literal xy '0' }),
+   (literal xp [1-9]xs, _) => ((literal xp '0':Whole) * y + (literal xs:Whole) * y),
 };
 let $"*"(x:Integer, y:Integer) :Integer = match (x,y) {
    (literal '-' xs, literal '-' ys) => (((literal xs:Whole) * (literal ys:Whole)) as Integer),

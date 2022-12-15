@@ -344,7 +344,11 @@ impl Term {
                      if tlc.fails(*r) {
                         panic!("Term::reduce match failed on {:?}={:?} at {:?}", tlc.print_term(*l), dc, &tlc.rows[r.id].span)
                      }
-                     return Term::reduce(tlc, scope, &sc, *r);
+                     let rv = Term::reduce(tlc, scope, &sc, *r);
+                     if let Some(ref rv) = rv {
+                        println!("match pattern arm {:?}={:?} => {:?} at {:?}", tlc.print_term(*l), dc, rv, &tlc.rows[r.id].span);
+                     }
+                     return rv;
                   }
                }
                panic!("Term::reduce match failed on default={:?} at {:?}", dc, &tlc.rows[term.id].span)
