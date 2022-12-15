@@ -302,7 +302,97 @@ let $"+"(x:Integer, y:Integer) :Integer = match (x,y) {
    (literal xs, literal ys) => (((literal xs:Whole) + (literal ys:Whole)) as Integer),
 };
 let $"-"(x:Integer, y:Integer) :Integer = x + -y;
-let $"*"(x:Integer, y:Integer) :Integer; //mul
+
+let $"*"(x:Digit, y:Digit) :Whole = match (x,y) {
+   //10x10 multiplication table
+   (literal '0', _) => literal "0",
+   (_, literal '0') => literal "0",
+
+   (literal '1', literal ys) => literal ys,
+   (literal xs, literal '1') => literal xs,
+
+   (literal '2', literal '2') => literal "4",
+   (literal '2', literal '3') => literal "6",
+   (literal '2', literal '4') => literal "8",
+   (literal '2', literal '5') => literal "10",
+   (literal '2', literal '6') => literal "12",
+   (literal '2', literal '7') => literal "14",
+   (literal '2', literal '8') => literal "16",
+   (literal '2', literal '9') => literal "18",
+
+   (literal '3', literal '2') => literal "6",
+   (literal '3', literal '3') => literal "9",
+   (literal '3', literal '4') => literal "12",
+   (literal '3', literal '5') => literal "15",
+   (literal '3', literal '6') => literal "18",
+   (literal '3', literal '7') => literal "21",
+   (literal '3', literal '8') => literal "24",
+   (literal '3', literal '9') => literal "27",
+
+   (literal '4', literal '2') => literal "8",
+   (literal '4', literal '3') => literal "12",
+   (literal '4', literal '4') => literal "16",
+   (literal '4', literal '5') => literal "20",
+   (literal '4', literal '6') => literal "24",
+   (literal '4', literal '7') => literal "28",
+   (literal '4', literal '8') => literal "32",
+   (literal '4', literal '9') => literal "36",
+
+   (literal '5', literal '2') => literal "10",
+   (literal '5', literal '3') => literal "15",
+   (literal '5', literal '4') => literal "20",
+   (literal '5', literal '5') => literal "25",
+   (literal '5', literal '6') => literal "30",
+   (literal '5', literal '7') => literal "35",
+   (literal '5', literal '8') => literal "40",
+   (literal '5', literal '9') => literal "45",
+
+   (literal '6', literal '2') => literal "12",
+   (literal '6', literal '3') => literal "18",
+   (literal '6', literal '4') => literal "24",
+   (literal '6', literal '5') => literal "30",
+   (literal '6', literal '6') => literal "36",
+   (literal '6', literal '7') => literal "42",
+   (literal '6', literal '8') => literal "48",
+   (literal '6', literal '9') => literal "54",
+
+   (literal '7', literal '2') => literal "14",
+   (literal '7', literal '3') => literal "21",
+   (literal '7', literal '4') => literal "28",
+   (literal '7', literal '5') => literal "35",
+   (literal '7', literal '6') => literal "42",
+   (literal '7', literal '7') => literal "49",
+   (literal '7', literal '8') => literal "56",
+   (literal '7', literal '9') => literal "63",
+
+   (literal '8', literal '2') => literal "16",
+   (literal '8', literal '3') => literal "24",
+   (literal '8', literal '4') => literal "32",
+   (literal '8', literal '5') => literal "40",
+   (literal '8', literal '6') => literal "48",
+   (literal '8', literal '7') => literal "56",
+   (literal '8', literal '8') => literal "64",
+   (literal '8', literal '9') => literal "72",
+
+   (literal '9', literal '2') => literal "18",
+   (literal '9', literal '3') => literal "27",
+   (literal '9', literal '4') => literal "36",
+   (literal '9', literal '5') => literal "45",
+   (literal '9', literal '6') => literal "54",
+   (literal '9', literal '7') => literal "63",
+   (literal '9', literal '8') => literal "72",
+   (literal '9', literal '9') => literal "81",
+};
+let $"*"(x:Whole, y:Whole) :Whole = match (x,y) {
+   (literal [0-9]xs, literal [0-9]ys) => ((literal xs:Digit) * (literal ys:Digit)),
+};
+let $"*"(x:Integer, y:Integer) :Integer = match (x,y) {
+   (literal '-' xs, literal '-' ys) => (((literal xs:Whole) * (literal ys:Whole)) as Integer),
+   (literal '-' xs, literal ys) => neg((literal xs:Whole) * (literal ys:Whole) as Integer),
+   (literal xs, literal '-' ys) => neg((literal xs:Whole) * (literal ys:Whole) as Integer),
+   (literal xs, literal ys) => (((literal xs:Whole) * (literal ys:Whole)) as Integer),
+};
+
 let $"/"(x:Integer, y:Integer) :Integer; //div
 let $"%"(x:Integer, y:Integer) :Integer = match (x,y) {
    literal '0' => literal '0',

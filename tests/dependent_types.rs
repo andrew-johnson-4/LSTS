@@ -188,17 +188,22 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(890 - -5) @reduce :[895];").unwrap();
    tlc.check(Some(l1), "(-123 - 45) @reduce :[-168];").unwrap();
 
-   /*
-   tlc.check(Some(l1), "let x:[0*0]; x: [0];").unwrap();
-   tlc.check(Some(l1), "let x:[0*1]; x: [0];").unwrap();
-   tlc.check(Some(l1), "let x:[1*0]; x: [0];").unwrap();
-   tlc.check(Some(l1), "let x:[1*1]; x: [1];").unwrap();
-   tlc.check(Some(l1), "let x:[2*1]; x: [2];").unwrap();
-   tlc.check(Some(l1), "let x:[1*2]; x: [2];").unwrap();
-   tlc.check(Some(l1), "let x:[2*2]; x: [4];").unwrap();
-   tlc.check(Some(l1), "let x:[2*2]; x: [5];").unwrap_err();
-   tlc.check(Some(l1), "let x:[1*3]; x: [4];").unwrap_err();
+   tlc.check(Some(l1), "(0 * 0) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(0 * 1) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(1 * 0) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(1 * 1) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(2 * 1) @reduce :[2];").unwrap();
+   tlc.check(Some(l1), "(1 * 2) @reduce :[2];").unwrap();
+   tlc.check(Some(l1), "(10 * 1) @reduce :[10];").unwrap();
+   tlc.check(Some(l1), "(1 * 11) @reduce :[11];").unwrap();
+   tlc.check(Some(l1), "(0 * -1) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(-1 * 5) @reduce :[-5];").unwrap();
+   tlc.check(Some(l1), "(345 * 67) @reduce :[23115];").unwrap();
+   tlc.check(Some(l1), "(890 * -5) @reduce :[-4450];").unwrap();
+   tlc.check(Some(l1), "(-123 * 45) @reduce :[-5535];").unwrap();
+   tlc.check(Some(l1), "(-5 * -6) @reduce :[30];").unwrap();
 
+   /*
    tlc.check(Some(l1), "let x:[0/0]; x: [NaN];").unwrap();
    tlc.check(Some(l1), "let x:[0/1]; x: [0];").unwrap();
    tlc.check(Some(l1), "let x:[1/0]; x: [NaN];").unwrap();
