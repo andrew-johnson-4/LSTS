@@ -34,6 +34,8 @@ impl Scope {
       } else if candidates.len() == 1 {
          return Some(candidates[0].1);
       } else {
+         //specialization would be unsound here because of the Multiple Value rule
+         //we follow all arrows in the Type Checker, so we should assume the same here
          let mut cs = "".to_string();
          for (ct,_) in candidates.iter() {
             cs += &format!("\n{} : {:?}", v, ct);

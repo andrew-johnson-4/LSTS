@@ -236,26 +236,36 @@ impl Term {
          _ => unimplemented!("Term::reduce_lhs({})", tlc.print_term(lhs))
       }
    }
+   pub fn check_hard_cast(tlc: &TLC, c: &Constant, ct: &Type) {
+      if let Constant::Literal(cl) = c {
+         let mut tried = false;
+         for (rt, rgx) in tlc.regexes.iter() {
+         if ct == rt {
+            tried = true;
+            if !rgx.is_match(&cl) {
+               panic!("Term::reduce Value {:?} did not match regex for Type: {:?}", cl, ct);
+            }
+         }}
+         if !tried {
+            panic!("Term::reduce could not find regex for Type: {:?}", ct);
+         }
+      } else {
+         unimplemented!("TODO Term::reduce, dynamically check hard cast with gradual typing, {:?}: {:?}", c, ct)
+      }
+   }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, scope_constants: &HashMap<String,Constant>, term: TermId) -> Option<Constant> {
       //scope is only used to look up functions
       //all other variables should already be converted to values
       match &tlc.rows[term.id].term {
          Term::Ascript(t,tt) => {
-            if let Some(Constant::Literal(cl)) = Term::reduce(tlc, scope, scope_constants, *t) {
-               let mut tried = false;
-               for (rt, rgx) in tlc.regexes.iter() {
-               if tt == rt {
-                  tried = true;
-                  if !rgx.is_match(&cl) {
-                      panic!("Term::reduce Value {:?} did not match regex for Type: {:?} at {:?}", cl, tt, &tlc.rows[term.id].span);
-                  }
-               }}
-               if !tried {
-                  panic!("Term::reduce could not find regex for Type: {:?}", tt);
-               }
-               Some(Constant::Literal(cl))
-            } else if let Some(c) = Term::reduce(tlc, scope, scope_constants, *t) {
-               //TODO Term::reduce, dynamically check that Value satisfies Type
+            if let Some(c) = Term::reduce(tlc, scope, scope_constants, *t) {
+               Term::check_hard_cast(tlc, &c, tt);
+               Some(c)
+            } else { None }
+         },
+         Term::As(t,tt) => {
+            if let Some(c) = Term::reduce(tlc, scope, scope_constants, *t) {
+               Term::check_hard_cast(tlc, &c, tt);
                Some(c)
             } else { None }
          },
