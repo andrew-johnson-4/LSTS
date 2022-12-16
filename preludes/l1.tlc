@@ -109,6 +109,9 @@ let $".decimal"(x: Binary) :Whole = match x {
    literal "111" => 7,
    literal "1000" => 8,
    literal "1001" => 9,
+   _ => match ((x / (1010:Binary)).decimal, (x % (1010:Binary)).decimal) {
+      (literal p,literal s) => literal p s,
+   },
 };
 let $".decimal"(x: SignedBinary) :Integer = match x {
    literal '-' xs => neg((literal xs:Binary).decimal),
