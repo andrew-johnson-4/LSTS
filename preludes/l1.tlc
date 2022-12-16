@@ -18,23 +18,64 @@ let not(b:Boolean): Boolean = match b { True => False, False => True, };
 let $"&&"(a:Boolean, b:Boolean): Boolean = match (a,b) { (True,True) => True, _ => False, };
 let $"||"(a:Boolean, b:Boolean): Boolean = match (a,b) { (False,False) => False, _ => True, };
 
-let $"=="(x:Integer, y:Integer): Boolean = match (x,y) { (p,p) => True, _ => False };
-let $"=="(x:Whole, y:Whole): Boolean = match (x,y) { (p,p) => True, _ => False };
 let $"=="(x:Binary, y:Binary): Boolean = match (x,y) { (p,p) => True, _ => False };
 let $"=="(x:SignedBinary, y:SignedBinary): Boolean = match (x,y) { (p,p) => True, _ => False };
+let $"=="(x:Whole, y:Whole): Boolean = match (x,y) { (p,p) => True, _ => False };
+let $"=="(x:Integer, y:Integer): Boolean = match (x,y) { (p,p) => True, _ => False };
 
-let $"!="(x:Integer, y:Integer): Boolean = not(x == y);
-let $"!="(x:Whole, y:Whole): Boolean = not(x == y);
 let $"!="(x:Binary, y:Binary): Boolean = not(x == y);
 let $"!="(x:SignedBinary, y:SignedBinary): Boolean = not(x == y);
+let $"!="(x:Whole, y:Whole): Boolean = not(x == y);
+let $"!="(x:Integer, y:Integer): Boolean = not(x == y);
+
+let $"<"(x:Binary, y:Binary): Boolean = match (x,y) {
+    (literal '0', literal '1') => True,
+    (literal [01], literal [01]) => False,
+    (literal [01], literal yp [01]) => True,
+    (literal xp [01], literal [01]) => False,
+    (literal xp [01]xs, literal yp [01]ys) => match ((literal xp:Binary),(literal yp:Binary)) {
+       (p,p) => ((literal xs:Binary) < (literal ys:Binary)),
+       _ => ((literal xp:Binary) < (literal yp:Binary)),
+    },
+};
+let $"<"(x:SignedBinary, y:SignedBinary): Boolean = match (x,y) {
+    (literal '-' xs, literal '-' ys) => ((literal ys:Binary) < (literal xs:Binary)),
+    (literal '-' _, _) => True,
+    (_, literal '-' _) => False,
+    (literal xs, literal ys) => ((literal xs:Binary) < (literal ys:Binary)),
+};
+let $"<"(x:Whole, y:Whole): Boolean = x.binary < y.binary;
+let $"<"(x:Integer, y:Integer): Boolean = x.binary < y.binary;
+
+let $"<="(x:Binary, y:Binary): Boolean = x==y || x<y;
+let $"<="(x:SignedBinary, y:SignedBinary): Boolean = x==y || x<y;
+let $"<="(x:Whole, y:Whole): Boolean = x==y || x<y;
+let $"<="(x:Integer, y:Integer): Boolean = x==y || x<y;
+
+let $">"(x:Binary, y:Binary): Boolean = not(x <= y);
+let $">"(x:SignedBinary, y:SignedBinary): Boolean = not(x <= y);
+let $">"(x:Whole, y:Whole): Boolean = not(x <= y);
+let $">"(x:Integer, y:Integer): Boolean = not(x <= y);
+
+let $">="(x:Binary, y:Binary): Boolean = not(x < y);
+let $">="(x:SignedBinary, y:SignedBinary): Boolean = not(x < y);
+let $">="(x:Whole, y:Whole): Boolean = not(x < y);
+let $">="(x:Integer, y:Integer): Boolean = not(x < y);
+
+let pos(x: Binary): Binary = x;
+let pos(x: SignedBinary): SignedBinary = x;
+let pos(x:Whole): Whole = x;
+let pos(x: Integer): Integer = x;
 
 let neg(x: Binary): SignedBinary = literal '-' x;
 let neg(x: SignedBinary): SignedBinary = match x {
+   literal '0' => literal '0',
    literal '-' xs => literal xs,
    literal xs => literal '-' xs,
 };
 let neg(x:Whole): Integer = literal '-' x;
 let neg(x: Integer): Integer = match x {
+   literal '0' => literal '0',
    literal '-' xs => literal xs,
    literal xs => literal '-' xs,
 };
@@ -63,15 +104,6 @@ let $".decimal"(x: SignedBinary) :Integer = match x {
    literal xs => ((literal xs:Binary).decimal as Integer),
 };
 
-let $"<"(x:Binary, y:Binary) :Boolean = match (x,y) {
-   (literal '0', literal '1') => True,
-   (literal [01], literal [01]) => False,
-   (literal [01], literal _ [01]) => True,
-   (literal _ [01], literal [01]) => False,
-   (literal p [01]xs, literal p [01]ys) => ((literal xs:Binary) < (literal ys:Binary)),
-   (literal xp [01], literal yp [01]) => ((literal xp:Binary) < (literal yp:Binary)),
-};
-
 let $"+"(x: Binary, y: Binary) :Binary = match (x,y) {
    (literal '0', _) => literal y,
    (_, literal '0') => literal x,
@@ -85,7 +117,9 @@ let $"+"(x: Binary, y: Binary) :Binary = match (x,y) {
       (literal xyp, literal '1' [01]xys) => match ((literal xyp:Binary)+(1:Binary)) { literal xypp => literal xypp xys }
    },
 };
+
 let $"-"(x: Binary, y: Binary) :Binary;
+
 let $"*"(x: Binary, y: Binary) :Binary = match (x,y) {
    (literal '0', _) => literal "0",
    (_, literal '0') => literal "0",
@@ -100,44 +134,13 @@ let $"*"(x: Binary, y: Binary) :Binary = match (x,y) {
       ((literal xs:Binary)*(literal ys:Binary))
    ),
 };
+
 let $"/"(x: Binary, y: Binary) :Binary;
+
 let $"%"(x: Binary, y: Binary) :Binary;
+
 let $"^"(x: Binary, y: Binary) :Binary;
 
-//Operators
-
-
-let $"-"(x:Whole, y:Whole) :Whole;
-let $"+"(x:Whole, y:Whole) :Whole;
-let $"+"(x:Integer, y:Integer) :Integer;
-let $"-"(x:Integer, y:Integer) :Integer = x + -y;
-let $"*"(x:Whole, y:Whole) :Whole;
-let $"*"(x:Integer, y:Integer) :Integer;
-let $"/"(x:Integer, y:Integer) :Integer = match (x,y) {
-   (literal '-' xs, literal '-' ys) => fail,
-   (literal '-' xs, literal ys) => fail,
-   (literal xs, literal '-' ys) => fail,
-   (literal xs, literal ys) => (((literal xs:Whole).binary / (literal ys:Whole).binary).decimal as Integer),
-};
-let $"%"(x:Integer, y:Integer) :Integer = match (x,y) {
-   (literal '-' xs, literal '-' ys) => fail,
-   (literal '-' xs, literal ys) => fail,
-   (literal xs, literal '-' ys) => fail,
-   (literal xs, literal ys) => (((literal xs:Whole).binary % (literal ys:Whole).binary).decimal as Integer),
-};
-let $"^"(x:Integer, y:Integer) :Integer = match (x,y) {
-   (literal '-' xs, literal '-' ys) => fail,
-   (literal '-' xs, literal ys) => fail,
-   (literal xs, literal '-' ys) => fail,
-   (literal xs, literal ys) => (((literal xs:Whole).binary ^ (literal ys:Whole).binary).decimal as Integer),
-};
-
-let $"!="(x:Integer, y:Integer):Boolean = x.binary != y.binary;
-let $"<"(x:Integer, y:Integer)  :Boolean = x.binary < y.binary;
-let $"<"(x:Whole, y:Whole)  :Boolean = x.binary < y.binary;
-let $"<="(x:Integer, y:Integer) :Boolean = x.binary <= y.binary;
-let $">"(x:Integer, y:Integer)  :Boolean = x.binary > y.binary;
-let $">="(x:Integer, y:Integer) :Boolean = x.binary >= y.binary;
 
 //Sugar
 let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;
