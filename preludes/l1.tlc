@@ -80,6 +80,15 @@ let neg(x: Integer): Integer = match x {
    literal xs => literal '-' xs,
 };
 
+let $".abs"(x: SignedBinary): SignedBinary = match x {
+   literal '-' xs => literal xs,
+   literal xs => literal xs,
+};
+let $".abs"(x: Integer): Integer = match x {
+   literal '-' xs => literal xs,
+   literal xs => literal xs,
+};
+
 let $".binary"(x: Integer) :SignedBinary = match x {
    literal '-' xs => neg((literal xs:Whole).binary),
    literal xs => ((literal xs:Whole).binary as SignedBinary),
