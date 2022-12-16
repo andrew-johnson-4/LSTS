@@ -3,7 +3,6 @@
 type Boolean = True | False;
 type Integer        = /^(0|([-]?[1-9][0-9]*))$/;
 type Whole          = /^(0|([1-9][0-9]*))$/;
-type Digit          = /^[0-9]$/;
 type Binary         = /^(0|([01]+))$/;
 type SignedBinary   = /^(0|([-]?[1][01]*))$/;
 type Tensor<T> = { };
@@ -14,6 +13,17 @@ type Even:Integer
      where. self%2 | 0;
 type Odd:Integer
      where. self%2 | 1;
+
+let neg(x: Binary): SignedBinary = literal '-' x;
+let neg(x: SignedBinary): SignedBinary = match x {
+   literal '-' xs => literal xs,
+   literal xs => literal '-' xs,
+};
+let neg(x:Whole): Integer = literal '-' x;
+let neg(x: Integer): Integer = match x {
+   literal '-' xs => literal xs,
+   literal xs => literal '-' xs,
+};
 
 let $".binary"(x: Integer) :SignedBinary = match x {
    literal '-' xs => neg((literal xs:Whole).binary),
@@ -32,8 +42,22 @@ let $".binary"(x: Whole) :Binary = match x {
    literal '9' => literal "1001",
    literal xp [0-9]xs => ((literal xp:Whole).binary * (1010:Binary) + (literal xs:Whole).binary),
 };
-let neg(x: Binary) :SignedBinary = literal '-' x;
+
 let $".decimal"(x: Binary) :Whole;
+let $".decimal"(x: SignedBinary) :Integer = match x {
+   literal '-' xs => neg((literal xs:Binary).decimal),
+   literal xs => ((literal xs:Binary).decimal as Integer),
+};
+
+let $"<"(x:Binary, y:Binary) :Boolean = match (x,y) {
+   (literal '0', literal '1') => True,
+   (literal [01], literal [01]) => False,
+   (literal [01], literal _ [01]) => True,
+   (literal _ [01], literal [01]) => False,
+   (literal p [01]xs, literal p [01]ys) => ((literal xs:Binary) < (literal ys:Binary)),
+   (literal xp [01], literal yp [01]) => ((literal xp:Binary) < (literal yp:Binary)),
+};
+
 let $"+"(x: Binary, y: Binary) :Binary = match (x,y) {
    (literal '0', _) => literal y,
    (_, literal '0') => literal x,
@@ -80,376 +104,13 @@ let $"||"(a:Boolean, b:Boolean):Boolean = match (a,b) {
    _ => True,
 };
 
-let pos(x:Integer)             :Integer = x;
-let neg(x:Integer)             :Integer = match x {
-   literal '0' => literal '0',
-   literal '-' xs => literal xs,
-   literal xs => literal '-' xs,
-};
-let $"<"(x:Digit, y:Digit) :Boolean = match (x,y) {
-   (literal [0-8], literal '9') => True,
-   (literal [0-7], literal '8') => True,
-   (literal [0-6], literal '7') => True,
-   (literal [0-5], literal '6') => True,
-   (literal [0-4], literal '5') => True,
-   (literal [0-3], literal '4') => True,
-   (literal [0-2], literal '3') => True,
-   (literal [0-1], literal '2') => True,
-   (literal '0', literal '1') => True,
-   _ => False,
-};
-let inv(x:Digit) :Digit = match x {
-   (literal '0') => literal '0',
-   (literal '1') => literal '9',
-   (literal '2') => literal '8',
-   (literal '3') => literal '7',
-   (literal '4') => literal '6',
-   (literal '5') => literal '5',
-   (literal '6') => literal '4',
-   (literal '7') => literal '3',
-   (literal '8') => literal '2',
-   (literal '9') => literal '1',
-};
-let $"-"(x:Digit, y:Digit) :Digit = match (x,y) {
-   //10x10 subtraction table
-   (literal '0', literal '0') => literal "0",
 
-   (literal '1', literal '0') => literal "1",
-   (literal '1', literal '1') => literal "0",
-
-   (literal '2', literal '0') => literal "2",
-   (literal '2', literal '1') => literal "1",
-   (literal '2', literal '2') => literal "0",
-
-   (literal '3', literal '0') => literal "3",
-   (literal '3', literal '1') => literal "2",
-   (literal '3', literal '2') => literal "1",
-   (literal '3', literal '3') => literal "0",
-
-   (literal '4', literal '0') => literal "4",
-   (literal '4', literal '1') => literal "3",
-   (literal '4', literal '2') => literal "2",
-   (literal '4', literal '3') => literal "1",
-   (literal '4', literal '4') => literal "0",
-
-   (literal '5', literal '0') => literal "5",
-   (literal '5', literal '1') => literal "4",
-   (literal '5', literal '2') => literal "3",
-   (literal '5', literal '3') => literal "2",
-   (literal '5', literal '4') => literal "1",
-   (literal '5', literal '5') => literal "0",
-
-   (literal '6', literal '0') => literal "6",
-   (literal '6', literal '1') => literal "5",
-   (literal '6', literal '2') => literal "4",
-   (literal '6', literal '3') => literal "3",
-   (literal '6', literal '4') => literal "2",
-   (literal '6', literal '5') => literal "1",
-   (literal '6', literal '6') => literal "0",
-
-   (literal '7', literal '0') => literal "7",
-   (literal '7', literal '1') => literal "6",
-   (literal '7', literal '2') => literal "5",
-   (literal '7', literal '3') => literal "4",
-   (literal '7', literal '4') => literal "3",
-   (literal '7', literal '5') => literal "2",
-   (literal '7', literal '6') => literal "1",
-   (literal '7', literal '7') => literal "0",
-
-   (literal '8', literal '0') => literal "8",
-   (literal '8', literal '1') => literal "7",
-   (literal '8', literal '2') => literal "6",
-   (literal '8', literal '3') => literal "5",
-   (literal '8', literal '4') => literal "4",
-   (literal '8', literal '5') => literal "3",
-   (literal '8', literal '6') => literal "2",
-   (literal '8', literal '7') => literal "1",
-   (literal '8', literal '8') => literal "0",
-
-   (literal '9', literal '0') => literal "9",
-   (literal '9', literal '1') => literal "8",
-   (literal '9', literal '2') => literal "7",
-   (literal '9', literal '3') => literal "6",
-   (literal '9', literal '4') => literal "5",
-   (literal '9', literal '5') => literal "4",
-   (literal '9', literal '6') => literal "3",
-   (literal '9', literal '7') => literal "2",
-   (literal '9', literal '8') => literal "1",
-   (literal '9', literal '9') => literal "0",
-
-   _ => fail, //x-y is undefined if x<y
-};
-let cat(x:Whole, y:Whole) :Whole = match (x,y) {
-   (literal '0', literal ys) => literal ys,
-   (literal '0' xs, literal ys) => literal xs ys,
-   _ => literal x y,
-};
-let $"-"(x:Whole, y:Whole) :Whole = match (x,y) {
-   (literal [0-9]xc, literal [0-9]yc) => (((literal xc:Digit) - (literal yc:Digit)) as Whole),
-   (literal xp [0-9]xc, literal [0-9]yc) => (
-      if (literal xc:Digit)<(literal yc:Digit)
-      then cat( (literal xp:Whole)-(1:Whole),
-                inv((literal yc:Digit)-(literal xc:Digit)) as Whole )
-      else cat( literal xp:Whole,
-                ((literal xc:Digit)-(literal yc:Digit) as Whole) )
-   ),
-   (literal xp [0-9]xc, literal yp [0-9]yc) => (
-      if (literal xc:Digit)<(literal yc:Digit)
-      then cat( ((literal xp:Whole)-(literal yp:Whole))-(1:Whole),
-                inv((literal yc:Digit)-(literal xc:Digit)) as Whole )
-      else cat( (literal xp:Whole)-(literal yp:Whole),
-                ((literal yc:Digit)-(literal xc:Digit) as Whole) )
-   ),
-   _ => fail, //x-y is undefined if x<y
-};
-
-let $"+"(x:Digit, y:Digit) :Whole = match (x,y) {
-   //10x10 addition table
-   (literal '0', literal '0') => literal "0",
-   (literal '0', literal '1') => literal "1",
-   (literal '0', literal '2') => literal "2",
-   (literal '0', literal '3') => literal "3",
-   (literal '0', literal '4') => literal "4",
-   (literal '0', literal '5') => literal "5",
-   (literal '0', literal '6') => literal "6",
-   (literal '0', literal '7') => literal "7",
-   (literal '0', literal '8') => literal "8",
-   (literal '0', literal '9') => literal "9",
-
-   (literal '1', literal '0') => literal "1",
-   (literal '1', literal '1') => literal "2",
-   (literal '1', literal '2') => literal "3",
-   (literal '1', literal '3') => literal "4",
-   (literal '1', literal '4') => literal "5",
-   (literal '1', literal '5') => literal "6",
-   (literal '1', literal '6') => literal "7",
-   (literal '1', literal '7') => literal "8",
-   (literal '1', literal '8') => literal "9",
-   (literal '1', literal '9') => literal "10",
-
-   (literal '2', literal '0') => literal "2",
-   (literal '2', literal '1') => literal "3",
-   (literal '2', literal '2') => literal "4",
-   (literal '2', literal '3') => literal "5",
-   (literal '2', literal '4') => literal "6",
-   (literal '2', literal '5') => literal "7",
-   (literal '2', literal '6') => literal "8",
-   (literal '2', literal '7') => literal "9",
-   (literal '2', literal '8') => literal "10",
-   (literal '2', literal '9') => literal "11",
-
-   (literal '3', literal '0') => literal "3",
-   (literal '3', literal '1') => literal "4",
-   (literal '3', literal '2') => literal "5",
-   (literal '3', literal '3') => literal "6",
-   (literal '3', literal '4') => literal "7",
-   (literal '3', literal '5') => literal "8",
-   (literal '3', literal '6') => literal "9",
-   (literal '3', literal '7') => literal "10",
-   (literal '3', literal '8') => literal "11",
-   (literal '3', literal '9') => literal "12",
-
-   (literal '4', literal '0') => literal "4",
-   (literal '4', literal '1') => literal "5",
-   (literal '4', literal '2') => literal "6",
-   (literal '4', literal '3') => literal "7",
-   (literal '4', literal '4') => literal "8",
-   (literal '4', literal '5') => literal "9",
-   (literal '4', literal '6') => literal "10",
-   (literal '4', literal '7') => literal "11",
-   (literal '4', literal '8') => literal "12",
-   (literal '4', literal '9') => literal "13",
-
-   (literal '5', literal '0') => literal "5",
-   (literal '5', literal '1') => literal "6",
-   (literal '5', literal '2') => literal "7",
-   (literal '5', literal '3') => literal "8",
-   (literal '5', literal '4') => literal "9",
-   (literal '5', literal '5') => literal "10",
-   (literal '5', literal '6') => literal "11",
-   (literal '5', literal '7') => literal "12",
-   (literal '5', literal '8') => literal "13",
-   (literal '5', literal '9') => literal "14",
-
-   (literal '6', literal '0') => literal "6",
-   (literal '6', literal '1') => literal "7",
-   (literal '6', literal '2') => literal "8",
-   (literal '6', literal '3') => literal "9",
-   (literal '6', literal '4') => literal "10",
-   (literal '6', literal '5') => literal "11",
-   (literal '6', literal '6') => literal "12",
-   (literal '6', literal '7') => literal "13",
-   (literal '6', literal '8') => literal "14",
-   (literal '6', literal '9') => literal "15",
-
-   (literal '7', literal '0') => literal "7",
-   (literal '7', literal '1') => literal "8",
-   (literal '7', literal '2') => literal "9",
-   (literal '7', literal '3') => literal "10",
-   (literal '7', literal '4') => literal "11",
-   (literal '7', literal '5') => literal "12",
-   (literal '7', literal '6') => literal "13",
-   (literal '7', literal '7') => literal "14",
-   (literal '7', literal '8') => literal "15",
-   (literal '7', literal '9') => literal "16",
-
-   (literal '8', literal '0') => literal "8",
-   (literal '8', literal '1') => literal "9",
-   (literal '8', literal '2') => literal "10",
-   (literal '8', literal '3') => literal "11",
-   (literal '8', literal '4') => literal "12",
-   (literal '8', literal '5') => literal "13",
-   (literal '8', literal '6') => literal "14",
-   (literal '8', literal '7') => literal "15",
-   (literal '8', literal '8') => literal "16",
-   (literal '8', literal '9') => literal "17",
-
-   (literal '9', literal '0') => literal "9",
-   (literal '9', literal '1') => literal "10",
-   (literal '9', literal '2') => literal "11",
-   (literal '9', literal '3') => literal "12",
-   (literal '9', literal '4') => literal "13",
-   (literal '9', literal '5') => literal "14",
-   (literal '9', literal '6') => literal "15",
-   (literal '9', literal '7') => literal "16",
-   (literal '9', literal '8') => literal "17",
-   (literal '9', literal '9') => literal "18",
-};
-let cat_with_carry(pre: Whole, suf: Whole) :Whole = match (pre,suf) {
-   (literal p, literal [0-9]s) => literal p s,
-   (literal '1', literal '1' ss) => literal '2' ss,
-   (literal '2', literal '1' ss) => literal '3' ss,
-   (literal '3', literal '1' ss) => literal '4' ss,
-   (literal '4', literal '1' ss) => literal '5' ss,
-   (literal '5', literal '1' ss) => literal '6' ss,
-   (literal '6', literal '1' ss) => literal '7' ss,
-   (literal '7', literal '1' ss) => literal '8' ss,
-   (literal '8', literal '1' ss) => literal '9' ss,
-   (literal '9', literal '1' ss) => literal "10" ss,
-   (literal pp '0', literal '1' ss) => literal pp '1' ss,
-   (literal pp '1', literal '1' ss) => literal pp '2' ss,
-   (literal pp '2', literal '1' ss) => literal pp '3' ss,
-   (literal pp '3', literal '1' ss) => literal pp '4' ss,
-   (literal pp '4', literal '1' ss) => literal pp '5' ss,
-   (literal pp '5', literal '1' ss) => literal pp '6' ss,
-   (literal pp '6', literal '1' ss) => literal pp '7' ss,
-   (literal pp '7', literal '1' ss) => literal pp '8' ss,
-   (literal pp '8', literal '1' ss) => literal pp '9' ss,
-   (literal pp '9', literal '1' ss) => cat_with_carry(literal pp:Whole, literal "10" ss:Whole),
-};
-let $"+"(x:Whole, y:Whole) :Whole = match (x,y) {
-   (literal [0-9]xc, literal [0-9]yc) => ((literal xc:Digit) + (literal yc:Digit)),
-   (literal xp [0-9]xs, literal [0-9]ys) => cat_with_carry(literal xp:Whole, (literal xs:Digit)+(literal ys:Digit) ),
-   (literal [0-9]xs, literal yp [0-9]ys) => cat_with_carry(literal yp:Whole, (literal xs:Digit)+(literal ys:Digit) ),
-   (literal xp [0-9]xs, literal yp [0-9]ys) => cat_with_carry((literal xp:Whole)+(literal yp:Whole), (literal xs:Digit)+(literal ys:Digit) ),
-};
-let $"+"(x:Integer, y:Integer) :Integer = match (x,y) {
-   (literal '0', _) => y,
-   (_, literal '0') => x,
-   (literal '-' xs, literal '-' ys) => neg(((literal xs:Whole) + (literal ys:Whole)) as Integer),
-   (literal '-' xs, literal ys) => (y + x),
-   (literal xs, literal '-' ys) => (
-      if (literal xs:Integer)>=(literal ys:Integer) then ((literal xs:Whole)-(literal ys:Whole) as Integer)
-      else neg(((literal ys:Whole)-(literal xs:Whole)) as Integer)
-   ),
-   (literal xs, literal ys) => (((literal xs:Whole) + (literal ys:Whole)) as Integer),
-};
+let $"-"(x:Whole, y:Whole) :Whole;
+let $"+"(x:Whole, y:Whole) :Whole;
+let $"+"(x:Integer, y:Integer) :Integer;
 let $"-"(x:Integer, y:Integer) :Integer = x + -y;
-
-let $"*"(x:Digit, y:Digit) :Whole = match (x,y) {
-   //10x10 multiplication table
-   (literal '0', _) => literal "0",
-   (_, literal '0') => literal "0",
-
-   (literal '1', literal ys) => literal ys,
-   (literal xs, literal '1') => literal xs,
-
-   (literal '2', literal '2') => literal "4",
-   (literal '2', literal '3') => literal "6",
-   (literal '2', literal '4') => literal "8",
-   (literal '2', literal '5') => literal "10",
-   (literal '2', literal '6') => literal "12",
-   (literal '2', literal '7') => literal "14",
-   (literal '2', literal '8') => literal "16",
-   (literal '2', literal '9') => literal "18",
-
-   (literal '3', literal '2') => literal "6",
-   (literal '3', literal '3') => literal "9",
-   (literal '3', literal '4') => literal "12",
-   (literal '3', literal '5') => literal "15",
-   (literal '3', literal '6') => literal "18",
-   (literal '3', literal '7') => literal "21",
-   (literal '3', literal '8') => literal "24",
-   (literal '3', literal '9') => literal "27",
-
-   (literal '4', literal '2') => literal "8",
-   (literal '4', literal '3') => literal "12",
-   (literal '4', literal '4') => literal "16",
-   (literal '4', literal '5') => literal "20",
-   (literal '4', literal '6') => literal "24",
-   (literal '4', literal '7') => literal "28",
-   (literal '4', literal '8') => literal "32",
-   (literal '4', literal '9') => literal "36",
-
-   (literal '5', literal '2') => literal "10",
-   (literal '5', literal '3') => literal "15",
-   (literal '5', literal '4') => literal "20",
-   (literal '5', literal '5') => literal "25",
-   (literal '5', literal '6') => literal "30",
-   (literal '5', literal '7') => literal "35",
-   (literal '5', literal '8') => literal "40",
-   (literal '5', literal '9') => literal "45",
-
-   (literal '6', literal '2') => literal "12",
-   (literal '6', literal '3') => literal "18",
-   (literal '6', literal '4') => literal "24",
-   (literal '6', literal '5') => literal "30",
-   (literal '6', literal '6') => literal "36",
-   (literal '6', literal '7') => literal "42",
-   (literal '6', literal '8') => literal "48",
-   (literal '6', literal '9') => literal "54",
-
-   (literal '7', literal '2') => literal "14",
-   (literal '7', literal '3') => literal "21",
-   (literal '7', literal '4') => literal "28",
-   (literal '7', literal '5') => literal "35",
-   (literal '7', literal '6') => literal "42",
-   (literal '7', literal '7') => literal "49",
-   (literal '7', literal '8') => literal "56",
-   (literal '7', literal '9') => literal "63",
-
-   (literal '8', literal '2') => literal "16",
-   (literal '8', literal '3') => literal "24",
-   (literal '8', literal '4') => literal "32",
-   (literal '8', literal '5') => literal "40",
-   (literal '8', literal '6') => literal "48",
-   (literal '8', literal '7') => literal "56",
-   (literal '8', literal '8') => literal "64",
-   (literal '8', literal '9') => literal "72",
-
-   (literal '9', literal '2') => literal "18",
-   (literal '9', literal '3') => literal "27",
-   (literal '9', literal '4') => literal "36",
-   (literal '9', literal '5') => literal "45",
-   (literal '9', literal '6') => literal "54",
-   (literal '9', literal '7') => literal "63",
-   (literal '9', literal '8') => literal "72",
-   (literal '9', literal '9') => literal "81",
-};
-let $"*"(x:Whole, y:Whole) :Whole = match (x,y) {
-   (literal [0-9]xs, literal [0-9]ys) => ((literal xs:Digit) * (literal ys:Digit)),
-   (_, literal yp '0') => (match (x * (literal yp:Whole)) { literal xy => literal xy '0' }),
-   (_, literal yp [1-9]ys) => (x * (literal yp '0':Whole) + x * (literal ys:Whole)),
-   (literal xp '0', _) => (match (y * (literal xp:Whole)) { literal xy => literal xy '0' }),
-   (literal xp [1-9]xs, _) => ((literal xp '0':Whole) * y + (literal xs:Whole) * y),
-};
-let $"*"(x:Integer, y:Integer) :Integer = match (x,y) {
-   (literal '-' xs, literal '-' ys) => (((literal xs:Whole) * (literal ys:Whole)) as Integer),
-   (literal '-' xs, literal ys) => neg((literal xs:Whole) * (literal ys:Whole) as Integer),
-   (literal xs, literal '-' ys) => neg((literal xs:Whole) * (literal ys:Whole) as Integer),
-   (literal xs, literal ys) => (((literal xs:Whole) * (literal ys:Whole)) as Integer),
-};
-
+let $"*"(x:Whole, y:Whole) :Whole;
+let $"*"(x:Integer, y:Integer) :Integer;
 let $"/"(x:Integer, y:Integer) :Integer = match (x,y) {
    (literal '-' xs, literal '-' ys) => fail,
    (literal '-' xs, literal ys) => fail,
@@ -469,37 +130,13 @@ let $"^"(x:Integer, y:Integer) :Integer = match (x,y) {
    (literal xs, literal ys) => (((literal xs:Whole).binary ^ (literal ys:Whole).binary).decimal as Integer),
 };
 
-let $"=="(x:Integer, y:Integer):Boolean = match (x,y) {
-   (n,n) => True,
-   _ => False,
-};
-let $"!="(x:Integer, y:Integer):Boolean = not(x == y);
-let $"<"(x:Integer, y:Integer)  :Boolean = match (x,y) {
-   (literal n, literal n) => False,
-   (literal '-' xs, literal '-' ys) => not((literal xs: Whole) < (literal ys: Whole)),
-   (literal '-' _, _) => True,
-   (_, literal '-' _) => False,
-   (literal xs, literal ys) => ((literal xs: Whole) < (literal ys: Whole)),
-};
-let $"<"(x:Whole, y:Whole)  :Boolean = match (x,y) {
-   (literal '0', literal [1-9]) => True,
-   (literal '1', literal [2-9]) => True,
-   (literal '2', literal [3-9]) => True,
-   (literal '3', literal [4-9]) => True,
-   (literal '4', literal [5-9]) => True,
-   (literal '5', literal [6-9]) => True,
-   (literal '6', literal [7-9]) => True,
-   (literal '7', literal [8-9]) => True,
-   (literal '8', literal '9') => True,
-   (literal [0-9], literal [0-9]) => False,
-   (literal [0-9], literal _ [0-9]) => True,
-   (literal _ [0-9], literal [0-9]) => False,
-   (literal p [0-9]sx, literal p [0-9]sy) => ((literal sx: Whole) < (literal sy: Whole)),
-   (literal px [0-9]sx, literal py [0-9]) => ((literal px: Whole) < (literal py: Whole)),
-};
-let $"<="(x:Integer, y:Integer) :Boolean = x==y || x<y;
-let $">"(x:Integer, y:Integer)  :Boolean = not(x <= y);
-let $">="(x:Integer, y:Integer) :Boolean = not(x < y);
+let $"=="(x:Integer, y:Integer):Boolean = x.binary == y.binary;
+let $"!="(x:Integer, y:Integer):Boolean = x.binary != y.binary;
+let $"<"(x:Integer, y:Integer)  :Boolean = x.binary < y.binary;
+let $"<"(x:Whole, y:Whole)  :Boolean = x.binary < y.binary;
+let $"<="(x:Integer, y:Integer) :Boolean = x.binary <= y.binary;
+let $">"(x:Integer, y:Integer)  :Boolean = x.binary > y.binary;
+let $">="(x:Integer, y:Integer) :Boolean = x.binary >= y.binary;
 
 //Sugar
 let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;
