@@ -325,7 +325,7 @@ impl Term {
                            }
                            if let Some(body) = lb.body {
                               Term::reduce(tlc, &Some(lb.scope), &new_scope, body)
-                           } else { panic!("Term::reduce, applied function has no body: {}", gv) }
+                           } else { panic!("Term::reduce, applied function has no body: {} at {:?}", gv, &tlc.rows[binding.id].span) }
                         } else {
                            panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
                         }
