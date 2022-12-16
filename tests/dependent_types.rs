@@ -14,6 +14,34 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "-1 @reduce :[-1];").unwrap();
    tlc.check(Some(l1), "-1 @reduce :[0];").unwrap_err();
 
+   tlc.check(Some(l1), "0 .binary @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "1 .binary @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "2 .binary @reduce :[10];").unwrap();
+   tlc.check(Some(l1), "3 .binary @reduce :[11];").unwrap();
+   tlc.check(Some(l1), "4 .binary @reduce :[100];").unwrap();
+   tlc.check(Some(l1), "5 .binary @reduce :[101];").unwrap();
+   tlc.check(Some(l1), "6 .binary @reduce :[110];").unwrap();
+   tlc.check(Some(l1), "7 .binary @reduce :[111];").unwrap();
+   tlc.check(Some(l1), "8 .binary @reduce :[1000];").unwrap();
+   tlc.check(Some(l1), "9 .binary @reduce :[1001];").unwrap();
+   tlc.check(Some(l1), "10 .binary @reduce :[1010];").unwrap();
+   tlc.check(Some(l1), "11 .binary @reduce :[1011];").unwrap();
+   tlc.check(Some(l1), "12 .binary @reduce :[1100];").unwrap();
+   tlc.check(Some(l1), "13 .binary @reduce :[1101];").unwrap();
+   tlc.check(Some(l1), "14 .binary @reduce :[1110];").unwrap();
+   tlc.check(Some(l1), "15 .binary @reduce :[1111];").unwrap();
+   tlc.check(Some(l1), "16 .binary @reduce :[10000];").unwrap();
+   tlc.check(Some(l1), "23 .binary @reduce :[10111];").unwrap();
+   tlc.check(Some(l1), "45 .binary @reduce :[101101];").unwrap();
+   tlc.check(Some(l1), "67 .binary @reduce :[1000011];").unwrap();
+   tlc.check(Some(l1), "89 .binary @reduce :[1011001];").unwrap();
+   tlc.check(Some(l1), "-107 .binary @reduce :[-1101011];").unwrap();
+   tlc.check(Some(l1), "-23 .binary @reduce :[-10111];").unwrap();
+   tlc.check(Some(l1), "-45 .binary @reduce :[-101101];").unwrap();
+   tlc.check(Some(l1), "-67 .binary @reduce :[-1000011];").unwrap();
+   tlc.check(Some(l1), "-89 .binary @reduce :[-1011001];").unwrap();
+   tlc.check(Some(l1), "-107 .binary @reduce :[-1101011];").unwrap();
+
    tlc.check(Some(l1), "+0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "+ 0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "+ +0 @reduce :[0];").unwrap();

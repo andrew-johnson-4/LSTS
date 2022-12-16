@@ -4,6 +4,8 @@ type Boolean = True | False;
 type Integer        = /^(0|([-]?[1-9][0-9]*))$/;
 type Whole          = /^(0|([1-9][0-9]*))$/;
 type Digit          = /^[0-9]$/;
+type Binary         = /^(0|([01]+))$/;
+type SignedBinary   = /^(0|([-]?[1][01]*))$/;
 type Tensor<T> = { };
 type Set<E> = { };
 type Map<K,V> = { };
@@ -12,6 +14,57 @@ type Even:Integer
      where. self%2 | 0;
 type Odd:Integer
      where. self%2 | 1;
+
+let $".binary"(x: Integer) :SignedBinary = match x {
+   literal '-' xs => neg((literal xs:Whole).binary),
+   literal xs => ((literal xs:Whole).binary as SignedBinary),
+};
+let $".binary"(x: Whole) :Binary = match x {
+   literal '0' => literal "0",
+   literal '1' => literal "1",
+   literal '2' => literal "10",
+   literal '3' => literal "11",
+   literal '4' => literal "100",
+   literal '5' => literal "101",
+   literal '6' => literal "110",
+   literal '7' => literal "111",
+   literal '8' => literal "1000",
+   literal '9' => literal "1001",
+   literal xp [0-9]xs => ((literal xp:Whole).binary * (1010:Binary) + (literal xs:Whole).binary),
+};
+let neg(x: Binary) :SignedBinary = literal '-' x;
+let $".decimal"(x: Binary) :Whole;
+let $"+"(x: Binary, y: Binary) :Binary = match (x,y) {
+   (literal '0', _) => literal y,
+   (_, literal '0') => literal x,
+   (literal '1', literal '1') => literal "10",
+   (literal xp '0', literal '0') => literal xp '0',
+   (literal xp '0', literal '1') => literal xp '1',
+   (literal xp '1', literal '0') => literal xp '1',
+   (literal xp '1', literal '1') => match ((literal xp:Binary)+(1:Binary)) { literal xyp => literal xyp '0' },
+   (literal xp [01]xs, literal yp [01]ys) => match ((literal xp:Binary) + (literal yp:Binary), (literal xs:Binary) + (literal ys:Binary)) {
+      (literal xyp, literal [01]xys) => literal xyp xys,
+      (literal xyp, literal '1' [01]xys) => match ((literal xyp:Binary)+(1:Binary)) { literal xypp => literal xypp xys }
+   },
+};
+let $"-"(x: Binary, y: Binary) :Binary;
+let $"*"(x: Binary, y: Binary) :Binary = match (x,y) {
+   (literal '0', _) => literal "0",
+   (_, literal '0') => literal "0",
+   (literal '1', _) => literal y,
+   (_, literal '1') => literal x,
+   (_, literal "10") => literal x "0",
+   (_, literal "100") => literal x "00",
+   (literal xp [01]xs, literal yp [01]ys) => (
+      ((literal xp:Binary)*(literal yp:Binary)) * (100:Binary) +
+      ((literal xp:Binary)*(literal ys:Binary)) * (10:Binary) +
+      ((literal xs:Binary)*(literal yp:Binary)) * (10:Binary) +
+      ((literal xs:Binary)*(literal ys:Binary))
+   ),
+};
+let $"/"(x: Binary, y: Binary) :Binary;
+let $"%"(x: Binary, y: Binary) :Binary;
+let $"^"(x: Binary, y: Binary) :Binary;
 
 //Operators
 let not(b:Boolean)             :Boolean = match b {
@@ -397,9 +450,24 @@ let $"*"(x:Integer, y:Integer) :Integer = match (x,y) {
    (literal xs, literal ys) => (((literal xs:Whole) * (literal ys:Whole)) as Integer),
 };
 
-let $"/"(x:Integer, y:Integer) :Integer; //div
-let $"%"(x:Integer, y:Integer) :Integer; //mod
-let $"^"(x:Integer, y:Integer) :Integer; //pow
+let $"/"(x:Integer, y:Integer) :Integer = match (x,y) {
+   (literal '-' xs, literal '-' ys) => fail,
+   (literal '-' xs, literal ys) => fail,
+   (literal xs, literal '-' ys) => fail,
+   (literal xs, literal ys) => (((literal xs:Whole).binary / (literal ys:Whole).binary).decimal as Integer),
+};
+let $"%"(x:Integer, y:Integer) :Integer = match (x,y) {
+   (literal '-' xs, literal '-' ys) => fail,
+   (literal '-' xs, literal ys) => fail,
+   (literal xs, literal '-' ys) => fail,
+   (literal xs, literal ys) => (((literal xs:Whole).binary % (literal ys:Whole).binary).decimal as Integer),
+};
+let $"^"(x:Integer, y:Integer) :Integer = match (x,y) {
+   (literal '-' xs, literal '-' ys) => fail,
+   (literal '-' xs, literal ys) => fail,
+   (literal xs, literal '-' ys) => fail,
+   (literal xs, literal ys) => (((literal xs:Whole).binary ^ (literal ys:Whole).binary).decimal as Integer),
+};
 
 let $"=="(x:Integer, y:Integer):Boolean = match (x,y) {
    (n,n) => True,
