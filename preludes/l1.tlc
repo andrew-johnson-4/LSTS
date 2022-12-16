@@ -14,6 +14,20 @@ type Even:Integer
 type Odd:Integer
      where. self%2 | 1;
 
+let not(b:Boolean): Boolean = match b { True => False, False => True, };
+let $"&&"(a:Boolean, b:Boolean): Boolean = match (a,b) { (True,True) => True, _ => False, };
+let $"||"(a:Boolean, b:Boolean): Boolean = match (a,b) { (False,False) => False, _ => True, };
+
+let $"=="(x:Integer, y:Integer): Boolean = match (x,y) { (p,p) => True, _ => False };
+let $"=="(x:Whole, y:Whole): Boolean = match (x,y) { (p,p) => True, _ => False };
+let $"=="(x:Binary, y:Binary): Boolean = match (x,y) { (p,p) => True, _ => False };
+let $"=="(x:SignedBinary, y:SignedBinary): Boolean = match (x,y) { (p,p) => True, _ => False };
+
+let $"!="(x:Integer, y:Integer): Boolean = not(x == y);
+let $"!="(x:Whole, y:Whole): Boolean = not(x == y);
+let $"!="(x:Binary, y:Binary): Boolean = not(x == y);
+let $"!="(x:SignedBinary, y:SignedBinary): Boolean = not(x == y);
+
 let neg(x: Binary): SignedBinary = literal '-' x;
 let neg(x: SignedBinary): SignedBinary = match x {
    literal '-' xs => literal xs,
@@ -91,18 +105,6 @@ let $"%"(x: Binary, y: Binary) :Binary;
 let $"^"(x: Binary, y: Binary) :Binary;
 
 //Operators
-let not(b:Boolean)             :Boolean = match b {
-   True => False,
-   False => True,
-};
-let $"&&"(a:Boolean, b:Boolean):Boolean = match (a,b) {
-   (True,True) => True,
-   _ => False,
-};
-let $"||"(a:Boolean, b:Boolean):Boolean = match (a,b) {
-   (False,False) => False,
-   _ => True,
-};
 
 
 let $"-"(x:Whole, y:Whole) :Whole;
@@ -130,7 +132,6 @@ let $"^"(x:Integer, y:Integer) :Integer = match (x,y) {
    (literal xs, literal ys) => (((literal xs:Whole).binary ^ (literal ys:Whole).binary).decimal as Integer),
 };
 
-let $"=="(x:Integer, y:Integer):Boolean = x.binary == y.binary;
 let $"!="(x:Integer, y:Integer):Boolean = x.binary != y.binary;
 let $"<"(x:Integer, y:Integer)  :Boolean = x.binary < y.binary;
 let $"<"(x:Whole, y:Whole)  :Boolean = x.binary < y.binary;
