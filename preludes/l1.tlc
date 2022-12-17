@@ -259,7 +259,26 @@ let $"%"(x: SignedBinary, y: SignedBinary): SignedBinary = match (x,y) {
 let $"%"(x: Whole, y: Whole): Whole = (x.binary % y.binary).decimal;
 let $"%"(x: Integer, y: Integer): Integer = (x.binary % y.binary).decimal;
 
-let $"^"(x: Binary, y: Binary): Binary;
+let $"^"(a: Binary, b: Binary): Binary = (
+    if b == (0:Binary) then (1:Binary)
+    else match a ^ (b / (10:Binary)) {
+       literal res => (
+          if b.is_odd
+          then (literal res:Binary)*(literal res:Binary)*a
+          else (literal res:Binary)*(literal res:Binary)
+       )
+    }
+);
+let $"^"(x: SignedBinary, y: SignedBinary): SignedBinary = match (x,y) {
+   (_, literal '-' ys) => fail,
+   (literal '-' '0', literal ys) => (((literal '0':Binary) ^ (literal ys:Binary)) as SignedBinary),
+   (literal '-' '1', literal ys) => neg((literal '1':Binary) ^ (literal ys:Binary)),
+   (literal '-' xs '0', literal ys) => (((literal xs '0':Binary) ^ (literal ys:Binary)) as SignedBinary),
+   (literal '-' xs '1', literal ys) => neg((literal xs '1':Binary) ^ (literal ys:Binary)),
+   (literal xs, literal ys) => (((literal xs:Binary) ^ (literal ys:Binary)) as SignedBinary),
+};
+let $"^"(x: Whole, y: Whole): Whole = (x.binary ^ y.binary).decimal;
+let $"^"(x: Integer, y: Integer): Integer = (x.binary ^ y.binary).decimal;
 
 
 //Sugar
