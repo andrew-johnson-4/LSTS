@@ -217,16 +217,22 @@ let divmod(x: Binary, y: Binary) :(Binary,Binary) = (
       match ((literal q '0':Binary), (literal r '0':Binary)) { (qq,rr) => (
          match (if x.is_odd then (literal rr:Binary)+(1:Binary) else (literal rr:Binary)) { rrr => (
             if (literal rrr:Binary)>=y
-            then ((literal rrr:Binary)-y, (literal qq:Binary)+(1:Binary))
+            then ((literal qq:Binary)+(1:Binary), (literal rrr:Binary)-y)
             else ((literal qq:Binary), (literal rrr:Binary))
          )}
       )}
    )}
 );
+
 let $"/"(x: Binary, y: Binary): Binary = divmod(x,y).0;
 let $"%"(x: Binary, y: Binary): Binary = divmod(x,y).1;
 
-let $"/"(x: SignedBinary, y: SignedBinary) :SignedBinary;
+let $"/"(x: SignedBinary, y: SignedBinary) :SignedBinary = match (x,y) {
+   (literal '-' xs, literal '-' ys) => fail,
+   (literal '-' xs, literal '-' ys) => fail,
+   (literal '-' xs, literal '-' ys) => fail,
+   (literal xs, literal ys) => ((literal xs:Binary) / (literal ys:Binary) as SignedBinary),
+};
 let $"/"(x: Whole, y: Whole) :Whole;
 let $"/"(x: Integer, y: Integer) :Integer;
 
