@@ -119,6 +119,7 @@ let $".decimal"(x: Binary) :Whole = match x {
    literal "1000" => 8,
    literal "1001" => 9,
    _ => match ((x / (1010:Binary)).decimal, (x % (1010:Binary)).decimal) {
+      (literal '0',literal s) => literal s,
       (literal p,literal s) => literal p s,
    },
 };
@@ -189,13 +190,13 @@ let $".length"(x: Binary): Binary = match x {
    literal [01] => 1,
    literal xp [01] => ((literal xp:Binary)+(1:Binary)),
 };
-let divmod(x: Binary, y: Binary) :(Binary,Binary) = (
-        if y==(0:Binary) then fail
-        if y==(1:Binary) then (x, 0)
-   else if x < y then (0, x)
-   else if x.length > y.length then match (x,y) {}
-   else (1, x - y)
-);
+let divmod(x: Binary, y: Binary) :(Binary,Binary) = (0:Binary,1:Binary); 
+//        if y==(0:Binary) then fail
+//        if y==(1:Binary) then (x, 0)
+//   else if x < y then (0, x)
+//   else if x.length > y.length then match (x,y) { _ => fail }
+//   else (1, x - y)
+//);
 let $"/"(x: Binary, y: Binary): Binary = divmod(x,y).0;
 let $"%"(x: Binary, y: Binary): Binary = divmod(x,y).1;
 

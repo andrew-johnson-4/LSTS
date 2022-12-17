@@ -307,6 +307,11 @@ impl Term {
          },
          Term::App(g,x) => {
             if let Some(xc) = Term::reduce(tlc, scope, scope_constants, *x) {
+               if let Term::Project(Constant::Literal(pi)) = tlc.rows[g.id].term.clone() {
+               if let Constant::Tuple(xct) = xc {
+                  let pi = str::parse::<usize>(&pi).unwrap();
+                  return Some(xct[pi].clone());
+               }}
                let sc = if let Some(sc) = scope { *sc } else { return None; };
                match &tlc.rows[g.id].term {
                   Term::Ident(gv) => {

@@ -1473,15 +1473,23 @@ impl TLC {
          },
          Term::App(g,x) => {
             self.typeck(scope, x, None)?;
-            let grt = match &self.rows[x.id].typ {
-               Type::Tuple(ts) if ts.len()==0 => { implied.clone().unwrap_or(Type::Any) },
-               _ => Type::Any,
-            };
-            self.typeck(scope, g, Some(
-               Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
-                          Box::new(grt.clone()))
-            ))?;
-            self.rows[t.id].typ = self.rows[g.id].typ.range();
+            if let Term::Project(Constant::Literal(cs)) = &self.rows[g.id].term {
+               let pi = str::parse::<usize>(&cs).unwrap();
+               if let Type::Tuple(gts) = self.rows[x.id].typ.clone() {
+                  self.rows[g.id].typ = gts[pi].clone();
+                  self.rows[t.id].typ = gts[pi].clone();
+               }
+            } else {
+               let grt = match &self.rows[x.id].typ {
+                  Type::Tuple(ts) if ts.len()==0 => { implied.clone().unwrap_or(Type::Any) },
+                  _ => Type::Any,
+               };
+               self.typeck(scope, g, Some(
+                  Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
+                             Box::new(grt.clone()))
+               ))?;
+               self.rows[t.id].typ = self.rows[g.id].typ.range();
+            }
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {

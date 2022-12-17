@@ -14,6 +14,10 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "-1 @reduce :[-1];").unwrap();
    tlc.check(Some(l1), "-1 @reduce :[0];").unwrap_err();
 
+   tlc.check(Some(l1), "(1,3,5).0 @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(1,3,5).1 @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "(1,3,5).2 @reduce :[5];").unwrap();
+
    tlc.check(Some(l1), "0 .binary @reduce :[0];").unwrap();
    tlc.check(Some(l1), "1 .binary @reduce :[1];").unwrap();
    tlc.check(Some(l1), "2 .binary @reduce :[10];").unwrap();
