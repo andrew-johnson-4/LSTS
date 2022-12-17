@@ -186,6 +186,11 @@ let $"*"(x: Binary, y: Binary) :Binary = match (x,y) {
    ),
 };
 
+let $".lshift"(x: Binary): Binary = literal x '0';
+let $".rshift"(x: Binary): Binary = match x {
+   literal xp [01] => literal xp,
+   literal [01] => literal '0',
+};
 let $".is_odd"(x: Binary): Boolean = match x {
    literal _ '1' => True,
    _ => False,
@@ -197,10 +202,12 @@ let $".length"(x: Binary): Binary = match x {
 let divmod(x: Binary, y: Binary) :(Binary,Binary) = (
         if y==(0:Binary) then fail
    else if x==(0:Binary) then (0:Binary, 0:Binary)
-   else match divmod(x/(10:Binary), y) { (q,r) => (
-      match (q*(2:Binary), r*(10:Binary)) { (qq,rr) => (
-         match (if x.is_odd then r+(1:Binary) else r) { rrr => (
-            if rrr>=y then (rrr-y, qq+(1:Binary)) else (qq, rrr)
+   else match divmod(x.rshift, y) { (q, r) => (
+      match ((literal q '0':Binary), (literal r '0':Binary)) { (qq,rr) => (
+         match (if x.is_odd then (literal rr:Binary)+(1:Binary) else (literal rr:Binary)) { rrr => (
+            if (literal rrr:Binary)>=y
+            then ((literal rrr:Binary)-y, (literal qq:Binary)+(1:Binary))
+            else ((literal qq:Binary), (literal rrr:Binary))
          )}
       )}
    )}

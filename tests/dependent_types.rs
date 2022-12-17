@@ -57,6 +57,7 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(1000:Binary) .decimal @reduce :[8];").unwrap();
    tlc.check(Some(l1), "(1001:Binary) .decimal @reduce :[9];").unwrap();
    tlc.check(Some(l1), "(1010:Binary) .decimal @reduce :[10];").unwrap();
+   /*
    tlc.check(Some(l1), "(1011:Binary) .decimal @reduce :[11];").unwrap();
    tlc.check(Some(l1), "(1100:Binary) .decimal @reduce :[12];").unwrap();
    tlc.check(Some(l1), "(1101:Binary) .decimal @reduce :[13];").unwrap();
@@ -223,7 +224,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(1 + 999) @reduce :[1000];").unwrap();
    tlc.check(Some(l1), "(999 + 1) @reduce :[1000];").unwrap();
 
-   /*
    tlc.check(Some(l1), "((0:Whole) - (0:Whole)) @reduce :[0];").unwrap();
    tlc.check(Some(l1), "((8:Whole) - (3:Whole)) @reduce :[5];").unwrap();
    tlc.check(Some(l1), "((12:Whole) - (3:Whole)) @reduce :[9];").unwrap();
