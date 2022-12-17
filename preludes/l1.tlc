@@ -3,7 +3,9 @@
 type Boolean = True | False;
 type Integer        = /^(0|([-]?[1-9][0-9]*))$/;
 type Whole          = /^(0|([1-9][0-9]*))$/;
-type Digit          = /^[0-9]$/;
+type Binary         = /^(0|([1][01]*))$/;
+type BitString      = /^[01]+$/;
+type SignedBinary   = /^(0|([-]?[1][01]*))$/;
 type Tensor<T> = { };
 type Set<E> = { };
 type Map<K,V> = { };
@@ -13,345 +15,248 @@ type Even:Integer
 type Odd:Integer
      where. self%2 | 1;
 
-//Operators
-let not(b:Boolean)             :Boolean = match b {
-   True => False,
-   False => True,
-};
-let $"&&"(a:Boolean, b:Boolean):Boolean = match (a,b) {
-   (True,True) => True,
-   _ => False,
-};
-let $"||"(a:Boolean, b:Boolean):Boolean = match (a,b) {
-   (False,False) => False,
-   _ => True,
-};
+let not(b:Boolean): Boolean = match b { True => False, False => True, };
+let $"&&"(a:Boolean, b:Boolean): Boolean = match (a,b) { (True,True) => True, _ => False, };
+let $"||"(a:Boolean, b:Boolean): Boolean = match (a,b) { (False,False) => False, _ => True, };
 
-let pos(x:Integer)             :Integer = x;
-let neg(x:Integer)             :Integer = match x {
+let $"=="(x:Binary, y:Binary): Boolean = match (x,y) { (p,p) => True, _ => False };
+let $"=="(x:SignedBinary, y:SignedBinary): Boolean = match (x,y) { (p,p) => True, _ => False };
+let $"=="(x:Whole, y:Whole): Boolean = match (x,y) { (p,p) => True, _ => False };
+let $"=="(x:Integer, y:Integer): Boolean = match (x,y) { (p,p) => True, _ => False };
+
+let $"!="(x:Binary, y:Binary): Boolean = not(x == y);
+let $"!="(x:SignedBinary, y:SignedBinary): Boolean = not(x == y);
+let $"!="(x:Whole, y:Whole): Boolean = not(x == y);
+let $"!="(x:Integer, y:Integer): Boolean = not(x == y);
+
+let $"<"(x:Binary, y:Binary): Boolean = match (x,y) {
+    (literal '0', literal '1') => True,
+    (literal [01], literal [01]) => False,
+    (literal [01], literal yp [01]) => True,
+    (literal xp [01], literal [01]) => False,
+    (literal xp [01]xs, literal yp [01]ys) => match ((literal xp:Binary),(literal yp:Binary)) {
+       (p,p) => ((literal xs:Binary) < (literal ys:Binary)),
+       _ => ((literal xp:Binary) < (literal yp:Binary)),
+    },
+};
+let $"<"(x:SignedBinary, y:SignedBinary): Boolean = match (x,y) {
+    (literal '-' xs, literal '-' ys) => ((literal ys:Binary) < (literal xs:Binary)),
+    (literal '-' _, _) => True,
+    (_, literal '-' _) => False,
+    (literal xs, literal ys) => ((literal xs:Binary) < (literal ys:Binary)),
+};
+let $"<"(x:Whole, y:Whole): Boolean = x.binary < y.binary;
+let $"<"(x:Integer, y:Integer): Boolean = x.binary < y.binary;
+
+let $"<="(x:Binary, y:Binary): Boolean = x==y || x<y;
+let $"<="(x:SignedBinary, y:SignedBinary): Boolean = x==y || x<y;
+let $"<="(x:Whole, y:Whole): Boolean = x==y || x<y;
+let $"<="(x:Integer, y:Integer): Boolean = x==y || x<y;
+
+let $">"(x:Binary, y:Binary): Boolean = not(x <= y);
+let $">"(x:SignedBinary, y:SignedBinary): Boolean = not(x <= y);
+let $">"(x:Whole, y:Whole): Boolean = not(x <= y);
+let $">"(x:Integer, y:Integer): Boolean = not(x <= y);
+
+let $">="(x:Binary, y:Binary): Boolean = not(x < y);
+let $">="(x:SignedBinary, y:SignedBinary): Boolean = not(x < y);
+let $">="(x:Whole, y:Whole): Boolean = not(x < y);
+let $">="(x:Integer, y:Integer): Boolean = not(x < y);
+
+let pos(x: Binary): Binary = x;
+let pos(x: SignedBinary): SignedBinary = x;
+let pos(x:Whole): Whole = x;
+let pos(x: Integer): Integer = x;
+
+let neg(x: Binary): SignedBinary = literal '-' x;
+let neg(x: SignedBinary): SignedBinary = match x {
    literal '0' => literal '0',
    literal '-' xs => literal xs,
    literal xs => literal '-' xs,
 };
-let $"<"(x:Digit, y:Digit) :Boolean = match (x,y) {
-   (literal [0-8], literal '9') => True,
-   (literal [0-7], literal '8') => True,
-   (literal [0-6], literal '7') => True,
-   (literal [0-5], literal '6') => True,
-   (literal [0-4], literal '5') => True,
-   (literal [0-3], literal '4') => True,
-   (literal [0-2], literal '3') => True,
-   (literal [0-1], literal '2') => True,
-   (literal '0', literal '1') => True,
-   _ => False,
-};
-let inv(x:Digit) :Digit = match x {
-   (literal '0') => literal '0',
-   (literal '1') => literal '9',
-   (literal '2') => literal '8',
-   (literal '3') => literal '7',
-   (literal '4') => literal '6',
-   (literal '5') => literal '5',
-   (literal '6') => literal '4',
-   (literal '7') => literal '3',
-   (literal '8') => literal '2',
-   (literal '9') => literal '1',
-};
-let $"-"(x:Digit, y:Digit) :Digit = match (x,y) {
-   //10x10 subtraction table
-   (literal '0', literal '0') => literal "0",
-
-   (literal '1', literal '0') => literal "1",
-   (literal '1', literal '1') => literal "0",
-
-   (literal '2', literal '0') => literal "2",
-   (literal '2', literal '1') => literal "1",
-   (literal '2', literal '2') => literal "0",
-
-   (literal '3', literal '0') => literal "3",
-   (literal '3', literal '1') => literal "2",
-   (literal '3', literal '2') => literal "1",
-   (literal '3', literal '3') => literal "0",
-
-   (literal '4', literal '0') => literal "4",
-   (literal '4', literal '1') => literal "3",
-   (literal '4', literal '2') => literal "2",
-   (literal '4', literal '3') => literal "1",
-   (literal '4', literal '4') => literal "0",
-
-   (literal '5', literal '0') => literal "5",
-   (literal '5', literal '1') => literal "4",
-   (literal '5', literal '2') => literal "3",
-   (literal '5', literal '3') => literal "2",
-   (literal '5', literal '4') => literal "1",
-   (literal '5', literal '5') => literal "0",
-
-   (literal '6', literal '0') => literal "6",
-   (literal '6', literal '1') => literal "5",
-   (literal '6', literal '2') => literal "4",
-   (literal '6', literal '3') => literal "3",
-   (literal '6', literal '4') => literal "2",
-   (literal '6', literal '5') => literal "1",
-   (literal '6', literal '6') => literal "0",
-
-   (literal '7', literal '0') => literal "7",
-   (literal '7', literal '1') => literal "6",
-   (literal '7', literal '2') => literal "5",
-   (literal '7', literal '3') => literal "4",
-   (literal '7', literal '4') => literal "3",
-   (literal '7', literal '5') => literal "2",
-   (literal '7', literal '6') => literal "1",
-   (literal '7', literal '7') => literal "0",
-
-   (literal '8', literal '0') => literal "8",
-   (literal '8', literal '1') => literal "7",
-   (literal '8', literal '2') => literal "6",
-   (literal '8', literal '3') => literal "5",
-   (literal '8', literal '4') => literal "4",
-   (literal '8', literal '5') => literal "3",
-   (literal '8', literal '6') => literal "2",
-   (literal '8', literal '7') => literal "1",
-   (literal '8', literal '8') => literal "0",
-
-   (literal '9', literal '0') => literal "9",
-   (literal '9', literal '1') => literal "8",
-   (literal '9', literal '2') => literal "7",
-   (literal '9', literal '3') => literal "6",
-   (literal '9', literal '4') => literal "5",
-   (literal '9', literal '5') => literal "4",
-   (literal '9', literal '6') => literal "3",
-   (literal '9', literal '7') => literal "2",
-   (literal '9', literal '8') => literal "1",
-   (literal '9', literal '9') => literal "0",
-
-   _ => fail, //x-y is undefined if x<y
-};
-let cat(x:Whole, y:Whole) :Whole = match (x,y) {
-   (literal '0', literal ys) => literal ys,
-   (literal '0' xs, literal ys) => literal xs ys,
-   _ => literal x y,
-};
-let $"-"(x:Whole, y:Whole) :Whole = match (x,y) {
-   (literal [0-9]xc, literal [0-9]yc) => (((literal xc:Digit) - (literal yc:Digit)) as Whole),
-   (literal xp [0-9]xc, literal [0-9]yc) => (
-      if (literal xc:Digit)<(literal yc:Digit)
-      then cat( (literal xp:Whole)-(1:Whole),
-                inv((literal yc:Digit)-(literal xc:Digit)) as Whole )
-      else cat( literal xp:Whole,
-                ((literal xc:Digit)-(literal yc:Digit) as Whole) )
-   ),
-   (literal xp [0-9]xc, literal yp [0-9]yc) => (
-      if (literal xc:Digit)<(literal yc:Digit)
-      then cat( ((literal xp:Whole)-(literal yp:Whole))-(1:Whole),
-                inv((literal yc:Digit)-(literal xc:Digit)) as Whole )
-      else cat( (literal xp:Whole)-(literal yp:Whole),
-                ((literal yc:Digit)-(literal xc:Digit) as Whole) )
-   ),
-   _ => fail, //x-y is undefined if x<y
-};
-
-let $"+"(x:Digit, y:Digit) :Whole = match (x,y) {
-   //10x10 addition table
-   (literal '0', literal '0') => literal "0",
-   (literal '0', literal '1') => literal "1",
-   (literal '0', literal '2') => literal "2",
-   (literal '0', literal '3') => literal "3",
-   (literal '0', literal '4') => literal "4",
-   (literal '0', literal '5') => literal "5",
-   (literal '0', literal '6') => literal "6",
-   (literal '0', literal '7') => literal "7",
-   (literal '0', literal '8') => literal "8",
-   (literal '0', literal '9') => literal "9",
-
-   (literal '1', literal '0') => literal "1",
-   (literal '1', literal '1') => literal "2",
-   (literal '1', literal '2') => literal "3",
-   (literal '1', literal '3') => literal "4",
-   (literal '1', literal '4') => literal "5",
-   (literal '1', literal '5') => literal "6",
-   (literal '1', literal '6') => literal "7",
-   (literal '1', literal '7') => literal "8",
-   (literal '1', literal '8') => literal "9",
-   (literal '1', literal '9') => literal "10",
-
-   (literal '2', literal '0') => literal "2",
-   (literal '2', literal '1') => literal "3",
-   (literal '2', literal '2') => literal "4",
-   (literal '2', literal '3') => literal "5",
-   (literal '2', literal '4') => literal "6",
-   (literal '2', literal '5') => literal "7",
-   (literal '2', literal '6') => literal "8",
-   (literal '2', literal '7') => literal "9",
-   (literal '2', literal '8') => literal "10",
-   (literal '2', literal '9') => literal "11",
-
-   (literal '3', literal '0') => literal "3",
-   (literal '3', literal '1') => literal "4",
-   (literal '3', literal '2') => literal "5",
-   (literal '3', literal '3') => literal "6",
-   (literal '3', literal '4') => literal "7",
-   (literal '3', literal '5') => literal "8",
-   (literal '3', literal '6') => literal "9",
-   (literal '3', literal '7') => literal "10",
-   (literal '3', literal '8') => literal "11",
-   (literal '3', literal '9') => literal "12",
-
-   (literal '4', literal '0') => literal "4",
-   (literal '4', literal '1') => literal "5",
-   (literal '4', literal '2') => literal "6",
-   (literal '4', literal '3') => literal "7",
-   (literal '4', literal '4') => literal "8",
-   (literal '4', literal '5') => literal "9",
-   (literal '4', literal '6') => literal "10",
-   (literal '4', literal '7') => literal "11",
-   (literal '4', literal '8') => literal "12",
-   (literal '4', literal '9') => literal "13",
-
-   (literal '5', literal '0') => literal "5",
-   (literal '5', literal '1') => literal "6",
-   (literal '5', literal '2') => literal "7",
-   (literal '5', literal '3') => literal "8",
-   (literal '5', literal '4') => literal "9",
-   (literal '5', literal '5') => literal "10",
-   (literal '5', literal '6') => literal "11",
-   (literal '5', literal '7') => literal "12",
-   (literal '5', literal '8') => literal "13",
-   (literal '5', literal '9') => literal "14",
-
-   (literal '6', literal '0') => literal "6",
-   (literal '6', literal '1') => literal "7",
-   (literal '6', literal '2') => literal "8",
-   (literal '6', literal '3') => literal "9",
-   (literal '6', literal '4') => literal "10",
-   (literal '6', literal '5') => literal "11",
-   (literal '6', literal '6') => literal "12",
-   (literal '6', literal '7') => literal "13",
-   (literal '6', literal '8') => literal "14",
-   (literal '6', literal '9') => literal "15",
-
-   (literal '7', literal '0') => literal "7",
-   (literal '7', literal '1') => literal "8",
-   (literal '7', literal '2') => literal "9",
-   (literal '7', literal '3') => literal "10",
-   (literal '7', literal '4') => literal "11",
-   (literal '7', literal '5') => literal "12",
-   (literal '7', literal '6') => literal "13",
-   (literal '7', literal '7') => literal "14",
-   (literal '7', literal '8') => literal "15",
-   (literal '7', literal '9') => literal "16",
-
-   (literal '8', literal '0') => literal "8",
-   (literal '8', literal '1') => literal "9",
-   (literal '8', literal '2') => literal "10",
-   (literal '8', literal '3') => literal "11",
-   (literal '8', literal '4') => literal "12",
-   (literal '8', literal '5') => literal "13",
-   (literal '8', literal '6') => literal "14",
-   (literal '8', literal '7') => literal "15",
-   (literal '8', literal '8') => literal "16",
-   (literal '8', literal '9') => literal "17",
-
-   (literal '9', literal '0') => literal "9",
-   (literal '9', literal '1') => literal "10",
-   (literal '9', literal '2') => literal "11",
-   (literal '9', literal '3') => literal "12",
-   (literal '9', literal '4') => literal "13",
-   (literal '9', literal '5') => literal "14",
-   (literal '9', literal '6') => literal "15",
-   (literal '9', literal '7') => literal "16",
-   (literal '9', literal '8') => literal "17",
-   (literal '9', literal '9') => literal "18",
-};
-let cat_with_carry(pre: Whole, suf: Whole) :Whole = match (pre,suf) {
-   (literal p, literal [0-9]s) => literal p s,
-   (literal '1', literal '1' ss) => literal '2' ss,
-   (literal '2', literal '1' ss) => literal '3' ss,
-   (literal '3', literal '1' ss) => literal '4' ss,
-   (literal '4', literal '1' ss) => literal '5' ss,
-   (literal '5', literal '1' ss) => literal '6' ss,
-   (literal '6', literal '1' ss) => literal '7' ss,
-   (literal '7', literal '1' ss) => literal '8' ss,
-   (literal '8', literal '1' ss) => literal '9' ss,
-   (literal '9', literal '1' ss) => literal "10" ss,
-   (literal pp '0', literal '1' ss) => literal pp '1' ss,
-   (literal pp '1', literal '1' ss) => literal pp '2' ss,
-   (literal pp '2', literal '1' ss) => literal pp '3' ss,
-   (literal pp '3', literal '1' ss) => literal pp '4' ss,
-   (literal pp '4', literal '1' ss) => literal pp '5' ss,
-   (literal pp '5', literal '1' ss) => literal pp '6' ss,
-   (literal pp '6', literal '1' ss) => literal pp '7' ss,
-   (literal pp '7', literal '1' ss) => literal pp '8' ss,
-   (literal pp '8', literal '1' ss) => literal pp '9' ss,
-   (literal pp '9', literal '1' ss) => cat_with_carry(literal pp:Whole, literal "10" ss:Whole),
-};
-let $"+"(x:Whole, y:Whole) :Whole = match (x,y) {
-   (literal [0-9]xc, literal [0-9]yc) => ((literal xc:Digit) + (literal yc:Digit)),
-   (literal xp [0-9]xs, literal [0-9]ys) => cat_with_carry(literal xp:Whole, (literal xs:Digit)+(literal ys:Digit) ),
-   (literal [0-9]xs, literal yp [0-9]ys) => cat_with_carry(literal yp:Whole, (literal xs:Digit)+(literal ys:Digit) ),
-   (literal xp [0-9]xs, literal yp [0-9]ys) => cat_with_carry((literal xp:Whole)+(literal yp:Whole), (literal xs:Digit)+(literal ys:Digit) ),
-};
-let $"+"(x:Integer, y:Integer) :Integer = match (x,y) {
-   (literal '0', _) => y,
-   (_, literal '0') => x,
-   (literal '-' xs, literal '-' ys) => neg(((literal xs:Whole) + (literal ys:Whole)) as Integer),
-   (literal '-' xs, literal ys) => (y + x),
-   (literal xs, literal '-' ys) => (
-      if (literal xs:Integer)>=(literal ys:Integer) then ((literal xs:Whole)-(literal ys:Whole) as Integer)
-      else neg(((literal ys:Whole)-(literal xs:Whole)) as Integer)
-   ),
-   (literal xs, literal ys) => (((literal xs:Whole) + (literal ys:Whole)) as Integer),
-};
-let $"-"(x:Integer, y:Integer) :Integer = x + -y;
-let $"*"(x:Integer, y:Integer) :Integer; //mul
-let $"/"(x:Integer, y:Integer) :Integer; //div
-let $"%"(x:Integer, y:Integer) :Integer = match (x,y) {
+let neg(x:Whole): Integer = literal '-' x;
+let neg(x: Integer): Integer = match x {
    literal '0' => literal '0',
-   (literal '0', literal '1') => literal '0',
-   (literal '0'a, literal '1') => literal a,
-   (literal '0'a b, literal '1') => literal a b,
-   (literal '0'a b '0', literal '1') => literal a b,
-   (literal '0'a b '0'c, literal '1') => literal a b c,
-   (literal '0'a '0'b, literal '1') => literal a b,
-   (literal "00", literal '1') => literal "00",
-   (literal "00"a, literal '1') => literal a,
-   (literal [0-9], literal '1') => literal '0',
-   (literal [0-9]a, literal '1') => literal a,
-   (literal [0-9]a b, literal '1') => literal a b,
-   (literal [0-9]a b [0-9]c, literal '1') => literal a b c,
+   literal '-' xs => literal xs,
+   literal xs => literal '-' xs,
 };
-let $"^"(x:Integer, y:Integer) :Integer; //pow
 
-let $"=="(x:Integer, y:Integer):Boolean = match (x,y) {
-   (n,n) => True,
+let .abs(x: SignedBinary): SignedBinary = match x {
+   literal '-' xs => literal xs,
+   literal xs => literal xs,
+};
+let .abs(x: Integer): Integer = match x {
+   literal '-' xs => literal xs,
+   literal xs => literal xs,
+};
+
+let .binary(x: BitString): Binary = match x {
+   literal '0' xs => (literal xs:BitString).binary,
+   literal xs => literal xs,
+};
+let .binary(x: Integer) :SignedBinary = match x {
+   literal '-' xs => neg((literal xs:Whole).binary),
+   literal xs => ((literal xs:Whole).binary as SignedBinary),
+};
+let .binary(x: Whole) :Binary = match x {
+   literal '0' => literal "0",
+   literal '1' => literal "1",
+   literal '2' => literal "10",
+   literal '3' => literal "11",
+   literal '4' => literal "100",
+   literal '5' => literal "101",
+   literal '6' => literal "110",
+   literal '7' => literal "111",
+   literal '8' => literal "1000",
+   literal '9' => literal "1001",
+   literal xp [0-9]xs => ((literal xp:Whole).binary * (1010:Binary) + (literal xs:Whole).binary),
+};
+
+let .decimal(x: Binary) :Whole = match x {
+   literal "0" => 0,
+   literal "1" => 1,
+   literal "10" => 2,
+   literal "11" => 3,
+   literal "100" => 4,
+   literal "101" => 5,
+   literal "110" => 6,
+   literal "111" => 7,
+   literal "1000" => 8,
+   literal "1001" => 9,
+   _ => match ((x / (1010:Binary)).decimal, (x % (1010:Binary)).decimal) {
+      (literal '0',literal s) => literal s,
+      (literal p,literal s) => literal p s,
+   },
+};
+let .decimal(x: SignedBinary) :Integer = match x {
+   literal '-' xs => neg((literal xs:Binary).decimal),
+   literal xs => ((literal xs:Binary).decimal as Integer),
+};
+
+let $"+"(x: Binary, y: Binary) :Binary = match (x,y) {
+   (literal '0', _) => literal y,
+   (_, literal '0') => literal x,
+   (literal '1', literal '1') => literal "10",
+   (literal xp '0', literal '0') => literal xp '0',
+   (literal xp '0', literal '1') => literal xp '1',
+   (literal xp '1', literal '0') => literal xp '1',
+   (literal xp '1', literal '1') => match ((literal xp:Binary)+(1:Binary)) { literal xyp => literal xyp '0' },
+   (literal [01]xp, literal yp [01]ys) => ((literal yp ys:Binary) + (literal xp:Binary)),
+   (literal xp [01]xs, literal yp [01]ys) => match ((literal xp:Binary) + (literal yp:Binary), (literal xs:Binary) + (literal ys:Binary)) {
+      (literal xyp, literal [01]xys) => literal xyp xys,
+      (literal xyp, literal '1' [01]xys) => match ((literal xyp:Binary)+(1:Binary)) { literal xypp => literal xypp xys }
+   },
+};
+let $"+"(x:SignedBinary, y:SignedBinary): SignedBinary = match (x,y) {
+   (literal '-' xs, literal '-' ys) => match ((literal xs:Binary) + (literal ys:Binary)) { xys => literal '-' xys },
+   (literal '-' xs, literal ys) => fail,
+   (literal xs, literal '-' ys) => fail,
+   (literal xs, literal ys) => ((literal xs:Binary) + (literal ys:Binary) as SignedBinary),
+};
+let $"+"(x:Whole, y:Whole): Whole = (x.binary + y.binary).decimal;
+let $"+"(x:Integer, y:Integer): Integer = (x.binary + y.binary).decimal;
+
+let decr(x: Binary) :Binary = match x {
+   literal '0' => fail,
+   literal '1' => literal '0',
+   literal xp '1' => literal xp '0',
+   literal xp '0' => match decr(literal xp:Binary) { p => (literal p '1':BitString).binary },
+};
+let $"-"(x: Binary, y: Binary) :Binary = if x<y then fail else match (x,y) {
+   (literal '0', literal '0') => literal '0',
+   (literal '1', literal '0') => literal '1',
+   (literal '1', literal '1') => literal '0',
+   (literal xp '1', literal '0') => literal xp '1',
+   (literal xp '1', literal '1') => literal xp '0',
+   (literal xp '0', literal '0') => literal xp '0',
+   (literal xp '0', literal '1') => match decr(literal xp:Binary) { p => (literal p '1':BitString).binary },
+   (literal xp '1', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => (literal p '1':BitString).binary },
+   (literal xp '1', literal yp '1') => match (literal xp:Binary)-(literal yp:Binary) { p => (literal p '0':BitString).binary },
+   (literal xp '0', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => (literal p '0':BitString).binary },
+   (literal xp '0', literal yp '1') => match decr((literal xp:Binary)-(literal yp:Binary)) { p => (literal p '1':BitString).binary },
+};
+let $"-"(x: SignedBinary, y: SignedBinary) :SignedBinary = match (x,y) {
+   (literal '-' xs, literal '-' ys) => fail,
+   (literal '-' xs, literal ys) => fail,
+   (literal xs, literal '-' ys) => fail,
+   (literal xs, literal ys) => ((literal xs:Binary) - (literal ys:Binary) as SignedBinary),
+};
+
+let $"*"(x: Binary, y: Binary) :Binary = match (x,y) {
+   (literal '0', _) => literal "0",
+   (_, literal '0') => literal "0",
+   (literal '1', _) => literal y,
+   (_, literal '1') => literal x,
+   (_, literal "10") => literal x "0",
+   (_, literal "100") => literal x "00",
+   (literal xp [01]xs, literal yp [01]ys) => (
+      ((literal xp:Binary)*(literal yp:Binary)) * (100:Binary) +
+      ((literal xp:Binary)*(literal ys:Binary)) * (10:Binary) +
+      ((literal xs:Binary)*(literal yp:Binary)) * (10:Binary) +
+      ((literal xs:Binary)*(literal ys:Binary))
+   ),
+};
+let $"*"(x: SignedBinary, y: SignedBinary): SignedBinary = match (x,y) {
+   (literal '-' xs, literal '-' ys) => ((literal xs:Binary) * (literal ys:Binary) as SignedBinary),
+   (literal '-' xs, literal ys) => neg((literal xs:Binary) * (literal ys:Binary)),
+   (literal xs, literal '-' ys) => neg((literal xs:Binary) * (literal ys:Binary)),
+   (literal xs, literal ys) => ((literal xs:Binary) * (literal ys:Binary) as SignedBinary),
+};
+
+let .lshift(x: Binary): Binary = literal x '0';
+let .rshift(x: Binary): Binary = match x {
+   literal xp [01] => literal xp,
+   literal [01] => literal '0',
+};
+let .is_odd(x: Binary): Boolean = match x {
+   literal '1' => True,
+   literal _ '1' => True,
    _ => False,
 };
-let $"!="(x:Integer, y:Integer):Boolean = not(x == y);
-let $"<"(x:Integer, y:Integer)  :Boolean = match (x,y) {
-   (literal n, literal n) => False,
-   (literal '-' xs, literal '-' ys) => not((literal xs: Whole) < (literal ys: Whole)),
-   (literal '-' _, _) => True,
-   (_, literal '-' _) => False,
-   (literal xs, literal ys) => ((literal xs: Whole) < (literal ys: Whole)),
+let .length(x: Binary): Binary = match x {
+   literal [01] => 1,
+   literal xp [01] => ((literal xp:Binary)+(1:Binary)),
 };
-let $"<"(x:Whole, y:Whole)  :Boolean = match (x,y) {
-   (literal '0', literal [1-9]) => True,
-   (literal '1', literal [2-9]) => True,
-   (literal '2', literal [3-9]) => True,
-   (literal '3', literal [4-9]) => True,
-   (literal '4', literal [5-9]) => True,
-   (literal '5', literal [6-9]) => True,
-   (literal '6', literal [7-9]) => True,
-   (literal '7', literal [8-9]) => True,
-   (literal '8', literal '9') => True,
-   (literal [0-9], literal [0-9]) => False,
-   (literal [0-9], literal _ [0-9]) => True,
-   (literal _ [0-9], literal [0-9]) => False,
-   (literal p [0-9]sx, literal p [0-9]sy) => ((literal sx: Whole) < (literal sy: Whole)),
-   (literal px [0-9]sx, literal py [0-9]) => ((literal px: Whole) < (literal py: Whole)),
+let divmod(x: Binary, y: Binary) :(Binary,Binary) = (
+        if y==(0:Binary) then fail
+   else if x==(0:Binary) then (0:Binary, 0:Binary)
+   else if y==(1:Binary) then (x, 0:Binary)
+   //(10111:Binary) / (1010:Binary)
+   else match divmod(x.rshift, y) { (q, r) => (
+      //((1:Binary), (1:Binary))
+      match ((10:Binary)*(literal q:Binary), (10:Binary)*(literal r:Binary)) { (qq,rr) => (
+         match (if x.is_odd then (literal rr:Binary)+(1:Binary) else (literal rr:Binary)) { rrr => (
+            if (literal rrr:Binary)>=y
+            then ((literal qq:Binary)+(1:Binary), (literal rrr:Binary)-y)
+            else ((literal qq:Binary), (literal rrr:Binary))
+         )}
+      )}
+   )}
+);
+
+let $"/"(x: Binary, y: Binary): Binary = divmod(x,y).0;
+let $"%"(x: Binary, y: Binary): Binary = divmod(x,y).1;
+
+let $"/"(x: SignedBinary, y: SignedBinary) :SignedBinary = match (x,y) {
+   (literal '-' xs, literal '-' ys) => fail,
+   (literal '-' xs, literal ys) => fail,
+   (literal xs, literal '-' ys) => fail,
+   (literal xs, literal ys) => ((literal xs:Binary) / (literal ys:Binary) as SignedBinary),
 };
-let $"<="(x:Integer, y:Integer) :Boolean = x==y || x<y;
-let $">"(x:Integer, y:Integer)  :Boolean = not(x <= y);
-let $">="(x:Integer, y:Integer) :Boolean = not(x < y);
+let $"/"(x: Whole, y: Whole) :Whole;
+let $"/"(x: Integer, y: Integer) :Integer;
+
+let $"%"(x: SignedBinary, y: SignedBinary) :SignedBinary = match (x,y) {
+   (literal '-' xs, literal '-' ys) => fail,
+   (literal '-' xs, literal ys) => fail,
+   (literal xs, literal '-' ys) => fail,
+   (literal xs, literal ys) => ((literal xs:Binary) % (literal ys:Binary) as SignedBinary),
+};
+let $"%"(x: Whole, y: Whole) :Whole;
+let $"%"(x: Integer, y: Integer) :Integer;
+
+let $"^"(x: Binary, y: Binary) :Binary;
+
 
 //Sugar
 let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;

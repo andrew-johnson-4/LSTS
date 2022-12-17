@@ -1,3 +1,4 @@
+/*
 use lsts::tlc::TLC;
 
 #[test]
@@ -20,3 +21,4 @@ fn check_iterator_syntax() {
    tlc.check(Some(l1), "map([for x:Integer in range(2) yield (x,x^2)]);").unwrap();
    tlc.check(Some(l1), "map([for x:Integer in range(2) if x>2 yield (x,x^2)]);").unwrap();
 }
+*/

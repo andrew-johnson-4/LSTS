@@ -210,6 +210,7 @@ impl TLC {
          Term::Literal(lps) => format!("literal {}",
             lps.iter().map(|lp| format!("{:?}",lp)).collect::<Vec<String>>().join(" ")
          ),
+         Term::Project(v) => format!("π{:?}", v),
          Term::Fail => format!("fail"),
          Term::Ident(x) => format!("{}", x),
          Term::Value(x) => format!("{}", x),
@@ -1185,10 +1186,10 @@ impl TLC {
       if let Some(ti) = self.typedef_index.get(tn) {
       if let TypeRule::Typedef(tr) = &self.rules[*ti] {
          for invariant in tr.invariants.clone().iter() {
-            let p = Term::reduce(self, &Some(invariant.scope), &mut subs, invariant.prop);
-            if let Some(p) = p { if p == invariant.algs {
+            let p = Term::reduce(self, &Some(invariant.scope), &mut subs, invariant.prop)?;
+            if p == invariant.algs {
                continue;
-            }}
+            }
             return Err(Error {
                kind: "Type Error".to_string(),
                rule: format!("invariant not satisfied {}: {} | {:?}", tn, self.print_term(invariant.prop), invariant.algs),
@@ -1300,6 +1301,7 @@ impl TLC {
       let implied = implied.map(|tt|tt.normalize());
       //TODO: remove clone here because it is bloating the memory footprint
       match self.rows[t.id].term.clone() {
+         Term::Project(_v) => panic!("Projection Constants cannot be Values at {:?}", &self.rows[t.id].span),
          Term::Literal(_lp) => {
             self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
          },
@@ -1427,14 +1429,8 @@ impl TLC {
             //borrowing self even in a .clone'd expression fails the borrow checker
             if h == "reduce" {
                self.typeck(scope, lhs, None)?;
-               let vt = Term::reduce(self, scope, &HashMap::new(), lhs);
-               if let Some(vt) = vt {
-                  self.rows[t.id].typ = self.rows[lhs.id].typ.and( &Type::Constant(vt.clone()) );
-               } else { return Err(Error {
-                  kind: "Type Error".to_string(),
-                  rule: format!("failed to reduce expression: {}", self.print_term(lhs)),
-                  span: self.rows[t.id].span.clone(),
-               }) }
+               let vt = Term::reduce(self, scope, &HashMap::new(), lhs)?;
+               self.rows[t.id].typ = self.rows[lhs.id].typ.and( &Type::Constant(vt.clone()) );
             } else if let Some(fas) = self.hints.get(&h).cloned() {
                self.typeck(scope, lhs, None)?;
                let mut matched = false;
@@ -1471,15 +1467,23 @@ impl TLC {
          },
          Term::App(g,x) => {
             self.typeck(scope, x, None)?;
-            let grt = match &self.rows[x.id].typ {
-               Type::Tuple(ts) if ts.len()==0 => { implied.clone().unwrap_or(Type::Any) },
-               _ => Type::Any,
-            };
-            self.typeck(scope, g, Some(
-               Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
-                          Box::new(grt.clone()))
-            ))?;
-            self.rows[t.id].typ = self.rows[g.id].typ.range();
+            if let Term::Project(Constant::Literal(cs)) = &self.rows[g.id].term {
+               let pi = str::parse::<usize>(&cs).unwrap();
+               if let Type::Tuple(gts) = self.rows[x.id].typ.clone() {
+                  self.rows[g.id].typ = gts[pi].clone();
+                  self.rows[t.id].typ = gts[pi].clone();
+               }
+            } else {
+               let grt = match &self.rows[x.id].typ {
+                  Type::Tuple(ts) if ts.len()==0 => { implied.clone().unwrap_or(Type::Any) },
+                  _ => Type::Any,
+               };
+               self.typeck(scope, g, Some(
+                  Type::Arrow(Box::new(self.rows[x.id].typ.clone()),
+                             Box::new(grt.clone()))
+               ))?;
+               self.rows[t.id].typ = self.rows[g.id].typ.range();
+            }
          },
          Term::Constructor(cname,kvs) => {
             for (_k,v) in kvs.clone().into_iter() {

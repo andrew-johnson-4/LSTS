@@ -743,11 +743,14 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
       Ok(t)
    } else {
       let mut ts = Vec::new();
-      while !peek_is(tokens, &vec![Symbol::RightParen]) {
+      let mut comma_ok = true;
+      while comma_ok && !peek_is(tokens, &vec![Symbol::RightParen]) {
+         comma_ok = false;
+         ts.push( ll1_term(tlc, scope, tokens)? );
          if peek_is(tokens, &vec![Symbol::Comma]) {
             pop_is("tuple-term", tokens, &vec![Symbol::Comma])?;
+            comma_ok = true;
          }
-         ts.push( ll1_term(tlc, scope, tokens)? );
       }
       pop_is("tuple-term", tokens, &vec![Symbol::RightParen])?;
       if ts.len()==1 {
@@ -832,7 +835,15 @@ pub fn ll1_field_term(tlc: &mut TLC, _scope: ScopeId, tokens: &mut TokenReader) 
    if let Some(Symbol::Ident(f)) = tokens.peek_symbol()? {
       tokens.take_symbol()?;
       return Ok(tlc.push_term(Term::Ident(format!(".{}",f)),&span))
+   } else if let Some(Symbol::Value(x)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
+      return Ok(
+         tlc.push_term(
+            Term::Project(Constant::parse(tlc,&x).unwrap())
+         ,&span)
+      )
    }
+
    pop_is("field-term", tokens, &vec![Symbol::Ident("x".to_string())])?;
    unreachable!("field-term")
 }
