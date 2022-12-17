@@ -352,12 +352,20 @@ impl Term {
                let mut sc = scope_constants.clone();
                if Term::reduce_lhs(tlc, &mut sc, *l, &dc) {
                   if tlc.fails(*r) {
-                     panic!("Term::reduce match failed on {:?}={:?} at {:?}", tlc.print_term(*l), dc, &tlc.rows[r.id].span)
+                     return Err(Error {
+                        kind: "Runtime Error".to_string(),
+                        rule: format!("Term::reduce match failed on {:?}={:?}", tlc.print_term(*l), dc),
+                        span: tlc.rows[r.id].span.clone(),
+                     })
                   }
                   return Term::reduce(tlc, scope, &sc, *r);
                }
             }
-            panic!("Term::reduce match failed on default={:?} at {:?}", dc, &tlc.rows[term.id].span)
+            return Err(Error {
+               kind: "Runtime Error".to_string(),
+               rule: format!("Term::reduce match failed on default={:?}", dc),
+               span: tlc.rows[term.id].span.clone(),
+            })
          },
          _ => unimplemented!("Term::reduce, implement Call-by-Value term reduction: {}", tlc.print_term(term))
       }
