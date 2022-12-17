@@ -46,6 +46,24 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "-89 .binary @reduce :[-1011001];").unwrap();
    tlc.check(Some(l1), "-107 .binary @reduce :[-1101011];").unwrap();
 
+   tlc.check(Some(l1), "0 .binary + 0 .binary @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "1 .binary + 0 .binary @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "0 .binary + 2 .binary @reduce :[10];").unwrap();
+   tlc.check(Some(l1), "3 .binary + 4 .binary @reduce :[111];").unwrap();
+   tlc.check(Some(l1), "5 .binary + 6 .binary @reduce :[1011];").unwrap();
+   tlc.check(Some(l1), "78 .binary + 910 .binary @reduce :[1111011100];").unwrap();
+   tlc.check(Some(l1), "11 .binary + 12 .binary @reduce :[10111];").unwrap();
+
+   tlc.check(Some(l1), "0 .binary - 0 .binary @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "1 .binary - 0 .binary @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "2 .binary - 0 .binary @reduce :[10];").unwrap();
+   tlc.check(Some(l1), "4 .binary - 3 .binary @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "6 .binary - 5 .binary @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "910 .binary - 78 .binary @reduce :[1101000000];").unwrap();
+   tlc.check(Some(l1), "12 .binary + 11 .binary @reduce :[1];").unwrap();
+
+
+   /*
    tlc.check(Some(l1), "(0:Binary) .decimal @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(1:Binary) .decimal @reduce :[1];").unwrap();
    tlc.check(Some(l1), "(10:Binary) .decimal @reduce :[2];").unwrap();
@@ -57,7 +75,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(1000:Binary) .decimal @reduce :[8];").unwrap();
    tlc.check(Some(l1), "(1001:Binary) .decimal @reduce :[9];").unwrap();
    tlc.check(Some(l1), "(1010:Binary) .decimal @reduce :[10];").unwrap();
-   /*
    tlc.check(Some(l1), "(1011:Binary) .decimal @reduce :[11];").unwrap();
    tlc.check(Some(l1), "(1100:Binary) .decimal @reduce :[12];").unwrap();
    tlc.check(Some(l1), "(1101:Binary) .decimal @reduce :[13];").unwrap();

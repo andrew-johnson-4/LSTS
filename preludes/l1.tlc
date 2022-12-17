@@ -170,6 +170,12 @@ let $"-"(x: Binary, y: Binary) :Binary = if x<y then fail else match (x,y) {
    (literal xp '0', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => literal p '0' },
    (literal xp '0', literal yp '1') => match decr((literal xp:Binary)-(literal yp:Binary)) { p => literal p '1' },
 };
+let $"-"(x: SignedBinary, y: SignedBinary) :SignedBinary = match (x,y) {
+   (literal '-' xs, literal '-' ys) => fail,
+   (literal '-' xs, literal ys) => fail,
+   (literal xs, literal '-' ys) => fail,
+   (literal xs, literal ys) => ((literal xs:Binary) - (literal ys:Binary) as SignedBinary),
+};
 
 let $"*"(x: Binary, y: Binary) :Binary = match (x,y) {
    (literal '0', _) => literal "0",
