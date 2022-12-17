@@ -4,6 +4,7 @@ type Boolean = True | False;
 type Integer        = /^(0|([-]?[1-9][0-9]*))$/;
 type Whole          = /^(0|([1-9][0-9]*))$/;
 type Binary         = /^(0|([01]+))$/;
+type BitString      = /^[01]+$/;
 type SignedBinary   = /^(0|([-]?[1][01]*))$/;
 type Tensor<T> = { };
 type Set<E> = { };
@@ -80,20 +81,24 @@ let neg(x: Integer): Integer = match x {
    literal xs => literal '-' xs,
 };
 
-let $".abs"(x: SignedBinary): SignedBinary = match x {
+let .abs(x: SignedBinary): SignedBinary = match x {
    literal '-' xs => literal xs,
    literal xs => literal xs,
 };
-let $".abs"(x: Integer): Integer = match x {
+let .abs(x: Integer): Integer = match x {
    literal '-' xs => literal xs,
    literal xs => literal xs,
 };
 
-let $".binary"(x: Integer) :SignedBinary = match x {
+let .binary(x: BitString): Binary = match x {
+   literal '0' xs => (literal xs:BitString).binary,
+   literal xs => literal xs,
+};
+let .binary(x: Integer) :SignedBinary = match x {
    literal '-' xs => neg((literal xs:Whole).binary),
    literal xs => ((literal xs:Whole).binary as SignedBinary),
 };
-let $".binary"(x: Whole) :Binary = match x {
+let .binary(x: Whole) :Binary = match x {
    literal '0' => literal "0",
    literal '1' => literal "1",
    literal '2' => literal "10",
@@ -107,7 +112,7 @@ let $".binary"(x: Whole) :Binary = match x {
    literal xp [0-9]xs => ((literal xp:Whole).binary * (1010:Binary) + (literal xs:Whole).binary),
 };
 
-let $".decimal"(x: Binary) :Whole = match x {
+let .decimal(x: Binary) :Whole = match x {
    literal "0" => 0,
    literal "1" => 1,
    literal "10" => 2,
@@ -123,7 +128,7 @@ let $".decimal"(x: Binary) :Whole = match x {
       (literal p,literal s) => literal p s,
    },
 };
-let $".decimal"(x: SignedBinary) :Integer = match x {
+let .decimal(x: SignedBinary) :Integer = match x {
    literal '-' xs => neg((literal xs:Binary).decimal),
    literal xs => ((literal xs:Binary).decimal as Integer),
 };
@@ -155,7 +160,7 @@ let decr(x: Binary) :Binary = match x {
    literal '0' => fail,
    literal '1' => literal '0',
    literal xp '1' => literal xp '0',
-   literal xp '0' => match decr(literal xp:Binary) { p => literal p '1' },
+   literal xp '0' => match decr(literal xp:Binary) { p => (literal p '1':BitString).binary },
 };
 let $"-"(x: Binary, y: Binary) :Binary = if x<y then fail else match (x,y) {
    (literal '0', literal '0') => literal '0',
@@ -164,11 +169,11 @@ let $"-"(x: Binary, y: Binary) :Binary = if x<y then fail else match (x,y) {
    (literal xp '1', literal '0') => literal xp '1',
    (literal xp '1', literal '1') => literal xp '0',
    (literal xp '0', literal '0') => literal xp '0',
-   (literal xp '0', literal '1') => match decr(literal xp:Binary) { p => literal p '1' },
+   (literal xp '0', literal '1') => match decr(literal xp:Binary) { p => (literal p '1':BitString).binary },
    (literal xp '1', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => literal p '1' },
    (literal xp '1', literal yp '1') => match (literal xp:Binary)-(literal yp:Binary) { p => literal p '0' },
    (literal xp '0', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => literal p '0' },
-   (literal xp '0', literal yp '1') => match decr((literal xp:Binary)-(literal yp:Binary)) { p => literal p '1' },
+   (literal xp '0', literal yp '1') => match decr((literal xp:Binary)-(literal yp:Binary)) { p => (literal p '1':BitString).binary },
 };
 let $"-"(x: SignedBinary, y: SignedBinary) :SignedBinary = match (x,y) {
    (literal '-' xs, literal '-' ys) => fail,
@@ -192,16 +197,16 @@ let $"*"(x: Binary, y: Binary) :Binary = match (x,y) {
    ),
 };
 
-let $".lshift"(x: Binary): Binary = literal x '0';
-let $".rshift"(x: Binary): Binary = match x {
+let .lshift(x: Binary): Binary = literal x '0';
+let .rshift(x: Binary): Binary = match x {
    literal xp [01] => literal xp,
    literal [01] => literal '0',
 };
-let $".is_odd"(x: Binary): Boolean = match x {
+let .is_odd(x: Binary): Boolean = match x {
    literal _ '1' => True,
    _ => False,
 };
-let $".length"(x: Binary): Binary = match x {
+let .length(x: Binary): Binary = match x {
    literal [01] => 1,
    literal xp [01] => ((literal xp:Binary)+(1:Binary)),
 };
