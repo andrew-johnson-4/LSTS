@@ -743,11 +743,14 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
       Ok(t)
    } else {
       let mut ts = Vec::new();
-      while !peek_is(tokens, &vec![Symbol::RightParen]) {
+      let mut comma_ok = true;
+      while comma_ok && !peek_is(tokens, &vec![Symbol::RightParen]) {
+         comma_ok = false;
+         ts.push( ll1_term(tlc, scope, tokens)? );
          if peek_is(tokens, &vec![Symbol::Comma]) {
             pop_is("tuple-term", tokens, &vec![Symbol::Comma])?;
+            comma_ok = true;
          }
-         ts.push( ll1_term(tlc, scope, tokens)? );
       }
       pop_is("tuple-term", tokens, &vec![Symbol::RightParen])?;
       if ts.len()==1 {
