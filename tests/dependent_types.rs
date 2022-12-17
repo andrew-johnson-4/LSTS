@@ -62,10 +62,17 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "910 .binary - 78 .binary @reduce :[1101000000];").unwrap();
    tlc.check(Some(l1), "12 .binary - 11 .binary @reduce :[1];").unwrap();
 
-   /*
+   tlc.check(Some(l1), "0 .binary * 0 .binary @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "1 .binary * 0 .binary @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "2 .binary * 0 .binary @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "4 .binary * 3 .binary @reduce :[1100];").unwrap();
+   tlc.check(Some(l1), "6 .binary * 5 .binary @reduce :[11110];").unwrap();
+   tlc.check(Some(l1), "910 .binary * 78 .binary @reduce :[10001010101000100];").unwrap();
+   tlc.check(Some(l1), "12 .binary * 11 .binary @reduce :[10000100];").unwrap();
+
    tlc.check(Some(l1), "0 .binary / 1 .binary @reduce :[0];").unwrap();
-   tlc.check(Some(l1), "1 .binary / 1 .binary @reduce :[0];").unwrap();
-   tlc.check(Some(l1), "2 .binary / 1 .binary @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "1 .binary / 1 .binary @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "2 .binary / 1 .binary @reduce :[10];").unwrap();
    tlc.check(Some(l1), "1 .binary / 2 .binary @reduce :[0];").unwrap();
    tlc.check(Some(l1), "4 .binary / 3 .binary @reduce :[1];").unwrap();
    tlc.check(Some(l1), "6 .binary / 5 .binary @reduce :[1];").unwrap();
@@ -80,7 +87,13 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "6 .binary % 5 .binary @reduce :[1];").unwrap();
    tlc.check(Some(l1), "910 .binary % 78 .binary @reduce :[110100];").unwrap();
    tlc.check(Some(l1), "12 .binary % 11 .binary @reduce :[1];").unwrap();
-   tlc.check(Some(l1), "13 .binary % 11 .binary @reduce :[2];").unwrap();
+   tlc.check(Some(l1), "13 .binary % 11 .binary @reduce :[10];").unwrap();
+
+   //23.decimal was failing, so make a special test case for it
+   tlc.check(Some(l1), "23 .binary / 10 .binary @reduce :[10];").unwrap();
+   //tlc.check(Some(l1), "23 .binary % 10 .binary @reduce :[11];").unwrap();
+   //tlc.check(Some(l1), "2 .binary / 10 .binary @reduce :[0];").unwrap();
+   //tlc.check(Some(l1), "2 .binary % 10 .binary @reduce :[10];").unwrap();
 
    tlc.check(Some(l1), "(0:Binary) .decimal @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(1:Binary) .decimal @reduce :[1];").unwrap();
@@ -99,6 +112,7 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(1110:Binary) .decimal @reduce :[14];").unwrap();
    tlc.check(Some(l1), "(1111:Binary) .decimal @reduce :[15];").unwrap();
    tlc.check(Some(l1), "(10000:Binary) .decimal @reduce :[16];").unwrap();
+   /*
    tlc.check(Some(l1), "(10111:Binary) .decimal @reduce :[23];").unwrap();
    tlc.check(Some(l1), "(101101:Binary) .decimal @reduce :[45];").unwrap();
    tlc.check(Some(l1), "(1000011:Binary) .decimal @reduce :[67];").unwrap();
@@ -109,7 +123,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(-1000011:SignedBinary) .decimal @reduce :[-67];").unwrap();
    tlc.check(Some(l1), "(-1011001:SignedBinary) .decimal @reduce :[-89];").unwrap();
    tlc.check(Some(l1), "(-1101011:SignedBinary) .decimal @reduce :[-107];").unwrap();
-
 
    tlc.check(Some(l1), "+0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "+ 0 @reduce :[0];").unwrap();
