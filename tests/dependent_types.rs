@@ -90,10 +90,13 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "13 .binary % 11 .binary @reduce :[10];").unwrap();
 
    //23.decimal was failing, so make a special test case for it
-   tlc.check(Some(l1), "23 .binary / 10 .binary @reduce :[10];").unwrap();
-   //tlc.check(Some(l1), "23 .binary % 10 .binary @reduce :[11];").unwrap();
-   //tlc.check(Some(l1), "2 .binary / 10 .binary @reduce :[0];").unwrap();
-   //tlc.check(Some(l1), "2 .binary % 10 .binary @reduce :[10];").unwrap();
+   tlc.check(Some(l1), "(1011:Binary) - (1010:Binary) @ reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(1011:Binary) / (1010:Binary) @ reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(1011:Binary) % (1010:Binary) @ reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(10:Binary) / (1010:Binary) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(10:Binary) % (1010:Binary) @reduce :[10];").unwrap();
+   tlc.check(Some(l1), "(10111:Binary) / (1010:Binary) @reduce :[10];").unwrap();
+   tlc.check(Some(l1), "(10111:Binary) % (1010:Binary) @reduce :[11];").unwrap();
 
    tlc.check(Some(l1), "(0:Binary) .decimal @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(1:Binary) .decimal @reduce :[1];").unwrap();
@@ -112,7 +115,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(1110:Binary) .decimal @reduce :[14];").unwrap();
    tlc.check(Some(l1), "(1111:Binary) .decimal @reduce :[15];").unwrap();
    tlc.check(Some(l1), "(10000:Binary) .decimal @reduce :[16];").unwrap();
-   /*
    tlc.check(Some(l1), "(10111:Binary) .decimal @reduce :[23];").unwrap();
    tlc.check(Some(l1), "(101101:Binary) .decimal @reduce :[45];").unwrap();
    tlc.check(Some(l1), "(1000011:Binary) .decimal @reduce :[67];").unwrap();
@@ -330,6 +332,7 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(-123 % 45) @reduce :[12];").unwrap();
    tlc.check(Some(l1), "(-5 % -6) @reduce :[-5];").unwrap();
 
+   /*
    tlc.check(Some(l1), "(0 ^ 0) @reduce :[0];").unwrap_err();
    tlc.check(Some(l1), "(0 ^ 1) @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(1 ^ 0) @reduce :[0];").unwrap_err();

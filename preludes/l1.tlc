@@ -170,9 +170,9 @@ let $"-"(x: Binary, y: Binary) :Binary = if x<y then fail else match (x,y) {
    (literal xp '1', literal '1') => literal xp '0',
    (literal xp '0', literal '0') => literal xp '0',
    (literal xp '0', literal '1') => match decr(literal xp:Binary) { p => (literal p '1':BitString).binary },
-   (literal xp '1', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => literal p '1' },
-   (literal xp '1', literal yp '1') => match (literal xp:Binary)-(literal yp:Binary) { p => literal p '0' },
-   (literal xp '0', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => literal p '0' },
+   (literal xp '1', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => (literal p '1':BitString).binary },
+   (literal xp '1', literal yp '1') => match (literal xp:Binary)-(literal yp:Binary) { p => (literal p '0':BitString).binary },
+   (literal xp '0', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => (literal p '0':BitString).binary },
    (literal xp '0', literal yp '1') => match decr((literal xp:Binary)-(literal yp:Binary)) { p => (literal p '1':BitString).binary },
 };
 let $"-"(x: SignedBinary, y: SignedBinary) :SignedBinary = match (x,y) {
@@ -221,7 +221,9 @@ let divmod(x: Binary, y: Binary) :(Binary,Binary) = (
         if y==(0:Binary) then fail
    else if x==(0:Binary) then (0:Binary, 0:Binary)
    else if y==(1:Binary) then (x, 0:Binary)
+   //(10111:Binary) / (1010:Binary)
    else match divmod(x.rshift, y) { (q, r) => (
+      //((1:Binary), (1:Binary))
       match ((10:Binary)*(literal q:Binary), (10:Binary)*(literal r:Binary)) { (qq,rr) => (
          match (if x.is_odd then (literal rr:Binary)+(1:Binary) else (literal rr:Binary)) { rrr => (
             if (literal rrr:Binary)>=y
