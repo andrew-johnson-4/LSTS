@@ -15,6 +15,7 @@ type Even:Integer
 type Odd:Integer
      where. self%2 | 1;
 
+//Operators
 let not(b:Boolean): Boolean = match b { True => False, False => True, };
 let $"&&"(a:Boolean, b:Boolean): Boolean = match (a,b) { (True,True) => True, _ => False, };
 let $"||"(a:Boolean, b:Boolean): Boolean = match (a,b) { (False,False) => False, _ => True, };
@@ -94,11 +95,7 @@ let .binary(x: BitString): Binary = match x {
    literal '0' xs => (literal xs:BitString).binary,
    literal xs => literal xs,
 };
-let .binary(x: Integer) :SignedBinary = match x {
-   literal '-' xs => neg((literal xs:Whole).binary),
-   literal xs => ((literal xs:Whole).binary as SignedBinary),
-};
-let .binary(x: Whole) :Binary = match x {
+let .binary(x: Whole): Binary = match x {
    literal '0' => literal "0",
    literal '1' => literal "1",
    literal '2' => literal "10",
@@ -111,8 +108,12 @@ let .binary(x: Whole) :Binary = match x {
    literal '9' => literal "1001",
    literal xp [0-9]xs => ((literal xp:Whole).binary * (1010:Binary) + (literal xs:Whole).binary),
 };
+let .binary(x: Integer): SignedBinary = match x {
+   literal '-' xs => neg((literal xs:Whole).binary),
+   literal xs => ((literal xs:Whole).binary as SignedBinary),
+};
 
-let .decimal(x: Binary) :Whole = match x {
+let .decimal(x: Binary): Whole = match x {
    literal "0" => 0,
    literal "1" => 1,
    literal "10" => 2,
@@ -128,12 +129,12 @@ let .decimal(x: Binary) :Whole = match x {
       (literal p,literal s) => literal p s,
    },
 };
-let .decimal(x: SignedBinary) :Integer = match x {
+let .decimal(x: SignedBinary): Integer = match x {
    literal '-' xs => neg((literal xs:Binary).decimal),
    literal xs => ((literal xs:Binary).decimal as Integer),
 };
 
-let $"+"(x: Binary, y: Binary) :Binary = match (x,y) {
+let $"+"(x: Binary, y: Binary): Binary = match (x,y) {
    (literal '0', _) => literal y,
    (_, literal '0') => literal x,
    (literal '1', literal '1') => literal "10",
@@ -149,20 +150,22 @@ let $"+"(x: Binary, y: Binary) :Binary = match (x,y) {
 };
 let $"+"(x:SignedBinary, y:SignedBinary): SignedBinary = match (x,y) {
    (literal '-' xs, literal '-' ys) => match ((literal xs:Binary) + (literal ys:Binary)) { xys => literal '-' xys },
-   (literal '-' xs, literal ys) => fail,
-   (literal xs, literal '-' ys) => fail,
+   (literal xs, literal '-' ys) => (if (literal xs:Binary)<(literal ys:Binary)
+   then neg((literal ys:Binary) - (literal xs:Binary))
+   else (((literal xs:Binary) - (literal ys:Binary)) as SignedBinary) ),
+   (literal '-' xs, literal ys) => ((literal ys:SignedBinary) + (literal '-' xs:SignedBinary)),
    (literal xs, literal ys) => ((literal xs:Binary) + (literal ys:Binary) as SignedBinary),
 };
 let $"+"(x:Whole, y:Whole): Whole = (x.binary + y.binary).decimal;
 let $"+"(x:Integer, y:Integer): Integer = (x.binary + y.binary).decimal;
 
-let decr(x: Binary) :Binary = match x {
+let decr(x: Binary): Binary = match x {
    literal '0' => fail,
    literal '1' => literal '0',
    literal xp '1' => literal xp '0',
    literal xp '0' => match decr(literal xp:Binary) { p => (literal p '1':BitString).binary },
 };
-let $"-"(x: Binary, y: Binary) :Binary = if x<y then fail else match (x,y) {
+let $"-"(x: Binary, y: Binary): Binary = if x<y then fail else match (x,y) {
    (literal '0', literal '0') => literal '0',
    (literal '1', literal '0') => literal '1',
    (literal '1', literal '1') => literal '0',
@@ -175,14 +178,11 @@ let $"-"(x: Binary, y: Binary) :Binary = if x<y then fail else match (x,y) {
    (literal xp '0', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => (literal p '0':BitString).binary },
    (literal xp '0', literal yp '1') => match decr((literal xp:Binary)-(literal yp:Binary)) { p => (literal p '1':BitString).binary },
 };
-let $"-"(x: SignedBinary, y: SignedBinary) :SignedBinary = match (x,y) {
-   (literal '-' xs, literal '-' ys) => fail,
-   (literal '-' xs, literal ys) => fail,
-   (literal xs, literal '-' ys) => fail,
-   (literal xs, literal ys) => ((literal xs:Binary) - (literal ys:Binary) as SignedBinary),
-};
+let $"-"(x: SignedBinary, y: SignedBinary): SignedBinary = x + -y;
+let $"-"(x: Whole, y: Whole): Whole = (x.binary - y.binary).decimal;
+let $"-"(x: Integer, y: Integer): Integer = (x.binary - y.binary).decimal;
 
-let $"*"(x: Binary, y: Binary) :Binary = match (x,y) {
+let $"*"(x: Binary, y: Binary): Binary = match (x,y) {
    (literal '0', _) => literal "0",
    (_, literal '0') => literal "0",
    (literal '1', _) => literal y,
@@ -217,13 +217,11 @@ let .length(x: Binary): Binary = match x {
    literal [01] => 1,
    literal xp [01] => ((literal xp:Binary)+(1:Binary)),
 };
-let divmod(x: Binary, y: Binary) :(Binary,Binary) = (
+let divmod(x: Binary, y: Binary): (Binary,Binary) = (
         if y==(0:Binary) then fail
    else if x==(0:Binary) then (0:Binary, 0:Binary)
    else if y==(1:Binary) then (x, 0:Binary)
-   //(10111:Binary) / (1010:Binary)
    else match divmod(x.rshift, y) { (q, r) => (
-      //((1:Binary), (1:Binary))
       match ((10:Binary)*(literal q:Binary), (10:Binary)*(literal r:Binary)) { (qq,rr) => (
          match (if x.is_odd then (literal rr:Binary)+(1:Binary) else (literal rr:Binary)) { rrr => (
             if (literal rrr:Binary)>=y
@@ -238,24 +236,30 @@ let $"/"(x: Binary, y: Binary): Binary = divmod(x,y).0;
 let $"%"(x: Binary, y: Binary): Binary = divmod(x,y).1;
 
 let $"/"(x: SignedBinary, y: SignedBinary) :SignedBinary = match (x,y) {
-   (literal '-' xs, literal '-' ys) => fail,
-   (literal '-' xs, literal ys) => fail,
-   (literal xs, literal '-' ys) => fail,
+   (literal '-' xs, literal '-' ys) => ((literal xs:Binary) / (literal ys:Binary) as SignedBinary),
+   (literal '-' xs, literal ys) => neg((literal xs:Binary) / (literal ys:Binary) as SignedBinary),
+   (literal xs, literal '-' ys) => neg((literal xs:Binary) / (literal ys:Binary) as SignedBinary),
    (literal xs, literal ys) => ((literal xs:Binary) / (literal ys:Binary) as SignedBinary),
 };
-let $"/"(x: Whole, y: Whole) :Whole;
-let $"/"(x: Integer, y: Integer) :Integer;
+let $"/"(x: Whole, y: Whole): Whole = (x.binary / y.binary).decimal;
+let $"/"(x: Integer, y: Integer): Integer = (x.binary / y.binary).decimal;
 
-let $"%"(x: SignedBinary, y: SignedBinary) :SignedBinary = match (x,y) {
-   (literal '-' xs, literal '-' ys) => fail,
-   (literal '-' xs, literal ys) => fail,
-   (literal xs, literal '-' ys) => fail,
+let $"%"(x: SignedBinary, y: SignedBinary): SignedBinary = match (x,y) {
+   (literal '-' xs, literal '-' ys) => neg((literal xs:Binary) % (literal ys:Binary)),
+   (literal '-' xs, literal ys) => (match (literal xs:Binary) % (literal ys:Binary) {
+      literal '0' => literal '0',
+      literal r => (y - (literal r:SignedBinary))
+   }),
+   (literal xs, literal '-' ys) => (match (literal xs:Binary) % (literal ys:Binary) {
+      literal '0' => literal '0',
+      literal r => ((literal r:SignedBinary) + y)
+   }),
    (literal xs, literal ys) => ((literal xs:Binary) % (literal ys:Binary) as SignedBinary),
 };
-let $"%"(x: Whole, y: Whole) :Whole;
-let $"%"(x: Integer, y: Integer) :Integer;
+let $"%"(x: Whole, y: Whole): Whole = (x.binary % y.binary).decimal;
+let $"%"(x: Integer, y: Integer): Integer = (x.binary % y.binary).decimal;
 
-let $"^"(x: Binary, y: Binary) :Binary;
+let $"^"(x: Binary, y: Binary): Binary;
 
 
 //Sugar

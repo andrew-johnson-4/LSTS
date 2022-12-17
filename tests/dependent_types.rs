@@ -275,7 +275,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(1 + 999) @reduce :[1000];").unwrap();
    tlc.check(Some(l1), "(999 + 1) @reduce :[1000];").unwrap();
 
-   /*
    tlc.check(Some(l1), "((0:Whole) - (0:Whole)) @reduce :[0];").unwrap();
    tlc.check(Some(l1), "((8:Whole) - (3:Whole)) @reduce :[5];").unwrap();
    tlc.check(Some(l1), "((12:Whole) - (3:Whole)) @reduce :[9];").unwrap();
@@ -330,9 +329,11 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(-1 % 5) @reduce :[4];").unwrap();
    tlc.check(Some(l1), "(345 % 67) @reduce :[10];").unwrap();
    tlc.check(Some(l1), "(890 % -5) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(891 % -5) @reduce :[-4];").unwrap();
    tlc.check(Some(l1), "(-123 % 45) @reduce :[12];").unwrap();
    tlc.check(Some(l1), "(-5 % -6) @reduce :[-5];").unwrap();
 
+   /*
    tlc.check(Some(l1), "(0 ^ 0) @reduce :[0];").unwrap_err();
    tlc.check(Some(l1), "(0 ^ 1) @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(1 ^ 0) @reduce :[0];").unwrap_err();
