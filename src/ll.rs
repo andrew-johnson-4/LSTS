@@ -832,7 +832,15 @@ pub fn ll1_field_term(tlc: &mut TLC, _scope: ScopeId, tokens: &mut TokenReader) 
    if let Some(Symbol::Ident(f)) = tokens.peek_symbol()? {
       tokens.take_symbol()?;
       return Ok(tlc.push_term(Term::Ident(format!(".{}",f)),&span))
+   } else if let Some(Symbol::Value(x)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
+      return Ok(
+         tlc.push_term(
+            Term::Project(Constant::parse(tlc,&x).unwrap())
+         ,&span)
+      )
    }
+
    pop_is("field-term", tokens, &vec![Symbol::Ident("x".to_string())])?;
    unreachable!("field-term")
 }

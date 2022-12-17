@@ -45,6 +45,7 @@ impl std::fmt::Debug for Literal {
 pub enum Term {
    Ident(String),
    Value(String),
+   Project(Constant),
    Arrow(Option<ScopeId>,TermId,Option<Type>,TermId),
    App(TermId,TermId),
    Let(LetTerm),

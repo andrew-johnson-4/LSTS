@@ -210,6 +210,7 @@ impl TLC {
          Term::Literal(lps) => format!("literal {}",
             lps.iter().map(|lp| format!("{:?}",lp)).collect::<Vec<String>>().join(" ")
          ),
+         Term::Project(v) => format!("π{:?}", v),
          Term::Fail => format!("fail"),
          Term::Ident(x) => format!("{}", x),
          Term::Value(x) => format!("{}", x),
@@ -1300,6 +1301,7 @@ impl TLC {
       let implied = implied.map(|tt|tt.normalize());
       //TODO: remove clone here because it is bloating the memory footprint
       match self.rows[t.id].term.clone() {
+         Term::Project(_v) => panic!("Projection Constants cannot be Values at {:?}", &self.rows[t.id].span),
          Term::Literal(_lp) => {
             self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
          },
