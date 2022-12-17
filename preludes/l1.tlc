@@ -3,7 +3,7 @@
 type Boolean = True | False;
 type Integer        = /^(0|([-]?[1-9][0-9]*))$/;
 type Whole          = /^(0|([1-9][0-9]*))$/;
-type Binary         = /^(0|([01]+))$/;
+type Binary         = /^(0|([1][01]*))$/;
 type BitString      = /^[01]+$/;
 type SignedBinary   = /^(0|([-]?[1][01]*))$/;
 type Tensor<T> = { };
