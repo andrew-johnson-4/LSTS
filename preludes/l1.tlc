@@ -150,7 +150,25 @@ let $"+"(x:SignedBinary, y:SignedBinary): SignedBinary = match (x,y) {
 let $"+"(x:Whole, y:Whole): Whole = (x.binary + y.binary).decimal;
 let $"+"(x:Integer, y:Integer): Integer = (x.binary + y.binary).decimal;
 
-let $"-"(x: Binary, y: Binary) :Binary;
+let decr(x: Binary) :Binary = match x {
+   literal '0' => fail,
+   literal '1' => literal '0',
+   literal xp '1' => literal xp '0',
+   literal xp '0' => match decr(literal xp:Binary) { p => literal p '1' },
+};
+let $"-"(x: Binary, y: Binary) :Binary = if x<y then fail else match (x,y) {
+   (literal '0', literal '0') => literal '0',
+   (literal '1', literal '0') => literal '1',
+   (literal '1', literal '1') => literal '0',
+   (literal xp '1', literal '0') => literal xp '1',
+   (literal xp '1', literal '1') => literal xp '0',
+   (literal xp '0', literal '0') => literal xp '0',
+   (literal xp '0', literal '1') => match decr(literal xp:Binary) { p => literal p '1' },
+   (literal xp '1', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => literal p '1' },
+   (literal xp '1', literal yp '1') => match (literal xp:Binary)-(literal yp:Binary) { p => literal p '0' },
+   (literal xp '0', literal yp '0') => match (literal xp:Binary)-(literal yp:Binary) { p => literal p '0' },
+   (literal xp '0', literal yp '1') => match decr((literal xp:Binary)-(literal yp:Binary)) { p => literal p '1' },
+};
 
 let $"*"(x: Binary, y: Binary) :Binary = match (x,y) {
    (literal '0', _) => literal "0",
@@ -168,8 +186,14 @@ let $"*"(x: Binary, y: Binary) :Binary = match (x,y) {
 };
 
 let $"/"(x: Binary, y: Binary) :Binary;
+let $"/"(x: SignedBinary, y: SignedBinary) :SignedBinary;
+let $"/"(x: Whole, y: Whole) :Whole;
+let $"/"(x: Integer, y: Integer) :Integer;
 
 let $"%"(x: Binary, y: Binary) :Binary;
+let $"%"(x: SignedBinary, y: SignedBinary) :SignedBinary;
+let $"%"(x: Whole, y: Whole) :Whole;
+let $"%"(x: Integer, y: Integer) :Integer;
 
 let $"^"(x: Binary, y: Binary) :Binary;
 
