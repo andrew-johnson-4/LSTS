@@ -1,6 +1,7 @@
 **Program Components**
 * Tokenization
 * Parsing
+* Type Operations
 * Program Analysis
 * Compilation
 * Interpretation
