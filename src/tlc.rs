@@ -178,24 +178,6 @@ impl TLC {
       self.strict = true;
       self
    }
-   pub fn print_type(&self, kinds: &HashMap<Type,Kind>, tt: &Type) -> String {
-      let ts = match tt {
-         Type::Any => format!("?"),
-         Type::Named(t,ts) => {
-            if ts.len()==0 { format!("{}", t) }
-            else { format!("{}<{}>", t, ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join(",") ) }
-         }
-         Type::And(ts) => format!("{{{}}}", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join("+") ),
-         Type::Tuple(ts) => format!("({})", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join(",") ),
-         Type::Product(ts) => format!("({})", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join("*") ),
-         Type::Arrow(p,b) => format!("({})->({})", self.print_type(kinds,p), self.print_type(kinds,b)),
-         Type::Ratio(n,d) => format!("({})/({})", self.print_type(kinds,n), self.print_type(kinds,d)),
-         Type::Constant(cv) => format!("[{:?}]", cv),
-      };
-      if let Some(k) = kinds.get(tt) {
-         format!("{}::{:?}", ts, k)
-      } else { ts }
-   }
    pub fn print_scope(&self, s: ScopeId) -> String {
       let mut buf:String = format!("#{}{{\n", s.id);
       for (cn,pks,ct,_v) in self.scopes[s.id].children.iter() {
@@ -788,10 +770,10 @@ impl TLC {
             }}
          Err(Error {
             kind: "Type Error".to_string(),
-            rule: format!("variable {}: {} did not match any candidate {}",
+            rule: format!("variable {}: {:?} did not match any candidate {}",
                      v,
-                     self.print_type(&tkts, &implied),
-                     candidates.iter().map(|t|self.print_type(&tkts,t))
+                     &implied,
+                     candidates.iter().map(|t|format!("{:?}",t))
                                .collect::<Vec<String>>().join(" | "),
                   ),
             span: span.clone(),
@@ -971,7 +953,6 @@ impl TLC {
       self.arrow_implies(lt,rt,span,InArrow::No)
    }
    pub fn arrow_implies(&mut self, lt: &Type, rt: &Type, span: &Span, inarrow: InArrow) -> Result<Type,Error> {
-      let ks = HashMap::new();
       let mut lt = lt.clone();
       let mut rt = rt.clone();
       let nt = Type::arrow_implies(self, &mut lt, &mut rt, inarrow);
@@ -979,7 +960,7 @@ impl TLC {
          Type::And(nts) if nts.len()==0 => {
             Err(Error {
                kind: "Type Error".to_string(),
-               rule: format!("failed unification {} (x) {}", self.print_type(&ks,&lt), self.print_type(&ks,&rt)),
+               rule: format!("failed unification {:?} (x) {:?}", &lt, &rt),
                span: span.clone(),
             })
          },
