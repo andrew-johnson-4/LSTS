@@ -13,7 +13,6 @@ fn parse_simplytyped() {
    tlc.parse("let t: (A);").unwrap();
    tlc.parse("let t: (A,B);").unwrap();
    tlc.parse("let t: T<A,B>;").unwrap();
-   //TODO: tlc.parse("let t: ?[A];").unwrap();
    tlc.parse("let t: ()->A;").unwrap();
    tlc.parse("let t: A->B;").unwrap();
    tlc.parse("let t: (A)->B;").unwrap();
@@ -32,6 +31,9 @@ fn parse_simplytyped() {
    tlc.parse("forall :A,:B::C. (A,B) :: R;").unwrap();
    tlc.parse("forall :A,:B::C. (A,B) => C :: R;").unwrap();
    tlc.parse("{a; b;};").unwrap();
+
+   //Type Names, like Ab, are always valid constants, even without a prelude
+   tlc.parse("let t: T[Ab];").unwrap();
 }
 
 #[test]
