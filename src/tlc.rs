@@ -406,16 +406,16 @@ impl TLC {
             k
          },
          Type::Tuple(ts) => {
-            let mut k = None;
             for ct in ts.iter() {
-               k = self.kinds_of(kinds,ct);
+               self.kinds_of(kinds,ct);
             }
-            if let Some(ref k) = k {
-               kinds.insert(tt.clone(), k.clone());
-            } else {
-               kinds.insert(tt.clone(), self.term_kind.clone());
-            }
-            k
+            kinds.insert(tt.clone(), self.term_kind.clone());
+            Some(self.term_kind.clone())
+         },
+         Type::HTuple(bt,_ct) => {
+            self.kinds_of(kinds,bt);
+            kinds.insert(tt.clone(), self.term_kind.clone());
+            Some(self.term_kind.clone())
          },
          Type::Arrow(p,b) => {
             self.kinds_of(kinds,p);
@@ -559,6 +559,7 @@ impl TLC {
             Ok(())
          },
          Type::Tuple(ts) => { for tc in ts.iter() { self.soundck(tc,span)?; } Ok(()) },
+         Type::HTuple(bt,_ct) => { self.soundck(bt,span) },
          Type::Product(ts) => { for tc in ts.iter() { self.soundck(tc,span)?; } Ok(()) },
          Type::Named(tn,ts) => {
             if ts.len()==0 { return Ok(()); }
@@ -623,6 +624,7 @@ impl TLC {
             Type::And(ats)
          },
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
+         Type::HTuple(bt,ct) => Type::HTuple(Box::new(self.extend_implied(bt)),ct.clone()),
          Type::Product(ts) => Type::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
          Type::Constant(cv) => Type::Constant(cv.clone())
       }
@@ -647,6 +649,7 @@ impl TLC {
          Type::Named(tn,ts) => self.type_is_normal.contains(&Type::Named(tn.clone(),Vec::new())) &&
                               ts.iter().all(|ct|self.is_normal(ct)),
          Type::Tuple(ts) => ts.iter().all(|ct|self.is_normal(ct)),
+         Type::HTuple(bt,_ct) => self.is_normal(bt),
          Type::Product(ts) => ts.iter().all(|ct|self.is_normal(ct)),
          Type::Arrow(p,b) => self.is_normal(p) && self.is_normal(b),
          Type::Ratio(p,b) => self.is_normal(p) && self.is_normal(b),
@@ -698,6 +701,11 @@ impl TLC {
             }
             Type::Tuple(cts)
          },
+         Type::HTuple(bt,ct) => {
+            let bt = self.narrow(kinds,projection,bt);
+            if bt.is_bottom() { return self.bottom_type.clone(); }
+            Type::HTuple(Box::new(bt),ct.clone())
+         }
          Type::Product(ts) => {
             let mut cts = Vec::new();
             for ct in ts.iter() {

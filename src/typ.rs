@@ -30,30 +30,13 @@ pub enum Type {
    And(Vec<Type>), //Bottom is the empty conjunctive
    Arrow(Box<Type>,Box<Type>),
    Tuple(Vec<Type>),   //Tuple is order-sensitive, Nil is the empty tuple
+   HTuple(Box<Type>,Constant),
    Product(Vec<Type>), //Product is order-insensitive
    Ratio(Box<Type>,Box<Type>),
    Constant(Constant),
 }
 
 impl Type {
-   pub fn print(&self, kinds: &HashMap<Type,Kind>) -> String {
-      let ts = match self {
-         Type::Any => format!("?"),
-         Type::Named(t,ts) => {
-            if ts.len()==0 { format!("{}", t) }
-            else { format!("{}<{}>", t, ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join(",") ) }
-         }
-         Type::And(ts) => format!("{{{}}}", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join("+") ),
-         Type::Tuple(ts) => format!("({})", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join(",") ),
-         Type::Product(ts) => format!("({})", ts.iter().map(|t|t.print(kinds)).collect::<Vec<String>>().join("*") ),
-         Type::Arrow(p,b) => format!("({})->({})", p.print(kinds), b.print(kinds)),
-         Type::Ratio(n,d) => format!("({})/({})", n.print(kinds), d.print(kinds)),
-         Type::Constant(cv) => format!("[{:?}]", cv),
-      };
-      if let Some(k) = kinds.get(self) {
-         format!("{}::{:?}", ts, k)
-      } else { ts }
-   }
    pub fn project_ratio(&self) -> (Vec<Type>,Vec<Type>) {
        match self {
          Type::Ratio(p,b) => {
@@ -101,6 +84,7 @@ impl Type {
          Type::Ratio(p,b) => Type::Ratio(Box::new(p.mask()),Box::new(b.mask())),
          Type::And(ts) => Type::And(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
+         Type::HTuple(bt,ct) => Type::HTuple(Box::new(bt.mask()),ct.clone()),
          Type::Product(ts) => Type::Product(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
          Type::Constant(cv) => Type::Constant(cv.clone())
       }
@@ -206,6 +190,7 @@ impl Type {
             }
             nv
          },
+         Type::HTuple(bt,_ct) => { bt.vars() },
          Type::Product(ts) => {
             let mut nv = Vec::new();
             for tt in ts.iter() {
@@ -291,6 +276,7 @@ impl Type {
          Type::Named(tn,ts) => Type::Named(tn.clone(),ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::And(ts) => Type::And(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
+         Type::HTuple(bt,ct) => Type::HTuple(Box::new(bt.remove(x)),ct.clone()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
          Type::Constant(cv) => Type::Constant(cv.clone())
       }.normalize()
@@ -306,6 +292,7 @@ impl Type {
          Type::Named(tn,ts) => Type::Named(tn.clone(),ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::And(ts) => Type::And(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
+         Type::HTuple(bt,ct) => Type::HTuple(Box::new(bt.substitute(subs)),ct.clone()),
          Type::Product(ts) => Type::Product(ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
          Type::Constant(cv) => Type::Constant(cv.clone())
       }
@@ -318,6 +305,7 @@ impl Type {
          Type::Named(_tn,ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::And(ts) => ts.iter().all(|tc| tc.is_concrete()), //bottom Typee is also concrete
          Type::Tuple(ts) => ts.iter().all(|tc| tc.is_concrete()),
+         Type::HTuple(bt,_ct) => bt.is_concrete(),
          Type::Product(ts) => ts.iter().all(|tc| tc.is_concrete()),
          Type::Constant(_) => true,
       }
@@ -539,6 +527,11 @@ impl Type {
             }
             Type::Tuple(ts)
          },
+         (Type::HTuple(lb,lc),Type::HTuple(rb,rc)) if lc==rc => {
+            let bt = lb.__implication_unifier(rb,subs,inarrow);
+            if bt.is_bottom() { return bt.clone(); }
+            Type::HTuple(Box::new(bt), lc.clone())
+         },
 
          (Type::Constant(lv),Type::Constant(rv)) if lv==rv => {
             Type::Constant(lv.clone())
@@ -662,6 +655,11 @@ impl Type {
             }
             Type::Tuple(ts)
          },
+         (Type::HTuple(lb,lc),Type::HTuple(rb,rc)) if lc==rc => {
+            let bt = lb.most_general_unifier(rb);
+            if bt.is_bottom() { return bt.clone(); }
+            Type::HTuple(Box::new(bt), lc.clone())
+         },
 
          (Type::Constant(lv),Type::Constant(rv)) if lv==rv => {
             Type::Constant(lv.clone())
@@ -681,6 +679,7 @@ impl std::fmt::Debug for Type {
            }
            Type::And(ts) => write!(f, "{{{}}}", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("+") ),
            Type::Tuple(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ),
+           Type::HTuple(bt,ct) => write!(f, "{:?}[{:?}]", bt, ct),
            Type::Product(ts) => write!(f, "({})", ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join("*") ),
            Type::Arrow(p,b) => write!(f, "({:?})->({:?})", p, b),
            Type::Ratio(n,d) => write!(f, "({:?})/({:?})", n, d),
