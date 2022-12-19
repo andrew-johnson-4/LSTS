@@ -213,10 +213,6 @@ let .is_odd(x: Binary): Boolean = match x {
    literal _ '1' => True,
    _ => False,
 };
-let .length(x: Binary): Binary = match x {
-   literal [01] => 1,
-   literal xp [01] => ((literal xp:Binary)+(1:Binary)),
-};
 let divmod(x: Binary, y: Binary): (Binary,Binary) = (
         if y==(0:Binary) then fail
    else if x==(0:Binary) then (0:Binary, 0:Binary)

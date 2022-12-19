@@ -332,6 +332,11 @@ impl Term {
                let pi = str::parse::<usize>(&pi).unwrap();
                return Ok(xct[pi].clone());
             }}
+            if let Term::Ident(gi) = tlc.rows[g.id].term.clone() {
+            if gi == ".length" {
+            if let Constant::Tuple(xct) = &xc {
+               return Ok(Constant::Literal(format!("{}",xct.len())));
+            }}}
             let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
             match &tlc.rows[g.id].term {
                Term::Ident(gv) => {

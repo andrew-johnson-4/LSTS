@@ -1470,7 +1470,19 @@ impl TLC {
          },
          Term::App(g,x) => {
             self.typeck(scope, x, None)?;
-            if let Term::Project(Constant::Literal(cs)) = &self.rows[g.id].term {
+            let mut eager_match = false;
+            if let Term::Ident(gi) = &self.rows[g.id].term {
+            if gi == ".length" {
+            if match &self.rows[x.id].typ { Type::Tuple(_) | Type::HTuple(_,_) => true, _ => false } {
+               self.rows[t.id].typ = Type::Named("Integer".to_string(),Vec::new());
+	       self.rows[g.id].typ = Type::Arrow(
+                  Box::new(self.rows[x.id].typ.clone()),
+                  Box::new(self.rows[t.id].typ.clone()),
+               );
+               eager_match = true;
+            }}}
+            if eager_match {
+            } else if let Term::Project(Constant::Literal(cs)) = &self.rows[g.id].term {
                let pi = str::parse::<usize>(&cs).unwrap();
                if let Type::Tuple(gts) = self.rows[x.id].typ.clone() {
                   self.rows[g.id].typ = gts[pi].clone();
