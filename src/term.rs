@@ -256,7 +256,7 @@ impl Term {
             panic!("Term::reduce could not find regex for Type: {:?} at {:?}", ct, &tlc.rows[t.id].span);
          }
       } else {
-         unimplemented!("TODO Term::reduce, dynamically check hard cast with gradual typing, {:?}: {:?} at {:?}", c, ct, &tlc.rows[t.id].span)
+         //TODO Term::reduce, dynamically check hard cast with gradual typing?
       }
       Ok(())
    }

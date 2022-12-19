@@ -753,7 +753,7 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
          }
       }
       pop_is("tuple-term", tokens, &vec![Symbol::RightParen])?;
-      if ts.len()==1 {
+      if !comma_ok && ts.len()==1 {
          Ok(ts[0])
       } else {
          Ok(tlc.push_term(Term::Tuple(ts),&span))
@@ -1008,32 +1008,15 @@ pub fn ll1_atom_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
 
 pub fn ll1_suffix_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
    let _span = span_of(tokens);
-   let base = ll1_atom_type(tlc, scope, tokens)?;
+   let mut base = ll1_atom_type(tlc, scope, tokens)?;
    let mut ts = Vec::new();
    while peek_is(tokens, &vec![Symbol::LeftBracket]) {
       pop_is("suffix-type", tokens, &vec![Symbol::LeftBracket])?;
-      if !peek_is(tokens, &vec![Symbol::RightBracket]) {
-         ts.push(Some( ll1_term(tlc, scope, tokens)? ));
-      } else {
-         ts.push(None);
-      };
+      ts.push( ll1_constant(tlc, scope, tokens)? );
       pop_is("suffix-type", tokens, &vec![Symbol::RightBracket])?;
    }
-   for _bracketed in ts.iter().rev() {
-      unimplemented!("suffix-type array syntax")
-      /*
-      let mut dt = if let Some(br) = bracketed {
-         *br
-      } else {
-         tlc.push_term(Term::Ident("length".to_string()), &span)
-      };
-      tlc.untyped(dt);
-      let ct = tlc.push_dep_type(&tlc.rows[dt.id].term.clone(), dt);
-      base = Type::Named("Tensor".to_string(), vec![
-         base,
-         ct
-      ]);
-      */
+   for ct in ts.iter().rev() {
+      base = Type::HTuple(Box::new(base), ct.clone());
    }
    Ok(base)
 }

@@ -178,24 +178,6 @@ impl TLC {
       self.strict = true;
       self
    }
-   pub fn print_type(&self, kinds: &HashMap<Type,Kind>, tt: &Type) -> String {
-      let ts = match tt {
-         Type::Any => format!("?"),
-         Type::Named(t,ts) => {
-            if ts.len()==0 { format!("{}", t) }
-            else { format!("{}<{}>", t, ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join(",") ) }
-         }
-         Type::And(ts) => format!("{{{}}}", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join("+") ),
-         Type::Tuple(ts) => format!("({})", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join(",") ),
-         Type::Product(ts) => format!("({})", ts.iter().map(|t|self.print_type(kinds,t)).collect::<Vec<String>>().join("*") ),
-         Type::Arrow(p,b) => format!("({})->({})", self.print_type(kinds,p), self.print_type(kinds,b)),
-         Type::Ratio(n,d) => format!("({})/({})", self.print_type(kinds,n), self.print_type(kinds,d)),
-         Type::Constant(cv) => format!("[{:?}]", cv),
-      };
-      if let Some(k) = kinds.get(tt) {
-         format!("{}::{:?}", ts, k)
-      } else { ts }
-   }
    pub fn print_scope(&self, s: ScopeId) -> String {
       let mut buf:String = format!("#{}{{\n", s.id);
       for (cn,pks,ct,_v) in self.scopes[s.id].children.iter() {
@@ -424,16 +406,16 @@ impl TLC {
             k
          },
          Type::Tuple(ts) => {
-            let mut k = None;
             for ct in ts.iter() {
-               k = self.kinds_of(kinds,ct);
+               self.kinds_of(kinds,ct);
             }
-            if let Some(ref k) = k {
-               kinds.insert(tt.clone(), k.clone());
-            } else {
-               kinds.insert(tt.clone(), self.term_kind.clone());
-            }
-            k
+            kinds.insert(tt.clone(), self.term_kind.clone());
+            Some(self.term_kind.clone())
+         },
+         Type::HTuple(bt,_ct) => {
+            self.kinds_of(kinds,bt);
+            kinds.insert(tt.clone(), self.term_kind.clone());
+            Some(self.term_kind.clone())
          },
          Type::Arrow(p,b) => {
             self.kinds_of(kinds,p);
@@ -527,7 +509,7 @@ impl TLC {
          if !r.typ.is_concrete() {
             return Err(Error {
                kind: "Type Error".to_string(),
-               rule: format!("inhabited type is not concrete: {:?}", r.typ),
+               rule: format!("inhabited type is not concrete: {:?} = typeof({})", r.typ, self.print_term(TermId{id:ri})),
                span: r.span.clone(),
             })
          }
@@ -577,6 +559,7 @@ impl TLC {
             Ok(())
          },
          Type::Tuple(ts) => { for tc in ts.iter() { self.soundck(tc,span)?; } Ok(()) },
+         Type::HTuple(bt,_ct) => { self.soundck(bt,span) },
          Type::Product(ts) => { for tc in ts.iter() { self.soundck(tc,span)?; } Ok(()) },
          Type::Named(tn,ts) => {
             if ts.len()==0 { return Ok(()); }
@@ -641,6 +624,7 @@ impl TLC {
             Type::And(ats)
          },
          Type::Tuple(ts) => Type::Tuple(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
+         Type::HTuple(bt,ct) => Type::HTuple(Box::new(self.extend_implied(bt)),ct.clone()),
          Type::Product(ts) => Type::Product(ts.iter().map(|tc| self.extend_implied(tc)).collect::<Vec<Type>>()),
          Type::Constant(cv) => Type::Constant(cv.clone())
       }
@@ -665,6 +649,7 @@ impl TLC {
          Type::Named(tn,ts) => self.type_is_normal.contains(&Type::Named(tn.clone(),Vec::new())) &&
                               ts.iter().all(|ct|self.is_normal(ct)),
          Type::Tuple(ts) => ts.iter().all(|ct|self.is_normal(ct)),
+         Type::HTuple(bt,_ct) => self.is_normal(bt),
          Type::Product(ts) => ts.iter().all(|ct|self.is_normal(ct)),
          Type::Arrow(p,b) => self.is_normal(p) && self.is_normal(b),
          Type::Ratio(p,b) => self.is_normal(p) && self.is_normal(b),
@@ -716,6 +701,11 @@ impl TLC {
             }
             Type::Tuple(cts)
          },
+         Type::HTuple(bt,ct) => {
+            let bt = self.narrow(kinds,projection,bt);
+            if bt.is_bottom() { return self.bottom_type.clone(); }
+            Type::HTuple(Box::new(bt),ct.clone())
+         }
          Type::Product(ts) => {
             let mut cts = Vec::new();
             for ct in ts.iter() {
@@ -788,10 +778,10 @@ impl TLC {
             }}
          Err(Error {
             kind: "Type Error".to_string(),
-            rule: format!("variable {}: {} did not match any candidate {}",
+            rule: format!("variable {}: {:?} did not match any candidate {}",
                      v,
-                     self.print_type(&tkts, &implied),
-                     candidates.iter().map(|t|self.print_type(&tkts,t))
+                     &implied,
+                     candidates.iter().map(|t|format!("{:?}",t))
                                .collect::<Vec<String>>().join(" | "),
                   ),
             span: span.clone(),
@@ -971,7 +961,6 @@ impl TLC {
       self.arrow_implies(lt,rt,span,InArrow::No)
    }
    pub fn arrow_implies(&mut self, lt: &Type, rt: &Type, span: &Span, inarrow: InArrow) -> Result<Type,Error> {
-      let ks = HashMap::new();
       let mut lt = lt.clone();
       let mut rt = rt.clone();
       let nt = Type::arrow_implies(self, &mut lt, &mut rt, inarrow);
@@ -979,7 +968,7 @@ impl TLC {
          Type::And(nts) if nts.len()==0 => {
             Err(Error {
                kind: "Type Error".to_string(),
-               rule: format!("failed unification {} (x) {}", self.print_type(&ks,&lt), self.print_type(&ks,&rt)),
+               rule: format!("failed unification {:?} (x) {:?}", &lt, &rt),
                span: span.clone(),
             })
          },
@@ -1472,7 +1461,20 @@ impl TLC {
                if let Type::Tuple(gts) = self.rows[x.id].typ.clone() {
                   self.rows[g.id].typ = gts[pi].clone();
                   self.rows[t.id].typ = gts[pi].clone();
-               }
+               } else if let Type::HTuple(bt,Constant::Literal(blen)) = self.rows[x.id].typ.clone() {
+                  let blen = str::parse::<usize>(&blen).unwrap();
+                  if pi>=blen { return Err(Error {
+                     kind: "Type Error".to_string(),
+                     rule: format!("Cannot project out-of-bounds π{} from type {:?}", pi, &self.rows[x.id].typ),
+                     span: self.rows[t.id].span.clone(),
+                  }) }
+                  self.rows[g.id].typ = *bt.clone();
+                  self.rows[t.id].typ = *bt.clone();
+               } else { return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("Cannot project π{} from type {:?}", pi, &self.rows[x.id].typ),
+                  span: self.rows[t.id].span.clone(),
+               }) }
             } else {
                let grt = match &self.rows[x.id].typ {
                   Type::Tuple(ts) if ts.len()==0 => { implied.clone().unwrap_or(Type::Any) },
