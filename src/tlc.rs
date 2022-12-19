@@ -193,6 +193,7 @@ impl TLC {
             lps.iter().map(|lp| format!("{:?}",lp)).collect::<Vec<String>>().join(" ")
          ),
          Term::Project(v) => format!("π{:?}", v),
+         Term::DynProject(tb,ti) => format!("{}[{}]", self.print_term(*tb), self.print_term(*ti)),
          Term::Fail => format!("fail"),
          Term::Ident(x) => format!("{}", x),
          Term::Value(x) => format!("{}", x),
@@ -202,8 +203,8 @@ impl TLC {
             self.print_term(*b)),
          Term::App(g,x) => format!("{}({})", self.print_term(*g), self.print_term(*x)),
          Term::Let(lt) => format!("let {}", lt.name),
-         Term::Ascript(t,tt) => format!("{}:{:?}", self.print_term(*t), tt),
-         Term::As(t,tt) => format!("{} as {:?}", self.print_term(*t), tt),
+         Term::Ascript(t,tt) => format!("({}:{:?})", self.print_term(*t), tt),
+         Term::As(t,tt) => format!("({} as {:?})", self.print_term(*t), tt),
          Term::Match(dv,lrs) => {
             let mut s = "".to_string();
             for (i,(l,r)) in lrs.iter().enumerate() {
@@ -1291,6 +1292,19 @@ impl TLC {
       //TODO: remove clone here because it is bloating the memory footprint
       match self.rows[t.id].term.clone() {
          Term::Project(_v) => panic!("Projection Constants cannot be Values at {:?}", &self.rows[t.id].span),
+         Term::DynProject(tb,ti) => {
+            self.typeck(scope, tb, None)?;
+            self.typeck(scope, ti, Some(Type::Named("Integer".to_string(),Vec::new())))?;
+            if let Type::HTuple(hb,_hi) = self.rows[tb.id].typ.clone() {
+               self.rows[t.id].typ = *hb.clone();
+            } else {
+               return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("Projection Index Base must be a Homogenous Tuple: {:?}", &self.rows[tb.id].typ),
+                  span: self.rows[tb.id].span.clone(),
+               })
+            }
+         },
          Term::Literal(_lp) => {
             self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
          },

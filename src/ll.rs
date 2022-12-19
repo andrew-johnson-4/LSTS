@@ -734,6 +734,13 @@ pub fn ll1_tensor_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    }
 }
 
+pub fn ll1_index_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
+   pop_is("index-term", tokens, &vec![Symbol::LeftBracket])?;
+   let t = ll1_term(tlc, scope, tokens)?;
+   pop_is("index-term", tokens, &vec![Symbol::RightBracket])?;
+   Ok(t)
+}
+
 pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
    pop_is("tuple-term", tokens, &vec![Symbol::LeftParen])?;
@@ -881,14 +888,13 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    } else {
       ll1_value_term(tlc, scope, tokens)?
    };
-   while peek_is(tokens, &vec![Symbol::LeftParen,Symbol::Dot]) {
+   while peek_is(tokens, &vec![Symbol::LeftParen,Symbol::Dot,Symbol::LeftBracket]) {
       if peek_is(tokens, &vec![Symbol::Dot]) {
          let field = ll1_field_term(tlc, scope, tokens)?;
-         let t = Term::App(
-            field,
-            term
-         );
-         term = tlc.push_term(t,&span);
+         term = tlc.push_term(Term::App(field, term),&span);
+      } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
+         let index = ll1_index_term(tlc, scope, tokens)?;
+         term = tlc.push_term(Term::DynProject(term, index),&span);         
       } else {
          let args = ll1_tuple_term(tlc, scope, tokens)?;
          let t = Term::App(

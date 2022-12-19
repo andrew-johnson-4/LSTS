@@ -17,4 +17,9 @@ fn l1_homogenous_tuples() {
    tlc.check(Some(alg), "((1,2,3): Integer[3]).0 @reduce :[1];").unwrap();
    tlc.check(Some(alg), "((1,2,3): Integer[3]).1 @reduce :[2];").unwrap();
    tlc.check(Some(alg), "((1,2,3): Integer[3]).2 @reduce :[3];").unwrap();
+   tlc.check(Some(alg), "((1,2,3): Integer[3])[-1] @reduce :[1];").unwrap_err();
+   tlc.check(Some(alg), "((1,2,3): Integer[3])[0] @reduce :[1];").unwrap();
+   tlc.check(Some(alg), "((1,2,3): Integer[3])[1] @reduce :[2];").unwrap();
+   tlc.check(Some(alg), "((1,2,3): Integer[3])[2] @reduce :[3];").unwrap();
+   tlc.check(Some(alg), "((1,2,3): Integer[3])[3] @reduce :[3];").unwrap_err();
 }

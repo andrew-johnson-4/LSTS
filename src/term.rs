@@ -47,6 +47,7 @@ pub enum Term {
    Ident(String),
    Value(String),
    Project(Constant),
+   DynProject(TermId,TermId),
    Arrow(Option<ScopeId>,TermId,Option<Type>,TermId),
    App(TermId,TermId),
    Let(LetTerm),
@@ -309,6 +310,20 @@ impl Term {
             let cl = Constant::Literal(v);
             Term::check_hard_cast(tlc, &cl, &tlc.rows[term.id].typ, term)?;
             Ok(cl)
+         },
+         Term::DynProject(tb,ti) => {
+            let tb = Term::reduce(tlc, scope, scope_constants, *tb)?;
+            let ti = Term::reduce(tlc, scope, scope_constants, *ti)?;
+            if let (Constant::Tuple(tb),Constant::Literal(ti)) = (tb,&ti) {
+            if let Ok(ti) = str::parse::<usize>(ti) {
+            if ti < tb.len() {
+               return Ok(tb[ti].clone())
+            }}}
+            return Err(Error {
+               kind: "Runtime Error".to_string(),
+               rule: format!("Term::reduce index out of bounds: {:?}", ti),
+               span: tlc.rows[term.id].span.clone(),
+            })
          },
          Term::App(g,x) => {
             let xc = Term::reduce(tlc, scope, scope_constants, *x)?;
