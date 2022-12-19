@@ -282,12 +282,12 @@ let $"^"(x: Integer, y: Integer): Integer = (x.binary ^ y.binary).decimal;
 
 
 //Sugar
-let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;
-let $"for"(ls: Tensor<A>, A -> Boolean, A -> B): Tensor<B>;
+let $"for"(ls: A[], A -> B): B[];
+let $"for"(ls: A[], A -> Boolean, A -> B): B[];
 
-let set(ls: Tensor<A>): Set<A>;
-let map(ls: Tensor<(A,B)>): Map<A,B>;
+let set(ls: A[]): Set<A>;
+let map(ls: (A,B)[]): Map<A,B>;
 
-let range(end: Integer): Tensor<Integer>;
-let range(start: Integer, end: Integer): Tensor<Integer>;
-let range(start: Integer, end: Integer, step: Integer): Tensor<Integer>;
+let range(end: Integer): Integer[];
+let range(start: Integer, end: Integer): Integer[];
+let range(start: Integer, end: Integer, step: Integer): Integer[];
