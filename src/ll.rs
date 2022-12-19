@@ -753,7 +753,7 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
          }
       }
       pop_is("tuple-term", tokens, &vec![Symbol::RightParen])?;
-      if ts.len()==1 {
+      if !comma_ok && ts.len()==1 {
          Ok(ts[0])
       } else {
          Ok(tlc.push_term(Term::Tuple(ts),&span))

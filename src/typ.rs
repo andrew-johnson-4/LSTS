@@ -532,7 +532,16 @@ impl Type {
             if bt.is_bottom() { return bt.clone(); }
             Type::HTuple(Box::new(bt), lc.clone())
          },
-
+         (Type::Tuple(lts),Type::HTuple(rb,Constant::Literal(rc))) => {
+            let rlen = str::parse::<usize>(&rc).unwrap();
+            if lts.len()!=rlen { return Type::And(vec![]); }
+            for lt in lts.iter() {
+               let nt = lt.__implication_unifier(rb,subs,inarrow);
+               if nt.is_bottom() { return nt.clone(); }
+            }
+            Type::HTuple(rb.clone(), Constant::Literal(rc.clone()))
+         },
+	
          (Type::Constant(lv),Type::Constant(rv)) if lv==rv => {
             Type::Constant(lv.clone())
          },

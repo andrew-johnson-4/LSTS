@@ -509,7 +509,7 @@ impl TLC {
          if !r.typ.is_concrete() {
             return Err(Error {
                kind: "Type Error".to_string(),
-               rule: format!("inhabited type is not concrete: {:?}", r.typ),
+               rule: format!("inhabited type is not concrete: {:?} = typeof({})", r.typ, self.print_term(TermId{id:ri})),
                span: r.span.clone(),
             })
          }
@@ -1461,7 +1461,20 @@ impl TLC {
                if let Type::Tuple(gts) = self.rows[x.id].typ.clone() {
                   self.rows[g.id].typ = gts[pi].clone();
                   self.rows[t.id].typ = gts[pi].clone();
-               }
+               } else if let Type::HTuple(bt,Constant::Literal(blen)) = self.rows[x.id].typ.clone() {
+                  let blen = str::parse::<usize>(&blen).unwrap();
+                  if pi>=blen { return Err(Error {
+                     kind: "Type Error".to_string(),
+                     rule: format!("Cannot project out-of-bounds π{} from type {:?}", pi, &self.rows[x.id].typ),
+                     span: self.rows[t.id].span.clone(),
+                  }) }
+                  self.rows[g.id].typ = *bt.clone();
+                  self.rows[t.id].typ = *bt.clone();
+               } else { return Err(Error {
+                  kind: "Type Error".to_string(),
+                  rule: format!("Cannot project π{} from type {:?}", pi, &self.rows[x.id].typ),
+                  span: self.rows[t.id].span.clone(),
+               }) }
             } else {
                let grt = match &self.rows[x.id].typ {
                   Type::Tuple(ts) if ts.len()==0 => { implied.clone().unwrap_or(Type::Any) },
