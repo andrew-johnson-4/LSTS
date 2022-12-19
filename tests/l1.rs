@@ -40,4 +40,9 @@ fn l1_homogenous_tuples() {
    tlc.check(Some(alg), "match (3,4) { (x) => 1 }  @reduce :[1];").unwrap_err();
    tlc.check(Some(alg), "match (3,4) { (x,y) => 1 }  @reduce :[1];").unwrap();
    tlc.check(Some(alg), "match (3,4) { (x,y) => x }  @reduce :[3];").unwrap();
+   tlc.check(Some(alg), "match (3,4) { +((x,),y) => x }  @reduce :[3];").unwrap();
+   tlc.check(Some(alg), "match (3,4) { +(x,(y,)) => x }  @reduce :[4];").unwrap();
+   tlc.check(Some(alg), "match (3,4) { +((3,),(y,)) => 5 }  @reduce :[5];").unwrap();
+   tlc.check(Some(alg), "match (3,4) { +((3,),x,(y,)) => 5 }  @reduce :[5];").unwrap();
+   tlc.check(Some(alg), "match (3,4) { +((3,),(),(y,)) => 5 }  @reduce :[5];").unwrap();
 }
