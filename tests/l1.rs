@@ -29,4 +29,5 @@ fn l1_homogenous_tuples() {
    tlc.check(Some(alg), "(3,4).length @reduce :[2];").unwrap();
    tlc.check(Some(alg), "(3,4,7).length @reduce :[3];").unwrap();
    tlc.check(Some(alg), "((3,4,7): Integer[]).length @reduce :[3];").unwrap();
+   tlc.check(Some(alg), "(+((1,),(),(2,3,)): Integer[]).length @reduce :[3];").unwrap();
 }
