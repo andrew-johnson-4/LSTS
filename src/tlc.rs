@@ -1481,6 +1481,49 @@ impl TLC {
                );
                eager_match = true;
             }}}
+            if let Term::Ident(gi) = &self.rows[g.id].term {
+            if gi == "pos" {
+            if let Type::Tuple(xs) = &self.rows[x.id].typ {
+               let heterogenous = xs.iter().all(|xt| match xt { Type::Tuple(_)=>true, _=>false });
+               //prefer heterogenous tuples because they hold strictly more information than homogenous tuples
+               self.rows[t.id].typ = if heterogenous {
+                  let mut xts = Vec::new();
+                  for xt in xs.iter() {
+                  if let Type::Tuple(xt) = xt.clone() {
+                     xts.extend(xt);
+                  }}
+                  Type::Tuple(xts)
+               } else {
+                  let mut bt = Type::Any;
+                  let mut bi = Some(0);
+                  for xt in xs.iter() {
+                     if let Type::Tuple(xts) = xt {
+                        if let Some(biv) = bi { bi = Some(biv + 1); }
+                        for xxt in xts.iter() {
+                           bt = bt.most_general_unifier(xxt);
+                        }
+                     } else if let Type::HTuple(xtb,xti) = xt {
+                        bt = bt.most_general_unifier(xtb);
+                        match (bi,xti) {
+                           (Some(biv),Constant::Literal(xti)) => {
+                              bi = Some(biv + str::parse::<usize>(xti).unwrap());
+                           },
+                           _ => { bi = None; }
+                        }
+                     }
+                  }
+                  if let Some(bi) = bi {
+                     Type::HTuple(Box::new(bt),Constant::Literal(format!("{}",bi)))
+                  } else {
+                     Type::HTuple(Box::new(bt),Constant::Tuple(Vec::new()))
+                  }
+               };
+	       self.rows[g.id].typ = Type::Arrow(
+                  Box::new(self.rows[x.id].typ.clone()),
+                  Box::new(self.rows[t.id].typ.clone()),
+               );
+               eager_match = true;
+            }}}
             if eager_match {
             } else if let Term::Project(Constant::Literal(cs)) = &self.rows[g.id].term {
                let pi = str::parse::<usize>(&cs).unwrap();

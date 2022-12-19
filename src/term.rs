@@ -337,6 +337,16 @@ impl Term {
             if let Constant::Tuple(xct) = &xc {
                return Ok(Constant::Literal(format!("{}",xct.len())));
             }}}
+            if let Term::Ident(gi) = tlc.rows[g.id].term.clone() {
+            if gi == "pos" {
+            if let Constant::Tuple(xct) = &xc {
+               let mut acc = Vec::new();
+               for xcts in xct.iter() {
+               if let Constant::Tuple(accs) = xcts.clone() {
+                  acc.extend(accs);
+               }}
+               return Ok(Constant::Tuple(acc))
+            }}}
             let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
             match &tlc.rows[g.id].term {
                Term::Ident(gv) => {
