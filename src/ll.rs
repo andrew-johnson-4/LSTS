@@ -709,33 +709,6 @@ pub fn ll1_prefix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    Ok(term)
 }
 
-pub fn ll1_htuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
-   let span = span_of(tokens);
-   pop_is("htuple-term", tokens, &vec![Symbol::LeftBracket])?;
-   if peek_is(tokens, &vec![Symbol::For]) {
-      let term = ll1_for_term(tlc, scope, tokens)?;
-      pop_is("htuple-term", tokens, &vec![Symbol::RightBracket])?;
-      Ok(term)
-   } else { //a htuple is a homogenous Tuple
-      let mut ts = Vec::new();
-      let mut comma_ok = true;
-      while comma_ok && !peek_is(tokens, &vec![Symbol::RightBracket]) {
-         comma_ok = false;
-         ts.push( ll1_term(tlc, scope, tokens)? );
-         if peek_is(tokens, &vec![Symbol::Comma]) {
-            pop_is("htuple-term", tokens, &vec![Symbol::Comma])?;
-            comma_ok = true;
-         }
-      }
-      pop_is("htuple-term", tokens, &vec![Symbol::RightBracket])?;
-      Ok(if !comma_ok && ts.len()==1 {
-         ts[0]
-      } else {
-         tlc.push_term(Term::Tuple(ts),&span)
-      })
-   }
-}
-
 pub fn ll1_index_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    pop_is("index-term", tokens, &vec![Symbol::LeftBracket])?;
    let t = ll1_term(tlc, scope, tokens)?;
@@ -883,8 +856,6 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    let span = span_of(tokens);
    let mut term = if peek_is(tokens, &vec![Symbol::LeftParen]) {
       ll1_tuple_term(tlc, scope, tokens)?
-   } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
-      ll1_htuple_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Match]) {
       ll1_match_term(tlc, scope, tokens)?
    } else {
