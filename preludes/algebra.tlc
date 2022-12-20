@@ -1,9 +1,3 @@
 
 //axioms
 axiom @reflexive a. [True] = a == a;
-
-//type definitions
-type Boolean = True | False;
-type Integer = /^[-]?[0-9]+$/;
-
-//TODO: Integer arithmetic definitions
