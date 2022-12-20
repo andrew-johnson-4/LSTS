@@ -20,7 +20,7 @@ Terms are Lambda Calculus expressions with some extensions.
 3.0;
 "abc";
 2 + 3;
-"[" + [for x in range(1,25) yield x^3].join(",") + "]";
+"[" + (for x in range(1,25) yield x^3).join(",") + "]";
 ```
 
 ### Types
