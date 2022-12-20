@@ -1,22 +1,4 @@
 /* SI Prelude */
-//: Definition of prelude types and kinds
-type Boolean = True | False;
-type Number;   //Marker trait for numbers. Require declaration to prevent accidental shadowing.
-type Integer   : Number = /^[0-9][_0-9]*([eE][_0-9]+)?$/; //This is how subtyping relations are defined.
-type Real      : Number = /^[0-9][_.0-9]*([eE][-]?[_0-9]+)?$/;
-type Complex   : Number = /^[0-9][_.0-9]*([eE][-]?[_0-9]+)?([+][0-9][_.0-9]*([eE][-]?[_0-9]+)?[i])?$/;
-forall i:Integer. Integer => Real    = i; //cast Integer to Real
-forall i:Integer. Integer => Complex = i; //cast Integer to Complex
-forall i:Real   . Real    => Complex = i; //cast Real to Complex
-
-
-//: Expressions
-let $"if"(c: Boolean, b1: A, b2: A): A;
-
-//: Tensor Type
-type Tensor<T::Term, X::Constant>;
-
-
 //: SI Units
 type normal Second  :: Unit; //Unit is the Kind of SI Unit types.
 type normal Metre   :: Unit; //Kinds do not need to be declared before use.
@@ -46,15 +28,6 @@ forall u:Second::Unit. Second => Minute  = u/60 :: Unit;
 type Hour :: Unit;
 forall u:Hour::Unit. Hour => Second  = 3600*u :: Unit;
 forall u:Second::Unit. Second => Hour  = u/3600 :: Unit;
-
-
-//: Compound Types
-type Point2D<N:Number> = { x:N, y:N };
-type Point3D<N:Number> = { x:N, y:N, z:N };
-type Point4D<N:Number> = { x:N, y:N, z:N, w:N };
-
-//: Units are Numbers
-forall :X::Unit. X => Number :: Term;  //: All-Caps types are type variables.
 
 //: Units can be combined to form other Units
 forall :X::Unit. ()/X :: Unit;         //The inverse of any Unit is also a Unit.
@@ -168,17 +141,7 @@ forall u:Yocto<U>::Unit. Yocto<U> => U = 1000000000000000000000000 * u :: Unit;
 //let n_A: Real+()/Mole = 6.022_140_76e23:     Real+()/Mole;         //Avogadro constant
 //let deltavCs: Integer+Hertz = 9_192_631_770: Integer+Hertz;        //caesium hyperfine frequency
 
-//: Number Math
-let pos(x:Integer)             :Integer; //pos
-let neg(x:Integer)             :Integer; //neg
-let $"+"(x:Integer, y:Integer) :Integer; //add
-let $"-"(x:Integer, y:Integer) :Integer; //sub
-let $"*"(x:Integer, y:Integer) :Integer; //mul
-let $"%"(x:Integer, y:Integer) :Integer; //mod
-let $"/"(x:Integer, y:Integer) :Integer; //div
-
 //: Unit Math
-/*
 let pos(x:X::Unit)             :X   ::Unit; //pos
 let neg(x:X::Unit)             :X   ::Unit; //neg
 let $"+"(x:X::Unit, y:X::Unit) :X   ::Unit; //add
@@ -189,32 +152,3 @@ let $"*"(x:X::Unit, y:Number)  :X   ::Unit; //mul constant
 let $"/"(x:X::Unit, y:Y::Unit) :X/Y ::Unit; //div
 let $"/"(x:Number, y:Y::Unit)  :()/Y::Unit; //div constant
 let $"/"(x:X::Unit, y:Number)  :X   ::Unit; //div constant
-*/
-
-//: Tensor Properties
-//let .length(a: ?[]): Integer;
-//let .length(a: ?[x]): [x];
-//let .sum(xs: Number[]): Number;
-//let .product(xs: Number[]): Number;
-
-//: Dependent Types
-type Even:Integer
-     where. self%2 | 0;
-
-type Odd:Integer
-     where. self%2 | 1;
-
-type Prime:Integer
-     //invariants are represented in Conjunctive Normal Form
-     //all invariants are ANDed together
-     //ORs go inside the invariant branches
-
-     where. self>1                                //quick bounds check
-     and a:Integer. 2>a || a>self-1 || self%a!=0; //exhaustive primality test
-     //and a:Integer. a==self && self%a==0
-     //and a:Integer. a>self && self%a!=0
-     //and a:Integer. 1>=a || self%a!=0;
-
-     //TODO Fermat's little theorem
-     //Fermat, Leibniz, Euler elementary primality proof
-
