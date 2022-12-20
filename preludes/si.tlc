@@ -133,13 +133,13 @@ forall u:Zepto<U>::Unit. Zepto<U> => U = 1000000000000000000000 * u :: Unit;
 forall u:Yocto<U>::Unit. Yocto<U> => U = 1000000000000000000000000 * u :: Unit;
 
 //: SI Constants
-//let c: Integer+Metre/Second = 299_792_458:   Integer+Metre/Second; //speed of light in vacuum
-//let h: Real+Joule*Second = 6.626_070_15e-34: Real+Joule*Second;    //Planck constant
-//let e: Real+Coulomb = 1.602_176_634e-19:     Real+Coulomb;         //elementary charge
-//let k: Real+Joule/Kelvin = 1.380_649e-23:    Real+Joule/Kelvin;    //Boltzmann constant
-//let k_cd: Integer+Lumen/Watt = 683:          Integer+Lumen/Watt;   //luminous efficacy of a defined visible radiation
-//let n_A: Real+()/Mole = 6.022_140_76e23:     Real+()/Mole;         //Avogadro constant
-//let deltavCs: Integer+Hertz = 9_192_631_770: Integer+Hertz;        //caesium hyperfine frequency
+let si_c: Integer+Metre/Second = 299_792_458:   Integer+Metre/Second; //speed of light in vacuum
+let si_h: Real+Joule*Second = 6.626_070_15e-34: Real+Joule*Second;    //Planck constant
+let si_e: Real+Coulomb = 1.602_176_634e-19:     Real+Coulomb;         //elementary charge
+let si_k: Real+Joule/Kelvin = 1.380_649e-23:    Real+Joule/Kelvin;    //Boltzmann constant
+let si_k_cd: Integer+Lumen/Watt = 683:          Integer+Lumen/Watt;   //luminous efficacy of a defined visible radiation
+let si_n_A: Real+()/Mole = 6.022_140_76e23:     Real+()/Mole;         //Avogadro constant
+let si_deltavCs: Integer+Hertz = 9_192_631_770: Integer+Hertz;        //caesium hyperfine frequency
 
 //: Unit Math
 let pos(x:X::Unit)             :X   ::Unit; //pos
