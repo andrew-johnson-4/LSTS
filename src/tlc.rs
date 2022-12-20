@@ -35,7 +35,6 @@ pub struct Row {
    pub typ: Type,
    pub kind: Kind,
    pub span: Span,
-   pub constant: Option<Constant>,
 }
 
 #[derive(Clone)]
@@ -155,7 +154,6 @@ impl TLC {
                linecol_start: (0,0),
                linecol_end: (0,0),
             },
-            constant: None,
          }],
          rules: Vec::new(),
          scopes: Vec::new(),
@@ -373,7 +371,6 @@ impl TLC {
       self.reduce_toks(globals, &mut tks)
    }
 
-
    pub fn kinds_of(&self, kinds: &mut HashMap<Type,Kind>, tt: &Type) -> Option<Kind> {
       match tt {
          Type::Any => {
@@ -471,18 +468,6 @@ impl TLC {
 
       Ok(())
    }
-   pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
-      //used mainly in tests
-      let mut tokens = tokenize_string(self, "[string]", src)?;
-      let file_scope = self.push_scope(Scope {
-         parent: None,
-         children: Vec::new(),
-      }, &span_of(&mut tokens));
-      ll1_file(self, file_scope, &mut tokens)
-   }
-   pub fn maybe_constant(&self, t: TermId) -> Option<Constant> {
-      self.rows[t.id].constant.clone()
-   }
    pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
       let index = self.rows.len();
       let ti = TermId { id: index };
@@ -491,7 +476,6 @@ impl TLC {
          typ: Type::Any,
          kind: self.term_kind.clone(),
          span: span.clone(),
-         constant: None,
       });
       ti
    }
@@ -1214,15 +1198,6 @@ impl TLC {
       Ok(())
    }
 
-   pub fn push_constant(&mut self, t: TermId, c: &Constant) -> Constant {
-      self.rows[t.id].constant = Some(c.clone());
-      c.clone()
-   }
-   pub fn push_dtype(&mut self, t: TermId, c: &Option<Constant>) {
-      if let Some(cv) = c {
-         self.rows[t.id].constant = Some(cv.clone());
-      }
-   }
    pub fn typeck_hint(&mut self, bound: &mut HashMap<String,TermId>, scope: &Option<ScopeId>, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
       match ( self.rows[lhs.id].term.clone(), self.rows[rhs.id].term.clone() ) {
          (Term::Ident(ln), Term::Ident(rn)) if ln==rn => {
