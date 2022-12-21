@@ -1301,6 +1301,73 @@ impl TLC {
             }
             self.rows[t.id].typ = tt.clone();
          },
+         (Term::Tuple(vts),Type::HTuple(bt,_)) => {
+            for cv in vts.iter() {
+               self.destructure(scope, *cv, bt)?;
+            }
+            self.rows[t.id].typ = tt.clone();
+         },
+         (Term::App(vg,vx),Type::Tuple(tts)) => {
+            if let Term::Ident(vg) = self.rows[vg.id].term.clone() {
+            if vg == "pos" {
+            if let Term::Tuple(vx) = self.rows[vx.id].term.clone() {
+            if vx.len()==1 {
+            if let Term::Tuple(vx) = self.rows[vx[0].id].term.clone() {
+            if vx.len()>0 {
+               let mut prefix = None;
+               let mut midfix = None;
+               let mut suffix = None;
+               let mut accept = true;
+               for vxt in vx.iter() {
+               match self.rows[vxt.id].term.clone() {
+                  Term::Tuple(fix) => {
+                     if prefix.is_none() { prefix = Some((vxt, fix.clone())); }
+                     if suffix.is_none() { suffix = Some((vxt, fix.clone())); }
+                     else { accept = false; }
+                  },
+                  Term::Ident(fix) => {
+                     if midfix.is_none() { midfix = Some((vxt, fix)); }
+                     else { accept = false; }
+                  },
+                  _ => { accept = false; }
+               }}
+               if accept && (prefix.is_some() || midfix.is_some() || suffix.is_some()) {
+                 let mut tts = tts.clone();
+                 let mut accept = true;
+                 if let Some((pret,prevs)) = prefix {
+                 if prevs.len() <= tts.len() {
+                    let pretts = tts[..prevs.len()].to_vec();
+                    tts = tts[prevs.len()..].to_vec();
+                    self.destructure(scope, *pret, &Type::Tuple(pretts.clone()))?;
+                    for (prevt,prett) in std::iter::zip(prevs,pretts) {
+                       self.destructure(scope, prevt, &prett)?;
+                    }
+                 } else { accept = false; }}
+                 if let Some((suft,sufvs)) = suffix {
+                 if sufvs.len() <= tts.len() {
+                    let suftts = tts[(tts.len()-sufvs.len())..].to_vec();
+                    tts = tts[..(tts.len()-sufvs.len())].to_vec();
+                    self.destructure(scope, *suft, &Type::Tuple(suftts.clone()))?;
+                    for (sufvt,suftt) in std::iter::zip(sufvs,suftts) {
+                       self.destructure(scope, sufvt, &suftt)?;
+                    }
+                 } else { accept = false; }}
+                 if let Some((midt,_midvs)) = midfix {
+                    self.destructure(scope, *midt, &Type::Tuple(tts.clone()))?;
+                    tts = Vec::new();
+                 }
+                 if accept && tts.len() == 0 {
+                    self.rows[t.id].typ = tt.clone();
+                    return Ok(());
+                 }
+               }
+            }}}}}}
+            return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("destructure rejected {} : {:?}", self.print_term(t), tt),
+               span: self.rows[t.id].span.clone(),
+            });
+         },
          _ => {
             return Err(Error {
                kind: "Type Error".to_string(),
