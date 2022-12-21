@@ -26,6 +26,16 @@ fn l1_functions() {
 }
 
 #[test]
+fn l1_dot_functions() {
+   let mut tlc = TLC::new();
+   let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
+
+   tlc.check(Some(l1), "let .f(x:Integer): Integer = x; (1).f: Integer;").unwrap();
+   tlc.check(Some(l1), "let .f(x:Integer, y:Integer): Integer = x; (1).f(2): Integer;").unwrap();
+   tlc.check(Some(l1), "let .f(x:Integer, y:Integer, z:Integer): Integer = x; (1).f(2,3): Integer;").unwrap();
+}
+
+#[test]
 fn l1_reduce() {
    let mut tlc = TLC::new();
    let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
