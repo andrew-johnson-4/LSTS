@@ -5,7 +5,7 @@ use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
 use crate::typ::{Type,InArrow};
 use crate::kind::Kind;
-use crate::token::{Span,TokenReader,tokenize_string,tokenize_file,span_of};
+use crate::token::{Span,TokenReader,tokenize_string,tokenize_file};
 use crate::constant::Constant;
 use crate::debug::Error;
 use crate::ll::ll1_file;
@@ -205,7 +205,7 @@ impl TLC {
          Term::As(t,tt) => format!("({} as {:?})", self.print_term(*t), tt),
          Term::Match(dv,lrs) => {
             let mut s = "".to_string();
-            for (i,(l,r)) in lrs.iter().enumerate() {
+            for (i,(_clr,l,r)) in lrs.iter().enumerate() {
                if i>0 { s += ", "; };
                s += &format!("{} => {}", self.print_term(*l), self.print_term(*r));
             }
@@ -242,7 +242,7 @@ impl TLC {
       let fa_scope = self.push_scope(Scope {
          parent: Some(globals),
          children: fa_closed,
-      }, &span);
+      });
       let fi = self.rules.len();
       let fa = ForallRule {
          axiom: axiom,
@@ -317,7 +317,7 @@ impl TLC {
    pub fn parse_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<TermId,Error> {
       let file_scope = globals.unwrap_or(self.push_scope(Scope {
          parent: None, children: Vec::new(),
-      }, &span_of(tks)));
+      }));
       Ok(ll1_file(self, file_scope, tks)?)
    }
    pub fn check_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<TermId,Error> {
@@ -479,10 +479,16 @@ impl TLC {
       });
       ti
    }
-   pub fn push_scope(&mut self, scope: Scope, _span: &Span) -> ScopeId {
+   pub fn push_scope(&mut self, scope: Scope) -> ScopeId {
       let index = self.scopes.len();
       self.scopes.push(scope);
       ScopeId { id: index }
+   }
+   pub fn new_scope(&mut self, parent: Option<ScopeId>) -> ScopeId {
+      self.push_scope(Scope {
+         parent: parent,
+         children: Vec::new(),
+      })
    }
    pub fn into_ident(&self, n: String) -> String {
       if n.starts_with("$") { n[2..n.len()-1].to_string() }
@@ -1296,7 +1302,7 @@ impl TLC {
             };
             self.typeck(scope, dv, None)?;
             let mut rts = Vec::new();
-            for (l,r) in lrs.iter() {
+            for (_clr,l,r) in lrs.iter() {
                self.untyped(*l);
                self.typeck(scope, *r, implied.clone())?;
                rts.push( self.rows[r.id].typ.clone() );

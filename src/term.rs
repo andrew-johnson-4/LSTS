@@ -3,7 +3,6 @@ use crate::kind::Kind;
 use crate::scope::{Scope,ScopeId};
 use crate::tlc::TLC;
 use crate::constant::Constant;
-use crate::token::{Span};
 use crate::debug::{Error};
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -59,7 +58,7 @@ pub enum Term {
    RuleApplication(TermId,String),
    Match(
       TermId,
-      Vec<(TermId,TermId)>, //lhs's here don't need scopes because these bindings can't be polymorphic
+      Vec<(ScopeId,TermId,TermId)>, //lhs's here don't need scopes because these bindings can't be polymorphic
    ),
    Fail, //indicates that Term does not return a Value
    Literal(Vec<Literal>),
@@ -104,13 +103,13 @@ impl Term {
          _ => unimplemented!("destructure lhs in Term::scope_of_lhs({})", tlc.print_term(lhs)),
       }
    }
-   pub fn scope_of_lhs(tlc: &mut TLC, scope: Option<ScopeId>, lhs: TermId, span: &Span) -> ScopeId {
+   pub fn scope_of_lhs(tlc: &mut TLC, scope: Option<ScopeId>, lhs: TermId) -> ScopeId {
       let mut children = Vec::new();
       Term::scope_of_lhs_impl(tlc, &mut children, lhs);
       let sid = tlc.push_scope(Scope {
          parent: scope,
          children: children,
-      }, &span);
+      });
       sid
    }
    pub fn reduce_lhs(tlc: &TLC, scope_constants: &mut HashMap<String,Constant>, lhs: TermId, dc: &Constant) -> bool {
@@ -382,7 +381,7 @@ impl Term {
          Term::Match(dv,lrs) => {
             //These panics are OK, because the type-checker should disprove them
             let dc = Term::reduce(tlc, scope, scope_constants, *dv)?;
-            for (l,r) in lrs.iter() {
+            for (lrc,l,r) in lrs.iter() {
                let mut sc = scope_constants.clone();
                if Term::reduce_lhs(tlc, &mut sc, *l, &dc) {
                   if tlc.fails(*r) {
@@ -392,7 +391,7 @@ impl Term {
                         span: tlc.rows[r.id].span.clone(),
                      })
                   }
-                  return Term::reduce(tlc, scope, &sc, *r);
+                  return Term::reduce(tlc, &Some(*lrc), &sc, *r);
                }
             }
             return Err(Error {
