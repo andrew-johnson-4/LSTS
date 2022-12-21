@@ -336,18 +336,22 @@ impl Term {
             if let Term::Ident(gi) = tlc.rows[g.id].term.clone() {
             if gi == ".length" {
             if let Constant::Tuple(xct) = &xc {
-               return Ok(Constant::Literal(format!("{}",xct.len())));
-            }}}
+            if xct.len()==1 {
+            if let Constant::Tuple(xxct) = &xct[0] {
+               return Ok(Constant::Literal(format!("{}",xxct.len())));
+            }}}}}
             if let Term::Ident(gi) = tlc.rows[g.id].term.clone() {
             if gi == "pos" {
             if let Constant::Tuple(xct) = &xc {
+            if xct.len()==1 {
+            if let Constant::Tuple(xxct) = &xct[0] {
                let mut acc = Vec::new();
-               for xcts in xct.iter() {
+               for xcts in xxct.iter() {
                if let Constant::Tuple(accs) = xcts.clone() {
                   acc.extend(accs);
                }}
                return Ok(Constant::Tuple(acc))
-            }}}
+            }}}}}
             let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
             match &tlc.rows[g.id].term {
                Term::Ident(gv) => {
@@ -356,9 +360,8 @@ impl Term {
                         if lb.parameters.len() != 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
                         let mut new_scope = HashMap::new();
                         let ref pars = lb.parameters[0];
-                        let args = if pars.len()==1 { vec![xc] }
-                              else if let Constant::Tuple(xs) = xc { xs.clone() }
-                              else { vec![xc] };
+                        let args = if let Constant::Tuple(xs) = xc { xs.clone() }
+                              else { panic!("Term::reduce App expected domain to be a tuple at {:?}", &tlc.rows[g.id].span) };
                         if pars.len() != args.len() { panic!("Term::reduce, mismatched arity {}", tlc.print_term(term)) };
                         for ((pn,_pt,_pk),a) in std::iter::zip(pars,args) {
                            if let Some(pn) = pn {
