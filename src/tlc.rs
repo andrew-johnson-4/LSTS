@@ -1457,6 +1457,8 @@ impl TLC {
             if let Term::Ident(gi) = &self.rows[g.id].term {
             if gi == "pos" {
             if let Type::Tuple(xs) = &self.rows[x.id].typ {
+            if xs.len() == 1 {
+            if let Type::Tuple(xs) = &xs[0] {
                let heterogenous = xs.iter().all(|xt| match xt { Type::Tuple(_)=>true, _=>false });
                //prefer heterogenous tuples because they hold strictly more information than homogenous tuples
                self.rows[t.id].typ = if heterogenous {
@@ -1496,7 +1498,7 @@ impl TLC {
                   Box::new(self.rows[t.id].typ.clone()),
                );
                eager_match = true;
-            }}}
+            }}}}}
             if eager_match {
             } else if let Term::Project(Constant::Literal(cs)) = &self.rows[g.id].term {
                let pi = str::parse::<usize>(&cs).unwrap();

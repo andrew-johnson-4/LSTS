@@ -485,11 +485,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
          fkts.insert(t.clone(),k.clone());
          ps.push(t.clone());
       }
-      let pt = if ps.len()==1 {
-         ps[0].clone()
-      } else {
-         Type::Tuple(ps.clone())
-      };
+      let pt = Type::Tuple(ps.clone());
       ft = Type::Arrow(Box::new(pt),Box::new(ft));
    }
    ft = ft.normalize();
@@ -702,7 +698,7 @@ pub fn ll1_prefix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
       let topop = if ops.pop()==Some(Symbol::Plus) { "pos".to_string() } else { "neg".to_string() };
       let t = Term::App(
          tlc.push_term(Term::Ident(topop),&span),
-         term
+         tlc.push_term(Term::Tuple(vec![term]),&span),
       );
       term = tlc.push_term(t,&span);
    }
@@ -741,6 +737,23 @@ pub fn ll1_tuple_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
          Ok(tlc.push_term(Term::Tuple(ts),&span))
       }
    }
+}
+
+pub fn ll1_args_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   pop_is("args-term", tokens, &vec![Symbol::LeftParen])?;
+   let mut ts = Vec::new();
+   let mut comma_ok = true;
+   while comma_ok && !peek_is(tokens, &vec![Symbol::RightParen]) {
+      comma_ok = false;
+      ts.push( ll1_term(tlc, scope, tokens)? );
+      if peek_is(tokens, &vec![Symbol::Comma]) {
+         pop_is("args-term", tokens, &vec![Symbol::Comma])?;
+         comma_ok = true;
+      }
+   }
+   pop_is("args-term", tokens, &vec![Symbol::RightParen])?;
+   Ok(tlc.push_term(Term::Tuple(ts),&span))
 }
 
 pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
@@ -865,7 +878,12 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
       if peek_is(tokens, &vec![Symbol::Dot]) {
          let field = ll1_field_term(tlc, scope, tokens)?;
          if !peek_is(tokens, &vec![Symbol::LeftParen]) {
-            term = tlc.push_term(Term::App(field, term),&span);
+            if let Term::Ident(_) = &tlc.rows[field.id].term {
+               term = tlc.push_term(Term::Tuple(vec![term]),&span);
+               term = tlc.push_term(Term::App(field, term),&span);
+            } else {
+               term = tlc.push_term(Term::App(field, term),&span);
+            }
          } else {
             pop_is("atom-term", tokens, &vec![Symbol::LeftParen])?;
             let mut ts = vec![term];
@@ -893,7 +911,7 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
          let index = ll1_index_term(tlc, scope, tokens)?;
          term = tlc.push_term(Term::DynProject(term, index),&span);         
       } else {
-         let args = ll1_tuple_term(tlc, scope, tokens)?;
+         let args = ll1_args_term(tlc, scope, tokens)?;
          let t = Term::App(
             term,
             args
@@ -911,14 +929,17 @@ pub fn ll1_expr_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
 pub fn ll1_paren_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
    pop_is("paren-type", tokens, &vec![Symbol::LeftParen])?;
    let mut ts = Vec::new();
-   while !peek_is(tokens, &vec![Symbol::RightParen]) {
+   let mut comma_ok = true;
+   while comma_ok && !peek_is(tokens, &vec![Symbol::RightParen]) {
+      comma_ok = false;
+      ts.push( ll1_type(tlc, scope, tokens)? );
       if peek_is(tokens, &vec![Symbol::Comma]) {
          pop_is("paren-type", tokens, &vec![Symbol::Comma])?;
+         comma_ok = true;
       }
-      ts.push( ll1_type(tlc, scope, tokens)? );
    }
    pop_is("paren-type", tokens, &vec![Symbol::RightParen])?;
-   if ts.len()==1 {
+   if !comma_ok && ts.len()==1 {
       Ok(ts[0].clone())
    } else {
       Ok(Type::Tuple(ts))
