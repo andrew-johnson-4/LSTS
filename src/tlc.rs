@@ -1268,6 +1268,9 @@ impl TLC {
          }
       }
    }
+   pub fn destructure(&mut self, scope: ScopeId, t: TermId, tt: &Type) -> Result<(),Error> {
+      unimplemented!("destructure lhs {} : {:?}", self.print_term(t), tt)
+   }
    pub fn typeck(&mut self, scope: &Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
       //TODO: remove clone here because it is bloating the memory footprint
@@ -1302,8 +1305,8 @@ impl TLC {
             };
             self.typeck(scope, dv, None)?;
             let mut rts = Vec::new();
-            for (_clr,l,r) in lrs.iter() {
-               self.untyped(*l);
+            for (clr,l,r) in lrs.iter() {
+               self.destructure(*clr, *l, &self.rows[dv.id].typ.clone())?;
                self.typeck(scope, *r, implied.clone())?;
                rts.push( self.rows[r.id].typ.clone() );
             }
