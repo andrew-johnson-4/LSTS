@@ -34,8 +34,28 @@ impl Scope {
       } else if candidates.len() == 1 {
          return Some(candidates[0].1);
       } else {
-         //specialization would be unsound here because of the Multiple Value rule
-         //we follow all arrows in the Type Checker, so we should assume the same here
+         //careful specialization can be made sound
+         //symbol .binary : {(Integer)->(SignedBinary)+({Integer+Whole})->({Binary+SignedBinary})}
+         // .binary : (Whole)->(Binary)
+         // .binary : (Integer)->(SignedBinary)', src/scope.rs:57:10
+         //choose (Whole)->(Binary) because
+         // domain(Whole -> Binary) => domain(Integer -> SignedBinary)
+         // range(Whole -> Binary) => range(Integer -> SignedBinary)
+         for (xi,(xt,xb)) in candidates.iter().enumerate() {
+            let mut all_accept = true;
+            for (yi,(yt,_yb)) in candidates.iter().enumerate() {
+               if xi==yi { continue; }
+               match (xt,yt) {
+                  (Type::Arrow(xd,xr),Type::Arrow(yd,yr)) => {
+                  if Type::implies(tlc, xd, yd).is_bottom()
+                  || Type::implies(tlc, xr, yr).is_bottom() {
+                     all_accept = false;
+                  }},
+                  _ => { all_accept = false; }
+               }
+            }
+            if all_accept { return Some(*xb); }
+         }
          let mut cs = "".to_string();
          for (ct,_) in candidates.iter() {
             cs += &format!("\n{} : {:?}", v, ct);

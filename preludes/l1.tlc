@@ -1,11 +1,11 @@
 
 //Types
-type Boolean = True | False;
-type Integer        = /^(0|([-]?[1-9][0-9]*))$/;
-type Whole          = /^(0|([1-9][0-9]*))$/;
-type Binary         = /^(0|([1][01]*))$/;
-type BitString      = /^[01]+$/;
-type SignedBinary   = /^(0|([-]?[1][01]*))$/;
+type Boolean              = True | False;
+type Integer              = /^(0|([-]?[1-9][0-9]*))$/;
+type Whole: Integer       = /^(0|([1-9][0-9]*))$/;
+type SignedBinary         = /^(0|([-]?[1][01]*))$/;
+type Binary: SignedBinary = /^(0|([1][01]*))$/;
+type BitString            = /^[01]+$/;
 type Tensor<T> = { };
 type Set<E> = { };
 type Map<K,V> = { };
@@ -69,13 +69,19 @@ let pos(x: SignedBinary): SignedBinary = x;
 let pos(x:Whole): Whole = x;
 let pos(x: Integer): Integer = x;
 
-let neg(x: Binary): SignedBinary = literal '-' x;
+let neg(x: Binary): SignedBinary = match x {
+   literal '0' => literal '0',
+   _ => literal '-' x,
+};
 let neg(x: SignedBinary): SignedBinary = match x {
    literal '0' => literal '0',
    literal '-' xs => literal xs,
    literal xs => literal '-' xs,
 };
-let neg(x:Whole): Integer = literal '-' x;
+let neg(x:Whole): Integer = match x {
+   literal '0' => literal '0',
+   _ => literal '-' x,
+};
 let neg(x: Integer): Integer = match x {
    literal '0' => literal '0',
    literal '-' xs => literal xs,

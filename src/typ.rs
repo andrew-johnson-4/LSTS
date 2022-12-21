@@ -75,6 +75,19 @@ impl Type {
          _ => false,
       }
    }
+   pub fn all_named(&self) -> Vec<Type> {
+      match self {
+         Type::Named(_,_) => { vec![self.clone()] },
+         Type::And(ts) => {
+            let mut acc = Vec::new();
+            for ct in ts.iter() {
+               acc.extend(ct.all_named());
+            }
+            acc
+         },
+         _ => { Vec::new() },
+      }
+   }
    pub fn mask(&self) -> Type {
       match self {
          Type::Any => Type::Any,

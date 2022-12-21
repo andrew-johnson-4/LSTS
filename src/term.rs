@@ -241,20 +241,18 @@ impl Term {
    }
    pub fn check_hard_cast(tlc: &TLC, c: &Constant, ct: &Type, t: TermId) -> Result<(),Error> {
       if let Constant::Literal(cl) = c {
-         let mut tried = false;
-         for (rt, rgx) in tlc.regexes.iter() {
-         if ct == rt {
-            tried = true;
-            if !rgx.is_match(&cl) {
-               return Err(Error {
-                  kind: "Runtime Error".to_string(),
-                  rule: format!("Term::reduce Value {:?} did not match regex for Type: {:?}", cl, ct),
-                  span: tlc.rows[t.id].span.clone(),
-               })
-            }
-         }}
-         if !tried {
-            panic!("Term::reduce could not find regex for Type: {:?} at {:?}", ct, &tlc.rows[t.id].span);
+         let cts = ct.all_named(); 
+         for ct in cts.iter() {
+            for (rt, rgx) in tlc.regexes.iter() {
+            if ct == rt {
+               if !rgx.is_match(&cl) {
+                  return Err(Error {
+                     kind: "Runtime Error".to_string(),
+                     rule: format!("Term::reduce Value {:?} did not match regex for Type: {:?}", cl, ct),
+                     span: tlc.rows[t.id].span.clone(),
+                  })
+               }
+            }}
          }
       } else {
          //TODO Term::reduce, dynamically check hard cast with gradual typing?
@@ -290,6 +288,7 @@ impl Term {
             let mut cs = Vec::new();
             for ct in ts.iter() {
                let cc = Term::reduce(tlc, scope, scope_constants, *ct)?;
+               Term::check_hard_cast(tlc, &cc, &tlc.rows[ct.id].typ, *ct)?;
                cs.push(cc);
             }
             Ok(Constant::Tuple(cs))
@@ -327,6 +326,8 @@ impl Term {
          },
          Term::App(g,x) => {
             let xc = Term::reduce(tlc, scope, scope_constants, *x)?;
+            Term::check_hard_cast(tlc, &xc, &tlc.rows[x.id].typ, *x)?;
+            Term::check_hard_cast(tlc, &xc, &tlc.rows[g.id].typ.domain(), *x)?;
             if let Term::Project(Constant::Literal(pi)) = tlc.rows[g.id].term.clone() {
             if let Constant::Tuple(xct) = xc {
                let pi = str::parse::<usize>(&pi).unwrap();
