@@ -1371,17 +1371,15 @@ impl TLC {
          },
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { self.bottom_type.clone() };
-            let ki = self.project_kinded(&self.term_kind, &i);
             let mut r = None;
             for (pat,re) in self.regexes.clone().into_iter() {
-               if let Ok(nt) = self.implies(&ki,&pat,&self.rows[t.id].span.clone()) { //Term kinded is not []
-                  r = Some(re.clone());
-                  self.rows[t.id].typ = nt.and(&ki);
-                  break;
-               }
-               else if ki==self.bottom_type && re.is_match(&x) { //Term kinded is []
+               if i==self.bottom_type && re.is_match(&x) {
                   r = Some(re.clone());
                   self.rows[t.id].typ = pat;
+                  break;
+               } else if let Ok(nt) = self.implies(&pat,&i,&self.rows[t.id].span.clone()) {
+                  r = Some(re.clone());
+                  self.rows[t.id].typ = nt;
                   break;
                }
             }

@@ -19,10 +19,21 @@ impl Scope {
    pub fn lookup_term(tlc: &TLC, scope: ScopeId, v: &str, t: &Type) -> Option<TermId> {
       let mut candidates = Vec::new();
       for (cv,_ck,ct,cb) in tlc.scopes[scope.id].children.iter() {
+         // NO  neg:(Integer)->(Integer) => (Whole)->(Integer)
+         // YES neg:(Integer)->(Integer) => (Integer)->(Integer)
+         //arrow candidates are covariant because this is an existential context
+         //domain(variable) => domain(candidate)
+         //range (variable) => range (candidate)
          if cv == v {
-         if !Type::implies(tlc, t, ct).is_bottom() {
          if let Some(cb) = cb {
-            candidates.push((ct.clone(), *cb));
+         match (t,ct) {
+            (Type::Arrow(td,tr),Type::Arrow(ctd,ctr)) => { if
+               !Type::implies(tlc, td, ctd).is_bottom() &&
+               !Type::implies(tlc, tr, ctr).is_bottom() {
+               candidates.push((ct.clone(), *cb));
+            }}, _ => { if !Type::implies(tlc, t, ct).is_bottom() {
+               candidates.push((ct.clone(), *cb));
+            }},
          }}}
       }
       if candidates.len() == 0 {
