@@ -93,6 +93,13 @@ fn l1_destructure_tuples() {
    tlc.check(Some(l1), "match (3,4) { (x,) => 1 }  @reduce :[1];").unwrap_err();
    tlc.check(Some(l1), "match (3,4) { (x,y) => 1 }  @reduce :[1];").unwrap();
    tlc.check(Some(l1), "match (3,4) { (x,y) => x }  @reduce :[3];").unwrap();
+}
+
+#[test]
+fn l1_partial_tuples() {
+   let mut tlc = TLC::new();
+   let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
+
    tlc.check(Some(l1), "match (3,4) { +((x,),y) => x }  @reduce :[3];").unwrap();
    tlc.check(Some(l1), "match (3,4) { +(x,(y,)) => x }  @reduce :[4];").unwrap();
    tlc.check(Some(l1), "match (3,4) { +((3,),(y,)) => 5 }  @reduce :[5];").unwrap();

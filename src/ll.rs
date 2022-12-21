@@ -457,15 +457,15 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
       pop_is("let-stmt", tokens, &vec![Symbol::KAscript])?;
       rk = ll1_kind(tlc, tokens)?;
    }
+   let inner_scope = tlc.new_scope(Some(scope));
    if peek_is(tokens, &vec![Symbol::Is]) {
       pop_is("let-stmt", tokens, &vec![Symbol::Is])?;
-      t = Some(ll1_term(tlc, scope, tokens)?);
+      t = Some(ll1_term(tlc, inner_scope, tokens)?);
    }
 
    if rt.is_constant() {
       rk = tlc.constant_kind.clone();
    }
-   let mut children = Vec::new();
    for itks in pars.iter() {
       for (i,t,k) in itks.iter() {
          let t = t.clone().unwrap_or(tlc.bottom_type.clone()).normalize();
@@ -473,7 +473,9 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
          let vn = i.clone().unwrap_or("_".to_string());
          let vt = tlc.push_term(Term::Ident(vn.clone()),&span);
          tlc.untyped(vt);
-         children.push((vn.clone(), ks, t.clone(), Some(vt)));
+         tlc.scopes[inner_scope.id].children.push(
+            (vn.clone(), ks, t.clone(), Some(vt))
+         );
       }
    }
    let mut ft = rt.clone();
@@ -489,10 +491,6 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
       ft = Type::Arrow(Box::new(pt),Box::new(ft));
    }
    ft = ft.normalize();
-   let inner_scope = tlc.push_scope(Scope {
-      parent: Some(scope),
-      children: children,
-   });
    let vt = tlc.push_term(Term::Let(LetTerm {
       scope: inner_scope,
       name: ident.clone(),

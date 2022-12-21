@@ -1269,7 +1269,47 @@ impl TLC {
       }
    }
    pub fn destructure(&mut self, scope: ScopeId, t: TermId, tt: &Type) -> Result<(),Error> {
-      unimplemented!("destructure lhs {} : {:?}", self.print_term(t), tt)
+      let span = self.rows[t.id].span.clone();
+      match (self.rows[t.id].term.clone(),tt) {
+         (Term::Literal(_),_) => {
+            self.rows[t.id].typ = tt.clone();
+         },
+         (Term::Ident(tn),_) => {
+            if tn != "_" {
+               self.scopes[scope.id].children.push((
+                  tn.clone(),
+                  HashMap::new(),
+                  tt.clone(),
+                  None
+               ));
+            }
+            self.rows[t.id].typ = tt.clone();
+         },
+         (Term::Constructor(cname,_kvs),_) => {
+            let ct = if let Some((ct,_tpars,_tkvs)) = self.constructors.get(&cname) {
+               ct.clone()
+            } else { return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("type constructor, none found for: {}", self.print_term(t)),
+               span: self.rows[t.id].span.clone(),
+            }) };
+            self.rows[t.id].typ = self.implies(tt, &ct, &span)?;
+         },
+         (Term::Tuple(vts),Type::Tuple(tts)) if vts.len()==tts.len() => {
+            for (cv,ct) in std::iter::zip(vts,tts) {
+               self.destructure(scope, cv, ct)?;
+            }
+            self.rows[t.id].typ = tt.clone();
+         },
+         _ => {
+            return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("destructure rejected {} : {:?}", self.print_term(t), tt),
+               span: self.rows[t.id].span.clone(),
+            });
+         },
+      };
+      Ok(())
    }
    pub fn typeck(&mut self, scope: &Option<ScopeId>, t: TermId, implied: Option<Type>) -> Result<(),Error> {
       let implied = implied.map(|tt|tt.normalize());
@@ -1307,7 +1347,7 @@ impl TLC {
             let mut rts = Vec::new();
             for (clr,l,r) in lrs.iter() {
                self.destructure(*clr, *l, &self.rows[dv.id].typ.clone())?;
-               self.typeck(scope, *r, implied.clone())?;
+               self.typeck(&Some(*clr), *r, implied.clone())?;
                rts.push( self.rows[r.id].typ.clone() );
             }
             let mut rt = rts[0].clone();
