@@ -864,7 +864,31 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    while peek_is(tokens, &vec![Symbol::LeftParen,Symbol::Dot,Symbol::LeftBracket]) {
       if peek_is(tokens, &vec![Symbol::Dot]) {
          let field = ll1_field_term(tlc, scope, tokens)?;
-         term = tlc.push_term(Term::App(field, term),&span);
+         if !peek_is(tokens, &vec![Symbol::LeftParen]) {
+            term = tlc.push_term(Term::App(field, term),&span);
+         } else {
+            pop_is("atom-term", tokens, &vec![Symbol::LeftParen])?;
+            let mut ts = vec![term];
+            let mut comma_ok = true;
+            while comma_ok && !peek_is(tokens, &vec![Symbol::RightParen]) {
+               comma_ok = false;
+               ts.push( ll1_term(tlc, scope, tokens)? );
+               if peek_is(tokens, &vec![Symbol::Comma]) {
+                  pop_is("atom-term", tokens, &vec![Symbol::Comma])?;
+                  comma_ok = true;
+               }
+            }
+            pop_is("atom-term", tokens, &vec![Symbol::RightParen])?;
+            if ts.len()==0 { //x.f()
+               let fargs = tlc.push_term(Term::Tuple(ts),&span);
+               term = tlc.push_term(Term::App(field, fargs),&span);
+               let curry = tlc.push_term(Term::Tuple(Vec::new()),&span);
+               term = tlc.push_term(Term::App(term, curry),&span);
+            } else { //x.f(y), x.f(y,z)
+               let fargs = tlc.push_term(Term::Tuple(ts),&span);
+               term = tlc.push_term(Term::App(field, fargs),&span);
+            }
+         }
       } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
          let index = ll1_index_term(tlc, scope, tokens)?;
          term = tlc.push_term(Term::DynProject(term, index),&span);         
