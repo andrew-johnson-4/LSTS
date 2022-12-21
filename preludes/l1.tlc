@@ -1,11 +1,11 @@
 
 //Types
-type Boolean = True | False;
-type Integer        = /^(0|([-]?[1-9][0-9]*))$/;
-type Whole          = /^(0|([1-9][0-9]*))$/;
-type Binary         = /^(0|([1][01]*))$/;
-type BitString      = /^[01]+$/;
-type SignedBinary   = /^(0|([-]?[1][01]*))$/;
+type Boolean              = True | False;
+type Integer              = /^(0|([-]?[1-9][0-9]*))$/;
+type Whole: Integer       = /^(0|([1-9][0-9]*))$/;
+type SignedBinary         = /^(0|([-]?[1][01]*))$/;
+type Binary: SignedBinary = /^(0|([1][01]*))$/;
+type BitString            = /^[01]+$/;
 type Tensor<T> = { };
 type Set<E> = { };
 type Map<K,V> = { };
@@ -69,13 +69,19 @@ let pos(x: SignedBinary): SignedBinary = x;
 let pos(x:Whole): Whole = x;
 let pos(x: Integer): Integer = x;
 
-let neg(x: Binary): SignedBinary = literal '-' x;
+let neg(x: Binary): SignedBinary = match x {
+   literal '0' => literal '0',
+   _ => literal '-' x,
+};
 let neg(x: SignedBinary): SignedBinary = match x {
    literal '0' => literal '0',
    literal '-' xs => literal xs,
    literal xs => literal '-' xs,
 };
-let neg(x:Whole): Integer = literal '-' x;
+let neg(x:Whole): Integer = match x {
+   literal '0' => literal '0',
+   _ => literal '-' x,
+};
 let neg(x: Integer): Integer = match x {
    literal '0' => literal '0',
    literal '-' xs => literal xs,
@@ -213,10 +219,6 @@ let .is_odd(x: Binary): Boolean = match x {
    literal _ '1' => True,
    _ => False,
 };
-let .length(x: Binary): Binary = match x {
-   literal [01] => 1,
-   literal xp [01] => ((literal xp:Binary)+(1:Binary)),
-};
 let divmod(x: Binary, y: Binary): (Binary,Binary) = (
         if y==(0:Binary) then fail
    else if x==(0:Binary) then (0:Binary, 0:Binary)
@@ -282,17 +284,12 @@ let $"^"(x: Integer, y: Integer): Integer = (x.binary ^ y.binary).decimal;
 
 
 //Sugar
-let $"for"(ls: Tensor<A>, A -> B): Tensor<B>;
-let $"for"(ls: Tensor<A>, A -> Boolean, A -> B): Tensor<B>;
+let $"for"(ls: A[], A -> B): B[];
+let $"for"(ls: A[], A -> Boolean, A -> B): B[];
 
-let set(ls: Tensor<A>): Set<A>;
-let map(ls: Tensor<(A,B)>): Map<A,B>;
+let set(ls: A[]): Set<A>;
+let map(ls: (A,B)[]): Map<A,B>;
 
-let range(end: Integer): Tensor<Integer>;
-let range(start: Integer, end: Integer): Tensor<Integer>;
-let range(start: Integer, end: Integer, step: Integer): Tensor<Integer>;
-
-let tensor(): Tensor<A>;
-let tensor(a: A): Tensor<A>;
-let tensor(a: A, b: A): Tensor<A>;
-let tensor(a: A, b: A, c: A): Tensor<A>;
+let range(end: Integer): Integer[];
+let range(start: Integer, end: Integer): Integer[];
+let range(start: Integer, end: Integer, step: Integer): Integer[];

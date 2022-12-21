@@ -709,31 +709,6 @@ pub fn ll1_prefix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    Ok(term)
 }
 
-pub fn ll1_tensor_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
-   let span = span_of(tokens);
-   pop_is("tensor-term", tokens, &vec![Symbol::LeftBracket])?;
-   if peek_is(tokens, &vec![Symbol::For]) {
-      let term = ll1_for_term(tlc, scope, tokens)?;
-      pop_is("tensor-term", tokens, &vec![Symbol::RightBracket])?;
-      Ok(term)
-   } else { //a Tensor is a homogenous Tuple
-      let mut ts = Vec::new();
-      while !peek_is(tokens, &vec![Symbol::RightBracket]) {
-         if peek_is(tokens, &vec![Symbol::Comma]) {
-            pop_is("tensor-term", tokens, &vec![Symbol::Comma])?;
-         }
-         ts.push( ll1_term(tlc, scope, tokens)? );
-      }
-      pop_is("tensor-term", tokens, &vec![Symbol::RightBracket])?;
-      let ps = if ts.len()==1 { ts[0] } else { tlc.push_term(Term::Tuple(ts),&span) };
-      let t = Term::App(
-         tlc.push_term(Term::Ident("tensor".to_string()),&span),
-         ps,
-      );
-      Ok(tlc.push_term(t,&span))
-   }
-}
-
 pub fn ll1_index_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    pop_is("index-term", tokens, &vec![Symbol::LeftBracket])?;
    let t = ll1_term(tlc, scope, tokens)?;
@@ -881,8 +856,6 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    let span = span_of(tokens);
    let mut term = if peek_is(tokens, &vec![Symbol::LeftParen]) {
       ll1_tuple_term(tlc, scope, tokens)?
-   } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
-      ll1_tensor_term(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Match]) {
       ll1_match_term(tlc, scope, tokens)?
    } else {
@@ -1013,12 +986,15 @@ pub fn ll1_atom_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
 }
 
 pub fn ll1_suffix_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
-   let _span = span_of(tokens);
    let mut base = ll1_atom_type(tlc, scope, tokens)?;
    let mut ts = Vec::new();
    while peek_is(tokens, &vec![Symbol::LeftBracket]) {
       pop_is("suffix-type", tokens, &vec![Symbol::LeftBracket])?;
-      ts.push( ll1_constant(tlc, scope, tokens)? );
+      if peek_is(tokens, &vec![Symbol::RightBracket]) {
+         ts.push( Constant::Tuple(Vec::new()) );
+      } else {
+         ts.push( ll1_constant(tlc, scope, tokens)? );
+      }
       pop_is("suffix-type", tokens, &vec![Symbol::RightBracket])?;
    }
    for ct in ts.iter().rev() {

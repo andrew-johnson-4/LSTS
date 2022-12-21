@@ -75,6 +75,19 @@ impl Type {
          _ => false,
       }
    }
+   pub fn all_named(&self) -> Vec<Type> {
+      match self {
+         Type::Named(_,_) => { vec![self.clone()] },
+         Type::And(ts) => {
+            let mut acc = Vec::new();
+            for ct in ts.iter() {
+               acc.extend(ct.all_named());
+            }
+            acc
+         },
+         _ => { Vec::new() },
+      }
+   }
    pub fn mask(&self) -> Type {
       match self {
          Type::Any => Type::Any,
@@ -532,6 +545,11 @@ impl Type {
             if bt.is_bottom() { return bt.clone(); }
             Type::HTuple(Box::new(bt), lc.clone())
          },
+         (Type::HTuple(lb,_lc),Type::HTuple(rb,Constant::Tuple(rc))) => {
+            let bt = lb.__implication_unifier(rb,subs,inarrow);
+            if bt.is_bottom() { return bt.clone(); }
+            Type::HTuple(Box::new(bt), Constant::Tuple(rc.clone()))
+         },
          (Type::Tuple(lts),Type::HTuple(rb,Constant::Literal(rc))) => {
             let rlen = str::parse::<usize>(&rc).unwrap();
             if lts.len()!=rlen { return Type::And(vec![]); }
@@ -540,6 +558,13 @@ impl Type {
                if nt.is_bottom() { return nt.clone(); }
             }
             Type::HTuple(rb.clone(), Constant::Literal(rc.clone()))
+         },
+         (Type::Tuple(lts),Type::HTuple(rb,Constant::Tuple(rc))) => {
+            for lt in lts.iter() {
+               let nt = lt.__implication_unifier(rb,subs,inarrow);
+               if nt.is_bottom() { return nt.clone(); }
+            }
+            Type::HTuple(rb.clone(), Constant::Tuple(rc.clone()))
          },
 	
          (Type::Constant(lv),Type::Constant(rv)) if lv==rv => {

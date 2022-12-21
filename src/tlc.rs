@@ -35,7 +35,6 @@ pub struct Row {
    pub typ: Type,
    pub kind: Kind,
    pub span: Span,
-   pub constant: Option<Constant>,
 }
 
 #[derive(Clone)]
@@ -155,7 +154,6 @@ impl TLC {
                linecol_start: (0,0),
                linecol_end: (0,0),
             },
-            constant: None,
          }],
          rules: Vec::new(),
          scopes: Vec::new(),
@@ -373,7 +371,6 @@ impl TLC {
       self.reduce_toks(globals, &mut tks)
    }
 
-
    pub fn kinds_of(&self, kinds: &mut HashMap<Type,Kind>, tt: &Type) -> Option<Kind> {
       match tt {
          Type::Any => {
@@ -471,18 +468,6 @@ impl TLC {
 
       Ok(())
    }
-   pub fn parse(&mut self, src:&str) -> Result<TermId,Error> {
-      //used mainly in tests
-      let mut tokens = tokenize_string(self, "[string]", src)?;
-      let file_scope = self.push_scope(Scope {
-         parent: None,
-         children: Vec::new(),
-      }, &span_of(&mut tokens));
-      ll1_file(self, file_scope, &mut tokens)
-   }
-   pub fn maybe_constant(&self, t: TermId) -> Option<Constant> {
-      self.rows[t.id].constant.clone()
-   }
    pub fn push_term(&mut self, term: Term, span: &Span) -> TermId {
       let index = self.rows.len();
       let ti = TermId { id: index };
@@ -491,7 +476,6 @@ impl TLC {
          typ: Type::Any,
          kind: self.term_kind.clone(),
          span: span.clone(),
-         constant: None,
       });
       ti
    }
@@ -1214,15 +1198,6 @@ impl TLC {
       Ok(())
    }
 
-   pub fn push_constant(&mut self, t: TermId, c: &Constant) -> Constant {
-      self.rows[t.id].constant = Some(c.clone());
-      c.clone()
-   }
-   pub fn push_dtype(&mut self, t: TermId, c: &Option<Constant>) {
-      if let Some(cv) = c {
-         self.rows[t.id].constant = Some(cv.clone());
-      }
-   }
    pub fn typeck_hint(&mut self, bound: &mut HashMap<String,TermId>, scope: &Option<ScopeId>, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
       match ( self.rows[lhs.id].term.clone(), self.rows[rhs.id].term.clone() ) {
          (Term::Ident(ln), Term::Ident(rn)) if ln==rn => {
@@ -1396,17 +1371,15 @@ impl TLC {
          },
          Term::Value(x) => {
             let i = if let Some(ref i) = implied { i.clone() } else { self.bottom_type.clone() };
-            let ki = self.project_kinded(&self.term_kind, &i);
             let mut r = None;
             for (pat,re) in self.regexes.clone().into_iter() {
-               if let Ok(nt) = self.implies(&ki,&pat,&self.rows[t.id].span.clone()) { //Term kinded is not []
-                  r = Some(re.clone());
-                  self.rows[t.id].typ = nt.and(&ki);
-                  break;
-               }
-               else if ki==self.bottom_type && re.is_match(&x) { //Term kinded is []
+               if i==self.bottom_type && re.is_match(&x) {
                   r = Some(re.clone());
                   self.rows[t.id].typ = pat;
+                  break;
+               } else if let Ok(nt) = self.implies(&pat,&i,&self.rows[t.id].span.clone()) {
+                  r = Some(re.clone());
+                  self.rows[t.id].typ = nt;
                   break;
                }
             }
@@ -1470,7 +1443,62 @@ impl TLC {
          },
          Term::App(g,x) => {
             self.typeck(scope, x, None)?;
-            if let Term::Project(Constant::Literal(cs)) = &self.rows[g.id].term {
+            let mut eager_match = false;
+            if let Term::Ident(gi) = &self.rows[g.id].term {
+            if gi == ".length" {
+            if match &self.rows[x.id].typ { Type::Tuple(_) | Type::HTuple(_,_) => true, _ => false } {
+               self.rows[t.id].typ = Type::Named("Integer".to_string(),Vec::new());
+	       self.rows[g.id].typ = Type::Arrow(
+                  Box::new(self.rows[x.id].typ.clone()),
+                  Box::new(self.rows[t.id].typ.clone()),
+               );
+               eager_match = true;
+            }}}
+            if let Term::Ident(gi) = &self.rows[g.id].term {
+            if gi == "pos" {
+            if let Type::Tuple(xs) = &self.rows[x.id].typ {
+               let heterogenous = xs.iter().all(|xt| match xt { Type::Tuple(_)=>true, _=>false });
+               //prefer heterogenous tuples because they hold strictly more information than homogenous tuples
+               self.rows[t.id].typ = if heterogenous {
+                  let mut xts = Vec::new();
+                  for xt in xs.iter() {
+                  if let Type::Tuple(xt) = xt.clone() {
+                     xts.extend(xt);
+                  }}
+                  Type::Tuple(xts)
+               } else {
+                  let mut bt = Type::Any;
+                  let mut bi = Some(0);
+                  for xt in xs.iter() {
+                     if let Type::Tuple(xts) = xt {
+                        if let Some(biv) = bi { bi = Some(biv + 1); }
+                        for xxt in xts.iter() {
+                           bt = bt.most_general_unifier(xxt);
+                        }
+                     } else if let Type::HTuple(xtb,xti) = xt {
+                        bt = bt.most_general_unifier(xtb);
+                        match (bi,xti) {
+                           (Some(biv),Constant::Literal(xti)) => {
+                              bi = Some(biv + str::parse::<usize>(xti).unwrap());
+                           },
+                           _ => { bi = None; }
+                        }
+                     }
+                  }
+                  if let Some(bi) = bi {
+                     Type::HTuple(Box::new(bt),Constant::Literal(format!("{}",bi)))
+                  } else {
+                     Type::HTuple(Box::new(bt),Constant::Tuple(Vec::new()))
+                  }
+               };
+	       self.rows[g.id].typ = Type::Arrow(
+                  Box::new(self.rows[x.id].typ.clone()),
+                  Box::new(self.rows[t.id].typ.clone()),
+               );
+               eager_match = true;
+            }}}
+            if eager_match {
+            } else if let Term::Project(Constant::Literal(cs)) = &self.rows[g.id].term {
                let pi = str::parse::<usize>(&cs).unwrap();
                if let Type::Tuple(gts) = self.rows[x.id].typ.clone() {
                   self.rows[g.id].typ = gts[pi].clone();

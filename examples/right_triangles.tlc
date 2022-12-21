@@ -1,7 +1,7 @@
 import "l1.tlc";
 
-[ for c in range(1,10) 
+( for c in range(1,10) 
   for b in range(1,c)
   for a in range(1,b)
   if a^2 + b^2 == c^2 && a+b+c == 24
-  yield (a,b,c) ];
+  yield (a,b,c) );
