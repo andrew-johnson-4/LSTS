@@ -101,8 +101,8 @@ fn l1_partial_tuples() {
    let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
    tlc.check(Some(l1), "match (3,4) { +((x,),y) => x }  @reduce :[3];").unwrap();
-   tlc.check(Some(l1), "match (3,4) { +(x,(y,)) => x }  @reduce :[4];").unwrap();
+   tlc.check(Some(l1), "match (3,4) { +(x,(y,)) => y }  @reduce :[4];").unwrap();
    tlc.check(Some(l1), "match (3,4) { +((3,),(y,)) => 5 }  @reduce :[5];").unwrap();
    tlc.check(Some(l1), "match (3,4) { +((3,),x,(y,)) => 5 }  @reduce :[5];").unwrap();
-   tlc.check(Some(l1), "match (3,4) { +((3,),(),(y,)) => 5 }  @reduce :[5];").unwrap();
+   tlc.check(Some(l1), "match (3,4) { +((3,),(y,)) => 5 }  @reduce :[5];").unwrap();
 }

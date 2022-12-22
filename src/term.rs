@@ -146,6 +146,58 @@ impl Term {
                &lc == dc
             } else { false }
          },
+         Term::App(g,x) => {
+            if let Constant::Tuple(cts) = dc {
+            if let Term::Ident(gn) = &tlc.rows[g.id].term {
+            if gn == "pos" {
+            if let Term::Tuple(x) = &tlc.rows[x.id].term {
+            if x.len()==1 {
+            if let Term::Tuple(vx) = &tlc.rows[x[0].id].term {
+               let mut prefix = None;
+               let mut midfix = None;
+               let mut suffix = None;
+               let mut accept = true;
+               for vxt in vx.iter() {
+               match tlc.rows[vxt.id].term.clone() {
+                  Term::Tuple(fix) => {
+                     if midfix.is_none() && prefix.is_none() { prefix = Some((vxt, fix.clone())); }
+                     else if suffix.is_none() { suffix = Some((vxt, fix.clone())); }
+                     else { accept = false; }
+                  },
+                  Term::Ident(fix) => {
+                     if midfix.is_none() { midfix = Some((vxt, fix)); }
+                     else { accept = false; }
+                  },
+                  _ => { accept = false; }
+               }}
+               if accept && (prefix.is_some() || midfix.is_some() || suffix.is_some()) {
+                  let mut cts = cts.clone();
+                  if let Some((pret,prevs)) = prefix {
+                  if prevs.len() <= cts.len() {
+                     let prects = cts[..prevs.len()].to_vec();
+                     cts = cts[prevs.len()..].to_vec();
+                     if !Term::reduce_lhs(tlc, scope_constants, *pret, &Constant::Tuple(prects.clone())) {
+                        return false;
+                     }
+                  }}
+                  if let Some((suft,sufvs)) = suffix {
+                  if sufvs.len() <= cts.len() {
+                     let sufcts = cts[(cts.len()-sufvs.len())..].to_vec();
+                     cts = cts[..(cts.len()-sufvs.len())].to_vec();
+                     if !Term::reduce_lhs(tlc, scope_constants, *suft, &Constant::Tuple(sufcts.clone())) {
+                        return false;
+                     }
+                  }}
+                  if let Some((midt,_midvs)) = midfix {
+                     if !Term::reduce_lhs(tlc, scope_constants, *midt, &Constant::Tuple(cts.clone())) {
+                        return false;
+                     }
+                  }
+                  return true;
+               }
+            }}}}}}
+            false
+         }
          Term::Literal(lps) => {
             if let Constant::Literal(dlp) = dc {
                let mut pre_lhs: Vec<Literal> = Vec::new();

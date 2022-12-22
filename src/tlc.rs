@@ -212,7 +212,8 @@ impl TLC {
             format!("match {} {{ {} }}", self.print_term(*dv), s)
          },
          Term::Tuple(es) => {
-            format!("({})", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(","))
+            if es.len()==1 { format!("({},)",self.print_term(es[0])) }
+            else { format!("({})", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(",")) }
          },
          Term::Block(_,es) => {
             format!("{{{}}}", es.iter().filter(|e|e.id!=0).map(|e| self.print_term(*e)).collect::<Vec<String>>().join(";"))
@@ -1271,9 +1272,9 @@ impl TLC {
    pub fn destructure(&mut self, scope: ScopeId, t: TermId, tt: &Type) -> Result<(),Error> {
       let span = self.rows[t.id].span.clone();
       match (self.rows[t.id].term.clone(),tt) {
-         (Term::Literal(_),_) => {
-            self.rows[t.id].typ = tt.clone();
+         (Term::Value(_),_) => {
          },
+         (Term::Literal(_),_) => {},
          (Term::Ident(tn),_) => {
             if tn != "_" {
                self.scopes[scope.id].children.push((
@@ -1283,7 +1284,6 @@ impl TLC {
                   None
                ));
             }
-            self.rows[t.id].typ = tt.clone();
          },
          (Term::Constructor(cname,_kvs),_) => {
             let ct = if let Some((ct,_tpars,_tkvs)) = self.constructors.get(&cname) {
@@ -1293,19 +1293,17 @@ impl TLC {
                rule: format!("type constructor, none found for: {}", self.print_term(t)),
                span: self.rows[t.id].span.clone(),
             }) };
-            self.rows[t.id].typ = self.implies(tt, &ct, &span)?;
+            self.implies(&ct, tt, &span)?;
          },
          (Term::Tuple(vts),Type::Tuple(tts)) if vts.len()==tts.len() => {
             for (cv,ct) in std::iter::zip(vts,tts) {
                self.destructure(scope, cv, ct)?;
             }
-            self.rows[t.id].typ = tt.clone();
          },
          (Term::Tuple(vts),Type::HTuple(bt,_)) => {
             for cv in vts.iter() {
                self.destructure(scope, *cv, bt)?;
             }
-            self.rows[t.id].typ = tt.clone();
          },
          (Term::App(vg,vx),Type::Tuple(tts)) => {
             if let Term::Ident(vg) = self.rows[vg.id].term.clone() {
@@ -1321,8 +1319,8 @@ impl TLC {
                for vxt in vx.iter() {
                match self.rows[vxt.id].term.clone() {
                   Term::Tuple(fix) => {
-                     if prefix.is_none() { prefix = Some((vxt, fix.clone())); }
-                     if suffix.is_none() { suffix = Some((vxt, fix.clone())); }
+                     if midfix.is_none() && prefix.is_none() { prefix = Some((vxt, fix.clone())); }
+                     else if suffix.is_none() { suffix = Some((vxt, fix.clone())); }
                      else { accept = false; }
                   },
                   Term::Ident(fix) => {
@@ -1332,39 +1330,36 @@ impl TLC {
                   _ => { accept = false; }
                }}
                if accept && (prefix.is_some() || midfix.is_some() || suffix.is_some()) {
-                 let mut tts = tts.clone();
-                 let mut accept = true;
-                 if let Some((pret,prevs)) = prefix {
-                 if prevs.len() <= tts.len() {
-                    let pretts = tts[..prevs.len()].to_vec();
-                    tts = tts[prevs.len()..].to_vec();
-                    self.destructure(scope, *pret, &Type::Tuple(pretts.clone()))?;
-                    for (prevt,prett) in std::iter::zip(prevs,pretts) {
-                       self.destructure(scope, prevt, &prett)?;
-                    }
-                 } else { accept = false; }}
-                 if let Some((suft,sufvs)) = suffix {
-                 if sufvs.len() <= tts.len() {
-                    let suftts = tts[(tts.len()-sufvs.len())..].to_vec();
-                    tts = tts[..(tts.len()-sufvs.len())].to_vec();
-                    self.destructure(scope, *suft, &Type::Tuple(suftts.clone()))?;
-                    for (sufvt,suftt) in std::iter::zip(sufvs,suftts) {
-                       self.destructure(scope, sufvt, &suftt)?;
-                    }
-                 } else { accept = false; }}
-                 if let Some((midt,_midvs)) = midfix {
-                    self.destructure(scope, *midt, &Type::Tuple(tts.clone()))?;
-                    tts = Vec::new();
-                 }
-                 if accept && tts.len() == 0 {
-                    self.rows[t.id].typ = tt.clone();
-                    return Ok(());
-                 }
+                  let mut tts = tts.clone();
+                  let mut accept = true;
+                  if let Some((_pret,prevs)) = prefix {
+                  if prevs.len() <= tts.len() {
+                     let pretts = tts[..prevs.len()].to_vec();
+                     tts = tts[prevs.len()..].to_vec();
+                     for (prevt,prett) in std::iter::zip(prevs,pretts) {
+                        self.destructure(scope, prevt, &prett)?;
+                     }
+                  } else { accept = false; }}
+                  if let Some((_suft,sufvs)) = suffix {
+                  if sufvs.len() <= tts.len() {
+                     let suftts = tts[(tts.len()-sufvs.len())..].to_vec();
+                     tts = tts[..(tts.len()-sufvs.len())].to_vec();
+                     for (sufvt,suftt) in std::iter::zip(sufvs,suftts) {
+                        self.destructure(scope, sufvt, &suftt)?;
+                     }
+                  } else { accept = false; }}
+                  if let Some((midt,_midvs)) = midfix {
+                     self.destructure(scope, *midt, &Type::Tuple(tts.clone()))?;
+                     tts = Vec::new();
+                  }
+                  if accept && tts.len() == 0 {
+                     return Ok(());
+                  }
                }
             }}}}}}
             return Err(Error {
                kind: "Type Error".to_string(),
-               rule: format!("destructure rejected {} : {:?}", self.print_term(t), tt),
+               rule: format!("destructure app rejected {} : {:?}", self.print_term(t), tt),
                span: self.rows[t.id].span.clone(),
             });
          },
@@ -1414,6 +1409,7 @@ impl TLC {
             let mut rts = Vec::new();
             for (clr,l,r) in lrs.iter() {
                self.destructure(*clr, *l, &self.rows[dv.id].typ.clone())?;
+               self.untyped(*l);
                self.typeck(&Some(*clr), *r, implied.clone())?;
                rts.push( self.rows[r.id].typ.clone() );
             }
