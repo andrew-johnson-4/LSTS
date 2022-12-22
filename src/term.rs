@@ -3,7 +3,6 @@ use crate::kind::Kind;
 use crate::scope::{Scope,ScopeId};
 use crate::tlc::TLC;
 use crate::constant::Constant;
-use crate::token::{Span};
 use crate::debug::{Error};
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -59,7 +58,7 @@ pub enum Term {
    RuleApplication(TermId,String),
    Match(
       TermId,
-      Vec<(TermId,TermId)>, //lhs's here don't need scopes because these bindings can't be polymorphic
+      Vec<(ScopeId,TermId,TermId)>, //lhs's here don't need scopes because these bindings can't be polymorphic
    ),
    Fail, //indicates that Term does not return a Value
    Literal(Vec<Literal>),
@@ -104,13 +103,13 @@ impl Term {
          _ => unimplemented!("destructure lhs in Term::scope_of_lhs({})", tlc.print_term(lhs)),
       }
    }
-   pub fn scope_of_lhs(tlc: &mut TLC, scope: Option<ScopeId>, lhs: TermId, span: &Span) -> ScopeId {
+   pub fn scope_of_lhs(tlc: &mut TLC, scope: Option<ScopeId>, lhs: TermId) -> ScopeId {
       let mut children = Vec::new();
       Term::scope_of_lhs_impl(tlc, &mut children, lhs);
       let sid = tlc.push_scope(Scope {
          parent: scope,
          children: children,
-      }, &span);
+      });
       sid
    }
    pub fn reduce_lhs(tlc: &TLC, scope_constants: &mut HashMap<String,Constant>, lhs: TermId, dc: &Constant) -> bool {
@@ -147,6 +146,58 @@ impl Term {
                &lc == dc
             } else { false }
          },
+         Term::App(g,x) => {
+            if let Constant::Tuple(cts) = dc {
+            if let Term::Ident(gn) = &tlc.rows[g.id].term {
+            if gn == "pos" {
+            if let Term::Tuple(x) = &tlc.rows[x.id].term {
+            if x.len()==1 {
+            if let Term::Tuple(vx) = &tlc.rows[x[0].id].term {
+               let mut prefix = None;
+               let mut midfix = None;
+               let mut suffix = None;
+               let mut accept = true;
+               for vxt in vx.iter() {
+               match tlc.rows[vxt.id].term.clone() {
+                  Term::Tuple(fix) => {
+                     if midfix.is_none() && prefix.is_none() { prefix = Some((vxt, fix.clone())); }
+                     else if suffix.is_none() { suffix = Some((vxt, fix.clone())); }
+                     else { accept = false; }
+                  },
+                  Term::Ident(fix) => {
+                     if midfix.is_none() { midfix = Some((vxt, fix)); }
+                     else { accept = false; }
+                  },
+                  _ => { accept = false; }
+               }}
+               if accept && (prefix.is_some() || midfix.is_some() || suffix.is_some()) {
+                  let mut cts = cts.clone();
+                  if let Some((pret,prevs)) = prefix {
+                  if prevs.len() <= cts.len() {
+                     let prects = cts[..prevs.len()].to_vec();
+                     cts = cts[prevs.len()..].to_vec();
+                     if !Term::reduce_lhs(tlc, scope_constants, *pret, &Constant::Tuple(prects.clone())) {
+                        return false;
+                     }
+                  }}
+                  if let Some((suft,sufvs)) = suffix {
+                  if sufvs.len() <= cts.len() {
+                     let sufcts = cts[(cts.len()-sufvs.len())..].to_vec();
+                     cts = cts[..(cts.len()-sufvs.len())].to_vec();
+                     if !Term::reduce_lhs(tlc, scope_constants, *suft, &Constant::Tuple(sufcts.clone())) {
+                        return false;
+                     }
+                  }}
+                  if let Some((midt,_midvs)) = midfix {
+                     if !Term::reduce_lhs(tlc, scope_constants, *midt, &Constant::Tuple(cts.clone())) {
+                        return false;
+                     }
+                  }
+                  return true;
+               }
+            }}}}}}
+            false
+         }
          Term::Literal(lps) => {
             if let Constant::Literal(dlp) = dc {
                let mut pre_lhs: Vec<Literal> = Vec::new();
@@ -382,7 +433,7 @@ impl Term {
          Term::Match(dv,lrs) => {
             //These panics are OK, because the type-checker should disprove them
             let dc = Term::reduce(tlc, scope, scope_constants, *dv)?;
-            for (l,r) in lrs.iter() {
+            for (lrc,l,r) in lrs.iter() {
                let mut sc = scope_constants.clone();
                if Term::reduce_lhs(tlc, &mut sc, *l, &dc) {
                   if tlc.fails(*r) {
@@ -392,7 +443,7 @@ impl Term {
                         span: tlc.rows[r.id].span.clone(),
                      })
                   }
-                  return Term::reduce(tlc, scope, &sc, *r);
+                  return Term::reduce(tlc, &Some(*lrc), &sc, *r);
                }
             }
             return Err(Error {

@@ -380,7 +380,7 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
       let sid = tlc.push_scope(Scope {
          parent: Some(scope),
          children: children,
-      }, &span);
+      });
       Ok(tlc.push_term(Term::Let(LetTerm {
          scope: sid,
          name: "".to_string(),
@@ -457,15 +457,15 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
       pop_is("let-stmt", tokens, &vec![Symbol::KAscript])?;
       rk = ll1_kind(tlc, tokens)?;
    }
+   let inner_scope = tlc.new_scope(Some(scope));
    if peek_is(tokens, &vec![Symbol::Is]) {
       pop_is("let-stmt", tokens, &vec![Symbol::Is])?;
-      t = Some(ll1_term(tlc, scope, tokens)?);
+      t = Some(ll1_term(tlc, inner_scope, tokens)?);
    }
 
    if rt.is_constant() {
       rk = tlc.constant_kind.clone();
    }
-   let mut children = Vec::new();
    for itks in pars.iter() {
       for (i,t,k) in itks.iter() {
          let t = t.clone().unwrap_or(tlc.bottom_type.clone()).normalize();
@@ -473,7 +473,9 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
          let vn = i.clone().unwrap_or("_".to_string());
          let vt = tlc.push_term(Term::Ident(vn.clone()),&span);
          tlc.untyped(vt);
-         children.push((vn.clone(), ks, t.clone(), Some(vt)));
+         tlc.scopes[inner_scope.id].children.push(
+            (vn.clone(), ks, t.clone(), Some(vt))
+         );
       }
    }
    let mut ft = rt.clone();
@@ -489,10 +491,6 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
       ft = Type::Arrow(Box::new(pt),Box::new(ft));
    }
    ft = ft.normalize();
-   let inner_scope = tlc.push_scope(Scope {
-      parent: Some(scope),
-      children: children,
-   }, &span);
    let vt = tlc.push_term(Term::Let(LetTerm {
       scope: inner_scope,
       name: ident.clone(),
@@ -530,9 +528,11 @@ pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> R
          tlc.push_term(Term::Tuple(Vec::new()),&span)
       };
       let else_lhs = tlc.push_term(Term::Ident("_".to_string()),&span);
+      let tscope = tlc.new_scope(Some(scope));
+      let fscope = tlc.new_scope(Some(scope));
       Ok(tlc.push_term(Term::Match(dv, vec![
-         (lhs, rhs1),
-         (else_lhs, rhs2),
+         (tscope, lhs, rhs1),
+         (fscope, else_lhs, rhs2),
       ]),&span))
    } else {
       let cond = ll1_expr_term(tlc, scope, tokens)?;
@@ -546,7 +546,12 @@ pub fn ll1_if_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> R
       };
       let tlhs = tlc.push_term(Term::Constructor("True".to_string(),Vec::new()),&span);
       let flhs = tlc.push_term(Term::Constructor("False".to_string(),Vec::new()),&span);
-      Ok(tlc.push_term(Term::Match(cond, vec![(tlhs,branch1),(flhs,branch2)]),&span))
+      let tscope = tlc.new_scope(Some(scope));
+      let fscope = tlc.new_scope(Some(scope));
+      Ok(tlc.push_term(Term::Match(cond, vec![
+         (tscope, tlhs, branch1),
+         (fscope, flhs, branch2)
+      ]),&span))
    }
 }
 
@@ -590,7 +595,7 @@ pub fn ll1_for_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
    pop_is("for-term", tokens, &vec![Symbol::Yield])?;
    let rhs = ll1_expr_term(tlc, scope, tokens)?;
  
-   let sc = Term::scope_of_lhs(tlc, Some(scope), lhs, &span);
+   let sc = Term::scope_of_lhs(tlc, Some(scope), lhs);
    let body = tlc.push_term(Term::Arrow( Some(sc), lhs, None, rhs ),&span);
    if let Some(cond) = cond {
       let cond = tlc.push_term(Term::Arrow( Some(sc), lhs, None, cond ),&span);
@@ -852,10 +857,10 @@ pub fn ll1_match_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
    let mut comma_ok = true;
    while comma_ok && !peek_is(tokens, &vec![Symbol::RightBrace]) {
       if comma_ok { comma_ok = false; }
-      let lhs = ll1_atom_term(tlc, scope, tokens)?;
+      let lhs = ll1_prefix_term(tlc, scope, tokens)?;
       pop_is("match-term", tokens, &vec![Symbol::Imply])?;
       let rhs = ll1_atom_term(tlc, scope, tokens)?;
-      pats.push((lhs, rhs));
+      pats.push((tlc.new_scope(Some(scope)), lhs, rhs));
       if peek_is(tokens, &vec![Symbol::Comma]) {
          pop_is("match-term", tokens, &vec![Symbol::Comma])?;
          comma_ok = true;
@@ -1168,7 +1173,7 @@ pub fn ll1_arrow_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
       let inner_scope = tlc.push_scope(Scope {
          parent: Some(scope),
          children: children,
-      }, &span);
+      });
 
       while peek_is(tokens, &vec![Symbol::Arrow]) {
          let bterm = ll1_asif_term(tlc, scope, tokens)?;
@@ -1205,7 +1210,7 @@ pub fn ll1_block_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
    let scope = tlc.push_scope(Scope {
       parent: Some(scope),
       children: Vec::new(),
-   }, &span_of(tokens));
+   });
 
    pop_is("block", tokens, &vec![Symbol::LeftBrace])?;
    let mut es = Vec::new();
