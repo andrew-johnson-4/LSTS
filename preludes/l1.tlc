@@ -1,3 +1,4 @@
+//L1 is a term from linguistics that means "native language"
 
 //Types
 type Boolean              = True | False;
