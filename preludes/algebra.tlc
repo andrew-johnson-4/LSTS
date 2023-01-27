@@ -1,7 +1,5 @@
 
 //axioms
 axiom @reflexive a. [True] = a == a;
-axiom @symmetric a, b. [True] = a == b
-   where alternative = b == a;
-axiom @transitive a, b, c. [True] = a == b && b == c
-   where alternative = a == c;
+axiom @symmetric a, b. [True] = a == b => b == a;
+axiom @transitive a, b, c. [True] = a == b && b == c => a == c;
