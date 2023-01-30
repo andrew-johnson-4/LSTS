@@ -1,4 +1,4 @@
-# LSTS: Large Scale Type Systems
+<img src="https://repository-images.githubusercontent.com/404928261/6303ed5d-cc7d-4103-9663-4493a2585d5c" alt="logo image" width=40%>
 
 [![Crates.IO](https://img.shields.io/crates/v/LSTS.svg)](https://crates.rs/crates/LSTS)
 [![Build](https://github.com/andrew-johnson-4/LSTS/workflows/Build/badge.svg)](https://github.com/andrew-johnson-4/LSTS)
@@ -6,8 +6,6 @@
 [![Read the Docs](https://img.shields.io/badge/book-reference-blue)](https://andrew-johnson-4.github.io/lsts-tutorial/)
 
 LSTS is a proof assistant and maybe [a programming language](https://github.com/andrew-johnson-4/L1IR).
-
-## Casual Typing
 
 Proofs in LSTS are built by connecting terms, type definitions, and quantified statements. Terms can be evaluated to obtain Values. Types describe properties of Terms. Statements describe relations between Terms and Types.
 
