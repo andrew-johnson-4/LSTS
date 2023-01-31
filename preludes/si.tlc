@@ -81,6 +81,17 @@ type Kilo<U::Unit> :: Unit;
 type Hecto<U::Unit> :: Unit;
 type Deca<U::Unit> :: Unit;
 
+type Deci<U::Unit> :: Unit;
+type Centi<U::Unit> :: Unit;
+type Milli<U::Unit> :: Unit;
+type Micro<U::Unit> :: Unit;
+type Nano<U::Unit> :: Unit;
+type Pico<U::Unit> :: Unit;
+type Femto<U::Unit> :: Unit;
+type Atto<U::Unit> :: Unit;
+type Zepto<U::Unit> :: Unit;
+type Yocto<U::Unit> :: Unit;
+
 //: SI Metric Prefixes, boxing
 forall u:U::Unit. U => Yotta<U> = 1000000000000000000000000 * u :: Unit;
 forall u:U::Unit. U => Zetta<U> = 1000000000000000000000 * u :: Unit;
