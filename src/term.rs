@@ -6,6 +6,11 @@ use crate::constant::Constant;
 use crate::debug::{Error};
 use std::collections::HashMap;
 use std::iter::FromIterator;
+use l1_ir::value::Value;
+/*
+use l1_ir::ast::{Expression,Program,FunctionDefinition,LIPart,LHSPart,LHSLiteralPart,Type};
+use l1_ir::opt::{JProgram};
+*/
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -312,6 +317,10 @@ impl Term {
       Ok(())
    }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, scope_constants: &HashMap<String,Constant>, term: TermId) -> Result<Constant,Error> {
+      Ok(Constant::from_value(
+         Value::unit("()")
+      ))
+      /*
       //scope is only used to look up functions
       //all other variables should already be converted to values
       match &tlc.rows[term.id].term {
@@ -455,5 +464,6 @@ impl Term {
          },
          _ => unimplemented!("Term::reduce, implement Call-by-Value term reduction: {}", tlc.print_term(term))
       }
+      */
    }
 }
