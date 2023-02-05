@@ -25,6 +25,7 @@ impl Constant {
    pub fn from_value(v: Value) -> Constant {
       match v.tag() {
          Tag::Unit => Constant::Tuple(Vec::new()),
+         Tag::U64 => Constant::Literal(format!("{:?}",v)),
          t => unimplemented!("Constant::from_value Tag: {:?}", t)
       }
    }

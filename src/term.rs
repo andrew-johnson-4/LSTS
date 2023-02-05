@@ -7,10 +7,8 @@ use crate::debug::{Error};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use l1_ir::value::Value;
-/*
-use l1_ir::ast::{Expression,Program,FunctionDefinition,LIPart,LHSPart,LHSLiteralPart,Type};
 use l1_ir::opt::{JProgram};
-*/
+use l1_ir::ast::{Expression,Program};
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -317,8 +315,17 @@ impl Term {
       Ok(())
    }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, scope_constants: &HashMap<String,Constant>, term: TermId) -> Result<Constant,Error> {
+      let nojit = Program::program(
+         vec![],
+         vec![
+            Expression::variable(0, ()),
+         ],
+      );
+      let jit = JProgram::compile(&nojit);
+      let jval = jit.eval(&[Value::u64(321,"U64")]);
+
       Ok(Constant::from_value(
-         Value::unit("()")
+         jval
       ))
       /*
       //scope is only used to look up functions
