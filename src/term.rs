@@ -14,6 +14,7 @@ pub struct TermId {
 
 #[derive(Clone)]
 pub struct LetTerm {
+   pub is_extern: bool,
    pub scope: ScopeId,
    pub name: String,
    pub parameters: Vec<Vec<(Option<String>,Option<Type>,Kind)>>,

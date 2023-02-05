@@ -1440,7 +1440,12 @@ impl TLC {
             self.rows[t.id].typ = self.implies(&Type::Tuple(ts), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Let(lt) => {
-            if lt.name=="" {
+            if lt.is_extern {
+               if let Some(ref b) = lt.body {
+                  self.rows[b.id].typ = lt.rtype.clone();
+               }
+               self.rows[t.id].typ = self.nil_type.clone();
+            } else if lt.name=="" {
                //term is untyped
                self.untyped(t);
             } else if let Some(ref b) = lt.body {

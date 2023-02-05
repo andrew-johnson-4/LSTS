@@ -382,6 +382,7 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
          children: children,
       });
       Ok(tlc.push_term(Term::Let(LetTerm {
+         is_extern: false,
          scope: sid,
          name: "".to_string(),
          parameters: vec![quants.clone()],
@@ -396,7 +397,8 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
 
 pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   pop_is("let-stmt", tokens, &vec![Symbol::Let])?;
+   let is_extern = peek_is(tokens, &vec![Symbol::Extern]);
+   pop_is("let-stmt", tokens, &vec![Symbol::Let,Symbol::Extern])?;
    let mut dot = false;
    if peek_is(tokens, &vec![Symbol::Dot]) {
       pop_is("let-stmt", tokens, &vec![Symbol::Dot])?;
@@ -492,6 +494,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
    }
    ft = ft.normalize();
    let vt = tlc.push_term(Term::Let(LetTerm {
+      is_extern: is_extern,
       scope: inner_scope,
       name: ident.clone(),
       parameters: pars,
@@ -1197,7 +1200,7 @@ pub fn ll1_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Resu
       ll1_type_stmt(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Forall, Symbol::Axiom]) {
       ll1_forall_stmt(tlc, scope, tokens)?
-   } else if peek_is(tokens, &vec![Symbol::Let]) {
+   } else if peek_is(tokens, &vec![Symbol::Let,Symbol::Extern]) {
       ll1_let_stmt(tlc, scope, tokens)?
    } else {
       ll1_term(tlc, scope, tokens)?
