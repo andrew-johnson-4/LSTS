@@ -13,6 +13,7 @@ keywords = ["type","logic","automated","theorem","proof"]
 [dependencies]
 regex = { version = "1" }
 l1_ir = { version = "0.0.27", features = ["cranelift"] }
+gag   = { version = "1" }
 
 [dev-dependencies]
 criterion = "0.3"

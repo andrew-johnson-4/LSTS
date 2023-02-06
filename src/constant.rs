@@ -10,7 +10,7 @@ pub enum Constant {
 impl std::fmt::Debug for Constant {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
       match self {
-        Constant::Literal(s) => write!(f, "'{}'", s),
+        Constant::Literal(s) => write!(f, "{}", s),
         Constant::Tuple(ts) => write!(f, "({})", ts.iter()
            .map(|t|format!("{:?}",t)).collect::<Vec<String>>()
            .join(",") ),
