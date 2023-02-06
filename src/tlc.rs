@@ -191,7 +191,6 @@ impl TLC {
             lps.iter().map(|lp| format!("{:?}",lp)).collect::<Vec<String>>().join(" ")
          ),
          Term::Project(v) => format!("π{:?}", v),
-         Term::DynProject(tb,ti) => format!("{}[{}]", self.print_term(*tb), self.print_term(*ti)),
          Term::Fail => format!("fail"),
          Term::Ident(x) => format!("{}", x),
          Term::Value(x) => format!("{}", x),
@@ -1167,7 +1166,7 @@ impl TLC {
       if let Some(ti) = self.typedef_index.get(tn) {
       if let TypeRule::Typedef(tr) = &self.rules[*ti] {
          for invariant in tr.invariants.clone().iter() {
-            let p = Term::reduce(self, &Some(invariant.scope), &mut subs, invariant.prop)?;
+            let p = Term::reduce(self, &Some(invariant.scope), invariant.prop)?;
             if p == invariant.algs {
                continue;
             }
@@ -1378,19 +1377,6 @@ impl TLC {
       //TODO: remove clone here because it is bloating the memory footprint
       match self.rows[t.id].term.clone() {
          Term::Project(_v) => panic!("Projection Constants cannot be Values at {:?}", &self.rows[t.id].span),
-         Term::DynProject(tb,ti) => {
-            self.typeck(scope, tb, None)?;
-            self.typeck(scope, ti, Some(Type::Named("Integer".to_string(),Vec::new())))?;
-            if let Type::HTuple(hb,_hi) = self.rows[tb.id].typ.clone() {
-               self.rows[t.id].typ = *hb.clone();
-            } else {
-               return Err(Error {
-                  kind: "Type Error".to_string(),
-                  rule: format!("Projection Index Base must be a Homogenous Tuple: {:?}", &self.rows[tb.id].typ),
-                  span: self.rows[tb.id].span.clone(),
-               })
-            }
-         },
          Term::Literal(_lp) => {
             self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
          },
@@ -1440,7 +1426,12 @@ impl TLC {
             self.rows[t.id].typ = self.implies(&Type::Tuple(ts), &self.rows[t.id].typ.clone(), &self.rows[t.id].span.clone())?;
          },
          Term::Let(lt) => {
-            if lt.name=="" {
+            if lt.is_extern {
+               if let Some(ref b) = lt.body {
+                  self.rows[b.id].typ = lt.rtype.clone();
+               }
+               self.rows[t.id].typ = self.nil_type.clone();
+            } else if lt.name=="" {
                //term is untyped
                self.untyped(t);
             } else if let Some(ref b) = lt.body {
@@ -1517,7 +1508,7 @@ impl TLC {
             //borrowing self even in a .clone'd expression fails the borrow checker
             if h == "reduce" {
                self.typeck(scope, lhs, None)?;
-               let vt = Term::reduce(self, scope, &HashMap::new(), lhs)?;
+               let vt = Term::reduce(self, scope, lhs)?;
                self.rows[t.id].typ = self.rows[lhs.id].typ.and( &Type::Constant(vt.clone()) );
             } else if let Some(fas) = self.hints.get(&h).cloned() {
                self.typeck(scope, lhs, None)?;

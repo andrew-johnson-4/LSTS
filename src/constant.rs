@@ -1,4 +1,5 @@
 use crate::tlc::TLC;
+use l1_ir::value::{Tag,Value};
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Constant {
@@ -20,5 +21,12 @@ impl std::fmt::Debug for Constant {
 impl Constant {
    pub fn parse(_tlc: &TLC, v: &str) -> Option<Constant> {
       Some(Constant::Literal(v.to_string()))
+   }
+   pub fn from_value(v: Value) -> Constant {
+      match v.tag() {
+         Tag::Unit => Constant::Tuple(Vec::new()),
+         Tag::U64 => Constant::Literal(format!("{:?}",v)),
+         t => unimplemented!("Constant::from_value Tag: {:?}", t)
+      }
    }
 }

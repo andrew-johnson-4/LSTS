@@ -37,6 +37,14 @@ pub enum Type {
 }
 
 impl Type {
+   pub fn datatype(&self) -> String {
+      match self {
+         Type::Named(base,pars) if pars.len()==0 => {
+            base.clone()
+         },
+         _ => unimplemented!("Type::datatype({:?})", self)
+      }
+   }
    pub fn project_ratio(&self) -> (Vec<Type>,Vec<Type>) {
        match self {
          Type::Ratio(p,b) => {

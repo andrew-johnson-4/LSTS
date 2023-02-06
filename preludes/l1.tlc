@@ -11,6 +11,20 @@ type Tensor<T> = { };
 type Set<E> = { };
 type Map<K,V> = { };
 
+type U64                  = /^[0-9]+$/;
+
+extern $"+"(x: U64, y: U64): U64 = $"+:(U64,U64)->U64";
+extern $"-"(x: U64, y: U64): U64 = $"-:(U64,U64)->U64";
+extern $"*"(x: U64, y: U64): U64 = $"*:(U64,U64)->U64";
+extern $"/"(x: U64, y: U64): U64 = $"/:(U64,U64)->U64";
+extern $"%"(x: U64, y: U64): U64 = $"%:(U64,U64)->U64";
+extern $"=="(x: U64, y: U64): U64 = $"==:(U64,U64)->U64";
+extern $"!="(x: U64, y: U64): U64 = $"!=:(U64,U64)->U64";
+extern $"<"(x: U64, y: U64): U64 = $"<:(U64,U64)->U64";
+extern $"<="(x: U64, y: U64): U64 = $"<=:(U64,U64)->U64";
+extern $">"(x: U64, y: U64): U64 = $">:(U64,U64)->U64";
+extern $">="(x: U64, y: U64): U64 = $">=:(U64,U64)->U64";
+
 type Even:Integer
      where. self%2 | 0;
 type Odd:Integer

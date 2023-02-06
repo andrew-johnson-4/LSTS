@@ -4,8 +4,12 @@ use crate::scope::{Scope,ScopeId};
 use crate::tlc::TLC;
 use crate::constant::Constant;
 use crate::debug::{Error};
+use crate::token::{Span};
 use std::collections::HashMap;
 use std::iter::FromIterator;
+use l1_ir::value::Value;
+use l1_ir::opt::{JProgram};
+use l1_ir::ast::{Expression,Program};
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -14,6 +18,7 @@ pub struct TermId {
 
 #[derive(Clone)]
 pub struct LetTerm {
+   pub is_extern: bool,
    pub scope: ScopeId,
    pub name: String,
    pub parameters: Vec<Vec<(Option<String>,Option<Type>,Kind)>>,
@@ -46,7 +51,6 @@ pub enum Term {
    Ident(String),
    Value(String),
    Project(Constant),
-   DynProject(TermId,TermId),
    Arrow(Option<ScopeId>,TermId,Option<Type>,TermId),
    App(TermId,TermId),
    Let(LetTerm),
@@ -310,15 +314,63 @@ impl Term {
       }
       Ok(())
    }
-   pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, scope_constants: &HashMap<String,Constant>, term: TermId) -> Result<Constant,Error> {
-      //scope is only used to look up functions
-      //all other variables should already be converted to values
+   pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, term: TermId) -> Result<Expression<Span>,Error> {
       match &tlc.rows[term.id].term {
-         Term::Ascript(t,tt) => {
-            let c = Term::reduce(tlc, scope, scope_constants, *t)?;
-            Term::check_hard_cast(tlc, &c, tt, term)?;
-            Ok(c)
+         Term::Value(v) => {
+            Ok(Expression::literal(&v, tlc.rows[term.id].span.clone()))
          },
+         Term::Ascript(t,tt) => {
+            let e = Term::compile_expr(tlc, scope, *t)?;
+            let dt = tt.datatype();
+            println!("nominal type {:?} => {}", tt, dt);
+            Ok(e.typed( &tt.datatype() ))
+         },
+         Term::App(g,x) => {
+            let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
+            match (&tlc.rows[g.id].term,&tlc.rows[x.id].term) {
+               (Term::Ident(gv),Term::Tuple(ps)) => {
+                  let mut args = Vec::new();
+                  for p in ps.iter() {
+                     args.push(Term::compile_expr(tlc, scope, *p)?);
+                  }
+                  if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[g.id].typ) {
+                     if let Term::Let(lb) = &tlc.rows[binding.id].term {
+                        if lb.parameters.len() > 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
+                        if lb.is_extern {
+                           let body = lb.body.expect(&format!("extern function body must be a mangled symbol: {}", gv));
+                           if let Term::Ident(mangled) = &tlc.rows[body.id].term {
+                              Ok(Expression::apply(&mangled, args, tlc.rows[term.id].span.clone()))
+                           } else { unreachable!("extern function body must be a mangled symbol: {}", gv) }
+                        } else {
+                           unimplemented!("Term::reduce apply referenced function: {}", gv)
+                        }
+                     } else {
+                        panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
+                     }
+                  } else { panic!("Term::reduce, failed to lookup function {}: {:?}", gv, &tlc.rows[x.id].typ) }
+               },
+               _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({})", tlc.print_term(*g), tlc.print_term(*x))
+            }
+         },
+         _ => unimplemented!("Term::compile_expr {}", tlc.print_term(term)),
+      }
+   }
+   pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, term: TermId) -> Result<Constant,Error> {
+      let jexpr = Term::compile_expr(tlc, scope, term)?;
+
+      let nojit = Program::program(
+         vec![],
+         vec![
+            jexpr,
+         ],
+      );
+      let jit = JProgram::compile(&nojit);
+      let jval = jit.eval(&[Value::u64(321,"U64")]);
+
+      Ok(Constant::from_value(
+         jval
+      ))
+      /*
          Term::As(t,tt) => {
             let c = Term::reduce(tlc, scope, scope_constants, *t)?;
             Term::check_hard_cast(tlc, &c, tt, term)?;
@@ -328,9 +380,6 @@ impl Term {
             if let Some(nv) = scope_constants.get(n) {
                Ok(nv.clone())
             } else { panic!("Term::reduce free variable: {} at {:?}", n, &tlc.rows[term.id].span) }
-         },
-         Term::Value(v) => {
-            Ok(Constant::parse(tlc, &v).unwrap())
          },
          Term::Constructor(c,cps) if cps.len()==0 => {
             Ok(Constant::parse(tlc, &c).unwrap())
@@ -375,61 +424,6 @@ impl Term {
                span: tlc.rows[term.id].span.clone(),
             })
          },
-         Term::App(g,x) => {
-            let xc = Term::reduce(tlc, scope, scope_constants, *x)?;
-            Term::check_hard_cast(tlc, &xc, &tlc.rows[x.id].typ, *x)?;
-            Term::check_hard_cast(tlc, &xc, &tlc.rows[g.id].typ.domain(), *x)?;
-            if let Term::Project(Constant::Literal(pi)) = tlc.rows[g.id].term.clone() {
-            if let Constant::Tuple(xct) = xc {
-               let pi = str::parse::<usize>(&pi).unwrap();
-               return Ok(xct[pi].clone());
-            }}
-            if let Term::Ident(gi) = tlc.rows[g.id].term.clone() {
-            if gi == ".length" {
-            if let Constant::Tuple(xct) = &xc {
-            if xct.len()==1 {
-            if let Constant::Tuple(xxct) = &xct[0] {
-               return Ok(Constant::Literal(format!("{}",xxct.len())));
-            }}}}}
-            if let Term::Ident(gi) = tlc.rows[g.id].term.clone() {
-            if gi == "pos" {
-            if let Constant::Tuple(xct) = &xc {
-            if xct.len()==1 {
-            if let Constant::Tuple(xxct) = &xct[0] {
-               let mut acc = Vec::new();
-               for xcts in xxct.iter() {
-               if let Constant::Tuple(accs) = xcts.clone() {
-                  acc.extend(accs);
-               }}
-               return Ok(Constant::Tuple(acc))
-            }}}}}
-            let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
-            match &tlc.rows[g.id].term {
-               Term::Ident(gv) => {
-                  if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[g.id].typ) {
-                     if let Term::Let(lb) = &tlc.rows[binding.id].term {
-                        if lb.parameters.len() != 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
-                        let mut new_scope = HashMap::new();
-                        let ref pars = lb.parameters[0];
-                        let args = if let Constant::Tuple(xs) = xc { xs.clone() }
-                              else { panic!("Term::reduce App expected domain to be a tuple at {:?}", &tlc.rows[g.id].span) };
-                        if pars.len() != args.len() { panic!("Term::reduce, mismatched arity {}", tlc.print_term(term)) };
-                        for ((pn,_pt,_pk),a) in std::iter::zip(pars,args) {
-                           if let Some(pn) = pn {
-                              new_scope.insert(pn.clone(), a.clone());
-                           }
-                        }
-                        if let Some(body) = lb.body {
-                           Term::reduce(tlc, &Some(lb.scope), &new_scope, body)
-                        } else { panic!("Term::reduce, applied function has no body: {} at {:?}", gv, &tlc.rows[binding.id].span) }
-                     } else {
-                        panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
-                     }
-                  } else { panic!("Term::reduce, failed to lookup function {}: {:?}", gv, &tlc.rows[x.id].typ) }
-               },
-               _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({:?})", tlc.print_term(*g), xc)
-            }
-         },
          Term::Match(dv,lrs) => {
             //These panics are OK, because the type-checker should disprove them
             let dc = Term::reduce(tlc, scope, scope_constants, *dv)?;
@@ -454,5 +448,6 @@ impl Term {
          },
          _ => unimplemented!("Term::reduce, implement Call-by-Value term reduction: {}", tlc.print_term(term))
       }
+      */
    }
 }
