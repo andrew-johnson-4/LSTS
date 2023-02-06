@@ -916,8 +916,10 @@ pub fn ll1_atom_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
             }
          }
       } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
+         let prj = tlc.push_term(Term::Ident("[]".to_string()),&span);
          let index = ll1_index_term(tlc, scope, tokens)?;
-         term = tlc.push_term(Term::DynProject(term, index),&span);         
+         let fargs = tlc.push_term(Term::Tuple(vec![term,index]),&span);
+         term = tlc.push_term(Term::App(prj, fargs),&span);
       } else {
          let args = ll1_args_term(tlc, scope, tokens)?;
          let t = Term::App(
