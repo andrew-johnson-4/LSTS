@@ -1166,7 +1166,7 @@ impl TLC {
       if let Some(ti) = self.typedef_index.get(tn) {
       if let TypeRule::Typedef(tr) = &self.rules[*ti] {
          for invariant in tr.invariants.clone().iter() {
-            let p = Term::reduce(self, &Some(invariant.scope), &mut subs, invariant.prop)?;
+            let p = Term::reduce(self, &Some(invariant.scope), invariant.prop)?;
             if p == invariant.algs {
                continue;
             }
@@ -1508,7 +1508,7 @@ impl TLC {
             //borrowing self even in a .clone'd expression fails the borrow checker
             if h == "reduce" {
                self.typeck(scope, lhs, None)?;
-               let vt = Term::reduce(self, scope, &HashMap::new(), lhs)?;
+               let vt = Term::reduce(self, scope, lhs)?;
                self.rows[t.id].typ = self.rows[lhs.id].typ.and( &Type::Constant(vt.clone()) );
             } else if let Some(fas) = self.hints.get(&h).cloned() {
                self.typeck(scope, lhs, None)?;

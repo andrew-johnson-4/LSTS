@@ -9,4 +9,51 @@ fn l1ir_u64() {
    tlc.check(Some(l1), "(0:U64) + (1:U64) @reduce :[1];").unwrap();
    tlc.check(Some(l1), "(1:U64) + (0:U64) @reduce :[1];").unwrap();
    tlc.check(Some(l1), "(1:U64) + (2:U64) @reduce :[3];").unwrap();
+
+   tlc.check(Some(l1), "(0:U64) - (0:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(1:U64) - (0:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(2:U64) - (1:U64) @reduce :[1];").unwrap();
+
+   tlc.check(Some(l1), "(0:U64) * (0:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(0:U64) * (1:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(1:U64) * (0:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(1:U64) * (2:U64) @reduce :[2];").unwrap();
+
+   tlc.check(Some(l1), "(0:U64) / (1:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(1:U64) / (2:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(3:U64) / (1:U64) @reduce :[3];").unwrap();
+
+   tlc.check(Some(l1), "(0:U64) % (1:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(1:U64) % (2:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(3:U64) % (1:U64) @reduce :[0];").unwrap();
+
+   tlc.check(Some(l1), "(0:U64) == (1:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(1:U64) == (2:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(2:U64) == (2:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(3:U64) == (1:U64) @reduce :[0];").unwrap();
+
+   tlc.check(Some(l1), "(0:U64) != (1:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(1:U64) != (2:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(2:U64) != (2:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(3:U64) != (1:U64) @reduce :[1];").unwrap();
+
+   tlc.check(Some(l1), "(0:U64) < (1:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(1:U64) < (2:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(2:U64) < (2:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(3:U64) < (1:U64) @reduce :[0];").unwrap();
+
+   tlc.check(Some(l1), "(0:U64) <= (1:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(1:U64) <= (2:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(2:U64) <= (2:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(3:U64) <= (1:U64) @reduce :[0];").unwrap();
+
+   tlc.check(Some(l1), "(0:U64) > (1:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(1:U64) > (2:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(2:U64) > (2:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(3:U64) > (1:U64) @reduce :[1];").unwrap();
+
+   tlc.check(Some(l1), "(0:U64) >= (1:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(1:U64) >= (2:U64) @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "(2:U64) >= (2:U64) @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "(3:U64) >= (1:U64) @reduce :[1];").unwrap();
 }

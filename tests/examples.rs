@@ -1,7 +1,7 @@
+/*
 use lsts::tlc::TLC;
 use lsts::constant::Constant;
 
-/*
 #[test]
 fn right_triangles() {
    println!("current directory: {:?}", std::env::current_dir().unwrap());
