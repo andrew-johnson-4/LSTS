@@ -38,9 +38,19 @@ pub enum Type {
 
 impl Type {
    pub fn datatype(&self) -> String {
+      let dts = vec!["U64","Unit"];
       match self {
-         Type::Named(base,pars) if pars.len()==0 => {
+         Type::Named(base,pars) if pars.len()==0 &&
+                                   dts.contains(&base.as_str()) => {
             base.clone()
+         },
+         Type::And(ts) => {
+            for t in ts.iter() {
+            if let Type::Named(base,pars) = t {
+            if pars.len()==0 && dts.contains(&base.as_str()) {
+               return base.clone();
+            }}}
+            unimplemented!("Type::datatype({:?})", self)
          },
          _ => unimplemented!("Type::datatype({:?})", self)
       }

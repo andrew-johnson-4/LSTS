@@ -323,13 +323,13 @@ impl Term {
             Ok(Expression::unit(tlc.rows[term.id].span.clone()))
          },
          Term::Value(v) => {
-            Ok(Expression::literal(&v, tlc.rows[term.id].span.clone()))
+            let dt = tlc.rows[term.id].typ.datatype();
+            let e = Expression::literal(&v, tlc.rows[term.id].span.clone());
+            Ok(e.typed(&dt))
          },
-         Term::Ascript(t,tt) => {
-            let e = Term::compile_expr(tlc, scope, preamble, *t)?;
-            let dt = tt.datatype();
-            println!("nominal type {:?} => {}", tt, dt);
-            Ok(e.typed( &tt.datatype() ))
+         Term::Ascript(t,_tt) => {
+            //TODO gradual type
+            Term::compile_expr(tlc, scope, preamble, *t)
          },
          Term::Block(sc,es) => {
             if es.len()==0 {
