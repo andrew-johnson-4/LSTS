@@ -314,16 +314,33 @@ impl Term {
       }
       Ok(())
    }
-   pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, term: TermId) -> Result<Expression<Span>,Error> {
+   pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, preamble: &mut Vec<Expression<Span>>, term: TermId) -> Result<Expression<Span>,Error> {
       match &tlc.rows[term.id].term {
+         Term::Let(_) => {
+            Ok(Expression::unit(tlc.rows[term.id].span.clone()))
+         },
+         Term::Tuple(ts) if ts.len()==0 => {
+            Ok(Expression::unit(tlc.rows[term.id].span.clone()))
+         },
          Term::Value(v) => {
             Ok(Expression::literal(&v, tlc.rows[term.id].span.clone()))
          },
          Term::Ascript(t,tt) => {
-            let e = Term::compile_expr(tlc, scope, *t)?;
+            let e = Term::compile_expr(tlc, scope, preamble, *t)?;
             let dt = tt.datatype();
             println!("nominal type {:?} => {}", tt, dt);
             Ok(e.typed( &tt.datatype() ))
+         },
+         Term::Block(sc,es) => {
+            if es.len()==0 {
+               Ok(Expression::unit(tlc.rows[term.id].span.clone()))
+            } else {
+               for ei in 0..(es.len()-1) {
+                  let pe = Term::compile_expr(tlc, &Some(*sc), preamble, es[ei])?;
+                  preamble.push(pe);
+               }
+               Term::compile_expr(tlc, &Some(*sc), preamble, es[es.len()-1])
+            }
          },
          Term::App(g,x) => {
             let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
@@ -331,7 +348,7 @@ impl Term {
                (Term::Ident(gv),Term::Tuple(ps)) => {
                   let mut args = Vec::new();
                   for p in ps.iter() {
-                     args.push(Term::compile_expr(tlc, scope, *p)?);
+                     args.push(Term::compile_expr(tlc, scope, preamble, *p)?);
                   }
                   if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[g.id].typ) {
                      if let Term::Let(lb) = &tlc.rows[binding.id].term {
@@ -356,14 +373,15 @@ impl Term {
       }
    }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, term: TermId) -> Result<Constant,Error> {
-      let jexpr = Term::compile_expr(tlc, scope, term)?;
+      let mut preamble = Vec::new();
+      let pe = Term::compile_expr(tlc, scope, &mut preamble, term)?;
+      preamble.push(pe);
 
       let nojit = Program::program(
          vec![],
-         vec![
-            jexpr,
-         ],
+         preamble,
       );
+      println!("debug program");
       let jit = JProgram::compile(&nojit);
       let jval = jit.eval(&[Value::u64(321,"U64")]);
 

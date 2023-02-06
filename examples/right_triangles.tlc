@@ -1,4 +1,4 @@
-import "l1.tlc";
+import $"preludes/l1.tlc";
 
 ( for c in range(1,10) 
   for b in range(1,c)
