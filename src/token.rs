@@ -88,6 +88,7 @@ pub enum Symbol {
    At,
    As,
    Match,
+   Import,
    If,
    Then,
    Else,
@@ -158,6 +159,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::Typeof             => write!(f, "typeof"),
            Symbol::As                 => write!(f, "as"),
            Symbol::Match              => write!(f, "match"),
+           Symbol::Import             => write!(f, "import"),
            Symbol::If                 => write!(f, "if"),
            Symbol::Then               => write!(f, "then"),
            Symbol::Else               => write!(f, "else"),
@@ -413,6 +415,7 @@ impl TokenReader {
                "typeof" => { return Ok(Some(Token { symbol: Symbol::Typeof, span: span, })); },
                "as" => { return Ok(Some(Token { symbol: Symbol::As, span: span, })); },
                "match" => { return Ok(Some(Token { symbol: Symbol::Match, span: span, })); },
+               "import" => { return Ok(Some(Token { symbol: Symbol::Import, span: span, })); },
                "if" => { return Ok(Some(Token { symbol: Symbol::If, span: span, })); },
                "then" => { return Ok(Some(Token { symbol: Symbol::Then, span: span, })); },
                "else" => { return Ok(Some(Token { symbol: Symbol::Else, span: span, })); },
@@ -569,6 +572,9 @@ impl TokenReader {
 }
 
 pub fn tokenize_file<'a>(tlc: &mut TLC, source_name: &str) -> Result<TokenReader,Error> {
+   if tlc.value_regexes.len() == 0 && source_name != "preludes/l1.tlc" {
+      tokenize_file(tlc, "preludes/l1.tlc")?;
+   }
    if let Ok(mut f) = File::open(source_name) {
       let mut line = Vec::new();
       if let Ok(_len) = f.read_to_end(&mut line) {

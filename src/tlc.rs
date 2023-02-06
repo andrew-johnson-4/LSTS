@@ -332,9 +332,8 @@ impl TLC {
       Ok(ScopeId {id:0})
    }
    pub fn reduce_toks(&mut self, globals: Option<ScopeId>, tks:&mut TokenReader) -> Result<Constant,Error> {
-      let _ast = self.check_toks(globals, tks)?;
-      //TODO: call Term::reduce
-      Ok(Constant::Literal("0".to_string()))
+      let ast = self.check_toks(globals, tks)?;
+      Term::reduce(self, &globals, ast)
    }
 
    pub fn parse_file(&mut self, globals: Option<ScopeId>, filename:&str) -> Result<TermId,Error> {

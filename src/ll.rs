@@ -1,7 +1,7 @@
 use std::collections::{HashMap};
 use crate::term::{Term,TermId,LetTerm,Literal};
 use crate::debug::{Error};
-use crate::token::{Symbol,TokenReader,span_of};
+use crate::token::{Symbol,TokenReader,span_of,tokenize_file};
 use crate::scope::{ScopeId,Scope};
 use crate::tlc::{TLC,TypeRule,Invariant,TypedefRule,TypedefBranch,Inference};
 use crate::constant::{Constant};
@@ -1200,6 +1200,8 @@ pub fn ll1_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Resu
       ll1_block_stmt(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Type]) {
       ll1_type_stmt(tlc, scope, tokens)?
+   } else if peek_is(tokens, &vec![Symbol::Import]) {
+      ll1_import_stmt(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Forall, Symbol::Axiom]) {
       ll1_forall_stmt(tlc, scope, tokens)?
    } else if peek_is(tokens, &vec![Symbol::Let,Symbol::Extern]) {
@@ -1209,6 +1211,21 @@ pub fn ll1_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Resu
    };
    pop_is("file", tokens, &vec![Symbol::SemiColon])?;
    Ok(stmt)
+}
+
+pub fn ll1_import_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
+   pop_is("import", tokens, &vec![Symbol::Import])?;
+   if let Some(Symbol::Ident(fp)) = tokens.peek_symbol()? {
+      tokens.take_symbol()?;
+      let mut tks = tokenize_file(tlc, &fp)?;
+      ll1_file(tlc, scope, &mut tks)
+   } else {
+      Err(Error {
+         kind: "Parse Error".to_string(),
+         rule: format!("Expected identifier in import statement"),
+         span: span_of(tokens),
+      })
+   }
 }
 
 pub fn ll1_block_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
