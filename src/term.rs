@@ -4,6 +4,7 @@ use crate::scope::{Scope,ScopeId};
 use crate::tlc::TLC;
 use crate::constant::Constant;
 use crate::debug::{Error};
+use crate::token::{Span};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use l1_ir::value::Value;
@@ -314,11 +315,21 @@ impl Term {
       }
       Ok(())
    }
+   pub fn compile_expr(tlc: &TLC, term: TermId) -> Result<Expression<Span>,Error> {
+      match &tlc.rows[term.id].term {
+         Term::Ascript(t,tt) => {
+            Ok(Term::compile_expr(tlc, *t)?)
+         },
+         t => unimplemented!("Term::compile_expr {}", tlc.print_term(term)),
+      }
+   }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, scope_constants: &HashMap<String,Constant>, term: TermId) -> Result<Constant,Error> {
+      let jexpr = Term::compile_expr(tlc, term)?;
+
       let nojit = Program::program(
          vec![],
          vec![
-            Expression::variable(0, ()),
+            jexpr,
          ],
       );
       let jit = JProgram::compile(&nojit);
@@ -328,14 +339,6 @@ impl Term {
          jval
       ))
       /*
-      //scope is only used to look up functions
-      //all other variables should already be converted to values
-      match &tlc.rows[term.id].term {
-         Term::Ascript(t,tt) => {
-            let c = Term::reduce(tlc, scope, scope_constants, *t)?;
-            Term::check_hard_cast(tlc, &c, tt, term)?;
-            Ok(c)
-         },
          Term::As(t,tt) => {
             let c = Term::reduce(tlc, scope, scope_constants, *t)?;
             Term::check_hard_cast(tlc, &c, tt, term)?;
