@@ -862,7 +862,7 @@ pub fn ll1_match_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
       if comma_ok { comma_ok = false; }
       let lhs = ll1_prefix_term(tlc, scope, tokens)?;
       pop_is("match-term", tokens, &vec![Symbol::Imply])?;
-      let rhs = ll1_atom_term(tlc, scope, tokens)?;
+      let rhs = ll1_expr_term(tlc, scope, tokens)?;
       pats.push((tlc.new_scope(Some(scope)), lhs, rhs));
       if peek_is(tokens, &vec![Symbol::Comma]) {
          pop_is("match-term", tokens, &vec![Symbol::Comma])?;
