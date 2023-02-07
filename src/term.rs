@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use l1_ir::value::Value;
 use l1_ir::opt::{JProgram};
-use l1_ir::ast::{Expression,Program};
+use l1_ir::ast::{Expression,Program,FunctionDefinition};
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -314,7 +314,22 @@ impl Term {
       }
       Ok(())
    }
-   pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, preamble: &mut Vec<Expression<Span>>, term: TermId) -> Result<Expression<Span>,Error> {
+   pub fn compile_function(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>, term: TermId) -> Result<String,Error> {
+      let mangled = "fib".to_string();
+      for fd in funcs.iter() {
+         if fd.name == mangled { return Ok(mangled); }
+      }
+      funcs.push(FunctionDefinition::define(
+         &mangled,
+         vec![],
+         vec![
+            Expression::unit(tlc.rows[term.id].span.clone())
+         ],
+      ));
+      Ok(mangled)
+   }
+   pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>,
+                       preamble: &mut Vec<Expression<Span>>, term: TermId) -> Result<Expression<Span>,Error> {
       match &tlc.rows[term.id].term {
          Term::Let(_) => {
             Ok(Expression::unit(tlc.rows[term.id].span.clone()))
@@ -329,17 +344,17 @@ impl Term {
          },
          Term::Ascript(t,_tt) => {
             //TODO gradual type
-            Term::compile_expr(tlc, scope, preamble, *t)
+            Term::compile_expr(tlc, scope, funcs, preamble, *t)
          },
          Term::Block(sc,es) => {
             if es.len()==0 {
                Ok(Expression::unit(tlc.rows[term.id].span.clone()))
             } else {
                for ei in 0..(es.len()-1) {
-                  let pe = Term::compile_expr(tlc, &Some(*sc), preamble, es[ei])?;
+                  let pe = Term::compile_expr(tlc, &Some(*sc), funcs, preamble, es[ei])?;
                   preamble.push(pe);
                }
-               Term::compile_expr(tlc, &Some(*sc), preamble, es[es.len()-1])
+               Term::compile_expr(tlc, &Some(*sc), funcs, preamble, es[es.len()-1])
             }
          },
          Term::App(g,x) => {
@@ -348,7 +363,7 @@ impl Term {
                (Term::Ident(gv),Term::Tuple(ps)) => {
                   let mut args = Vec::new();
                   for p in ps.iter() {
-                     args.push(Term::compile_expr(tlc, scope, preamble, *p)?);
+                     args.push(Term::compile_expr(tlc, scope, funcs, preamble, *p)?);
                   }
                   if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[g.id].typ) {
                      if let Term::Let(lb) = &tlc.rows[binding.id].term {
@@ -359,7 +374,8 @@ impl Term {
                               Ok(Expression::apply(&mangled, args, tlc.rows[term.id].span.clone()))
                            } else { unreachable!("extern function body must be a mangled symbol: {}", gv) }
                         } else {
-                           unimplemented!("Term::reduce apply referenced function: {}", gv)
+                           let mangled = Term::compile_function(tlc, scope, funcs, binding)?;
+                           Ok(Expression::apply(&mangled, args, tlc.rows[term.id].span.clone()))
                         }
                      } else {
                         panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
@@ -374,11 +390,12 @@ impl Term {
    }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, term: TermId) -> Result<Constant,Error> {
       let mut preamble = Vec::new();
-      let pe = Term::compile_expr(tlc, scope, &mut preamble, term)?;
+      let mut funcs = Vec::new();
+      let pe = Term::compile_expr(tlc, scope, &mut funcs, &mut preamble, term)?;
       preamble.push(pe);
 
       let nojit = Program::program(
-         vec![],
+         funcs,
          preamble,
       );
       println!("debug program");
