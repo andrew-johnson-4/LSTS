@@ -23,7 +23,7 @@ fn fibonacci() {
 
    let mut tlc = TLC::new();
    let val = tlc.reduce_file(None, "examples/fibonacci.tlc").unwrap();
-   assert_eq!( val, Constant::parse(&tlc, "2").unwrap() );
+   assert_eq!( val, Constant::parse(&tlc, "75025").unwrap() );
 }
 
 /*

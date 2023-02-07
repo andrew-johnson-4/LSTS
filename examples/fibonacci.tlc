@@ -1,7 +1,7 @@
 import $"preludes/l1.tlc";
 
 let fib(x: U64): U64 = match x {
-   0 => 1,
+   0 => 0,
    1 => 1,
    _ => (fib(x-1) + fib(x-2))
 };

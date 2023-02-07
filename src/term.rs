@@ -6,10 +6,9 @@ use crate::constant::Constant;
 use crate::debug::{Error};
 use crate::token::{Span};
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use l1_ir::value::Value;
 use l1_ir::opt::{JProgram};
-use l1_ir::ast::{self,Expression,Program,FunctionDefinition};
+use l1_ir::ast::{self,Expression,Program,FunctionDefinition,LHSPart};
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -116,203 +115,22 @@ impl Term {
       });
       sid
    }
-   pub fn reduce_lhs(tlc: &TLC, scope_constants: &mut HashMap<String,Constant>, lhs: TermId, dc: &Constant) -> bool {
-      match &tlc.rows[lhs.id].term {
-         Term::Ident(n) => {
-            if n != "_" {
-               if let Some(prev) = scope_constants.get(n) {
-                  return prev == dc;
-               } else {
-                  scope_constants.insert(n.clone(), dc.clone());
-               }
-            };
-            true
-         },
-         Term::Tuple(ts) => {
-            if let Constant::Tuple(cs) = dc {
-            if ts.len() == cs.len() {
-               for (lt,rc) in std::iter::zip(ts,cs) {
-                  if !Term::reduce_lhs(tlc, scope_constants, *lt, rc) {
-                     return false;
-                  }
-               }
-               return true;
-            }}
-            false
-         },
+   pub fn compile_lhs(tlc: &TLC, scope: ScopeId, term: TermId) -> Result<LHSPart,Error> {
+      let tt = tlc.rows[term.id].typ.clone();
+      match &tlc.rows[term.id].term {
          Term::Value(lv) => {
-            if let Some(lc) = Constant::parse(tlc, lv) {
-               &lc == dc
-            } else { false }
+            Ok(LHSPart::literal(lv))
          },
-         Term::Constructor(cname,cs) if cs.len()==0 => {
-            if let Some(lc) = Constant::parse(tlc, cname) {
-               &lc == dc
-            } else { false }
+         Term::Ident(ln) => {
+            if ln == "_" {
+               Ok(LHSPart::any())
+            } else {
+               let term = Scope::lookup_term(tlc, scope, ln, &tt).expect("Term::compile_lhs identifier not found in scope");
+               Ok(LHSPart::variable(term.id))
+            }
          },
-         Term::App(g,x) => {
-            if let Constant::Tuple(cts) = dc {
-            if let Term::Ident(gn) = &tlc.rows[g.id].term {
-            if gn == "pos" {
-            if let Term::Tuple(x) = &tlc.rows[x.id].term {
-            if x.len()==1 {
-            if let Term::Tuple(vx) = &tlc.rows[x[0].id].term {
-               let mut prefix = None;
-               let mut midfix = None;
-               let mut suffix = None;
-               let mut accept = true;
-               for vxt in vx.iter() {
-               match tlc.rows[vxt.id].term.clone() {
-                  Term::Tuple(fix) => {
-                     if midfix.is_none() && prefix.is_none() { prefix = Some((vxt, fix.clone())); }
-                     else if suffix.is_none() { suffix = Some((vxt, fix.clone())); }
-                     else { accept = false; }
-                  },
-                  Term::Ident(fix) => {
-                     if midfix.is_none() { midfix = Some((vxt, fix)); }
-                     else { accept = false; }
-                  },
-                  _ => { accept = false; }
-               }}
-               if accept && (prefix.is_some() || midfix.is_some() || suffix.is_some()) {
-                  let mut cts = cts.clone();
-                  if let Some((pret,prevs)) = prefix {
-                  if prevs.len() <= cts.len() {
-                     let prects = cts[..prevs.len()].to_vec();
-                     cts = cts[prevs.len()..].to_vec();
-                     if !Term::reduce_lhs(tlc, scope_constants, *pret, &Constant::Tuple(prects.clone())) {
-                        return false;
-                     }
-                  }}
-                  if let Some((suft,sufvs)) = suffix {
-                  if sufvs.len() <= cts.len() {
-                     let sufcts = cts[(cts.len()-sufvs.len())..].to_vec();
-                     cts = cts[..(cts.len()-sufvs.len())].to_vec();
-                     if !Term::reduce_lhs(tlc, scope_constants, *suft, &Constant::Tuple(sufcts.clone())) {
-                        return false;
-                     }
-                  }}
-                  if let Some((midt,_midvs)) = midfix {
-                     if !Term::reduce_lhs(tlc, scope_constants, *midt, &Constant::Tuple(cts.clone())) {
-                        return false;
-                     }
-                  }
-                  return true;
-               }
-            }}}}}}
-            false
-         }
-         Term::Literal(lps) => {
-            if let Constant::Literal(dlp) = dc {
-               let mut pre_lhs: Vec<Literal> = Vec::new();
-               let mut v_lhs = "".to_string();
-               let mut suf_lhs: Vec<Literal> = Vec::new();
-               for li in 0..lps.len() {
-                  match &lps[li] {
-                     Literal::Char(_,_) | Literal::String(_,_) | Literal::Range(_,_) => {
-                        if v_lhs=="" { pre_lhs.push(lps[li].clone()) }
-                        else { suf_lhs.push(lps[li].clone()) }
-                     },
-                     Literal::Var(v) => {
-                        if v_lhs=="" { v_lhs = v.clone(); }
-                        else { panic!("Term::reduce_lhs({}) has two variables in the middle", tlc.print_term(lhs)) }
-                     },
-                  }
-               }
-               let mut dlp = dlp.chars().collect::<Vec<char>>();
-               for p in pre_lhs.iter() {
-               match p {
-                  Literal::Char(pc,pv) => {
-                     if dlp.len()==0 { return false; }
-                     if &dlp[0] != pc { return false; }
-                     let s = dlp.remove(0).to_string();
-                     scope_constants.insert(pv.clone(), Constant::Literal(s));
-                  },
-                  Literal::String(ps,pv) => {
-                     if dlp.len()<ps.len() { return false; }
-                     for pc in ps.chars() {
-                        if dlp.remove(0) != pc { return false; }
-                     }
-                     scope_constants.insert(pv.clone(), Constant::Literal(ps.clone()));
-                  },
-                  Literal::Range(pr,pv) => {
-                     if dlp.len()==0 { return false; }
-                     let mut matched = false;
-                     for (low,high) in pr.iter() {
-                     if *low<=dlp[0] && dlp[0]<=*high {
-                        matched = true; break;
-                     }}
-                     if !matched { return false; }
-                     let s = dlp.remove(0).to_string();
-                     scope_constants.insert(pv.clone(), Constant::Literal(s));
-                  },
-                  Literal::Var(_) => panic!("Term::reduce prefix somehow got a Var: {}", tlc.print_term(lhs)),
-               }}
-               for p in suf_lhs.iter() {
-               match p {
-                  Literal::Char(pc,pv) => {
-                     if dlp.len()==0 { return false; }
-                     if &dlp[dlp.len()-1] != pc { return false; }
-                     let s = dlp.remove(dlp.len()-1).to_string();
-                     scope_constants.insert(pv.clone(), Constant::Literal(s));
-                  },
-                  Literal::String(ps,pv) => {
-                     if dlp.len()<ps.len() { return false; }
-                     for pc in ps.chars().rev() {
-                        if dlp.remove(dlp.len()-1) != pc { return false; }
-                     }
-                     scope_constants.insert(pv.clone(), Constant::Literal(ps.clone()));
-                  },
-                  Literal::Range(pr,pv) => {
-                     if dlp.len()==0 { return false; }
-                     let mut matched = false;
-                     for (low,high) in pr.iter() {
-                     if *low<=dlp[dlp.len()-1] && dlp[dlp.len()-1]<=*high {
-                        matched = true; break;
-                     }}
-                     if !matched { return false; }
-                     let s = dlp.remove(dlp.len()-1).to_string();
-                     scope_constants.insert(pv.clone(), Constant::Literal(s));
-                  },
-                  Literal::Var(_) => panic!("Term::reduce suffix somehow got a Var: {}", tlc.print_term(lhs)),
-               }}
-               if v_lhs != "" {
-                  if dlp.len()==0 { return false; }
-                  if v_lhs == "_" { return true; }
-                  let vlv = Constant::Literal(String::from_iter(dlp));
-                  if let Some(prev) = scope_constants.get(&v_lhs) {
-                     return prev == &vlv;
-                  } else {
-                     scope_constants.insert(v_lhs.clone(), vlv);
-                  }
-               } else {
-                  if dlp.len()!=0 { return false; }
-               }
-               true
-            } else { panic!("Term::reduce_lhs({}) tried to match a literal of a non-literal: {:?}", tlc.print_term(lhs), dc) }
-         }
-         _ => unimplemented!("Term::reduce_lhs({})", tlc.print_term(lhs))
+         _ => unimplemented!("compile_lhs: {}", tlc.print_term(term))
       }
-   }
-   pub fn check_hard_cast(tlc: &TLC, c: &Constant, ct: &Type, t: TermId) -> Result<(),Error> {
-      if let Constant::Literal(cl) = c {
-         let cts = ct.all_named(); 
-         for ct in cts.iter() {
-            for (rt, rgx) in tlc.regexes.iter() {
-            if ct == rt {
-               if !rgx.is_match(&cl) {
-                  return Err(Error {
-                     kind: "Runtime Error".to_string(),
-                     rule: format!("Term::reduce Value {:?} did not match regex for Type: {:?}", cl, ct),
-                     span: tlc.rows[t.id].span.clone(),
-                  })
-               }
-            }}
-         }
-      } else {
-         //TODO Term::reduce, dynamically check hard cast with gradual typing?
-      }
-      Ok(())
    }
    pub fn compile_function(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>, term: TermId) -> Result<String,Error> {
       let mangled = "fib".to_string();
@@ -385,6 +203,17 @@ impl Term {
                }
                Term::compile_expr(tlc, &Some(*sc), funcs, preamble, es[es.len()-1])
             }
+         },
+         Term::Match(dv,lrs) => {
+            //These panics are OK, because the type-checker should disprove them
+            let pe = Term::compile_expr(tlc, scope, funcs, preamble, *dv)?;
+            let mut plrs = Vec::new();
+            for (lrc,l,r) in lrs.iter() {
+               let lhs = Term::compile_lhs(tlc, *lrc, *l)?;
+               let rhs = Term::compile_expr(tlc, &Some(*lrc), funcs, preamble, *r)?;
+               plrs.push((lhs,rhs));
+            }
+            Ok(Expression::pattern(pe, plrs, span).typed(&tt.datatype()))
          },
          Term::App(g,x) => {
             let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
@@ -472,28 +301,6 @@ impl Term {
             let cl = Constant::Literal(v);
             Term::check_hard_cast(tlc, &cl, &tlc.rows[term.id].typ, term)?;
             Ok(cl)
-         },
-         Term::Match(dv,lrs) => {
-            //These panics are OK, because the type-checker should disprove them
-            let dc = Term::reduce(tlc, scope, scope_constants, *dv)?;
-            for (lrc,l,r) in lrs.iter() {
-               let mut sc = scope_constants.clone();
-               if Term::reduce_lhs(tlc, &mut sc, *l, &dc) {
-                  if tlc.fails(*r) {
-                     return Err(Error {
-                        kind: "Runtime Error".to_string(),
-                        rule: format!("Term::reduce match failed on {:?}={:?}", tlc.print_term(*l), dc),
-                        span: tlc.rows[r.id].span.clone(),
-                     })
-                  }
-                  return Term::reduce(tlc, &Some(*lrc), &sc, *r);
-               }
-            }
-            return Err(Error {
-               kind: "Runtime Error".to_string(),
-               rule: format!("Term::reduce match failed on default={:?}", dc),
-               span: tlc.rows[term.id].span.clone(),
-            })
          },
          _ => unimplemented!("Term::reduce, implement Call-by-Value term reduction: {}", tlc.print_term(term))
       }
