@@ -38,7 +38,7 @@ pub enum Type {
 
 impl Type {
    pub fn datatype(&self) -> String {
-      let dts = vec!["U64","Unit"];
+      let dts = vec!["U8","U64","Unit"];
       match self {
          Type::Named(base,pars) if pars.len()==0 &&
                                    dts.contains(&base.as_str()) => {

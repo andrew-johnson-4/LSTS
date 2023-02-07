@@ -11,6 +11,13 @@ fn one_plus_one() {
 }
 
 #[test]
+fn adder() {
+   let mut tlc = TLC::new();
+   let val = tlc.reduce_file(None, "examples/adder.tlc").unwrap();
+   assert_eq!( val, Constant::parse(&tlc, "126").unwrap() );
+}
+
+#[test]
 fn fibonacci() {
    println!("current directory: {:?}", std::env::current_dir().unwrap());
 

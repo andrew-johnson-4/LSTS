@@ -1,0 +1,5 @@
+import $"preludes/l1.tlc";
+
+let add(x: U64, y: U64): U64 = x + y;
+
+add(101, 25);

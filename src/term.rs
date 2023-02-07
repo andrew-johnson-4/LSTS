@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use l1_ir::value::Value;
 use l1_ir::opt::{JProgram};
-use l1_ir::ast::{Expression,Program,FunctionDefinition};
+use l1_ir::ast::{self,Expression,Program,FunctionDefinition};
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -319,28 +319,57 @@ impl Term {
       for fd in funcs.iter() {
          if fd.name == mangled { return Ok(mangled); }
       }
+      let mut l1_args = Vec::new();
+      if let Term::Let(ref lt) = tlc.rows[term.id].term {
+         if lt.parameters.len()==0 { unimplemented!("Term::compile_function valued let binding") }
+         if lt.parameters.len()>1 { unimplemented!("Term::compile_function curried let binding") }
+         for args in lt.parameters[0].iter() {
+            let name = if let Some(n) = args.0.clone() { n } else { unimplemented!("Term::compile_function parameters must be named") };
+            let typ = if let Some(t) = args.1.clone() { t } else { unimplemented!("Term::compile_function parameters must be typed") };
+            let dt = typ.datatype();
+            let term = Scope::lookup_term(tlc, lt.scope, &name, &typ).expect("Term::compile_function parameter not found in scope");
+            l1_args.push(( term.id, ast::Type::nominal(&dt) ));
+         }
+      }
       funcs.push(FunctionDefinition::define(
          &mangled,
+         l1_args,
          vec![],
-         vec![
-            Expression::unit(tlc.rows[term.id].span.clone())
-         ],
       ));
+      let mut preamble = Vec::new();
+      if let Term::Let(ref lt) = tlc.rows[term.id].term {
+      if let Some(body) = lt.body {
+         let ret = Term::compile_expr(tlc, &Some(lt.scope), funcs, &mut preamble, body)?;
+         preamble.push(ret);
+      }}
+      for ref mut fd in funcs.iter_mut() {
+      if fd.name == mangled {
+         fd.body = preamble; break;
+      }}
       Ok(mangled)
    }
    pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>,
                        preamble: &mut Vec<Expression<Span>>, term: TermId) -> Result<Expression<Span>,Error> {
+      let tt = tlc.rows[term.id].typ.clone();
+      let span = tlc.rows[term.id].span.clone();
       match &tlc.rows[term.id].term {
          Term::Let(_) => {
-            Ok(Expression::unit(tlc.rows[term.id].span.clone()))
+            Ok(Expression::unit(span))
          },
          Term::Tuple(ts) if ts.len()==0 => {
-            Ok(Expression::unit(tlc.rows[term.id].span.clone()))
+            Ok(Expression::unit(span))
          },
          Term::Value(v) => {
-            let dt = tlc.rows[term.id].typ.datatype();
-            let e = Expression::literal(&v, tlc.rows[term.id].span.clone());
-            Ok(e.typed(&dt))
+            let e = Expression::literal(&v, span).typed(&tt.datatype());
+            Ok(e)
+         },
+         Term::Ident(n) => {
+            let tt = tlc.rows[term.id].typ.clone();
+            let span = tlc.rows[term.id].span.clone();
+            let sc = scope.expect("Term::compile_expr scope was None");
+            let term = Scope::lookup_term(tlc, sc, &n, &tt).expect("Term::compile_expr variable not found in scope");
+            let e = Expression::variable(term.id, span).typed(&tt.datatype());
+            Ok(e)
          },
          Term::Ascript(t,_tt) => {
             //TODO gradual type
@@ -371,11 +400,15 @@ impl Term {
                         if lb.is_extern {
                            let body = lb.body.expect(&format!("extern function body must be a mangled symbol: {}", gv));
                            if let Term::Ident(mangled) = &tlc.rows[body.id].term {
-                              Ok(Expression::apply(&mangled, args, tlc.rows[term.id].span.clone()))
+                              let e = Expression::apply(&mangled, args, span);
+                              let e = e.typed(&tt.datatype());
+                              Ok(e)
                            } else { unreachable!("extern function body must be a mangled symbol: {}", gv) }
                         } else {
                            let mangled = Term::compile_function(tlc, scope, funcs, binding)?;
-                           Ok(Expression::apply(&mangled, args, tlc.rows[term.id].span.clone()))
+                           let e = Expression::apply(&mangled, args, span);
+                           let e = e.typed(&tt.datatype());
+                           Ok(e)
                         }
                      } else {
                         panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
@@ -411,11 +444,6 @@ impl Term {
             Term::check_hard_cast(tlc, &c, tt, term)?;
             Ok(c)
          },
-         Term::Ident(n) => {
-            if let Some(nv) = scope_constants.get(n) {
-               Ok(nv.clone())
-            } else { panic!("Term::reduce free variable: {} at {:?}", n, &tlc.rows[term.id].span) }
-         },
          Term::Constructor(c,cps) if cps.len()==0 => {
             Ok(Constant::parse(tlc, &c).unwrap())
          },
@@ -444,20 +472,6 @@ impl Term {
             let cl = Constant::Literal(v);
             Term::check_hard_cast(tlc, &cl, &tlc.rows[term.id].typ, term)?;
             Ok(cl)
-         },
-         Term::DynProject(tb,ti) => {
-            let tb = Term::reduce(tlc, scope, scope_constants, *tb)?;
-            let ti = Term::reduce(tlc, scope, scope_constants, *ti)?;
-            if let (Constant::Tuple(tb),Constant::Literal(ti)) = (tb,&ti) {
-            if let Ok(ti) = str::parse::<usize>(ti) {
-            if ti < tb.len() {
-               return Ok(tb[ti].clone())
-            }}}
-            return Err(Error {
-               kind: "Runtime Error".to_string(),
-               rule: format!("Term::reduce index out of bounds: {:?}", ti),
-               span: tlc.rows[term.id].span.clone(),
-            })
          },
          Term::Match(dv,lrs) => {
             //These panics are OK, because the type-checker should disprove them
