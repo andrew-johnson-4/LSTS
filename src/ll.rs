@@ -585,19 +585,20 @@ pub fn ll1_loop_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    ); tlc.push_term(t,&span)})
 }
 
-pub fn ll1_for_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
+pub fn ll1_for_term(tlc: &mut TLC, mut scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
    enum Comb {
-      CFor(TermId,TermId), CIf(TermId)
+      CFor(ScopeId,TermId,TermId), CIf(TermId)
    }
    let mut loop_stack = Vec::new();
    while !peek_is(tokens, &vec![Symbol::Yield]) {
       if peek_is(tokens, &vec![Symbol::For]) {
          pop_is("for-term", tokens, &vec![Symbol::For])?;
          let lhs = ll1_ascript_term(tlc, scope, tokens)?;
+         scope = Term::scope_of_lhs(tlc, Some(scope), lhs);
          pop_is("for-term", tokens, &vec![Symbol::In])?;
          let iterable = ll1_expr_term(tlc, scope, tokens)?;
-         loop_stack.push(Comb::CFor(lhs,iterable));
+         loop_stack.push(Comb::CFor(scope,lhs,iterable));
       } else if peek_is(tokens, &vec![Symbol::If]) {
          pop_is("for-term", tokens, &vec![Symbol::If])?;
          let cond = ll1_expr_term(tlc, scope, tokens)?;
@@ -616,9 +617,8 @@ pub fn ll1_for_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
    
    for s in loop_stack.iter().rev() {
    match s {
-      Comb::CFor(lhs,iterable) => {
-         let sc = Term::scope_of_lhs(tlc, Some(scope), *lhs);
-         let arr = tlc.push_term(Term::Arrow( Some(sc), *lhs, None, rhs ),&span);
+      Comb::CFor(sc,lhs,iterable) => {
+         let arr = tlc.push_term(Term::Arrow( Some(*sc), *lhs, None, rhs ),&span);
          let t = Term::App(
             tlc.push_term(Term::Ident(".flatmap".to_string()),&span),
             tlc.push_term(Term::Tuple(vec![*iterable,arr]),&span),

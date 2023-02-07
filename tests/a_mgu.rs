@@ -192,7 +192,6 @@ fn check_compound_failures() {
    assert_eq!(ta1.most_general_unifier(&ta2), tb.clone());
    assert_eq!(ta1.most_general_unifier(&ta3), tb.clone());
 
-   assert_eq!(tt1.most_general_unifier(&tt2), tb.clone());
    assert_eq!(tt2.most_general_unifier(&tt3), tb.clone());
    assert_eq!(tt2.most_general_unifier(&tt4), tb.clone());
 

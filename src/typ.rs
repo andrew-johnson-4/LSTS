@@ -707,6 +707,12 @@ impl Type {
             }
             Type::Tuple(ts)
          },
+         (Type::Tuple(la),Type::Tuple(ra)) if la.len()==1 && ra.len()==0 => {
+            Type::HTuple(Box::new(la[0].clone()), Constant::Tuple(Vec::new()))
+         },
+         (Type::Tuple(la),Type::Tuple(ra)) if la.len()==0 && ra.len()==1 => {
+            Type::HTuple(Box::new(ra[0].clone()), Constant::Tuple(Vec::new()))
+         },
          (Type::HTuple(lb,lc),Type::HTuple(rb,rc)) if lc==rc => {
             let bt = lb.most_general_unifier(rb);
             if bt.is_bottom() { return bt.clone(); }
