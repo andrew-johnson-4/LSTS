@@ -26,8 +26,6 @@ fn fibonacci() {
    assert_eq!( val, Constant::parse(&tlc, "75025").unwrap() );
 }
 
-/*
-
 #[test]
 fn right_triangles() {
    println!("current directory: {:?}", std::env::current_dir().unwrap());
@@ -36,4 +34,3 @@ fn right_triangles() {
    let val = tlc.reduce_file(None, "examples/right_triangles.tlc").unwrap();
    assert!( val == Constant::parse(&tlc, "((6,8,10))").unwrap() );
 }
-*/
