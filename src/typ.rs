@@ -40,13 +40,17 @@ impl Type {
    pub fn datatype(&self) -> String {
       let dts = vec!["U8","U64","Unit"];
       match self {
+         Type::Tuple(_) => "Tuple".to_string(),
+         Type::HTuple(_,_) => "Tuple".to_string(),
          Type::Named(base,pars) if pars.len()==0 &&
                                    dts.contains(&base.as_str()) => {
             base.clone()
          },
          Type::And(ts) => {
             for t in ts.iter() {
-            if let Type::Named(base,pars) = t {
+            if let Type::Tuple(_) = t { return "Tuple".to_string();
+            } else if let Type::HTuple(_,_) = t { return "Tuple".to_string();
+            } else if let Type::Named(base,pars) = t {
             if pars.len()==0 && dts.contains(&base.as_str()) {
                return base.clone();
             }}}
@@ -706,6 +710,12 @@ impl Type {
                ts.push(nt.clone());
             }
             Type::Tuple(ts)
+         },
+         (Type::Tuple(la),Type::Tuple(ra)) if la.len()==1 && ra.len()==0 => {
+            Type::HTuple(Box::new(la[0].clone()), Constant::Tuple(Vec::new()))
+         },
+         (Type::Tuple(la),Type::Tuple(ra)) if la.len()==0 && ra.len()==1 => {
+            Type::HTuple(Box::new(ra[0].clone()), Constant::Tuple(Vec::new()))
          },
          (Type::HTuple(lb,lc),Type::HTuple(rb,rc)) if lc==rc => {
             let bt = lb.most_general_unifier(rb);

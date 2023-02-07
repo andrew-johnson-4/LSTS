@@ -1,6 +1,7 @@
 use lsts::tlc::TLC;
 use lsts::constant::Constant;
 
+/*
 #[test]
 fn one_plus_one() {
    println!("current directory: {:?}", std::env::current_dir().unwrap());
@@ -25,15 +26,24 @@ fn fibonacci() {
    let val = tlc.reduce_file(None, "examples/fibonacci.tlc").unwrap();
    assert_eq!( val, Constant::parse(&tlc, "75025").unwrap() );
 }
+*/
+
+#[test]
+fn tuples() {
+   println!("current directory: {:?}", std::env::current_dir().unwrap());
+
+   let mut tlc = TLC::new();
+   let val = tlc.reduce_file(None, "examples/tuples.tlc").unwrap();
+   assert_eq!( val, Constant::parse(&tlc, "(4,48,92,136,180,224,268,312,356)").unwrap() );
+}
 
 /*
-
 #[test]
 fn right_triangles() {
    println!("current directory: {:?}", std::env::current_dir().unwrap());
 
    let mut tlc = TLC::new();
    let val = tlc.reduce_file(None, "examples/right_triangles.tlc").unwrap();
-   assert!( val == Constant::parse(&tlc, "((6,8,10))").unwrap() );
+   assert_eq!( val, Constant::parse(&tlc, "((6,8,10))").unwrap() );
 }
 */

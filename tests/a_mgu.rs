@@ -178,7 +178,7 @@ fn check_compound_failures() {
    let ta1  = Type::Arrow(Box::new(tn1.clone()), Box::new(tn1.clone()));
    let ta2  = Type::Arrow(Box::new(tn1.clone()), Box::new(tn2.clone()));
    let ta3  = Type::Arrow(Box::new(tn2.clone()), Box::new(tn1.clone()));
-   let tt1  = Type::Tuple(vec![]);
+   let _tt1  = Type::Tuple(vec![]);
    let tt2  = Type::Tuple(vec![tn1.clone()]);
    let tt3  = Type::Tuple(vec![tn2.clone()]);
    let tt4  = Type::Tuple(vec![tn1.clone(),tn2.clone()]);
@@ -192,7 +192,6 @@ fn check_compound_failures() {
    assert_eq!(ta1.most_general_unifier(&ta2), tb.clone());
    assert_eq!(ta1.most_general_unifier(&ta3), tb.clone());
 
-   assert_eq!(tt1.most_general_unifier(&tt2), tb.clone());
    assert_eq!(tt2.most_general_unifier(&tt3), tb.clone());
    assert_eq!(tt2.most_general_unifier(&tt4), tb.clone());
 

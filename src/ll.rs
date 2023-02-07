@@ -585,33 +585,61 @@ pub fn ll1_loop_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    ); tlc.push_term(t,&span)})
 }
 
-pub fn ll1_for_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
+pub fn ll1_for_term(tlc: &mut TLC, mut scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   pop_is("for-term", tokens, &vec![Symbol::For])?;
-   let lhs = ll1_ascript_term(tlc, scope, tokens)?;
-   pop_is("for-term", tokens, &vec![Symbol::In])?;
-   let iter = ll1_expr_term(tlc, scope, tokens)?;
-   let cond = if peek_is(tokens, &vec![Symbol::If]) {
-      pop_is("for-term", tokens, &vec![Symbol::If])?;
-      Some(ll1_expr_term(tlc, scope, tokens)?)
-   } else { None };
-   pop_is("for-term", tokens, &vec![Symbol::Yield])?;
-   let rhs = ll1_expr_term(tlc, scope, tokens)?;
- 
-   let sc = Term::scope_of_lhs(tlc, Some(scope), lhs);
-   let body = tlc.push_term(Term::Arrow( Some(sc), lhs, None, rhs ),&span);
-   if let Some(cond) = cond {
-      let cond = tlc.push_term(Term::Arrow( Some(sc), lhs, None, cond ),&span);
-      Ok({let t = Term::App(
-         tlc.push_term(Term::Ident("for".to_string()),&span),
-         tlc.push_term(Term::Tuple(vec![iter,cond,body]),&span),
-      ); tlc.push_term(t,&span)})
-   } else {
-      Ok({let t = Term::App(
-         tlc.push_term(Term::Ident("for".to_string()),&span),
-         tlc.push_term(Term::Tuple(vec![iter,body]),&span),
-      ); tlc.push_term(t,&span)})
+   enum Comb {
+      CFor(ScopeId,TermId,TermId), CIf(TermId)
    }
+   let mut loop_stack = Vec::new();
+   while !peek_is(tokens, &vec![Symbol::Yield]) {
+      if peek_is(tokens, &vec![Symbol::For]) {
+         pop_is("for-term", tokens, &vec![Symbol::For])?;
+         let lhs = ll1_ascript_term(tlc, scope, tokens)?;
+         scope = Term::scope_of_lhs(tlc, Some(scope), lhs);
+         pop_is("for-term", tokens, &vec![Symbol::In])?;
+         let iterable = ll1_expr_term(tlc, scope, tokens)?;
+         loop_stack.push(Comb::CFor(scope,lhs,iterable));
+      } else if peek_is(tokens, &vec![Symbol::If]) {
+         pop_is("for-term", tokens, &vec![Symbol::If])?;
+         let cond = ll1_expr_term(tlc, scope, tokens)?;
+         loop_stack.push(Comb::CIf(cond));
+      }
+   }
+
+   pop_is("for-term", tokens, &vec![Symbol::Yield])?;
+   let mut rhs = ll1_expr_term(tlc, scope, tokens)?;
+   rhs = tlc.push_term(Term::Tuple(vec![rhs]),&span);
+   
+   //for = .flatmap(iterable, \lhs. rhs)
+   //if  = if cond then rhs else ()
+   //for a in range(10) for b in range(a,10) if a==b yield a+b
+   //range(10).flatmap(\a. range(a,10).flatmap(\b. if a==b then (a+b,) else () ))
+   
+   for s in loop_stack.iter().rev() {
+   match s {
+      Comb::CFor(sc,lhs,iterable) => {
+         let arr = tlc.push_term(Term::Arrow( Some(*sc), *lhs, None, rhs ),&span);
+         let t = Term::App(
+            tlc.push_term(Term::Ident(".flatmap".to_string()),&span),
+            tlc.push_term(Term::Tuple(vec![*iterable,arr]),&span),
+         );
+         rhs = tlc.push_term(t,&span);
+      },
+      Comb::CIf(cond) => {
+         let branch1 = rhs;
+         let branch2 = tlc.push_term(Term::Tuple(Vec::new()),&span);
+         let tlhs = tlc.push_term(Term::Constructor("True".to_string(),Vec::new()),&span);
+         let flhs = tlc.push_term(Term::Constructor("False".to_string(),Vec::new()),&span);
+         let tscope = tlc.new_scope(Some(scope));
+         let fscope = tlc.new_scope(Some(scope));
+         rhs = tlc.push_term(Term::Match(*cond, vec![
+            (tscope, tlhs, branch1),
+            (fscope, flhs, branch2)
+         ]),&span);
+      },
+   }}
+ 
+   Ok(rhs)
 }
 
 pub fn ll1_logical_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
@@ -862,7 +890,7 @@ pub fn ll1_match_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
       if comma_ok { comma_ok = false; }
       let lhs = ll1_prefix_term(tlc, scope, tokens)?;
       pop_is("match-term", tokens, &vec![Symbol::Imply])?;
-      let rhs = ll1_atom_term(tlc, scope, tokens)?;
+      let rhs = ll1_expr_term(tlc, scope, tokens)?;
       pats.push((tlc.new_scope(Some(scope)), lhs, rhs));
       if peek_is(tokens, &vec![Symbol::Comma]) {
          pop_is("match-term", tokens, &vec![Symbol::Comma])?;

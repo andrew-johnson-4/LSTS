@@ -1398,10 +1398,14 @@ impl TLC {
                self.typeck(&Some(*clr), *r, implied.clone())?;
                rts.push( self.rows[r.id].typ.clone() );
             }
+            println!("MGU of branches:");
             let mut rt = rts[0].clone();
+            println!("\t{:?}", rts[0]);
             for ri in 1..rts.len() {
+               println!("\t{:?}", rts[ri]);
                rt = rt.most_general_unifier(&rts[ri]);
             }
+            println!("\t= {:?}", rt);
             self.rows[t.id].typ = rt;
          },
          Term::Block(sid,es) => {
