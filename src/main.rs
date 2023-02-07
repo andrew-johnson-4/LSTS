@@ -1,5 +1,6 @@
 use std::env;
 use lsts::tlc::TLC;
+use gag::Gag;
 
 fn main() {
    let mut tlc = TLC::new();
@@ -17,10 +18,16 @@ fn main() {
          env = Some(tlc.import_file(env, fp).unwrap());
       }
    } else if command=="run" {
-      let mut env = None;
       for fp in args.iter() {
-         println!("Running: {}", fp);
-         env = Some(tlc.import_file(env, fp).unwrap());
+         let r = {
+            let _gag_order = Gag::stdout().unwrap();
+            tlc.reduce_file(None, fp)
+         };
+         if let Err(msg) = r {
+            eprintln!("{:?}", msg);
+         } else if let Ok(v) = r {
+            println!("{:?}", v);
+         }
       }
    } else if command=="parse" {
       for fp in args.iter() {
