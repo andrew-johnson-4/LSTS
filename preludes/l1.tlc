@@ -1,8 +1,10 @@
 //L1 is a term from linguistics that means "native language"
 
 //Types
-type Boolean              = True | False;
 type U64                  = /^[0-9]+$/;
+type U8                   = /^[0-9]+$/;
+let false: U8 = 0;
+let true: U8 = 1;
 
 //Implicit Operators
 extern $"+"(x: U64, y: U64): U64 = $"+:(U64,U64)->U64";
@@ -10,14 +12,14 @@ extern $"-"(x: U64, y: U64): U64 = $"-:(U64,U64)->U64";
 extern $"*"(x: U64, y: U64): U64 = $"*:(U64,U64)->U64";
 extern $"/"(x: U64, y: U64): U64 = $"/:(U64,U64)->U64";
 extern $"%"(x: U64, y: U64): U64 = $"%:(U64,U64)->U64";
-extern $"=="(x: U64, y: U64): U64 = $"==:(U64,U64)->U64";
-extern $"!="(x: U64, y: U64): U64 = $"!=:(U64,U64)->U64";
-extern $"<"(x: U64, y: U64): U64 = $"<:(U64,U64)->U64";
-extern $"<="(x: U64, y: U64): U64 = $"<=:(U64,U64)->U64";
-extern $">"(x: U64, y: U64): U64 = $">:(U64,U64)->U64";
-extern $">="(x: U64, y: U64): U64 = $">=:(U64,U64)->U64";
 
-//Operators
-let not(b:Boolean): Boolean = match b { True => False, False => True, };
-let $"&&"(a:Boolean, b:Boolean): Boolean = match (a,b) { (True,True) => True, _ => False, };
-let $"||"(a:Boolean, b:Boolean): Boolean = match (a,b) { (False,False) => False, _ => True, };
+extern $"=="(x: U64, y: U64): U8 = $"==:(U64,U64)->U8";
+extern $"!="(x: U64, y: U64): U8 = $"!=:(U64,U64)->U8";
+extern $"<"(x: U64, y: U64): U8 = $"<:(U64,U64)->U8";
+extern $"<="(x: U64, y: U64): U8 = $"<=:(U64,U64)->U8";
+extern $">"(x: U64, y: U64): U8 = $">:(U64,U64)->U8";
+extern $">="(x: U64, y: U64): U8 = $">=:(U64,U64)->U8";
+
+extern not(b:U8): U8 = $"not:(U8)->U8";
+extern $"&&"(a:U8, b:U8): U8 = $"&&:(U8,U8)->U8";
+extern $"||"(a:U8, b:U8): U8 = $"||:(U8,U8)->U8";

@@ -10,6 +10,15 @@ fn one_plus_one() {
    assert_eq!( val, Constant::parse(&tlc, "2").unwrap() );
 }
 
+#[test]
+fn fibonacci() {
+   println!("current directory: {:?}", std::env::current_dir().unwrap());
+
+   let mut tlc = TLC::new();
+   let val = tlc.reduce_file(None, "examples/fibonacci.tlc").unwrap();
+   assert_eq!( val, Constant::parse(&tlc, "2").unwrap() );
+}
+
 /*
 
 #[test]
