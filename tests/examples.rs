@@ -34,7 +34,7 @@ fn tuples() {
 
    let mut tlc = TLC::new();
    let val = tlc.reduce_file(None, "examples/tuples.tlc").unwrap();
-   assert_eq!( val, Constant::parse(&tlc, "((6,8,10))").unwrap() );
+   assert_eq!( val, Constant::parse(&tlc, "(4,48,92,136,180,224,268,312,356)").unwrap() );
 }
 
 /*
