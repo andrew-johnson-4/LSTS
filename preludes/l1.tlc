@@ -3,8 +3,7 @@
 //Types
 type U64                  = /^[0-9]+$/;
 type U8                   = /^[0-9]+$/;
-let false: U8 = 0;
-let true: U8 = 1;
+type Boolean: U8          = False | True;
 
 //Implicit Operators
 extern $"+"(x: U64, y: U64): U64 = $"+:(U64,U64)->U64";
@@ -23,3 +22,7 @@ extern $">="(x: U64, y: U64): U8 = $">=:(U64,U64)->U8";
 extern not(b:U8): U8 = $"not:(U8)->U8";
 extern $"&&"(a:U8, b:U8): U8 = $"&&:(U8,U8)->U8";
 extern $"||"(a:U8, b:U8): U8 = $"||:(U8,U8)->U8";
+
+extern range(to: U64): U64[] = $"range:(U64)->U64[]";
+extern range(from: U64, to: U64): U64[] = $"range:(U64,U64)->U64[]";
+extern range(from: U64, to: U64, step: U64): U64[] = $"range:(U64,U64,U64)->U64[]";
