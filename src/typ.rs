@@ -40,13 +40,17 @@ impl Type {
    pub fn datatype(&self) -> String {
       let dts = vec!["U8","U64","Unit"];
       match self {
+         Type::Tuple(_) => "Tuple".to_string(),
+         Type::HTuple(_,_) => "Tuple".to_string(),
          Type::Named(base,pars) if pars.len()==0 &&
                                    dts.contains(&base.as_str()) => {
             base.clone()
          },
          Type::And(ts) => {
             for t in ts.iter() {
-            if let Type::Named(base,pars) = t {
+            if let Type::Tuple(_) = t { return "Tuple".to_string();
+            } else if let Type::HTuple(_,_) = t { return "Tuple".to_string();
+            } else if let Type::Named(base,pars) = t {
             if pars.len()==0 && dts.contains(&base.as_str()) {
                return base.clone();
             }}}

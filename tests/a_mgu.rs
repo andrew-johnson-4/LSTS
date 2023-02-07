@@ -178,7 +178,7 @@ fn check_compound_failures() {
    let ta1  = Type::Arrow(Box::new(tn1.clone()), Box::new(tn1.clone()));
    let ta2  = Type::Arrow(Box::new(tn1.clone()), Box::new(tn2.clone()));
    let ta3  = Type::Arrow(Box::new(tn2.clone()), Box::new(tn1.clone()));
-   let tt1  = Type::Tuple(vec![]);
+   let _tt1  = Type::Tuple(vec![]);
    let tt2  = Type::Tuple(vec![tn1.clone()]);
    let tt3  = Type::Tuple(vec![tn2.clone()]);
    let tt4  = Type::Tuple(vec![tn1.clone(),tn2.clone()]);
