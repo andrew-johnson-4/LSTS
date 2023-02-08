@@ -133,7 +133,22 @@ impl Term {
       }
    }
    pub fn compile_function(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>, term: TermId) -> Result<String,Error> {
-      let mangled = "fib".to_string();
+      let mangled = if let Term::Let(ref lt) = tlc.rows[term.id].term {
+         let mut name = lt.name.clone();
+         name += ":";
+         for ps in lt.parameters.iter() {
+            name += "(";
+            for (ai,args) in ps.iter().enumerate() {
+            if let Some(at) = args.1.clone() {
+               if ai > 0 { name += ","; }
+               name += &format!("{:?}", at);
+            }}
+            name += ")->";
+         }
+         name += &format!("{:?}", lt.rtype);
+         name
+      } else { panic!("Term::compile_function must be a Let binding") };
+      println!("mangled: {}", mangled);
       for fd in funcs.iter() {
          if fd.name == mangled { return Ok(mangled); }
       }
