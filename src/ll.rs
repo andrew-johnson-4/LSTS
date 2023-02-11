@@ -618,7 +618,12 @@ pub fn ll1_for_term(tlc: &mut TLC, mut scope: ScopeId, tokens: &mut TokenReader)
    for s in loop_stack.iter().rev() {
    match s {
       Comb::CFor(sc,lhs,iterable) => {
-         let arr = tlc.push_term(Term::Arrow( Some(*sc), *lhs, None, rhs ),&span);
+         let arr_scope = tlc.new_scope(Some(*sc));
+         let arr = tlc.push_term(Term::Arrow( Some(arr_scope), *lhs, None, rhs ),&span);
+         let mut children = tlc.scopes[arr_scope.id].children.clone();
+         Term::scope_of_lhs_impl(tlc, &mut children, *lhs);
+         tlc.scopes[arr_scope.id].children = children;
+
          let t = Term::App(
             tlc.push_term(Term::Ident(".flatmap".to_string()),&span),
             tlc.push_term(Term::Tuple(vec![*iterable,arr]),&span),

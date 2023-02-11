@@ -92,11 +92,11 @@ impl Term {
          _ => false
       }
    }
-   fn scope_of_lhs_impl(tlc: &mut TLC, children: &mut Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)>, lhs: TermId) {
+   pub fn scope_of_lhs_impl(tlc: &mut TLC, children: &mut Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)>, lhs: TermId) {
       match &tlc.rows[lhs.id].term.clone() {
          Term::Ident(n) if n=="_" => {},
          Term::Ident(n) => {
-            children.push((n.clone(), HashMap::new(), tlc.rows[lhs.id].typ.clone(), None));
+            children.push((n.clone(), HashMap::new(), tlc.rows[lhs.id].typ.clone(), Some(lhs)));
          },
          Term::Ascript(lt,ltt) => {
             tlc.rows[lt.id].typ = ltt.clone();
@@ -128,6 +128,9 @@ impl Term {
                let term = Scope::lookup_term(tlc, scope, ln, &tt).expect("Term::compile_lhs identifier not found in scope");
                Ok(LHSPart::variable(term.id))
             }
+         },
+         Term::Ascript(t,_tt) => {
+            Term::compile_lhs(tlc, scope, *t)
          },
          _ => unimplemented!("compile_lhs: {}", tlc.print_term(term))
       }
@@ -233,6 +236,26 @@ impl Term {
          Term::App(g,x) => {
             let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
             match (&tlc.rows[g.id].term,&tlc.rows[x.id].term) {
+               (Term::Ident(gv),Term::Tuple(ps)) if gv==".flatmap" && ps.len()==2 => {
+                  let iterable = tlc.rows[ps[0].id].term.clone();
+                  let Term::Arrow(asc,lhs,att,rhs) = tlc.rows[ps[1].id].term.clone()
+                  else { panic!(".flatmap second argument must be an arrow: {}", tlc.print_term(ps[1])) };
+                  if let Term::Match(me,mlrs) = &tlc.rows[rhs.id].term {
+                     unimplemented!(".flatmap guarded {} {}", tlc.print_term(ps[0]), tlc.print_term(ps[1]));
+                  } else {
+                     let map_lhs = Term::compile_lhs(tlc, asc.expect("map_lhs expected a scope on left hand side"), lhs)?;
+                     unimplemented!(".flatmap unguarded {} {}", tlc.print_term(ps[0]), tlc.print_term(ps[1]));
+                     /*
+                     Expression::map(
+                        LHSPart::variable(10),
+                        Expression::apply("range:(U64)->U64[]",vec![
+                           Expression::literal("5", ()).typed("U64"),
+                        ],()).typed("Value"),
+                        TIPart::variable(10)
+                    ,()).typed("Value")
+                    */
+                  }
+               },
                (Term::Ident(gv),Term::Tuple(ps)) => {
                   let mut args = Vec::new();
                   for p in ps.iter() {
