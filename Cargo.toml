@@ -1,6 +1,6 @@
 [package]
 name = "lsts"
-version = "0.6.25"
+version = "0.6.26"
 authors = ["Andrew <andrew@subarctic.org>"]
 license = "MIT"
 description = "Large Scale Type Systems"
