@@ -8,7 +8,7 @@ use crate::token::{Span};
 use std::collections::HashMap;
 use l1_ir::value::Value;
 use l1_ir::opt::{JProgram};
-use l1_ir::ast::{self,Expression,Program,FunctionDefinition,LHSPart};
+use l1_ir::ast::{self,Expression,Program,FunctionDefinition,LHSPart,TIPart};
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -132,6 +132,12 @@ impl Term {
          Term::Ascript(t,_tt) => {
             Term::compile_lhs(tlc, scope, *t)
          },
+         Term::Constructor(cname,_) if cname=="False" => {
+            Ok(LHSPart::literal("0"))
+         },
+         Term::Constructor(cname,_) if cname=="True" => {
+            Ok(LHSPart::literal("1"))
+         },
          _ => unimplemented!("compile_lhs: {}", tlc.print_term(term))
       }
    }
@@ -195,6 +201,14 @@ impl Term {
          Term::Tuple(ts) if ts.len()==0 => {
             Ok(Expression::unit(span))
          },
+         Term::Tuple(ts) => {
+            let mut tes = Vec::new();
+            for te in ts.iter() {
+               let te = (Term::compile_expr(tlc, scope, funcs, preamble, *te)?).typed("Value");
+               tes.push(te);
+            }
+            Ok(Expression::tuple(tes,span).typed("Value"))
+         },
          Term::Value(v) => {
             let e = Expression::literal(&v, span).typed(&tt.datatype());
             Ok(e)
@@ -237,24 +251,47 @@ impl Term {
             let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
             match (&tlc.rows[g.id].term,&tlc.rows[x.id].term) {
                (Term::Ident(gv),Term::Tuple(ps)) if gv==".flatmap" && ps.len()==2 => {
-                  let iterable = tlc.rows[ps[0].id].term.clone();
-                  let Term::Arrow(asc,lhs,att,rhs) = tlc.rows[ps[1].id].term.clone()
+                  let Term::Arrow(asc,lhs,_att,rhs) = tlc.rows[ps[1].id].term.clone()
                   else { panic!(".flatmap second argument must be an arrow: {}", tlc.print_term(ps[1])) };
-                  if let Term::Match(me,mlrs) = &tlc.rows[rhs.id].term {
-                     unimplemented!(".flatmap guarded {} {}", tlc.print_term(ps[0]), tlc.print_term(ps[1]));
-                  } else {
+                  if let Term::Match(mcond,mlrs) = &tlc.rows[rhs.id].term {
+                  if mlrs.len()==2 {
+                  if let Term::Constructor(tname,_) = &tlc.rows[mlrs[0].1.id].term {
+                  if tname == "True" {
+                  if let Term::Constructor(fname,_) = &tlc.rows[mlrs[1].1.id].term {
+                  if fname == "False" {
+                  if let Term::Tuple(fvalue) = &tlc.rows[mlrs[1].2.id].term {
+                  if fvalue.len()==0 {
+                     let (_true_scope,_true_lhs,true_rhs) = mlrs[0];
+                     let map_iterable = Term::compile_expr(tlc, &Some(sc), funcs, preamble, ps[0])?;
                      let map_lhs = Term::compile_lhs(tlc, asc.expect("map_lhs expected a scope on left hand side"), lhs)?;
-                     unimplemented!(".flatmap unguarded {} {}", tlc.print_term(ps[0]), tlc.print_term(ps[1]));
-                     /*
-                     Expression::map(
-                        LHSPart::variable(10),
-                        Expression::apply("range:(U64)->U64[]",vec![
-                           Expression::literal("5", ()).typed("U64"),
-                        ],()).typed("Value"),
-                        TIPart::variable(10)
-                    ,()).typed("Value")
-                    */
-                  }
+                     let map_yield = Term::compile_expr(tlc, &asc, funcs, preamble, true_rhs)?;
+                     let map_guard = Term::compile_expr(tlc, &asc, funcs, preamble, *mcond)?;
+                     let map_ti = TIPart::expression(Expression::pattern(
+                        map_guard, vec![(
+                           LHSPart::literal("1"),
+                           map_yield
+                        )]
+                     ,span.clone()).typed("Value"));
+                     let map = Expression::map(
+                        map_lhs,
+                        map_iterable,
+                        map_ti,
+                        span.clone(),
+                     ).typed("Value");
+                     let flatmap = Expression::apply(".flatten:(Tuple)->Tuple", vec![map], span).typed("Value");
+                     return Ok(flatmap)
+                  }} }} }} }}
+                  let map_iterable = Term::compile_expr(tlc, &Some(sc), funcs, preamble, ps[0])?;
+                  let map_lhs = Term::compile_lhs(tlc, asc.expect("map_lhs expected a scope on left hand side"), lhs)?;
+                  let map_yield = Term::compile_expr(tlc, &asc, funcs, preamble, rhs)?;
+                  let map = Expression::map(
+                     map_lhs,
+                     map_iterable,
+                     TIPart::expression(map_yield.typed("Value")),
+                     span.clone(),
+                  ).typed("Value");
+                  let flatmap = Expression::apply(".flatten:(Tuple)->Tuple", vec![map], span).typed("Value");
+                  Ok(flatmap)
                },
                (Term::Ident(gv),Term::Tuple(ps)) => {
                   let mut args = Vec::new();

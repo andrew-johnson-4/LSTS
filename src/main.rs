@@ -18,9 +18,10 @@ fn main() {
          env = Some(tlc.import_file(env, fp).unwrap());
       }
    } else if command=="run" {
+      println!("current directory: {:?}", std::env::current_dir().unwrap());
       for fp in args.iter() {
          let r = {
-            let _gag_order = Gag::stdout().unwrap();
+            //let _gag_order = Gag::stdout().unwrap();
             tlc.reduce_file(None, fp)
          };
          if let Err(msg) = r {
