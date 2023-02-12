@@ -12,7 +12,7 @@ keywords = ["type","logic","automated","theorem","proof"]
 
 [dependencies]
 regex = { version = "1" }
-l1_ir = { version = "0.0.41", features = ["cranelift"] }
+l1_ir = { version = "0.0.42", features = ["cranelift"] }
 gag   = { version = "1" }
 
 [[bench]]
