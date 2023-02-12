@@ -3,6 +3,8 @@ use lsts::tlc::TLC;
 use gag::Gag;
 
 fn main() {
+   println!("current directory: {:?}", std::env::current_dir().unwrap());
+
    let mut tlc = TLC::new();
    let mut command = "help".to_string();
    let mut args = Vec::new();
@@ -18,8 +20,8 @@ fn main() {
          env = Some(tlc.import_file(env, fp).unwrap());
       }
    } else if command=="run" {
-      println!("current directory: {:?}", std::env::current_dir().unwrap());
       for fp in args.iter() {
+         println!("run file: {}", fp);
          let r = {
             //let _gag_order = Gag::stdout().unwrap();
             tlc.reduce_file(None, fp)
