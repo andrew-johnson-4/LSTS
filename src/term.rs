@@ -6,7 +6,6 @@ use crate::constant::Constant;
 use crate::debug::{Error};
 use crate::token::{Span};
 use std::collections::HashMap;
-use l1_ir::value::Value;
 use l1_ir::opt::{JProgram};
 use l1_ir::ast::{self,Expression,Program,FunctionDefinition,LHSPart,TIPart};
 
@@ -335,9 +334,10 @@ impl Term {
          funcs,
          preamble,
       );
-      println!("debug program");
+      println!("compile program");
       let jit = JProgram::compile(&nojit);
-      let jval = jit.eval(&[Value::u64(321,"U64")]);
+      println!("eval program");
+      let jval = jit.eval(&[]);
 
       Ok(Constant::from_value(
          jval
