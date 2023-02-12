@@ -8,7 +8,7 @@ use crate::token::{Span};
 use std::collections::HashMap;
 use l1_ir::value::Value;
 use l1_ir::opt::{JProgram};
-use l1_ir::ast::{self,Expression,Program,FunctionDefinition,LHSPart};
+use l1_ir::ast::{self,Expression,Program,FunctionDefinition,LHSPart,TIPart};
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -92,11 +92,11 @@ impl Term {
          _ => false
       }
    }
-   fn scope_of_lhs_impl(tlc: &mut TLC, children: &mut Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)>, lhs: TermId) {
+   pub fn scope_of_lhs_impl(tlc: &mut TLC, children: &mut Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)>, lhs: TermId) {
       match &tlc.rows[lhs.id].term.clone() {
          Term::Ident(n) if n=="_" => {},
          Term::Ident(n) => {
-            children.push((n.clone(), HashMap::new(), tlc.rows[lhs.id].typ.clone(), None));
+            children.push((n.clone(), HashMap::new(), tlc.rows[lhs.id].typ.clone(), Some(lhs)));
          },
          Term::Ascript(lt,ltt) => {
             tlc.rows[lt.id].typ = ltt.clone();
@@ -129,11 +129,35 @@ impl Term {
                Ok(LHSPart::variable(term.id))
             }
          },
+         Term::Ascript(t,_tt) => {
+            Term::compile_lhs(tlc, scope, *t)
+         },
+         Term::Constructor(cname,_) if cname=="False" => {
+            Ok(LHSPart::literal("0"))
+         },
+         Term::Constructor(cname,_) if cname=="True" => {
+            Ok(LHSPart::literal("1"))
+         },
          _ => unimplemented!("compile_lhs: {}", tlc.print_term(term))
       }
    }
    pub fn compile_function(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>, term: TermId) -> Result<String,Error> {
-      let mangled = "fib".to_string();
+      let mangled = if let Term::Let(ref lt) = tlc.rows[term.id].term {
+         let mut name = lt.name.clone();
+         name += ":";
+         for ps in lt.parameters.iter() {
+            name += "(";
+            for (ai,args) in ps.iter().enumerate() {
+            if let Some(at) = args.1.clone() {
+               if ai > 0 { name += ","; }
+               name += &format!("{:?}", at);
+            }}
+            name += ")->";
+         }
+         name += &format!("{:?}", lt.rtype);
+         name
+      } else { panic!("Term::compile_function must be a Let binding") };
+      println!("mangled: {}", mangled);
       for fd in funcs.iter() {
          if fd.name == mangled { return Ok(mangled); }
       }
@@ -177,6 +201,14 @@ impl Term {
          Term::Tuple(ts) if ts.len()==0 => {
             Ok(Expression::unit(span))
          },
+         Term::Tuple(ts) => {
+            let mut tes = Vec::new();
+            for te in ts.iter() {
+               let te = (Term::compile_expr(tlc, scope, funcs, preamble, *te)?).typed("Value");
+               tes.push(te);
+            }
+            Ok(Expression::tuple(tes,span).typed("Value"))
+         },
          Term::Value(v) => {
             let e = Expression::literal(&v, span).typed(&tt.datatype());
             Ok(e)
@@ -218,6 +250,49 @@ impl Term {
          Term::App(g,x) => {
             let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
             match (&tlc.rows[g.id].term,&tlc.rows[x.id].term) {
+               (Term::Ident(gv),Term::Tuple(ps)) if gv==".flatmap" && ps.len()==2 => {
+                  let Term::Arrow(asc,lhs,_att,rhs) = tlc.rows[ps[1].id].term.clone()
+                  else { panic!(".flatmap second argument must be an arrow: {}", tlc.print_term(ps[1])) };
+                  if let Term::Match(mcond,mlrs) = &tlc.rows[rhs.id].term {
+                  if mlrs.len()==2 {
+                  if let Term::Constructor(tname,_) = &tlc.rows[mlrs[0].1.id].term {
+                  if tname == "True" {
+                  if let Term::Constructor(fname,_) = &tlc.rows[mlrs[1].1.id].term {
+                  if fname == "False" {
+                  if let Term::Tuple(fvalue) = &tlc.rows[mlrs[1].2.id].term {
+                  if fvalue.len()==0 {
+                     let (_true_scope,_true_lhs,true_rhs) = mlrs[0];
+                     let map_iterable = Term::compile_expr(tlc, &Some(sc), funcs, preamble, ps[0])?;
+                     let map_lhs = Term::compile_lhs(tlc, asc.expect("map_lhs expected a scope on left hand side"), lhs)?;
+                     let map_yield = Term::compile_expr(tlc, &asc, funcs, preamble, true_rhs)?;
+                     let map_guard = Term::compile_expr(tlc, &asc, funcs, preamble, *mcond)?;
+                     let map_ti = TIPart::expression(Expression::pattern(
+                        map_guard, vec![(
+                           LHSPart::literal("1"),
+                           map_yield
+                        )]
+                     ,span.clone()).typed("Value"));
+                     let map = Expression::map(
+                        map_lhs,
+                        map_iterable,
+                        map_ti,
+                        span.clone(),
+                     ).typed("Value");
+                     let flatmap = Expression::apply(".flatten:(Tuple)->Tuple", vec![map], span).typed("Value");
+                     return Ok(flatmap)
+                  }} }} }} }}
+                  let map_iterable = Term::compile_expr(tlc, &Some(sc), funcs, preamble, ps[0])?;
+                  let map_lhs = Term::compile_lhs(tlc, asc.expect("map_lhs expected a scope on left hand side"), lhs)?;
+                  let map_yield = Term::compile_expr(tlc, &asc, funcs, preamble, rhs)?;
+                  let map = Expression::map(
+                     map_lhs,
+                     map_iterable,
+                     TIPart::expression(map_yield.typed("Value")),
+                     span.clone(),
+                  ).typed("Value");
+                  let flatmap = Expression::apply(".flatten:(Tuple)->Tuple", vec![map], span).typed("Value");
+                  Ok(flatmap)
+               },
                (Term::Ident(gv),Term::Tuple(ps)) => {
                   let mut args = Vec::new();
                   for p in ps.iter() {
