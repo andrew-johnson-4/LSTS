@@ -1,6 +1,6 @@
 [package]
 name = "lsts"
-version = "0.6.26"
+version = "0.6.27"
 authors = ["Andrew <andrew@subarctic.org>"]
 license = "MIT"
 description = "Large Scale Type Systems"
@@ -12,7 +12,8 @@ keywords = ["type","logic","automated","theorem","proof"]
 
 [dependencies]
 regex = { version = "1" }
-l1_ir = { version = "0.0.41", features = ["cranelift"] }
+l1_ir = { version = "0.0.43", features = ["cranelift"] }
+#l1_ir = { path = "../L1IR", features = ["cranelift"] }
 gag   = { version = "1" }
 
 [[bench]]

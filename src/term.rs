@@ -6,7 +6,6 @@ use crate::constant::Constant;
 use crate::debug::{Error};
 use crate::token::{Span};
 use std::collections::HashMap;
-use l1_ir::value::Value;
 use l1_ir::opt::{JProgram};
 use l1_ir::ast::{self,Expression,Program,FunctionDefinition,LHSPart,TIPart};
 
@@ -269,12 +268,12 @@ impl Term {
                      let map_ti = TIPart::expression(Expression::pattern(
                         map_guard, vec![(
                            LHSPart::literal("1"),
-                           map_yield
+                           map_yield.typed("Value")
                         )]
                      ,span.clone()).typed("Value"));
                      let map = Expression::map(
                         map_lhs,
-                        map_iterable,
+                        map_iterable.typed("Value"),
                         map_ti,
                         span.clone(),
                      ).typed("Value");
@@ -286,7 +285,7 @@ impl Term {
                   let map_yield = Term::compile_expr(tlc, &asc, funcs, preamble, rhs)?;
                   let map = Expression::map(
                      map_lhs,
-                     map_iterable,
+                     map_iterable.typed("Value"),
                      TIPart::expression(map_yield.typed("Value")),
                      span.clone(),
                   ).typed("Value");
@@ -335,50 +334,13 @@ impl Term {
          funcs,
          preamble,
       );
-      println!("debug program");
+      println!("compile program");
       let jit = JProgram::compile(&nojit);
-      let jval = jit.eval(&[Value::u64(321,"U64")]);
+      println!("eval program");
+      let jval = jit.eval(&[]);
 
       Ok(Constant::from_value(
          jval
       ))
-      /*
-         Term::As(t,tt) => {
-            let c = Term::reduce(tlc, scope, scope_constants, *t)?;
-            Term::check_hard_cast(tlc, &c, tt, term)?;
-            Ok(c)
-         },
-         Term::Constructor(c,cps) if cps.len()==0 => {
-            Ok(Constant::parse(tlc, &c).unwrap())
-         },
-         Term::Tuple(ts) => {
-            let mut cs = Vec::new();
-            for ct in ts.iter() {
-               let cc = Term::reduce(tlc, scope, scope_constants, *ct)?;
-               Term::check_hard_cast(tlc, &cc, &tlc.rows[ct.id].typ, *ct)?;
-               cs.push(cc);
-            }
-            Ok(Constant::Tuple(cs))
-         },
-         Term::Literal(lps) => {
-            let mut v = "".to_string();
-            for lp in lps.iter() {
-            match lp {
-               Literal::Char(lc,_) => { v += &lc.to_string(); },
-               Literal::String(ls,_) => { v += ls; },
-               Literal::Range(_,_) => { panic!("Term::Reduce(Term::Literal) is literal range at {:?}", tlc.rows[term.id].span) }, //not a Literal Value
-               Literal::Var(lv) => {
-                  if let Some(Constant::Literal(ls)) = scope_constants.get(lv) {
-                     v += ls;
-                  } else { panic!("Term::reduce free variable in literal {} at {:?}", lv, &tlc.rows[term.id].span) }
-               },
-            }}
-            let cl = Constant::Literal(v);
-            Term::check_hard_cast(tlc, &cl, &tlc.rows[term.id].typ, term)?;
-            Ok(cl)
-         },
-         _ => unimplemented!("Term::reduce, implement Call-by-Value term reduction: {}", tlc.print_term(term))
-      }
-      */
    }
 }
