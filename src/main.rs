@@ -20,7 +20,7 @@ fn main() {
    } else if command=="run" {
       for fp in args.iter() {
          let r = {
-            //let _gag_order = Gag::stdout().unwrap();
+            let _gag_order = Gag::stdout().unwrap();
             tlc.reduce_file(None, fp)
          };
          if let Err(msg) = r {
