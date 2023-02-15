@@ -3,7 +3,7 @@ use crate::term::{Term,TermId,LetTerm,Literal};
 use crate::debug::{Error};
 use crate::token::{Symbol,TokenReader,span_of,tokenize_file};
 use crate::scope::{ScopeId,Scope};
-use crate::tlc::{TLC,TypeRule,Invariant,TypedefRule,TypedefBranch,Inference};
+use crate::tlc::{TLC,TypeRule,Invariant,TypedefRule,TypedefBranch};
 use crate::constant::{Constant};
 use crate::typ::{Type};
 use crate::kind::{Kind};
@@ -341,13 +341,7 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
 
    pop_is("forall-stmt", tokens, &vec![Symbol::Dot])?;
    let inf1 = ll1_type(tlc, scope, tokens)?;
-   if peek_is(tokens, &vec![Symbol::Imply]) {
-      pop_is("forall-stmt", tokens, &vec![Symbol::Imply])?;
-      let inf2 = ll1_type(tlc, scope, tokens)?;
-      inference = Some(Inference::Imply(inf1,inf2));
-   } else {
-      inference = Some(Inference::Type(inf1));
-   };
+   inference = Some(inf1);
 
    if peek_is(tokens, &vec![Symbol::Is]) {
       pop_is("forall-stmt", tokens, &vec![Symbol::Is])?;

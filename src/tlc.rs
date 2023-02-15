@@ -38,28 +38,6 @@ pub struct Row {
 }
 
 #[derive(Clone)]
-pub enum Inference {
-   Type(Type),
-   Imply(Type,Type),
-}
-impl std::fmt::Debug for Inference {
-   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      match self {
-        Inference::Type(t) => write!(f, "{:?}", t),
-        Inference::Imply(a,b) => write!(f, "{:?} => {:?}", a, b),
-      }
-   }
-}
-impl Inference {
-   pub fn types(&self) -> Vec<Type> {
-      match self {
-         Inference::Type(t) => vec![t.clone()],
-         Inference::Imply(a,b) => vec![a.clone(),b.clone()],
-      }
-   }
-}
-
-#[derive(Clone)]
 pub enum TypedefBranch {
    Regex(String),
    Constructor(String,Vec<(String,Type)>),
@@ -91,7 +69,7 @@ pub struct ForallRule {
    pub name: Option<String>,
    pub parameters: Vec<(Option<String>,Option<Type>,Kind)>,
    pub scope: ScopeId,
-   pub inference: Inference,
+   pub inference: Type,
    pub rhs: Option<TermId>,
    pub kind: Kind,
    pub span: Span,
@@ -230,7 +208,7 @@ impl TLC {
       }
    }
    pub fn push_forall(&mut self, globals: ScopeId, axiom: bool, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
-                             inference: Inference, term: Option<TermId>, kind: Kind, span: Span) {
+                             inference: Type, term: Option<TermId>, kind: Kind, span: Span) {
       let mut fa_closed: Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)> = Vec::new();
       for (qn,qt,qk) in quants.iter() {
       if let Some(qn) = qn {
@@ -261,25 +239,6 @@ impl TLC {
          self.hints.get_mut(h).unwrap().push(fa.clone());
       }
       self.rules.push(TypeRule::Forall(fa));
-      match &inference {
-         Inference::Imply(lt,rt) => {
-            let lmt = lt.mask();
-            if lmt == Type::Any {
-            } else if let Some(fs) = self.foralls_index.get_mut(&lmt) {
-               fs.push(fi);
-            } else {
-               self.foralls_index.insert(lmt, vec![fi]);
-            }
-
-            let rmt = rt.mask();
-            if rmt == Type::Any {
-            } else if let Some(fs) = self.foralls_rev_index.get_mut(&rmt) {
-               fs.push(fi);
-            } else {
-               self.foralls_rev_index.insert(rmt, vec![fi]);
-            }
-         }, _ => ()
-      }
    }
    pub fn query_foralls(&self, tt: &Type) -> Vec<usize> {
       if let Some(fs) = self.foralls_index.get(&tt.mask()) {
@@ -442,9 +401,8 @@ impl TLC {
       for rule in self.rules.clone().iter() { match rule {
          TypeRule::Forall(fr) => { if self.strict && !fr.axiom {
             if let Some(ref rhs) = fr.rhs {
-            if let Inference::Type(ref tt) = fr.inference {
-               self.typeck(&Some(fr.scope), *rhs, Some(tt.clone()))?;
-            }}
+               self.typeck(&Some(fr.scope), *rhs, Some(fr.inference.clone()))?;
+            }
          }},
          TypeRule::Typedef(tr) => {
             for td in tr.definition.iter() { match td {
@@ -819,133 +777,7 @@ impl TLC {
       }
    }
    pub fn cast_normal(&mut self, l_only: &Type, span: &Span) -> Result<Type,Error> {
-      let mut num_collector = Vec::new();
-      let mut den_collector = Vec::new();
-      let (numerator,denominator) = l_only.project_ratio();
-
-      for mut n in numerator.into_iter() {
-         if self.is_normal(&n) {
-            num_collector.push(n);
-            continue;
-         }
-
-         if let Type::Named(nn,nns) = &n {
-            let mut nns = nns.clone();
-            for ni in 0..nns.len() {
-            if !self.is_normal(&nns[ni]) {
-               nns[ni] = self.cast_normal(&nns[ni], span)?;
-            }}
-            n = Type::Named(nn.clone(),nns);
-         }
-
-         if let Type::Named(nn,_nns) = &n {
-         if let Some(ti) = self.typedef_index.get(nn) {
-         if let TypeRule::Typedef(tr) = &self.rules[*ti] {
-         let it = tr.implies.clone().unwrap_or(Type::Any);
-         if self.is_normal(&it) {
-            let (inum, iden) = it.project_ratio();
-            num_collector.append(&mut inum.clone());
-            den_collector.append(&mut iden.clone());
-            continue;
-         }}}}
-
-         let mnt = n.mask();
-         let mut found = false;
-         if let Some(ref tis) = self.foralls_index.get(&mnt) {
-         for ti in tis.iter() { if !found {
-         if let TypeRule::Forall(ForallRule { inference:Inference::Imply(lt,rt), .. }) = &self.rules[*ti].clone() {
-            let mut subs = Vec::new();
-            let nt = Type::nored_implies(self, &mut subs, &lt, &n);
-            if !nt.is_bottom() {
-            if let Ok(subs) = Type::compile_subs(&subs) {
-               let srt = rt.substitute(&subs);
-               if self.is_normal(&srt) {
-                  let (inum, iden) = srt.project_ratio();
-                  num_collector.append(&mut inum.clone());
-                  den_collector.append(&mut iden.clone());
-                  found = true;
-                  continue;
-               }
-            }}
-         }}}}
-         if found { continue; }
-
-         return Err(Error {
-            kind: "Type Error".to_string(),
-            rule: format!("could not normalize numerator type atom in cast {:?}", n),
-            span: span.clone(),
-         })
-      }
-
-      for mut d in denominator.into_iter() {
-         if self.is_normal(&d) {
-            den_collector.push(d.clone());
-            continue;
-         }
-
-         if let Type::Named(dn,dns) = &d {
-            let mut dns = dns.clone();
-            for ni in 0..dns.len() {
-            if !self.is_normal(&dns[ni]) {
-               dns[ni] = self.cast_normal(&dns[ni], span)?;
-            }}
-            d = Type::Named(dn.clone(),dns);
-         }
-
-         if let Type::Named(dn,_dns) = &d {
-         if let Some(ti) = self.typedef_index.get(dn) {
-         if let TypeRule::Typedef(tr) = &self.rules[*ti] {
-         let it = tr.implies.clone().unwrap_or(Type::Any);
-         if self.is_normal(&it) {
-            let (inum, iden) = it.project_ratio();
-            num_collector.append(&mut iden.clone());
-            den_collector.append(&mut inum.clone());
-            continue;
-         }}}}
-
-         let mdt = d.mask();
-         let mut found = false;
-         if let Some(tis) = self.foralls_index.get(&mdt) {
-         for ti in tis.iter() { if !found {
-         if let TypeRule::Forall(ForallRule { inference:Inference::Imply(lt,rt), .. }) = &self.rules[*ti] {
-            let mut subs = Vec::new();
-            let nt = Type::nored_implies(self, &mut subs, &lt, &d);
-            if !nt.is_bottom() {
-            if let Ok(subs) = Type::compile_subs(&subs) {
-               let srt = rt.substitute(&subs);
-               if self.is_normal(&srt) {
-                  let (inum, iden) = srt.project_ratio();
-                  num_collector.append(&mut iden.clone());
-                  den_collector.append(&mut inum.clone());
-                  found = true;
-                  continue;
-               }
-            }}
-         }}}}
-         if found { continue; }
-
-         return Err(Error {
-            kind: "Type Error".to_string(),
-            rule: format!("could not normalize denominator type atom in cast {:?}", d),
-            span: span.clone(),
-         })
-      }
-
-      let num = if num_collector.len()==0 {
-         Type::Tuple(Vec::new())
-      } else if num_collector.len()==1 {
-         num_collector[0].clone()
-      } else {
-         Type::Product(num_collector)
-      };
-      Ok(if den_collector.len()==0 {
-         num
-      } else if den_collector.len()==1 {
-         Type::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
-      } else {
-         let den = Type::Product(den_collector);
-         Type::Ratio(Box::new(num),Box::new(den))
-      })
+      unimplemented!("Reimplement cast normalization")
    }
    pub fn implies(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
       self.arrow_implies(lt,rt,span,InArrow::No)
@@ -966,133 +798,7 @@ impl TLC {
       }
    }
    pub fn cast_into_kind(&mut self, mut l_only: Type, into: &Type, span: &Span) -> Result<Type,Error> {
-
-      while !self.is_normal(&l_only) { //kindof(Into) is normal, so all casts must go through normalization
-         l_only = self.cast_normal(&l_only, span)?;
-      }
-
-      if !self.is_normal(&into) {
-         let mut num_collector = Vec::new();
-         let mut den_collector = Vec::new();
-         let (numerator,denominator) = into.project_ratio();
-
-         for n in numerator.iter() {
-            //if Into part is normal, do nothing
-            if self.is_normal(n) {
-               num_collector.push(n.clone());
-               continue;
-            }
-
-            //if Into part implies a normal, replace part with implied
-            if let Type::Named(nn,_nns) = n {
-            if let Some(ti) = self.typedef_index.get(nn) {
-            if let TypeRule::Typedef(tr) = &self.rules[*ti] {
-            let it = tr.implies.clone().unwrap_or(Type::Any);
-            if self.is_normal(&it) {
-               let (inum, iden) = it.project_ratio();
-               num_collector.append(&mut inum.clone());
-               den_collector.append(&mut iden.clone());
-               continue;
-            }}}}
-
-            //if Into part can cast into normal, replace part with cast
-            let mnt = n.mask();
-            let mut found = false;
-            if let Some(tis) = self.foralls_index.get(&mnt) {
-            for ti in tis.iter() { if !found {
-            if let TypeRule::Forall(ForallRule { inference:Inference::Imply(lt,rt), .. }) = &self.rules[*ti] {
-               let mut subs = Vec::new();
-               let nt = Type::nored_implies(self, &mut subs, &lt, &n);
-               if !nt.is_bottom() {
-               if let Ok(subs) = Type::compile_subs(&subs) {
-                  let srt = rt.substitute(&subs);
-                  if self.is_normal(&srt) {
-                     let (inum, iden) = srt.project_ratio();
-                     num_collector.append(&mut inum.clone());
-                     den_collector.append(&mut iden.clone());
-                     found = true;
-                     continue;
-                  }
-               }}
-            }}}}
-            if found { continue; }
-
-            return Err(Error {
-               kind: "Type Error".to_string(),
-               rule: format!("could not denormalize numerator type atom in cast {:?}", n),
-               span: span.clone(),
-            })
-         }
-
-         for d in denominator.iter() {
-            //if Into part is normal, do nothing
-            if self.is_normal(d) {
-               den_collector.push(d.clone());
-               continue;
-            }
-
-            //if Into part implies a normal, replace part with implied
-            if let Type::Named(dn,_dns) = d {
-            if let Some(ti) = self.typedef_index.get(dn) {
-            if let TypeRule::Typedef(tr) = &self.rules[*ti] {
-            let it = tr.implies.clone().unwrap_or(Type::Any);
-            if self.is_normal(&it) {
-               let (inum, iden) = it.project_ratio();
-               num_collector.append(&mut iden.clone());
-               den_collector.append(&mut inum.clone());
-               continue;
-            }}}}
-
-            //if Into part can cast into normal, replace part with cast
-            let mnt = d.mask();
-            let mut found = false;
-            if let Some(tis) = self.foralls_index.get(&mnt) {
-            for ti in tis.iter() { if !found {
-            if let TypeRule::Forall(ForallRule { inference:Inference::Imply(lt,rt), .. }) = &self.rules[*ti] {
-               let mut subs = Vec::new();
-               let nt = Type::nored_implies(self, &mut subs, &lt, &d);
-               if !nt.is_bottom() {
-               if let Ok(subs) = Type::compile_subs(&subs) {
-                  let srt = rt.substitute(&subs);
-                  if self.is_normal(&srt) {
-                     let (inum, iden) = srt.project_ratio();
-                     num_collector.append(&mut iden.clone());
-                     den_collector.append(&mut inum.clone());
-                     found = true;
-                     continue;
-                  }
-               }}
-            }}}}
-            if found { continue; }
-
-            return Err(Error {
-               kind: "Type Error".to_string(),
-               rule: format!("could not denormalize denominator type atom in cast {:?}", d),
-               span: span.clone(),
-            })
-         }
-
-         let num = if num_collector.len()==0 {
-            Type::Tuple(Vec::new())
-         } else if num_collector.len()==1 {
-            num_collector[0].clone()
-         } else {
-            Type::Product(num_collector)
-         };
-         let b_only = if den_collector.len()==0 {
-            num
-         } else if den_collector.len()==1 {
-            Type::Ratio(Box::new(num),Box::new(den_collector[0].clone()))
-         } else {
-            let den = Type::Product(den_collector);
-            Type::Ratio(Box::new(num),Box::new(den))
-         };
-
-         self.implies(&l_only, &b_only, span)?;
-         l_only = into.clone();
-      }
-
-      Ok(l_only)
+      unimplemented!("Reimplement cast into kind")
    }
 
    pub fn are_terms_equal(&self, lt: TermId, rt: TermId) -> bool {
@@ -1523,9 +1229,8 @@ impl TLC {
                   if let Some(rhs) = fa.rhs {
                   if let Ok(_) = self.typeck_hint(&mut HashMap::new(), &Some(fa_scope), &h, lhs, rhs) {
                      //at this point rule must have matched, so apply it
-                     if let Inference::Type(fat) = fa_inference {
-                        self.rows[t.id].typ = self.rows[t.id].typ.and( &fat );
-                     }
+                     let fat = fa_inference;
+                     self.rows[t.id].typ = self.rows[t.id].typ.and( &fat );
                      matched = true;
                   }}
                };
