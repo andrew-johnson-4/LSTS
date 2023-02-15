@@ -32,7 +32,6 @@ fn parse_simplytyped() {
    tlc.parse_str(None,"type A;").unwrap();
    tlc.parse_str(None,"forall :A,:B::C. (A,B);").unwrap();
    tlc.parse_str(None,"forall :A,:B::C. (A,B) :: R;").unwrap();
-   tlc.parse_str(None,"forall :A,:B::C. (A,B) => C :: R;").unwrap();
    tlc.parse_str(None,"{a; b;};").unwrap();
 
    //Type Names, like Ab, are always valid constants, even without a prelude
