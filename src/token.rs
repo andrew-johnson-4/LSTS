@@ -300,27 +300,6 @@ impl TokenReader {
 
       while c > 0 {
       match c {
-         b'{' if self.in_literal => {
-            if self.in_literal_expression == 0 {
-               self.column += 1;
-               self.in_literal_expression += 1;
-            } else {
-               let t = Token {
-                  symbol: Symbol::LeftBrace,
-                  span: self.span_of(1)
-               };
-               self.column += 1;
-               return Ok(Some(t));
-            }
-         },
-         b'}' if self.in_literal => {
-            unimplemented!("close literal expression")
-         },
-         _ if self.in_literal && self.in_literal_expression==0 => {
-            unimplemented!("take LiteralV")
-         },
-         b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
-         b'\n' => { self.column = 1; self.line += 1; self.offset_start += 1; c = self.takec(); },
          b'f' if self.peekc()==b'"' => {
             self.takec();
             self.in_literal = true;
@@ -332,6 +311,58 @@ impl TokenReader {
                span: span,
             }));
          },
+         b'"' if self.in_literal && self.in_literal_expression==0 => {
+            self.in_literal = false;
+            let span = self.span_of(1);
+            self.column += 1;
+            return Ok(Some(Token {
+               symbol: Symbol::Literal,
+               span: span,
+            }));
+         },
+         b'{' if self.in_literal => {
+            if self.in_literal_expression == 0 {
+               self.column += 1;
+               self.in_literal_expression += 1;
+               c = self.takec();
+            } else {
+               let t = Token {
+                  symbol: Symbol::LeftBrace,
+                  span: self.span_of(1)
+               };
+               self.column += 1;
+               return Ok(Some(t));
+            }
+         },
+         b'}' if self.in_literal => {
+            self.in_literal_expression -= 1;
+            if self.in_literal_expression == 0 {
+               self.column += 1;
+               c = self.takec();
+            } else {
+               let t = Token {
+                  symbol: Symbol::RightBrace,
+                  span: self.span_of(1)
+               };
+               self.column += 1;
+               return Ok(Some(t));
+            }
+         },
+         _ if self.in_literal && self.in_literal_expression==0 => {
+            let mut token = vec![c];
+            while self.peekc()!=b'{' && self.peekc()!=b'}' {
+               token.push(self.takec());
+            }
+            let litv = std::str::from_utf8(&token).unwrap();
+            let t = Token {
+               symbol: Symbol::LiteralV(litv.to_string()),
+               span: self.span_of(token.len())
+            };
+            self.column += token.len();
+            return Ok(Some(t));
+         },
+         b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
+         b'\n' => { self.column = 1; self.line += 1; self.offset_start += 1; c = self.takec(); },
          b'A'..=b'Z' => {
             let mut token = vec![c];
             while is_ident_char(self.peekc()) {
@@ -588,7 +619,7 @@ pub fn tokenize_bytes<'a>(tlc: &mut TLC, source_name: &str, buf: Vec<u8>) -> Res
       offset_start: 0, line: 1, column: 1,
       buf:buf, buf_at:0, peek: None,
       values: tlc.value_regexes.clone(),
-      in_literal: true,
+      in_literal: false,
       in_literal_expression: 0,
    })
 }
