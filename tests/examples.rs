@@ -43,3 +43,12 @@ fn right_triangles() {
    let val = tlc.reduce_file(None, "examples/right_triangles.tlc").unwrap();
    assert_eq!( val, Constant::parse(&tlc, "((6,8,10))").unwrap() );
 }
+
+#[test]
+fn string_formatting() {
+   println!("current directory: {:?}", std::env::current_dir().unwrap());
+
+   let mut tlc = TLC::new();
+   let val = tlc.reduce_file(None, "examples/string_formatting.tlc").unwrap();
+   assert_eq!( val, Constant::parse(&tlc, "((6,8,10))").unwrap() );
+}

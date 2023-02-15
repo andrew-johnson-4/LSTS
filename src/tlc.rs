@@ -22,8 +22,6 @@ pub struct TLC {
    pub type_is_normal: HashSet<Type>,
    pub kind_is_normal: HashSet<Kind>,
    pub typedef_index: HashMap<String,usize>,
-   pub foralls_index: HashMap<Type,Vec<usize>>,
-   pub foralls_rev_index: HashMap<Type,Vec<usize>>,
    pub term_kind: Kind,
    pub constant_kind: Kind,
    pub nil_type: Type,
@@ -139,8 +137,6 @@ impl TLC {
          regexes: Vec::new(),
          hints: HashMap::new(),
          constructors: HashMap::new(),
-         foralls_index: HashMap::new(),
-         foralls_rev_index: HashMap::new(),
          typedef_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
@@ -239,11 +235,6 @@ impl TLC {
          self.hints.get_mut(h).unwrap().push(fa.clone());
       }
       self.rules.push(TypeRule::Forall(fa));
-   }
-   pub fn query_foralls(&self, tt: &Type) -> Vec<usize> {
-      if let Some(fs) = self.foralls_index.get(&tt.mask()) {
-         fs.clone()
-      } else { Vec::new() }
    }
    pub fn project_kinded(&self, k: &Kind, t: &Type) -> Type {
       let ts = match t {
@@ -1378,8 +1369,6 @@ impl TLC {
       let type_is_normal_l = self.type_is_normal.clone();
       let kind_is_normal_l = self.kind_is_normal.clone();
       let typedef_index_l = self.typedef_index.clone();
-      let foralls_index_l = self.foralls_index.clone();
-      let foralls_rev_index_l = self.foralls_rev_index.clone();
 
       let r = self.import_str(globals, src);
 
@@ -1396,8 +1385,6 @@ impl TLC {
       self.type_is_normal = type_is_normal_l;
       self.kind_is_normal = kind_is_normal_l;
       self.typedef_index = typedef_index_l;
-      self.foralls_index = foralls_index_l;
-      self.foralls_rev_index = foralls_rev_index_l;
 
       r?; Ok(())
    }
