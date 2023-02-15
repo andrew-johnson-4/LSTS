@@ -815,6 +815,9 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
                Some(Symbol::LeftBrace) => {
                   pop_is("value-term", tokens, &vec![Symbol::LeftBrace])?;
                   let x = ll1_expr_term(tlc, scope, tokens)?;
+                  let st = Type::Named("String".to_string(),Vec::new());
+                  let t = Term::As(x, st);
+                  let x = tlc.push_term(t, &span);
                   pop_is("value-term", tokens, &vec![Symbol::RightBrace])?;
                   lps.push(Literal::Expr(x));
                },
