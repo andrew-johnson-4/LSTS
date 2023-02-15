@@ -207,6 +207,8 @@ pub struct TokenReader {
    buf: Vec<u8>,
    buf_at: usize,
    values: Vec<(String,Regex)>,
+   in_literal: bool,
+   in_literal_expression: usize,
 }
 impl TokenReader {
    pub fn peek(&mut self) -> Result<Option<Token>,Error> {
@@ -299,6 +301,17 @@ impl TokenReader {
       match c {
          b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
          b'\n' => { self.column = 1; self.line += 1; self.offset_start += 1; c = self.takec(); },
+         b'f' if self.peekc()==b'"' => {
+            self.takec();
+            self.in_literal = true;
+            self.in_literal_expression = 0;
+            let span = self.span_of(2);
+            self.column += 2;
+            return Ok(Some(Token {
+               symbol: Symbol::Literal,
+               span: span,
+            }));
+         },
          b'A'..=b'Z' => {
             let mut token = vec![c];
             while is_ident_char(self.peekc()) {
@@ -555,5 +568,7 @@ pub fn tokenize_bytes<'a>(tlc: &mut TLC, source_name: &str, buf: Vec<u8>) -> Res
       offset_start: 0, line: 1, column: 1,
       buf:buf, buf_at:0, peek: None,
       values: tlc.value_regexes.clone(),
+      in_literal: true,
+      in_literal_expression: 0,
    })
 }
