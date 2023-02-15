@@ -297,8 +297,28 @@ impl TokenReader {
       }
 
       let mut c = self.takec();
+
       while c > 0 {
       match c {
+         b'{' if self.in_literal => {
+            if self.in_literal_expression == 0 {
+               self.column += 1;
+               self.in_literal_expression += 1;
+            } else {
+               let t = Token {
+                  symbol: Symbol::LeftBrace,
+                  span: self.span_of(1)
+               };
+               self.column += 1;
+               return Ok(Some(t));
+            }
+         },
+         b'}' if self.in_literal => {
+            unimplemented!("close literal expression")
+         },
+         _ if self.in_literal && self.in_literal_expression==0 => {
+            unimplemented!("take LiteralV")
+         },
          b' ' => { self.column += 1; self.offset_start += 1; c = self.takec(); },
          b'\n' => { self.column = 1; self.line += 1; self.offset_start += 1; c = self.takec(); },
          b'f' if self.peekc()==b'"' => {
