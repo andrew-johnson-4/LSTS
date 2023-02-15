@@ -321,41 +321,31 @@ impl TokenReader {
             }));
          },
          b'{' if self.in_literal => {
-            if self.in_literal_expression == 0 {
-               self.column += 1;
-               self.in_literal_expression += 1;
-               c = self.takec();
-            } else {
-               let t = Token {
-                  symbol: Symbol::LeftBrace,
-                  span: self.span_of(1)
-               };
-               self.column += 1;
-               return Ok(Some(t));
-            }
+            self.in_literal_expression += 1;
+            let t = Token {
+               symbol: Symbol::LeftBrace,
+               span: self.span_of(1)
+            };
+            self.column += 1;
+            return Ok(Some(t));
          },
          b'}' if self.in_literal => {
             self.in_literal_expression -= 1;
-            if self.in_literal_expression == 0 {
-               self.column += 1;
-               c = self.takec();
-            } else {
-               let t = Token {
-                  symbol: Symbol::RightBrace,
-                  span: self.span_of(1)
-               };
-               self.column += 1;
-               return Ok(Some(t));
-            }
+            let t = Token {
+               symbol: Symbol::RightBrace,
+               span: self.span_of(1)
+            };
+            self.column += 1;
+            return Ok(Some(t));
          },
          _ if self.in_literal && self.in_literal_expression==0 => {
             let mut token = vec![c];
-            while self.peekc()!=b'{' && self.peekc()!=b'}' {
+            while self.peekc()!=b'{' && self.peekc()!=b'}' && self.peekc()!=b'"' {
                token.push(self.takec());
             }
             let litv = std::str::from_utf8(&token).unwrap();
             let t = Token {
-               symbol: Symbol::LiteralV(litv.to_string()),
+               symbol: Symbol::LiteralS(litv.to_string(),"".to_string()),
                span: self.span_of(token.len())
             };
             self.column += token.len();

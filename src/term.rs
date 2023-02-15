@@ -27,6 +27,7 @@ pub struct LetTerm {
 
 #[derive(Clone)]
 pub enum Literal {
+   Expr(TermId),
    Var(String),
    Char(char,String),
    String(String,String),
@@ -35,6 +36,7 @@ pub enum Literal {
 impl std::fmt::Debug for Literal {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
       match self {
+         Literal::Expr(e)          => write!(f, "{{$e}}"),
          Literal::Var(v)          => write!(f, "{}", v),
          Literal::Char(c,v)       => write!(f, "'{}'{}", c, v),
          Literal::String(s,v)     => write!(f, r#""{}"{}"#, s, v),

@@ -801,21 +801,30 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
          tokens.take_symbol()?;
          return Ok(tlc.push_term(Term::Value(x.clone()), &span))
       } else if let Symbol::Fail = sym {
-         tokens.take_symbol()?;
+         pop_is("value-term", tokens, &vec![Symbol::Fail])?;
          return Ok(tlc.push_term(Term::Fail, &span))
       } else if let Symbol::Literal = sym {
-         tokens.take_symbol()?;
+         pop_is("value-term", tokens, &vec![Symbol::Literal])?;
          let mut lps = Vec::new();
          loop {
             match tokens.peek_symbol()? {
-               Some(Symbol::LiteralV(n)) => lps.push(Literal::Var(n.clone())),
-               Some(Symbol::LiteralC(c,n)) => lps.push(Literal::Char(c,n.clone())),
-               Some(Symbol::LiteralS(s,n)) => lps.push(Literal::String(s.clone(),n.clone())),
-               Some(Symbol::LiteralR(r,n)) => lps.push(Literal::Range(r.clone(),n.clone())),
-               _ => { break; },
+               Some(Symbol::LiteralS(n,v)) => {
+                  tokens.take_symbol()?; 
+                  lps.push(Literal::String(n.clone(),v.clone()));
+               },
+               Some(Symbol::LeftBrace) => {
+                  pop_is("value-term", tokens, &vec![Symbol::LeftBrace])?;
+                  let x = ll1_expr_term(tlc, scope, tokens)?;
+                  pop_is("value-term", tokens, &vec![Symbol::RightBrace])?;
+                  lps.push(Literal::Expr(x));
+               },
+               Some(Symbol::Literal) => { break; },
+               _ => {
+                  pop_is("value-term", tokens, &vec![Symbol::LeftBrace, Symbol::LiteralV("f'l'".to_string())])?;
+               },
             };
-            tokens.take_symbol()?; 
          }
+         pop_is("value-term", tokens, &vec![Symbol::Literal])?;
          return Ok(tlc.push_term(Term::Literal(lps), &span))
       } else if let Symbol::Typename(cname) = sym {
          tokens.take_symbol()?;

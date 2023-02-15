@@ -4,6 +4,7 @@
 type U64                  = /^[0-9]+$/;
 type U8                   = /^[0-9]+$/;
 type Boolean: U8          = False | True;
+type String               = /^["][^"]*["]$/;
 
 //Implicit Operators
 extern $"+"(x: U64, y: U64): U64 = $"+:(U64,U64)->U64";
