@@ -25,26 +25,6 @@ pub struct LetTerm {
    pub rkind: Kind,
 }
 
-#[derive(Clone)]
-pub enum Literal {
-   Expr(TermId),
-   Var(String),
-   Char(char,String),
-   String(String,String),
-   Range(Vec<(char,char)>,String),
-}
-impl std::fmt::Debug for Literal {
-   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      match self {
-         Literal::Expr(e)          => write!(f, "{{$e}}"),
-         Literal::Var(v)          => write!(f, "{}", v),
-         Literal::Char(c,v)       => write!(f, "'{}'{}", c, v),
-         Literal::String(s,v)     => write!(f, r#""{}"{}"#, s, v),
-         Literal::Range(_r,v)     => write!(f, "[?]{}", v),
-      }
-   }
-}
-
 //does not implement Clone because terms are uniquely identified by their id
 #[derive(Clone)] //clone seems to be needed to deconflict mutable borrows :(
 pub enum Term {
@@ -65,7 +45,6 @@ pub enum Term {
       Vec<(ScopeId,TermId,TermId)>, //lhs's here don't need scopes because these bindings can't be polymorphic
    ),
    Fail, //indicates that Term does not return a Value
-   Literal(Vec<Literal>),
 }
 
 impl Term {

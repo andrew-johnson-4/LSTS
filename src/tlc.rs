@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::collections::{HashSet,HashMap};
 use regex::Regex;
-use crate::term::{Term,TermId,Literal};
+use crate::term::{Term,TermId};
 use crate::scope::{Scope,ScopeId};
 use crate::typ::{Type,InArrow};
 use crate::kind::Kind;
@@ -161,9 +161,6 @@ impl TLC {
    }
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
-         Term::Literal(lps) => format!("literal {}",
-            lps.iter().map(|lp| format!("{:?}",lp)).collect::<Vec<String>>().join(" ")
-         ),
          Term::Project(v) => format!("π{:?}", v),
          Term::Fail => format!("fail"),
          Term::Ident(x) => format!("{}", x),
@@ -736,7 +733,6 @@ impl TLC {
    pub fn untyped(&mut self, t: TermId) {
       self.rows[t.id].typ = self.bottom_type.clone();
       match self.rows[t.id].term.clone() {
-         Term::Literal(_lp) => (),
          Term::Ident(_x) => (),
          Term::Value(_x) => (),
          Term::App(g,x) => { self.untyped(g); self.untyped(x); },
@@ -969,7 +965,6 @@ impl TLC {
       match (self.rows[t.id].term.clone(),tt) {
          (Term::Value(_),_) => {
          },
-         (Term::Literal(_),_) => {},
          (Term::Ident(tn),_) => {
             if tn != "_" {
                self.scopes[scope.id].children.push((
@@ -1073,13 +1068,6 @@ impl TLC {
       //TODO: remove clone here because it is bloating the memory footprint
       match self.rows[t.id].term.clone() {
          Term::Project(_v) => panic!("Projection Constants cannot be Values at {:?}", &self.rows[t.id].span),
-         Term::Literal(lps) => {
-            for lp in lps.iter() {
-            if let Literal::Expr(le) = lp {
-               self.typeck(scope, *le, None)?;
-            }}
-            self.rows[t.id].typ = implied.clone().unwrap_or(Type::Named("String".to_string(),Vec::new()));
-         },
          Term::Fail => {
             self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
          },

@@ -1,5 +1,5 @@
 use std::collections::{HashMap};
-use crate::term::{Term,TermId,LetTerm,Literal};
+use crate::term::{Term,TermId,LetTerm};
 use crate::debug::{Error};
 use crate::token::{Symbol,TokenReader,span_of,tokenize_file};
 use crate::scope::{ScopeId,Scope};
@@ -808,9 +808,14 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
          let mut lps = Vec::new();
          loop {
             match tokens.peek_symbol()? {
-               Some(Symbol::LiteralS(n,v)) => {
+               Some(Symbol::LiteralS(v,_vn)) => {
                   tokens.take_symbol()?; 
-                  lps.push(Literal::String(n.clone(),v.clone()));
+                  let v = Term::Value(format!("\"{}\"",v));
+                  let v = tlc.push_term(v, &span);
+                  let st = Type::Named("String".to_string(),Vec::new());
+                  let t = Term::Ascript(v, st);
+                  let x = tlc.push_term(t, &span);
+                  lps.push(x);
                },
                Some(Symbol::LeftBrace) => {
                   pop_is("value-term", tokens, &vec![Symbol::LeftBrace])?;
@@ -819,7 +824,7 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
                   let t = Term::As(x, st);
                   let x = tlc.push_term(t, &span);
                   pop_is("value-term", tokens, &vec![Symbol::RightBrace])?;
-                  lps.push(Literal::Expr(x));
+                  lps.push(x);
                },
                Some(Symbol::Literal) => { break; },
                _ => {
@@ -828,7 +833,7 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
             };
          }
          pop_is("value-term", tokens, &vec![Symbol::Literal])?;
-         return Ok(tlc.push_term(Term::Literal(lps), &span))
+         return Ok(tlc.push_term(Term::Tuple(lps), &span))
       } else if let Symbol::Typename(cname) = sym {
          tokens.take_symbol()?;
          let mut kvs = Vec::new();

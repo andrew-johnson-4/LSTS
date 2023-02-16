@@ -38,7 +38,7 @@ pub enum Type {
 
 impl Type {
    pub fn datatype(&self) -> String {
-      let dts = vec!["U8","U64","Unit"];
+      let dts = vec!["U8","U64","Unit","String"];
       match self {
          Type::Tuple(_) => "Tuple".to_string(),
          Type::HTuple(_,_) => "Tuple".to_string(),
