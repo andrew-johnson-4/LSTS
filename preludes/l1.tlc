@@ -33,3 +33,7 @@ let $"^"(x: U64, n: U64): U64 = if n==0 then 1
                            else x*((x*x)^((n-1)/2));
 
 let .flatmap(iterable: U64[], f: (U64)->(T[])): T[]; //no body for now, must rewrite term to use
+
+extern .join(xs: String[]): String = $".join(String[])->String";
+extern .join(xs: String[],c: String): String = $".join(String[],String)->String";
+let .join(xs: X[],c: String): String = (for x:X in xs yield (x as String)).join(c);
