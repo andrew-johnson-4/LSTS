@@ -4,6 +4,7 @@
 type U64                  = /^[0-9]+$/;
 type U8                   = /^[0-9]+$/;
 type Boolean: U8          = False | True;
+type String               = /^["][^"]*["]$/;
 
 //Implicit Operators
 extern $"+"(x: U64, y: U64): U64 = $"+:(U64,U64)->U64";
@@ -23,6 +24,8 @@ extern not(b:U8): U8 = $"not:(U8)->U8";
 extern $"&&"(a:U8, b:U8): U8 = $"&&:(U8,U8)->U8";
 extern $"||"(a:U8, b:U8): U8 = $"||:(U8,U8)->U8";
 
+extern $"as"(x:U64): String = $"as:(U64)->String";
+
 extern range(to: U64): U64[] = $"range:(U64)->U64[]";
 extern range(from: U64, to: U64): U64[] = $"range:(U64,U64)->U64[]";
 extern range(from: U64, to: U64, step: U64): U64[] = $"range:(U64,U64,U64)->U64[]";
@@ -32,3 +35,8 @@ let $"^"(x: U64, n: U64): U64 = if n==0 then 1
                            else x*((x*x)^((n-1)/2));
 
 let .flatmap(iterable: U64[], f: (U64)->(T[])): T[]; //no body for now, must rewrite term to use
+
+extern .join(xs: String[]): String = $".join(String[])->String";
+extern .join(xs: String[],c: String): String = $".join(String[],String)->String";
+
+let .join(xs: U64[],c: String): String = (for x:U64 in xs yield (x as String)).join(c);

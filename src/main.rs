@@ -1,5 +1,6 @@
 use std::env;
 use lsts::tlc::TLC;
+use lsts::token::{tokenize_file,Symbol};
 use gag::Gag;
 
 fn main() {
@@ -28,6 +29,26 @@ fn main() {
          } else if let Ok(v) = r {
             println!("{:?}", v);
          }
+      }
+   } else if command=="tokenize" {
+      for fp in args.iter() {
+         println!("Tokenizing: {}", fp);
+         let mut tks = tokenize_file(&mut tlc, fp).expect("Could not read file during tokenization");
+         loop {
+         match tks.take() {
+            Ok(Some(tok)) if tok.symbol==Symbol::EOF => {
+               println!("{:?}", tok.symbol);
+               break;
+            },
+            Ok(Some(tok)) => {
+               println!("{:?}", tok.symbol);
+            },
+            Ok(None) => { break; },
+            Err(msg) => {
+               eprintln!("{:?}", msg);
+               break;
+            }
+         }}
       }
    } else if command=="parse" {
       for fp in args.iter() {

@@ -1,5 +1,5 @@
 use std::collections::{HashMap};
-use crate::term::{Term,TermId,LetTerm,Literal};
+use crate::term::{Term,TermId,LetTerm};
 use crate::debug::{Error};
 use crate::token::{Symbol,TokenReader,span_of,tokenize_file};
 use crate::scope::{ScopeId,Scope};
@@ -801,22 +801,47 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
          tokens.take_symbol()?;
          return Ok(tlc.push_term(Term::Value(x.clone()), &span))
       } else if let Symbol::Fail = sym {
-         tokens.take_symbol()?;
+         pop_is("value-term", tokens, &vec![Symbol::Fail])?;
          return Ok(tlc.push_term(Term::Fail, &span))
       } else if let Symbol::Literal = sym {
-         tokens.take_symbol()?;
+         pop_is("value-term", tokens, &vec![Symbol::Literal])?;
          let mut lps = Vec::new();
          loop {
             match tokens.peek_symbol()? {
-               Some(Symbol::LiteralV(n)) => lps.push(Literal::Var(n.clone())),
-               Some(Symbol::LiteralC(c,n)) => lps.push(Literal::Char(c,n.clone())),
-               Some(Symbol::LiteralS(s,n)) => lps.push(Literal::String(s.clone(),n.clone())),
-               Some(Symbol::LiteralR(r,n)) => lps.push(Literal::Range(r.clone(),n.clone())),
-               _ => { break; },
+               Some(Symbol::LiteralS(v,_vn)) => {
+                  tokens.take_symbol()?; 
+                  let v = Term::Value(format!("\"{}\"",v));
+                  let v = tlc.push_term(v, &span);
+                  let st = Type::Named("String".to_string(),Vec::new());
+                  let t = Term::Ascript(v, st);
+                  let x = tlc.push_term(t, &span);
+                  lps.push(x);
+               },
+               Some(Symbol::LeftBrace) => {
+                  pop_is("value-term", tokens, &vec![Symbol::LeftBrace])?;
+                  let x = ll1_expr_term(tlc, scope, tokens)?;
+                  let st = Type::Named("String".to_string(),Vec::new());
+                  let t = Term::As(x, st);
+                  let x = tlc.push_term(t, &span);
+                  pop_is("value-term", tokens, &vec![Symbol::RightBrace])?;
+                  lps.push(x);
+               },
+               Some(Symbol::Literal) => { break; },
+               _ => {
+                  pop_is("value-term", tokens, &vec![Symbol::LeftBrace, Symbol::LiteralV("f'l'".to_string())])?;
+               },
             };
-            tokens.take_symbol()?; 
          }
-         return Ok(tlc.push_term(Term::Literal(lps), &span))
+         pop_is("value-term", tokens, &vec![Symbol::Literal])?;
+         if lps.len() == 1 {
+            return Ok(lps[0].clone())
+         } else {
+            let tes = tlc.push_term(Term::Tuple(lps), &span);
+            let ps = tlc.push_term(Term::Tuple(vec![tes]), &span);
+            let join = tlc.push_term(Term::Ident(".join".to_string()),&span);
+            let joined = tlc.push_term(Term::App(join,ps),&span);
+            return Ok(joined)
+         }
       } else if let Symbol::Typename(cname) = sym {
          tokens.take_symbol()?;
          let mut kvs = Vec::new();

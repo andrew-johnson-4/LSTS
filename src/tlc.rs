@@ -22,8 +22,6 @@ pub struct TLC {
    pub type_is_normal: HashSet<Type>,
    pub kind_is_normal: HashSet<Kind>,
    pub typedef_index: HashMap<String,usize>,
-   pub foralls_index: HashMap<Type,Vec<usize>>,
-   pub foralls_rev_index: HashMap<Type,Vec<usize>>,
    pub term_kind: Kind,
    pub constant_kind: Kind,
    pub nil_type: Type,
@@ -139,8 +137,6 @@ impl TLC {
          regexes: Vec::new(),
          hints: HashMap::new(),
          constructors: HashMap::new(),
-         foralls_index: HashMap::new(),
-         foralls_rev_index: HashMap::new(),
          typedef_index: HashMap::new(),
          type_is_normal: HashSet::new(),
          kind_is_normal: HashSet::new(),
@@ -165,9 +161,6 @@ impl TLC {
    }
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
-         Term::Literal(lps) => format!("literal {}",
-            lps.iter().map(|lp| format!("{:?}",lp)).collect::<Vec<String>>().join(" ")
-         ),
          Term::Project(v) => format!("π{:?}", v),
          Term::Fail => format!("fail"),
          Term::Ident(x) => format!("{}", x),
@@ -239,11 +232,6 @@ impl TLC {
          self.hints.get_mut(h).unwrap().push(fa.clone());
       }
       self.rules.push(TypeRule::Forall(fa));
-   }
-   pub fn query_foralls(&self, tt: &Type) -> Vec<usize> {
-      if let Some(fs) = self.foralls_index.get(&tt.mask()) {
-         fs.clone()
-      } else { Vec::new() }
    }
    pub fn project_kinded(&self, k: &Kind, t: &Type) -> Type {
       let ts = match t {
@@ -745,7 +733,6 @@ impl TLC {
    pub fn untyped(&mut self, t: TermId) {
       self.rows[t.id].typ = self.bottom_type.clone();
       match self.rows[t.id].term.clone() {
-         Term::Literal(_lp) => (),
          Term::Ident(_x) => (),
          Term::Value(_x) => (),
          Term::App(g,x) => { self.untyped(g); self.untyped(x); },
@@ -978,7 +965,6 @@ impl TLC {
       match (self.rows[t.id].term.clone(),tt) {
          (Term::Value(_),_) => {
          },
-         (Term::Literal(_),_) => {},
          (Term::Ident(tn),_) => {
             if tn != "_" {
                self.scopes[scope.id].children.push((
@@ -1082,9 +1068,6 @@ impl TLC {
       //TODO: remove clone here because it is bloating the memory footprint
       match self.rows[t.id].term.clone() {
          Term::Project(_v) => panic!("Projection Constants cannot be Values at {:?}", &self.rows[t.id].span),
-         Term::Literal(_lp) => {
-            self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
-         },
          Term::Fail => {
             self.rows[t.id].typ = implied.clone().unwrap_or(Type::Any);
          },
@@ -1104,14 +1087,10 @@ impl TLC {
                self.typeck(&Some(*clr), *r, implied.clone())?;
                rts.push( self.rows[r.id].typ.clone() );
             }
-            println!("MGU of branches:");
             let mut rt = rts[0].clone();
-            println!("\t{:?}", rts[0]);
             for ri in 1..rts.len() {
-               println!("\t{:?}", rts[ri]);
                rt = rt.most_general_unifier(&rts[ri]);
             }
-            println!("\t= {:?}", rt);
             self.rows[t.id].typ = rt;
          },
          Term::Block(sid,es) => {
@@ -1254,64 +1233,7 @@ impl TLC {
          },
          Term::App(g,x) => {
             self.typeck(scope, x, None)?;
-            let mut eager_match = false;
-            if let Term::Ident(gi) = &self.rows[g.id].term {
-            if gi == ".length" {
-            if match &self.rows[x.id].typ { Type::Tuple(_) | Type::HTuple(_,_) => true, _ => false } {
-               self.rows[t.id].typ = Type::Named("Integer".to_string(),Vec::new());
-	       self.rows[g.id].typ = Type::Arrow(
-                  Box::new(self.rows[x.id].typ.clone()),
-                  Box::new(self.rows[t.id].typ.clone()),
-               );
-               eager_match = true;
-            }}}
-            if let Term::Ident(gi) = &self.rows[g.id].term {
-            if gi == "pos" {
-            if let Type::Tuple(xs) = &self.rows[x.id].typ {
-            if xs.len() == 1 {
-            if let Type::Tuple(xs) = &xs[0] {
-               let heterogenous = xs.iter().all(|xt| match xt { Type::Tuple(_)=>true, _=>false });
-               //prefer heterogenous tuples because they hold strictly more information than homogenous tuples
-               self.rows[t.id].typ = if heterogenous {
-                  let mut xts = Vec::new();
-                  for xt in xs.iter() {
-                  if let Type::Tuple(xt) = xt.clone() {
-                     xts.extend(xt);
-                  }}
-                  Type::Tuple(xts)
-               } else {
-                  let mut bt = Type::Any;
-                  let mut bi = Some(0);
-                  for xt in xs.iter() {
-                     if let Type::Tuple(xts) = xt {
-                        if let Some(biv) = bi { bi = Some(biv + 1); }
-                        for xxt in xts.iter() {
-                           bt = bt.most_general_unifier(xxt);
-                        }
-                     } else if let Type::HTuple(xtb,xti) = xt {
-                        bt = bt.most_general_unifier(xtb);
-                        match (bi,xti) {
-                           (Some(biv),Constant::Literal(xti)) => {
-                              bi = Some(biv + str::parse::<usize>(xti).unwrap());
-                           },
-                           _ => { bi = None; }
-                        }
-                     }
-                  }
-                  if let Some(bi) = bi {
-                     Type::HTuple(Box::new(bt),Constant::Literal(format!("{}",bi)))
-                  } else {
-                     Type::HTuple(Box::new(bt),Constant::Tuple(Vec::new()))
-                  }
-               };
-	       self.rows[g.id].typ = Type::Arrow(
-                  Box::new(self.rows[x.id].typ.clone()),
-                  Box::new(self.rows[t.id].typ.clone()),
-               );
-               eager_match = true;
-            }}}}}
-            if eager_match {
-            } else if let Term::Project(Constant::Literal(cs)) = &self.rows[g.id].term {
+            if let Term::Project(Constant::Literal(cs)) = &self.rows[g.id].term {
                let pi = str::parse::<usize>(&cs).unwrap();
                if let Type::Tuple(gts) = self.rows[x.id].typ.clone() {
                   self.rows[g.id].typ = gts[pi].clone();
@@ -1378,8 +1300,6 @@ impl TLC {
       let type_is_normal_l = self.type_is_normal.clone();
       let kind_is_normal_l = self.kind_is_normal.clone();
       let typedef_index_l = self.typedef_index.clone();
-      let foralls_index_l = self.foralls_index.clone();
-      let foralls_rev_index_l = self.foralls_rev_index.clone();
 
       let r = self.import_str(globals, src);
 
@@ -1396,8 +1316,6 @@ impl TLC {
       self.type_is_normal = type_is_normal_l;
       self.kind_is_normal = kind_is_normal_l;
       self.typedef_index = typedef_index_l;
-      self.foralls_index = foralls_index_l;
-      self.foralls_rev_index = foralls_rev_index_l;
 
       r?; Ok(())
    }
