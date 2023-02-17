@@ -24,6 +24,8 @@ extern not(b:U8): U8 = $"not:(U8)->U8";
 extern $"&&"(a:U8, b:U8): U8 = $"&&:(U8,U8)->U8";
 extern $"||"(a:U8, b:U8): U8 = $"||:(U8,U8)->U8";
 
+extern $"as"(x:U64): String = $"as:(U64)->String";
+
 extern range(to: U64): U64[] = $"range:(U64)->U64[]";
 extern range(from: U64, to: U64): U64[] = $"range:(U64,U64)->U64[]";
 extern range(from: U64, to: U64, step: U64): U64[] = $"range:(U64,U64,U64)->U64[]";

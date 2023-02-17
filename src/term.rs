@@ -170,6 +170,35 @@ impl Term {
       }}
       Ok(mangled)
    }
+   pub fn apply_fn(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>,
+                   preamble: &mut Vec<Expression<Span>>, f: &str, ps: &Vec<TermId>,
+                   ft: Type, rt: Type, span: Span) -> Result<Expression<Span>,Error> {
+      let sc = if let Some(sc) = scope { *sc } else { panic!("Term::apply_fn, function application has no scope at {}", f) };
+      let mut args = Vec::new();
+      for p in ps.iter() {
+         args.push(Term::compile_expr(tlc, scope, funcs, preamble, *p)?);
+      }
+      if let Some(binding) = Scope::lookup_term(tlc, sc, f, &ft) {
+         if let Term::Let(lb) = &tlc.rows[binding.id].term {
+            if lb.parameters.len() > 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
+            if lb.is_extern {
+               let body = lb.body.expect(&format!("extern function body must be a mangled symbol: {}", f));
+               if let Term::Ident(mangled) = &tlc.rows[body.id].term {
+                  let e = Expression::apply(&mangled, args, span);
+                  let e = e.typed(&rt.datatype());
+                  Ok(e)
+               } else { unreachable!("extern function body must be a mangled symbol: {}", f) }
+            } else {
+               let mangled = Term::compile_function(tlc, scope, funcs, binding)?;
+               let e = Expression::apply(&mangled, args, span);
+               let e = e.typed(&rt.datatype());
+               Ok(e)
+            }
+         } else {
+            panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
+         }
+      } else { panic!("Term::reduce, failed to lookup function {}: {:?}", f, &ft) }
+   }
    pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>,
                        preamble: &mut Vec<Expression<Span>>, term: TermId) -> Result<Expression<Span>,Error> {
       let tt = tlc.rows[term.id].typ.clone();
@@ -204,6 +233,16 @@ impl Term {
          Term::Ascript(t,_tt) => {
             //TODO gradual type
             Term::compile_expr(tlc, scope, funcs, preamble, *t)
+         },
+         Term::As(t,tt) => {
+            let bt = tlc.rows[t.id].typ.clone();
+            if !Type::implies(tlc, &bt, tt).is_bottom() {
+               Term::compile_expr(tlc, scope, funcs, preamble, *t)
+            } else {
+               let bts = Type::Tuple(vec![bt]);
+               let gt = Type::Arrow(Box::new(bts), Box::new(tt.clone()));
+               Term::apply_fn(tlc, scope, funcs, preamble, "as", &vec![*t], gt, tt.clone(), span)
+            }
          },
          Term::Block(sc,es) => {
             if es.len()==0 {
@@ -274,30 +313,7 @@ impl Term {
                   Ok(flatmap)
                },
                (Term::Ident(gv),Term::Tuple(ps)) => {
-                  let mut args = Vec::new();
-                  for p in ps.iter() {
-                     args.push(Term::compile_expr(tlc, scope, funcs, preamble, *p)?);
-                  }
-                  if let Some(binding) = Scope::lookup_term(tlc, sc, gv, &tlc.rows[g.id].typ) {
-                     if let Term::Let(lb) = &tlc.rows[binding.id].term {
-                        if lb.parameters.len() > 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
-                        if lb.is_extern {
-                           let body = lb.body.expect(&format!("extern function body must be a mangled symbol: {}", gv));
-                           if let Term::Ident(mangled) = &tlc.rows[body.id].term {
-                              let e = Expression::apply(&mangled, args, span);
-                              let e = e.typed(&tt.datatype());
-                              Ok(e)
-                           } else { unreachable!("extern function body must be a mangled symbol: {}", gv) }
-                        } else {
-                           let mangled = Term::compile_function(tlc, scope, funcs, binding)?;
-                           let e = Expression::apply(&mangled, args, span);
-                           let e = e.typed(&tt.datatype());
-                           Ok(e)
-                        }
-                     } else {
-                        panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
-                     }
-                  } else { panic!("Term::reduce, failed to lookup function {}: {:?}", gv, &tlc.rows[x.id].typ) }
+                  Term::apply_fn(tlc, scope, funcs, preamble, gv, ps, tlc.rows[g.id].typ.clone(), tt, span)
                },
                _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({})", tlc.print_term(*g), tlc.print_term(*x))
             }
