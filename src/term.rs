@@ -213,7 +213,15 @@ impl Term {
          Term::Tuple(ts) => {
             let mut tes = Vec::new();
             for te in ts.iter() {
-               let te = (Term::compile_expr(tlc, scope, funcs, preamble, *te)?).typed("Value");
+               let mut te = Term::compile_expr(tlc, scope, funcs, preamble, *te)?;
+               let mut type_is_value = false;
+               if let Some(tet) = te.typ().name {
+               if tet == "String" {
+                  type_is_value = true;
+               }}
+               if !type_is_value {
+                  te = te.typed("Value");
+               }
                tes.push(te);
             }
             Ok(Expression::tuple(tes,span).typed("Value"))

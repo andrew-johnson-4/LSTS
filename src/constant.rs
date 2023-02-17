@@ -28,6 +28,7 @@ impl Constant {
          Tag::U8 => Constant::Literal(format!("{:?}",v)),
          Tag::U64 => Constant::Literal(format!("{:?}",v)),
          Tag::Tuple => Constant::Literal(format!("{:?}",v)),
+         Tag::String => Constant::Literal(format!("{:?}",v)),
          t => unimplemented!("Constant::from_value Tag: {:?}", t)
       }
    }

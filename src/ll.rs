@@ -833,7 +833,15 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
             };
          }
          pop_is("value-term", tokens, &vec![Symbol::Literal])?;
-         return Ok(tlc.push_term(Term::Tuple(lps), &span))
+         if lps.len() == 1 {
+            return Ok(lps[0].clone())
+         } else {
+            let tes = tlc.push_term(Term::Tuple(lps), &span);
+            let ps = tlc.push_term(Term::Tuple(vec![tes]), &span);
+            let join = tlc.push_term(Term::Ident(".join".to_string()),&span);
+            let joined = tlc.push_term(Term::App(join,ps),&span);
+            return Ok(joined)
+         }
       } else if let Symbol::Typename(cname) = sym {
          tokens.take_symbol()?;
          let mut kvs = Vec::new();
