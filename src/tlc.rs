@@ -669,8 +669,21 @@ impl TLC {
       }}
       ks
    }
-   pub fn make_scope(&mut self, c: ScopeId, subs: &HashMap<Type,Type>) -> ScopeId {
-      unimplemented!("make scope {}", c.id)
+   pub fn make_scope(&mut self, sc: ScopeId, subs: &HashMap<Type,Type>) -> ScopeId {
+      let scope = self.scopes[sc.id].clone();
+      let mut children = Vec::new();
+      for (c_n,c_k,c_t,c_b) in scope.children.iter() {
+         let c_t = c_t.substitute(subs);
+         let c_b = if let Some(c_b) = c_b {
+            let c_b = self.make_template(*c_b, subs);
+            Some(c_b)
+         } else { None };
+         children.push((c_n.clone(),c_k.clone(),c_t,c_b));
+      }
+      self.push_scope(Scope {
+         parent: scope.parent.clone(),
+         children: children,
+      })
    }
    pub fn make_template(&mut self, b: TermId, subs: &HashMap<Type,Type>) -> TermId {
       let span = self.rows[b.id].span.clone();
