@@ -199,7 +199,14 @@ impl Term {
             if lb.parameters.len() > 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
             let bt = lb.typeof_binding();
             if bt.is_open() {
-               unimplemented!("TODO: generate templated function, {}: {:?} as {:?}", lb.name, bt, ft)
+               let Some(lbt) = tlc.poly_bindings.get(&(lb.name.clone(),ft.clone()))
+               else { unreachable!("could not find template function {}: {:?}", lb.name, bt) };
+               let Term::Let(lbb) = &tlc.rows[lbt.id].term
+               else { unreachable!("template function must be let binding {}: {:?}", lb.name, bt) };
+               let mangled = Term::compile_function(tlc, scope, funcs, *lbt)?;
+               let e = Expression::apply(&mangled, args, span);
+               let e = e.typed(&rt.datatype());
+               Ok(e)
             } else if lb.is_extern {
                let body = lb.body.expect(&format!("extern function body must be a mangled symbol: {}", f));
                if let Term::Ident(mangled) = &tlc.rows[body.id].term {
