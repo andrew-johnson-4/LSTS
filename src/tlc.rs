@@ -13,7 +13,6 @@ use crate::ll::ll1_file;
 pub struct TLC {
    pub strict: bool,
    pub poly_bindings: HashMap<(String,Type),TermId>,
-   pub poly_visited: HashSet<(String,Type)>,
    pub rows: Vec<Row>,
    pub hints: HashMap<String,Vec<ForallRule>>,
    pub rules: Vec<TypeRule>,
@@ -136,7 +135,6 @@ impl TLC {
             untyped: true,
          }],
          poly_bindings: HashMap::new(),
-         poly_visited: HashSet::new(),
          rules: Vec::new(),
          scopes: Vec::new(),
          value_regexes: Vec::new(),
@@ -671,12 +669,33 @@ impl TLC {
       }}
       ks
    }
+   pub fn make_template(&mut self, b: TermId, subs: Vec<(Type,Type)>) -> TermId {
+      TermId{id:0}
+   }
+   pub fn visit(&mut self, vt: &Option<TermId>, tt: &Type) {
+      if let Some(vt) = vt {
+      if let Term::Let(ref lt) = self.rows[vt.id].term.clone() {
+      if let Some(ref b) = lt.body {
+         if self.poly_bindings.contains_key(&(lt.name.clone(),tt.clone())) {
+            return;
+         }
+         let bt = lt.typeof_binding();
+         if bt.is_open() {
+            let mut subs = Vec::new();
+            let merge = tt.subs_implication_unifier(&mut subs, &bt);
+            assert!(!merge.is_bottom());
+            let template = self.make_template(*b, subs);
+            self.poly_bindings.insert((lt.name.clone(),tt.clone()),template); 
+            unimplemented!("typeck template {}: {:?} as {:?}", lt.name, bt, tt)
+         }
+      }}}
+   }
    pub fn typeof_var(&mut self, scope: &Option<ScopeId>, v: &str, implied: &Option<Type>, span: &Span) -> Result<Type,Error> {
       if let Some(scope) = scope {
          let mut candidates = Vec::new();
          let mut matches = Vec::new();
          let ref sc = self.scopes[scope.id].clone();
-         for (tn,tkts,tt,_vt) in sc.children.iter() {
+         for (tn,tkts,tt,vt) in sc.children.iter() {
             if tn==v {
                //match variable binding if
                //1) binding is not an arrow
@@ -694,9 +713,11 @@ impl TLC {
                      let rt = Type::implies(self, &narrow_it, &tt);
                      if rt.is_bottom() { continue; }
                      matches.push(rt.clone());
+                     self.visit(vt, &rt);
                   }
                }} else {
                   matches.push(tt.clone());
+                  self.visit(vt, &tt);
                }
             }
          }
@@ -1312,7 +1333,6 @@ impl TLC {
       let kind_is_normal_l = self.kind_is_normal.clone();
       let typedef_index_l = self.typedef_index.clone();
       let poly_bindings_l = self.poly_bindings.clone();
-      let poly_visited_l = self.poly_visited.clone();
 
       let r = self.import_str(globals, src);
 
@@ -1330,7 +1350,6 @@ impl TLC {
       self.kind_is_normal = kind_is_normal_l;
       self.typedef_index = typedef_index_l;
       self.poly_bindings = poly_bindings_l;
-      self.poly_visited = poly_visited_l;
 
       r?; Ok(())
    }
