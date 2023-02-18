@@ -91,7 +91,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
    let mut t = "".to_string();
    let mut normal = false;
    let mut implies = None;
-   let mut tiks: Vec<(String,Option<Type>,Kind)> = Vec::new();
+   let mut tiks: Vec<(String,Type,Kind)> = Vec::new();
    let mut typedef = Vec::new();
    let mut kinds = tlc.term_kind.clone();
    let mut props: Vec<Invariant> = Vec::new();
@@ -120,7 +120,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
          }
 
          let mut typ = "".to_string();
-         let mut inf = None;
+         let mut inf = Type::Any;
          let mut kind = tlc.term_kind.clone();
 
          if let Some(Symbol::Typename(tn)) = tokens.peek_symbol()? {
@@ -129,7 +129,7 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
          }
          if peek_is(tokens, &vec![Symbol::Ascript]) {
             pop_is("type-stmt", tokens, &vec![Symbol::Ascript])?;
-            inf = Some( ll1_type(tlc, scope, tokens)? );
+            inf = ll1_type(tlc, scope, tokens)?;
          }
          if peek_is(tokens, &vec![Symbol::KAscript]) {
             pop_is("type-stmt", tokens, &vec![Symbol::KAscript])?;
@@ -292,7 +292,7 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    let span = span_of(tokens);
    let mut axiom = false;
    let mut name: Option<String> = None;
-   let mut quants: Vec<(Option<String>,Option<Type>,Kind)> = Vec::new();
+   let mut quants: Vec<(String,Type,Kind)> = Vec::new();
    let inference;
    let mut term = None;
    let mut kind = tlc.term_kind.clone();
@@ -315,33 +315,31 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
          pop_is("forall-stmt", tokens, &vec![Symbol::Comma])?;
       }
 
-      let mut ident = None;
-      let mut typ = None;
+      let mut ident = "_".to_string();
+      let mut typ = tlc.nil_type.clone();
       let mut kind = tlc.term_kind.clone();
 
       if let Some(Symbol::Ident(v)) = tokens.peek_symbol()? {
          tokens.take_symbol()?;
-         ident = Some(v.clone());
+         ident = v.clone();
       }
       if peek_is(tokens, &vec![Symbol::Ascript]) {
          pop_is("forall-stmt", tokens, &vec![Symbol::Ascript])?;
-         typ = Some( ll1_type(tlc, scope, tokens)? );
+         typ = ll1_type(tlc, scope, tokens)?;
       }
       if peek_is(tokens, &vec![Symbol::KAscript]) {
          pop_is("forall-stmt", tokens, &vec![Symbol::KAscript])?;
          kind = ll1_kind(tlc, tokens)?;
       }
 
-      if let Some(tt) = &typ {
-      if tt.is_constant() {
+      if typ.is_constant() {
          kind = tlc.constant_kind.clone();
-      }};
+      };
       quants.push((ident, typ, kind));
    }
 
    pop_is("forall-stmt", tokens, &vec![Symbol::Dot])?;
-   let inf1 = ll1_type(tlc, scope, tokens)?;
-   inference = Some(inf1);
+   inference = ll1_type(tlc, scope, tokens)?;
 
    if peek_is(tokens, &vec![Symbol::Is]) {
       pop_is("forall-stmt", tokens, &vec![Symbol::Is])?;
@@ -358,35 +356,12 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
       axiom,
       name,
       quants.clone(),
-      inference.expect("TLC Grammar Error in rule [forall_stmt], expected inference"),
+      inference,
       term,
       kind,
       span.clone(),
    );
-   if let Some(t) = term {
-      let mut children = Vec::new();
-      for (i,t,_k) in quants.iter() {
-         let vn = i.clone().unwrap_or("_".to_string());
-         let vt = tlc.push_term(Term::Ident(vn.clone()), &span);
-         tlc.untyped(vt);
-         children.push((vn.clone(), HashMap::new(), t.clone().unwrap_or(tlc.bottom_type.clone()), Some(vt)));
-      }
-      let sid = tlc.push_scope(Scope {
-         parent: Some(scope),
-         children: children,
-      });
-      Ok(tlc.push_term(Term::Let(LetTerm {
-         is_extern: false,
-         scope: sid,
-         name: "".to_string(),
-         parameters: vec![quants.clone()],
-         body: Some(t),
-         rtype: Type::Any,
-         rkind: tlc.term_kind.clone(),
-      }), &span))
-   } else {
-      Ok(TermId { id:0 })
-   }
+   Ok(TermId { id:0 })
 }
 
 pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
@@ -406,7 +381,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
       unreachable!("let-stmt")
    };
    if dot { ident = format!(".{}", ident); };
-   let mut pars: Vec<Vec<(Option<String>,Option<Type>,Kind)>> = Vec::new();
+   let mut pars: Vec<Vec<(String,Type,Kind)>> = Vec::new();
    let mut rt = tlc.nil_type.clone();
    let mut rk = tlc.term_kind.clone();
    let mut t: Option<TermId> = None;
@@ -418,27 +393,26 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
          while peek_is(tokens, &vec![Symbol::Comma]) {
             pop_is("let-stmt", tokens, &vec![Symbol::Comma])?;
          }
-         let mut ident = None;
-         let mut typ = None;
+         let mut ident = "_".to_string();
+         let mut typ = tlc.nil_type.clone();
          let mut kind = tlc.term_kind.clone();
          if let Some(Symbol::Ident(id)) = tokens.peek_symbol()? {
             tokens.take_symbol()?;
-            ident = Some(id.clone());
+            ident = id.clone();
          }
          if peek_is(tokens, &vec![Symbol::Ascript]) {
             pop_is("let-stmt", tokens, &vec![Symbol::Ascript])?;
          }
          if !peek_is(tokens, &vec![Symbol::RightParen,Symbol::Comma,Symbol::KAscript]) {
-            typ = Some(ll1_type(tlc, scope, tokens)?);
+            typ = ll1_type(tlc, scope, tokens)?;
          }
          if peek_is(tokens, &vec![Symbol::KAscript]) {
             pop_is("let-stmt", tokens, &vec![Symbol::KAscript])?;
             kind = ll1_kind(tlc, tokens)?;
          }
-         if let Some(tt) = &typ {
-         if tt.is_constant() {
+         if typ.is_constant() {
             kind = tlc.constant_kind.clone();
-         }};
+         };
          itks.push((ident,typ,kind));
       }
       pop_is("let-stmt", tokens, &vec![Symbol::RightParen])?;
@@ -464,9 +438,9 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
    }
    for itks in pars.iter() {
       for (i,t,k) in itks.iter() {
-         let t = t.clone().unwrap_or(tlc.bottom_type.clone()).normalize();
+         let t = t.normalize();
          let mut ks = HashMap::new(); ks.insert(t.clone(),k.clone());
-         let vn = i.clone().unwrap_or("_".to_string());
+         let vn = i.clone();
          let vt = tlc.push_term(Term::Ident(vn.clone()),&span);
          tlc.untyped(vt);
          tlc.scopes[inner_scope.id].children.push(
@@ -479,7 +453,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
    for itks in pars.iter().rev() {
       let mut ps = Vec::new();
       for (_i,t,k) in itks.iter() {
-         let t = t.clone().unwrap_or(tlc.bottom_type.clone()).normalize();
+         let t = t.normalize();
          fkts.insert(t.clone(),k.clone());
          ps.push(t.clone());
       }
@@ -613,7 +587,7 @@ pub fn ll1_for_term(tlc: &mut TLC, mut scope: ScopeId, tokens: &mut TokenReader)
    match s {
       Comb::CFor(sc,lhs,iterable) => {
          let arr_scope = tlc.new_scope(Some(*sc));
-         let arr = tlc.push_term(Term::Arrow( Some(arr_scope), *lhs, None, rhs ),&span);
+         let arr = tlc.push_term(Term::Arrow(arr_scope, *lhs, None, rhs ),&span);
          let mut children = tlc.scopes[arr_scope.id].children.clone();
          Term::scope_of_lhs_impl(tlc, &mut children, *lhs);
          tlc.scopes[arr_scope.id].children = children;

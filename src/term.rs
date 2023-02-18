@@ -19,10 +19,26 @@ pub struct LetTerm {
    pub is_extern: bool,
    pub scope: ScopeId,
    pub name: String,
-   pub parameters: Vec<Vec<(Option<String>,Option<Type>,Kind)>>,
+   pub parameters: Vec<Vec<(String,Type,Kind)>>,
    pub body: Option<TermId>,
    pub rtype: Type,
    pub rkind: Kind,
+}
+impl LetTerm {
+   pub fn typeof_binding(&self) -> Type {
+      let mut rtype = self.rtype.clone();
+      for curr in self.parameters.iter().rev() {
+         let mut ps = Vec::new();
+         for (_,p,_) in curr.iter() {
+            ps.push(p.clone());
+         }
+         rtype = Type::Arrow(
+            Box::new(Type::Tuple(ps)),
+            Box::new(rtype)
+         );
+      }
+      rtype
+   }
 }
 
 //does not implement Clone because terms are uniquely identified by their id
@@ -31,7 +47,7 @@ pub enum Term {
    Ident(String),
    Value(String),
    Project(Constant),
-   Arrow(Option<ScopeId>,TermId,Option<Type>,TermId),
+   Arrow(ScopeId,TermId,Option<Type>,TermId),
    App(TermId,TermId),
    Let(LetTerm),
    Tuple(Vec<TermId>),
@@ -128,10 +144,10 @@ impl Term {
          for ps in lt.parameters.iter() {
             name += "(";
             for (ai,args) in ps.iter().enumerate() {
-            if let Some(at) = args.1.clone() {
+               let at = args.1.clone();
                if ai > 0 { name += ","; }
                name += &format!("{:?}", at);
-            }}
+            }
             name += ")->";
          }
          name += &format!("{:?}", lt.rtype);
@@ -146,8 +162,8 @@ impl Term {
          if lt.parameters.len()==0 { unimplemented!("Term::compile_function valued let binding") }
          if lt.parameters.len()>1 { unimplemented!("Term::compile_function curried let binding") }
          for args in lt.parameters[0].iter() {
-            let name = if let Some(n) = args.0.clone() { n } else { unimplemented!("Term::compile_function parameters must be named") };
-            let typ = if let Some(t) = args.1.clone() { t } else { unimplemented!("Term::compile_function parameters must be typed") };
+            let name = args.0.clone();
+            let typ = args.1.clone();
             let dt = typ.datatype();
             let term = Scope::lookup_term(tlc, lt.scope, &name, &typ).expect("Term::compile_function parameter not found in scope");
             l1_args.push(( term.id, ast::Type::nominal(&dt) ));
@@ -181,7 +197,17 @@ impl Term {
       if let Some(binding) = Scope::lookup_term(tlc, sc, f, &ft) {
          if let Term::Let(lb) = &tlc.rows[binding.id].term {
             if lb.parameters.len() > 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
-            if lb.is_extern {
+            let bt = lb.typeof_binding();
+            if bt.is_open() {
+               let Some(lbt) = tlc.poly_bindings.get(&(lb.name.clone(),ft.clone()))
+               else { unreachable!("could not find template function {}: {:?}", lb.name, bt) };
+               let Term::Let(lbb) = &tlc.rows[lbt.id].term
+               else { unreachable!("template function must be let binding {}: {:?}", lb.name, bt) };
+               let mangled = Term::compile_function(tlc, scope, funcs, *lbt)?;
+               let e = Expression::apply(&mangled, args, span);
+               let e = e.typed(&rt.datatype());
+               Ok(e)
+            } else if lb.is_extern {
                let body = lb.body.expect(&format!("extern function body must be a mangled symbol: {}", f));
                if let Term::Ident(mangled) = &tlc.rows[body.id].term {
                   let e = Expression::apply(&mangled, args, span);
@@ -290,9 +316,9 @@ impl Term {
                   if fvalue.len()==0 {
                      let (_true_scope,_true_lhs,true_rhs) = mlrs[0];
                      let map_iterable = Term::compile_expr(tlc, &Some(sc), funcs, preamble, ps[0])?;
-                     let map_lhs = Term::compile_lhs(tlc, asc.expect("map_lhs expected a scope on left hand side"), lhs)?;
-                     let map_yield = Term::compile_expr(tlc, &asc, funcs, preamble, true_rhs)?;
-                     let map_guard = Term::compile_expr(tlc, &asc, funcs, preamble, *mcond)?;
+                     let map_lhs = Term::compile_lhs(tlc, asc, lhs)?;
+                     let map_yield = Term::compile_expr(tlc, &Some(asc), funcs, preamble, true_rhs)?;
+                     let map_guard = Term::compile_expr(tlc, &Some(asc), funcs, preamble, *mcond)?;
                      let map_ti = TIPart::expression(Expression::pattern(
                         map_guard, vec![(
                            LHSPart::literal("1"),
@@ -309,8 +335,8 @@ impl Term {
                      return Ok(flatmap)
                   }} }} }} }}
                   let map_iterable = Term::compile_expr(tlc, &Some(sc), funcs, preamble, ps[0])?;
-                  let map_lhs = Term::compile_lhs(tlc, asc.expect("map_lhs expected a scope on left hand side"), lhs)?;
-                  let map_yield = Term::compile_expr(tlc, &asc, funcs, preamble, rhs)?;
+                  let map_lhs = Term::compile_lhs(tlc, asc, lhs)?;
+                  let map_yield = Term::compile_expr(tlc, &Some(asc), funcs, preamble, rhs)?;
                   let map = Expression::map(
                      map_lhs,
                      map_iterable.typed("Value"),
