@@ -610,7 +610,7 @@ pub fn ll1_for_term(tlc: &mut TLC, mut scope: ScopeId, tokens: &mut TokenReader)
    match s {
       Comb::CFor(sc,lhs,iterable) => {
          let arr_scope = tlc.new_scope(Some(*sc));
-         let arr = tlc.push_term(Term::Arrow( Some(arr_scope), *lhs, None, rhs ),&span);
+         let arr = tlc.push_term(Term::Arrow(arr_scope, *lhs, None, rhs ),&span);
          let mut children = tlc.scopes[arr_scope.id].children.clone();
          Term::scope_of_lhs_impl(tlc, &mut children, *lhs);
          tlc.scopes[arr_scope.id].children = children;

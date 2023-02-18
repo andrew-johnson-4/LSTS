@@ -47,7 +47,7 @@ pub enum Term {
    Ident(String),
    Value(String),
    Project(Constant),
-   Arrow(Option<ScopeId>,TermId,Option<Type>,TermId),
+   Arrow(ScopeId,TermId,Option<Type>,TermId),
    App(TermId,TermId),
    Let(LetTerm),
    Tuple(Vec<TermId>),
@@ -306,9 +306,9 @@ impl Term {
                   if fvalue.len()==0 {
                      let (_true_scope,_true_lhs,true_rhs) = mlrs[0];
                      let map_iterable = Term::compile_expr(tlc, &Some(sc), funcs, preamble, ps[0])?;
-                     let map_lhs = Term::compile_lhs(tlc, asc.expect("map_lhs expected a scope on left hand side"), lhs)?;
-                     let map_yield = Term::compile_expr(tlc, &asc, funcs, preamble, true_rhs)?;
-                     let map_guard = Term::compile_expr(tlc, &asc, funcs, preamble, *mcond)?;
+                     let map_lhs = Term::compile_lhs(tlc, asc, lhs)?;
+                     let map_yield = Term::compile_expr(tlc, &Some(asc), funcs, preamble, true_rhs)?;
+                     let map_guard = Term::compile_expr(tlc, &Some(asc), funcs, preamble, *mcond)?;
                      let map_ti = TIPart::expression(Expression::pattern(
                         map_guard, vec![(
                            LHSPart::literal("1"),
@@ -325,8 +325,8 @@ impl Term {
                      return Ok(flatmap)
                   }} }} }} }}
                   let map_iterable = Term::compile_expr(tlc, &Some(sc), funcs, preamble, ps[0])?;
-                  let map_lhs = Term::compile_lhs(tlc, asc.expect("map_lhs expected a scope on left hand side"), lhs)?;
-                  let map_yield = Term::compile_expr(tlc, &asc, funcs, preamble, rhs)?;
+                  let map_lhs = Term::compile_lhs(tlc, asc, lhs)?;
+                  let map_yield = Term::compile_expr(tlc, &Some(asc), funcs, preamble, rhs)?;
                   let map = Expression::map(
                      map_lhs,
                      map_iterable.typed("Value"),

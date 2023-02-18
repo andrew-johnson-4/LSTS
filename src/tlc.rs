@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::collections::{HashSet,HashMap};
 use regex::Regex;
-use crate::term::{Term,TermId};
+use crate::term::{Term,TermId,LetTerm};
 use crate::scope::{Scope,ScopeId};
 use crate::typ::{Type,InArrow};
 use crate::kind::Kind;
@@ -669,32 +669,118 @@ impl TLC {
       }}
       ks
    }
-   pub fn make_template(&mut self, b: TermId, subs: Vec<(Type,Type)>) -> TermId {
-      TermId{id:0}
+   pub fn make_scope(&mut self, c: ScopeId, subs: &HashMap<Type,Type>) -> ScopeId {
+      unimplemented!("make scope {}", c.id)
    }
-   pub fn visit(&mut self, vt: &Option<TermId>, tt: &Type) {
+   pub fn make_template(&mut self, b: TermId, subs: &HashMap<Type,Type>) -> TermId {
+      let span = self.rows[b.id].span.clone();
+      match &self.rows[b.id].term.clone() {
+         Term::Let(lt) => {
+            let mut pars = Vec::new();
+            for curr in lt.parameters.iter() {
+               let mut ps = Vec::new();
+               for (n,t,k) in curr.iter() {
+                  ps.push((n.clone(),t.substitute(subs),k.clone()));
+               }
+               pars.push(ps);
+            }
+            let body = if let Some(b) = lt.body {
+               Some(self.make_template(b, subs))
+            } else { None };
+            let scope = self.make_scope(lt.scope,subs);
+            self.push_term(Term::Let(LetTerm {
+               is_extern: lt.is_extern,
+               scope: scope,
+               name: lt.name.clone(),
+               parameters: pars,
+               body: body,
+               rtype: lt.rtype.substitute(subs),
+               rkind: lt.rkind.clone(),
+            }),&span)
+         },
+         Term::Ident(x) => { self.push_term(Term::Ident(x.clone()),&span) },
+         Term::Value(x) => { self.push_term(Term::Ident(x.clone()),&span) },
+         Term::App(g,x) => {
+            let g = self.make_template(*g,subs);
+            let x = self.make_template(*x,subs);
+            self.push_term(Term::App(g,x),&span)
+         },
+         Term::Arrow(sc,p,rt,b) => {
+            let sc = self.make_scope(*sc,subs);
+            let p = self.make_template(*p,subs);
+            let b = self.make_template(*b,subs);
+            let rt = if let Some(rt) = rt {
+               Some(rt.substitute(subs))
+            } else { None };
+            self.push_term(Term::Arrow(sc,p,rt,b),&span)
+         },
+         Term::Block(sid,es) => {
+            let sid = self.make_scope(*sid,subs);
+            let mut nes = Vec::new();
+            for e in es.iter() {
+               nes.push(self.make_template(*e,subs));
+            }
+            self.push_term(Term::Block(sid,nes),&span)
+         },
+         Term::Tuple(es) => {
+            let mut nes = Vec::new();
+            for e in es.iter() {
+               nes.push(self.make_template(*e,subs));
+            }
+            self.push_term(Term::Tuple(nes),&span)
+         },
+         Term::Ascript(x,tt) => {
+            let x = self.make_template(*x,subs);
+            let tt = tt.substitute(subs);
+            self.push_term(Term::Ascript(x,tt),&span)
+         },
+         Term::Constructor(cn,fts) => {
+            let mut nfts = Vec::new();
+            for (f,ft) in fts.iter() {
+               let ft = self.make_template(*ft,subs);
+               nfts.push((f.clone(),ft));
+            }
+            self.push_term(Term::Constructor(cn.clone(),nfts),&span)
+         },
+         Term::As(t,tt) => {
+            let t = self.make_template(*t,subs);
+            let tt = tt.substitute(subs);
+            self.push_term(Term::As(t,tt),&span)
+         },
+         _ => unimplemented!("Make template: {}", self.print_term(b))
+      }
+   }
+   pub fn visit(&mut self, scope: &Option<ScopeId>, vt: &Option<TermId>, tt: &Type) -> Result<(),Error> {
       if let Some(vt) = vt {
       if let Term::Let(ref lt) = self.rows[vt.id].term.clone() {
       if let Some(ref b) = lt.body {
          if self.poly_bindings.contains_key(&(lt.name.clone(),tt.clone())) {
-            return;
+            return Ok(());
          }
          let bt = lt.typeof_binding();
          if bt.is_open() {
             let mut subs = Vec::new();
             let merge = tt.subs_implication_unifier(&mut subs, &bt);
+            let subs = {
+               let mut hs = HashMap::new();
+               for (l,r) in subs.iter() {
+                  hs.insert(l.clone(),r.clone());
+               }
+               hs
+            };
             assert!(!merge.is_bottom());
-            let template = self.make_template(*b, subs);
-            self.poly_bindings.insert((lt.name.clone(),tt.clone()),template); 
-            unimplemented!("typeck template {}: {:?} as {:?}", lt.name, bt, tt)
+            let template = self.make_template(*vt, &subs);
+            self.poly_bindings.insert((lt.name.clone(),tt.clone()),template);
+            self.typeck(scope, template, None)?;
          }
       }}}
+      Ok(())
    }
    pub fn typeof_var(&mut self, scope: &Option<ScopeId>, v: &str, implied: &Option<Type>, span: &Span) -> Result<Type,Error> {
-      if let Some(scope) = scope {
+      if let Some(sc) = scope {
          let mut candidates = Vec::new();
          let mut matches = Vec::new();
-         let ref sc = self.scopes[scope.id].clone();
+         let ref sc = self.scopes[sc.id].clone();
          for (tn,tkts,tt,vt) in sc.children.iter() {
             if tn==v {
                //match variable binding if
@@ -713,11 +799,11 @@ impl TLC {
                      let rt = Type::implies(self, &narrow_it, &tt);
                      if rt.is_bottom() { continue; }
                      matches.push(rt.clone());
-                     self.visit(vt, &rt);
+                     self.visit(scope, vt, &rt)?;
                   }
                }} else {
                   matches.push(tt.clone());
-                  self.visit(vt, &tt);
+                  self.visit(scope, vt, &tt)?;
                }
             }
          }
@@ -1257,7 +1343,7 @@ impl TLC {
             }) }
          },
          Term::Arrow(ref sc,p,rt,b) => {
-            self.typeck(sc, b, rt)?;
+            self.typeck(&Some(*sc), b, rt)?;
             self.rows[t.id].typ = Type::Arrow(
                Box::new(self.rows[p.id].typ.clone()),
                Box::new(self.rows[b.id].typ.clone()),
