@@ -91,6 +91,19 @@ impl Type {
       }
       false
    }
+   pub fn is_open(&self) -> bool {
+      match self {
+         Type::Any => true,
+         Type::Named(tn,ts) => tn.chars().all(char::is_uppercase) || ts.iter().any(|tt| tt.is_open()),
+         Type::Arrow(p,b) => p.is_open() || b.is_open(),
+         Type::Ratio(p,b) => p.is_open() || b.is_open(),
+         Type::And(ts) => ts.iter().any(|tt| tt.is_open()),
+         Type::Tuple(ts) => ts.iter().any(|tt| tt.is_open()),
+         Type::Product(ts) => ts.iter().any(|tt| tt.is_open()),
+         Type::HTuple(bt,_ct) => bt.is_open(),
+         Type::Constant(_cv) => false,
+      }
+   }
    pub fn is_constant(&self) -> bool {
       match self {
          Type::Constant(_) => true,

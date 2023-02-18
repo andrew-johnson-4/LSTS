@@ -39,4 +39,4 @@ let .flatmap(iterable: U64[], f: (U64)->(T[])): T[]; //no body for now, must rew
 extern .join(xs: String[]): String = $".join(String[])->String";
 extern .join(xs: String[],c: String): String = $".join(String[],String)->String";
 
-let .join(xs: U64[],c: String): String = (for x:U64 in xs yield (x as String)).join(c);
+let .join(xs: T[],c: String): String = (for x:T in xs yield (x as String)).join(c);

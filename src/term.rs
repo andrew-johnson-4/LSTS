@@ -19,10 +19,26 @@ pub struct LetTerm {
    pub is_extern: bool,
    pub scope: ScopeId,
    pub name: String,
-   pub parameters: Vec<Vec<(Option<String>,Option<Type>,Kind)>>,
+   pub parameters: Vec<Vec<(String,Type,Kind)>>,
    pub body: Option<TermId>,
    pub rtype: Type,
    pub rkind: Kind,
+}
+impl LetTerm {
+   pub fn typeof_binding(&self) -> Type {
+      let mut rtype = self.rtype.clone();
+      for curr in self.parameters.iter().rev() {
+         let mut ps = Vec::new();
+         for (_,p,_) in curr.iter() {
+            ps.push(p.clone());
+         }
+         rtype = Type::Arrow(
+            Box::new(Type::Tuple(ps)),
+            Box::new(rtype)
+         );
+      }
+      rtype
+   }
 }
 
 //does not implement Clone because terms are uniquely identified by their id
@@ -128,10 +144,10 @@ impl Term {
          for ps in lt.parameters.iter() {
             name += "(";
             for (ai,args) in ps.iter().enumerate() {
-            if let Some(at) = args.1.clone() {
+               let at = args.1.clone();
                if ai > 0 { name += ","; }
                name += &format!("{:?}", at);
-            }}
+            }
             name += ")->";
          }
          name += &format!("{:?}", lt.rtype);
@@ -146,8 +162,8 @@ impl Term {
          if lt.parameters.len()==0 { unimplemented!("Term::compile_function valued let binding") }
          if lt.parameters.len()>1 { unimplemented!("Term::compile_function curried let binding") }
          for args in lt.parameters[0].iter() {
-            let name = if let Some(n) = args.0.clone() { n } else { unimplemented!("Term::compile_function parameters must be named") };
-            let typ = if let Some(t) = args.1.clone() { t } else { unimplemented!("Term::compile_function parameters must be typed") };
+            let name = args.0.clone();
+            let typ = args.1.clone();
             let dt = typ.datatype();
             let term = Scope::lookup_term(tlc, lt.scope, &name, &typ).expect("Term::compile_function parameter not found in scope");
             l1_args.push(( term.id, ast::Type::nominal(&dt) ));

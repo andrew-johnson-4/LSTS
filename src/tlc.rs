@@ -53,7 +53,7 @@ pub struct Invariant {
 pub struct TypedefRule {
    pub name: String,
    pub is_normal: bool,
-   pub parameters: Vec<(String,Option<Type>,Kind)>,
+   pub parameters: Vec<(String,Type,Kind)>,
    pub implies: Option<Type>,
    pub definition: Vec<TypedefBranch>, //having a definition implies that the term is a Valued type
    pub invariants: Vec<Invariant>,
@@ -65,7 +65,7 @@ pub struct TypedefRule {
 pub struct ForallRule {
    pub axiom: bool,
    pub name: Option<String>,
-   pub parameters: Vec<(Option<String>,Option<Type>,Kind)>,
+   pub parameters: Vec<(String,Type,Kind)>,
    pub scope: ScopeId,
    pub inference: Type,
    pub rhs: Option<TermId>,
@@ -94,7 +94,7 @@ impl std::fmt::Debug for TypeRule {
               if tr.parameters.len()==0 { "" } else { "<" },
               tr.parameters.iter().map(|(t,i,k)| format!("{:?}:{:?}::{:?}",
                     t.clone(),
-                    i.clone().unwrap_or(Type::Any),
+                    i.clone(),
                     k
               )).collect::<Vec<String>>().join(","),
               if tr.parameters.len()==0 { "" } else { ">" },
@@ -103,8 +103,8 @@ impl std::fmt::Debug for TypeRule {
            ),
            TypeRule::Forall(fr) => write!(f, "forall {}. {:?} :: {:?}", 
               fr.parameters.iter().map(|(i,t,k)| format!("{:?}:{:?}::{:?}",
-                    i.clone().unwrap_or("_".to_string()),
-                    t.clone().unwrap_or(Type::And(Vec::new())),
+                    i.clone(),
+                    t.clone(),
                     k,
               )).collect::<Vec<String>>().join(","),
               fr.inference,
@@ -200,16 +200,14 @@ impl TLC {
          _ => false,
       }
    }
-   pub fn push_forall(&mut self, globals: ScopeId, axiom: bool, name: Option<String>, quants: Vec<(Option<String>,Option<Type>,Kind)>,
+   pub fn push_forall(&mut self, globals: ScopeId, axiom: bool, name: Option<String>, quants: Vec<(String,Type,Kind)>,
                              inference: Type, term: Option<TermId>, kind: Kind, span: Span) {
       let mut fa_closed: Vec<(String,HashMap<Type,Kind>,Type,Option<TermId>)> = Vec::new();
       for (qn,qt,qk) in quants.iter() {
-      if let Some(qn) = qn {
-         let qt = if let Some(qt) = qt { qt.clone() } else { Type::Any };
          let mut fk = HashMap::new();
          fk.insert(qt.clone(), qk.clone());
          fa_closed.push( (qn.clone(), fk, qt.clone(), None) );
-      }}
+      }
       let fa_scope = self.push_scope(Scope {
          parent: Some(globals),
          children: fa_closed,
@@ -504,9 +502,7 @@ impl TLC {
             if let TypeRule::Typedef(tr) = &self.rules[*ti].clone() {
             if ts.len()==tr.parameters.len() {
                for (pt,(_bi,bt,_bk)) in std::iter::zip(ts,&tr.parameters) {
-                  if let Some(bt) = bt {
-                     self.implies(pt, &bt, span)?;
-                  }
+                  self.implies(pt, &bt, span)?;
                }
                return Ok(());
             }}}
@@ -1123,6 +1119,10 @@ impl TLC {
                //term is untyped
                self.untyped(t);
             } else if let Some(ref b) = lt.body {
+               let bt = lt.typeof_binding();
+               if bt.is_open() {
+                  unimplemented!("Expand polybindings of {}: {:?}", lt.name, bt);
+               }
                self.typeck(&Some(lt.scope), *b, Some(lt.rtype.clone()))?;
                self.rows[t.id].typ = self.nil_type.clone();
             } else {
