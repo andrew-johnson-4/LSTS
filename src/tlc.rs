@@ -12,6 +12,8 @@ use crate::ll::ll1_file;
 
 pub struct TLC {
    pub strict: bool,
+   pub poly_bindings: HashMap<(String,Type),TermId>,
+   pub poly_visited: HashSet<(String,Type)>,
    pub rows: Vec<Row>,
    pub hints: HashMap<String,Vec<ForallRule>>,
    pub rules: Vec<TypeRule>,
@@ -33,6 +35,7 @@ pub struct Row {
    pub typ: Type,
    pub kind: Kind,
    pub span: Span,
+   pub untyped: bool,
 }
 
 #[derive(Clone)]
@@ -130,7 +133,10 @@ impl TLC {
                linecol_start: (0,0),
                linecol_end: (0,0),
             },
+            untyped: true,
          }],
+         poly_bindings: HashMap::new(),
+         poly_visited: HashSet::new(),
          rules: Vec::new(),
          scopes: Vec::new(),
          value_regexes: Vec::new(),
@@ -419,6 +425,7 @@ impl TLC {
          typ: Type::Any,
          kind: self.term_kind.clone(),
          span: span.clone(),
+         untyped: false,
       });
       ti
    }
@@ -440,7 +447,7 @@ impl TLC {
    pub fn sanityck(&mut self) -> Result<(),Error> {
       for (ri,r) in self.rows.iter().enumerate() {
          if ri==0 { continue; } //first row is nullary and not sane
-         if !r.typ.is_concrete() {
+         if !r.untyped && !r.typ.is_concrete() {
             return Err(Error {
                kind: "Type Error".to_string(),
                rule: format!("inhabited type is not concrete: {:?} = typeof({})", r.typ, self.print_term(TermId{id:ri})),
@@ -727,7 +734,7 @@ impl TLC {
       }) }
    }
    pub fn untyped(&mut self, t: TermId) {
-      self.rows[t.id].typ = self.bottom_type.clone();
+      self.rows[t.id].untyped = true;
       match self.rows[t.id].term.clone() {
          Term::Ident(_x) => (),
          Term::Value(_x) => (),
@@ -755,6 +762,9 @@ impl TLC {
             for (_f,ft) in fts.iter() {
                self.untyped(*ft);
             }
+         },
+         Term::As(t,_tt) => {
+            self.untyped(t);
          },
          _ => panic!("TODO untype term: {}", self.print_term(t))
       }
@@ -1120,10 +1130,11 @@ impl TLC {
                self.untyped(t);
             } else if let Some(ref b) = lt.body {
                let bt = lt.typeof_binding();
-               if bt.is_open() {
-                  unimplemented!("Expand polybindings of {}: {:?}", lt.name, bt);
+               if !bt.is_open() {
+                  self.typeck(&Some(lt.scope), *b, Some(lt.rtype.clone()))?;
+               } else {
+                  self.untyped(t);
                }
-               self.typeck(&Some(lt.scope), *b, Some(lt.rtype.clone()))?;
                self.rows[t.id].typ = self.nil_type.clone();
             } else {
                self.rows[t.id].typ = self.nil_type.clone();
@@ -1300,6 +1311,8 @@ impl TLC {
       let type_is_normal_l = self.type_is_normal.clone();
       let kind_is_normal_l = self.kind_is_normal.clone();
       let typedef_index_l = self.typedef_index.clone();
+      let poly_bindings_l = self.poly_bindings.clone();
+      let poly_visited_l = self.poly_visited.clone();
 
       let r = self.import_str(globals, src);
 
@@ -1316,6 +1329,8 @@ impl TLC {
       self.type_is_normal = type_is_normal_l;
       self.kind_is_normal = kind_is_normal_l;
       self.typedef_index = typedef_index_l;
+      self.poly_bindings = poly_bindings_l;
+      self.poly_visited = poly_visited_l;
 
       r?; Ok(())
    }
