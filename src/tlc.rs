@@ -460,7 +460,7 @@ impl TLC {
          if !r.untyped && !r.typ.is_concrete() {
             return Err(Error {
                kind: "Type Error".to_string(),
-               rule: format!("inhabited type is not concrete: {:?} = typeof({})", r.typ, self.print_term(TermId{id:ri})),
+               rule: format!("inhabited type is not concrete: t#{} {:?} = typeof({})", ri, r.typ, self.print_term(TermId{id:ri})),
                span: r.span.clone(),
             })
          }
@@ -681,27 +681,25 @@ impl TLC {
       }}
       ks
    }
-   pub fn make_scope(&mut self, sc: ScopeId, subs: &HashMap<Type,Type>) -> ScopeId {
+   pub fn make_scope(&mut self, parent: &Option<ScopeId>, sc: ScopeId, subs: &HashMap<Type,Type>) -> ScopeId {
       let scope = self.scopes[sc.id].clone();
       let mut children = Vec::new();
       for (c_n,c_k,c_t,c_b) in scope.children.iter() {
          let c_t = c_t.substitute(subs);
          let c_b = if let Some(c_b) = c_b {
-            let c_b = self.make_template(*c_b, subs);
+            let c_b = self.make_template(parent, *c_b, subs);
+            self.untyped(c_b);
             Some(c_b)
          } else { None };
          children.push((c_n.clone(),c_k.clone(),c_t,c_b));
       }
       let sc = self.push_scope(Scope {
-         parent: scope.parent.clone(),
+         parent: parent.clone(),
          children: children,
       });
-      println!("made scope");
-      self.dump_scope(sc);
       sc
    }
-   pub fn make_template(&mut self, b: TermId, subs: &HashMap<Type,Type>) -> TermId {
-      println!("make template: {}", self.print_term(b));
+   pub fn make_template(&mut self, scope: &Option<ScopeId>, b: TermId, subs: &HashMap<Type,Type>) -> TermId {
       let span = self.rows[b.id].span.clone();
       let rt = match &self.rows[b.id].term.clone() {
          Term::Let(lt) => {
@@ -713,11 +711,11 @@ impl TLC {
                }
                pars.push(ps);
             }
+            let scope = self.make_scope(scope, lt.scope,subs);
             let body = if let Some(b) = lt.body {
-               Some(self.make_template(b, subs))
+               Some(self.make_template(&Some(scope), b, subs))
             } else { None };
-            let scope = self.make_scope(lt.scope,subs);
-            self.push_term(Term::Let(LetTerm {
+            let lt = self.push_term(Term::Let(LetTerm {
                is_extern: lt.is_extern,
                scope: scope,
                name: lt.name.clone(),
@@ -725,60 +723,60 @@ impl TLC {
                body: body,
                rtype: lt.rtype.substitute(subs),
                rkind: lt.rkind.clone(),
-            }),&span)
+            }),&span);
+            lt
          },
          Term::Ident(x) => { self.push_term(Term::Ident(x.clone()),&span) },
          Term::Value(x) => { self.push_term(Term::Ident(x.clone()),&span) },
          Term::App(g,x) => {
-            let g = self.make_template(*g,subs);
-            let x = self.make_template(*x,subs);
+            let g = self.make_template(scope,*g,subs);
+            let x = self.make_template(scope,*x,subs);
             self.push_term(Term::App(g,x),&span)
          },
          Term::Arrow(sc,p,rt,b) => {
-            let sc = self.make_scope(*sc,subs);
-            let p = self.make_template(*p,subs);
-            let b = self.make_template(*b,subs);
+            let sc = self.make_scope(scope,*sc,subs);
+            let p = self.make_template(&None,*p,subs);
+            let b = self.make_template(&Some(sc),*b,subs);
             let rt = if let Some(rt) = rt {
                Some(rt.substitute(subs))
             } else { None };
             self.push_term(Term::Arrow(sc,p,rt,b),&span)
          },
          Term::Block(sid,es) => {
-            let sid = self.make_scope(*sid,subs);
+            let sid = self.make_scope(scope,*sid,subs);
             let mut nes = Vec::new();
             for e in es.iter() {
-               nes.push(self.make_template(*e,subs));
+               nes.push(self.make_template(&Some(sid),*e,subs));
             }
             self.push_term(Term::Block(sid,nes),&span)
          },
          Term::Tuple(es) => {
             let mut nes = Vec::new();
             for e in es.iter() {
-               nes.push(self.make_template(*e,subs));
+               nes.push(self.make_template(scope,*e,subs));
             }
             self.push_term(Term::Tuple(nes),&span)
          },
          Term::Ascript(x,tt) => {
-            let x = self.make_template(*x,subs);
+            let x = self.make_template(scope,*x,subs);
             let tt = tt.substitute(subs);
             self.push_term(Term::Ascript(x,tt),&span)
          },
          Term::Constructor(cn,fts) => {
             let mut nfts = Vec::new();
             for (f,ft) in fts.iter() {
-               let ft = self.make_template(*ft,subs);
+               let ft = self.make_template(scope,*ft,subs);
                nfts.push((f.clone(),ft));
             }
             self.push_term(Term::Constructor(cn.clone(),nfts),&span)
          },
          Term::As(t,tt) => {
-            let t = self.make_template(*t,subs);
+            let t = self.make_template(scope,*t,subs);
             let tt = tt.substitute(subs);
             self.push_term(Term::As(t,tt),&span)
          },
          _ => unimplemented!("Make template: {}", self.print_term(b))
       };
-      println!("made template: {}", self.print_term(rt));
       rt
    }
    pub fn visit(&mut self, scope: &Option<ScopeId>, vt: &Option<TermId>, tt: &Type) -> Result<(),Error> {
@@ -800,9 +798,10 @@ impl TLC {
                hs
             };
             assert!(!merge.is_bottom());
-            let template = self.make_template(*vt, &subs);
+            let template = self.make_template(scope, *vt, &subs);
             self.poly_bindings.insert((lt.name.clone(),tt.clone()),template);
-            self.typeck(scope, template, None)?;
+            self.typeck(&Some(lt.scope), template, None)?;
+            self.untyped(*vt);
          }
       }}}
       Ok(())
@@ -1263,9 +1262,6 @@ impl TLC {
                   self.rows[b.id].typ = lt.rtype.clone();
                }
                self.rows[t.id].typ = self.nil_type.clone();
-            } else if lt.name=="" {
-               //term is untyped
-               self.untyped(t);
             } else if let Some(ref b) = lt.body {
                let bt = lt.typeof_binding();
                if !bt.is_open() {
@@ -1374,6 +1370,14 @@ impl TLC {
             }) }
          },
          Term::Arrow(ref sc,p,rt,b) => {
+            let Term::Ascript(pt,ptt) = &self.rows[p.id].term.clone()
+            else { return Err(Error {
+               kind: "Type Error".to_string(),
+               rule: format!("Arrow lhs must be ascripted"),
+               span: self.rows[t.id].span.clone(),
+            }) };
+            self.rows[pt.id].typ = ptt.clone();
+            self.rows[p.id].typ = ptt.clone();
             self.typeck(&Some(*sc), b, rt)?;
             self.rows[t.id].typ = Type::Arrow(
                Box::new(self.rows[p.id].typ.clone()),
