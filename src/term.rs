@@ -197,7 +197,10 @@ impl Term {
       if let Some(binding) = Scope::lookup_term(tlc, sc, f, &ft) {
          if let Term::Let(lb) = &tlc.rows[binding.id].term {
             if lb.parameters.len() > 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
-            if lb.is_extern {
+            let bt = lb.typeof_binding();
+            if bt.is_open() {
+               unimplemented!("TODO: generate templated function, {}: {:?} as {:?}", lb.name, bt, ft)
+            } else if lb.is_extern {
                let body = lb.body.expect(&format!("extern function body must be a mangled symbol: {}", f));
                if let Term::Ident(mangled) = &tlc.rows[body.id].term {
                   let e = Expression::apply(&mangled, args, span);

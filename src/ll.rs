@@ -316,7 +316,7 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
       }
 
       let mut ident = "_".to_string();
-      let mut typ = Type::Any;
+      let mut typ = tlc.nil_type.clone();
       let mut kind = tlc.term_kind.clone();
 
       if let Some(Symbol::Ident(v)) = tokens.peek_symbol()? {
@@ -361,30 +361,7 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
       kind,
       span.clone(),
    );
-   if let Some(t) = term {
-      let mut children = Vec::new();
-      for (i,t,_k) in quants.iter() {
-         let vn = i.clone();
-         let vt = tlc.push_term(Term::Ident(vn.clone()), &span);
-         tlc.untyped(vt);
-         children.push((vn.clone(), HashMap::new(), t.clone(), Some(vt)));
-      }
-      let sid = tlc.push_scope(Scope {
-         parent: Some(scope),
-         children: children,
-      });
-      Ok(tlc.push_term(Term::Let(LetTerm {
-         is_extern: false,
-         scope: sid,
-         name: "".to_string(),
-         parameters: vec![quants.clone()],
-         body: Some(t),
-         rtype: Type::Any,
-         rkind: tlc.term_kind.clone(),
-      }), &span))
-   } else {
-      Ok(TermId { id:0 })
-   }
+   Ok(TermId { id:0 })
 }
 
 pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
@@ -417,7 +394,7 @@ pub fn ll1_let_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> 
             pop_is("let-stmt", tokens, &vec![Symbol::Comma])?;
          }
          let mut ident = "_".to_string();
-         let mut typ = Type::Any;
+         let mut typ = tlc.nil_type.clone();
          let mut kind = tlc.term_kind.clone();
          if let Some(Symbol::Ident(id)) = tokens.peek_symbol()? {
             tokens.take_symbol()?;

@@ -163,6 +163,15 @@ impl TLC {
       buf += "}\n";
       buf
    }
+   pub fn dump_scope(&self, s: ScopeId) {
+      for (cn,_,ct,_) in self.scopes[s.id].children.iter() {
+         println!("{}: {:?}", cn, ct);
+      }
+      if let Some(p) = self.scopes[s.id].parent {
+         println!("-------------------");
+         self.dump_scope(p);
+      }
+   }
    pub fn print_term(&self, t: TermId) -> String {
       match &self.rows[t.id].term {
          Term::Project(v) => format!("π{:?}", v),
@@ -216,6 +225,9 @@ impl TLC {
          parent: Some(globals),
          children: fa_closed,
       });
+      if let Some(t) = term {
+         self.untyped(t);
+      }
       let fi = self.rules.len();
       let fa = ForallRule {
          axiom: axiom,
@@ -680,14 +692,18 @@ impl TLC {
          } else { None };
          children.push((c_n.clone(),c_k.clone(),c_t,c_b));
       }
-      self.push_scope(Scope {
+      let sc = self.push_scope(Scope {
          parent: scope.parent.clone(),
          children: children,
-      })
+      });
+      println!("made scope");
+      self.dump_scope(sc);
+      sc
    }
    pub fn make_template(&mut self, b: TermId, subs: &HashMap<Type,Type>) -> TermId {
+      println!("make template: {}", self.print_term(b));
       let span = self.rows[b.id].span.clone();
-      match &self.rows[b.id].term.clone() {
+      let rt = match &self.rows[b.id].term.clone() {
          Term::Let(lt) => {
             let mut pars = Vec::new();
             for curr in lt.parameters.iter() {
@@ -761,7 +777,9 @@ impl TLC {
             self.push_term(Term::As(t,tt),&span)
          },
          _ => unimplemented!("Make template: {}", self.print_term(b))
-      }
+      };
+      println!("made template: {}", self.print_term(rt));
+      rt
    }
    pub fn visit(&mut self, scope: &Option<ScopeId>, vt: &Option<TermId>, tt: &Type) -> Result<(),Error> {
       if let Some(vt) = vt {
