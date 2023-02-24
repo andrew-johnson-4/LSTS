@@ -12,6 +12,7 @@ fn parse_simplytyped() {
    tlc.parse_str(None,"a.f(b,c);").unwrap();
    tlc.parse_str(None,"let t: ?;").unwrap();
    tlc.parse_str(None,"let t: T;").unwrap();
+   tlc.parse_str(None,"let t: T?;").unwrap();
    tlc.parse_str(None,"let t: ();").unwrap();
    tlc.parse_str(None,"let t: (A);").unwrap();
    tlc.parse_str(None,"let t: (A,B);").unwrap();

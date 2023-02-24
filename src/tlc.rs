@@ -330,75 +330,6 @@ impl TLC {
       let mut tks = tokenize_string(self, "[string]", src)?;
       self.reduce_toks(globals, &mut tks)
    }
-
-   pub fn kinds_of(&self, kinds: &mut HashMap<Type,Kind>, tt: &Type) -> Option<Kind> {
-      match tt {
-         Type::Any => {
-            kinds.insert(Type::Any, Kind::Nil);
-            Some(Kind::Nil)
-         },
-         Type::Constant(_) => {
-            kinds.insert(tt.clone(), self.constant_kind.clone());
-            Some(self.constant_kind.clone())
-         },
-         Type::And(ts) => {
-            let mut ks = Vec::new();
-            for ct in ts.iter() {
-            if let Some(k) = self.kinds_of(kinds,ct) {
-               ks.push(k.clone());
-            }};
-            let k = if ks.len()==0 { Kind::Nil
-            } else if ks.len()==1 { ks[0].clone()
-            } else { Kind::and(ks) };
-            kinds.insert(tt.clone(), k.clone());
-            Some(k)
-         },
-         Type::Product(ts) => {
-            let mut k = None;
-            for ct in ts.iter() {
-               k = self.kinds_of(kinds,ct);
-            };
-            if let Some(ref k) = k {
-               kinds.insert(tt.clone(), k.clone());
-            }
-            k
-         },
-         Type::Tuple(ts) => {
-            for ct in ts.iter() {
-               self.kinds_of(kinds,ct);
-            }
-            kinds.insert(tt.clone(), self.term_kind.clone());
-            Some(self.term_kind.clone())
-         },
-         Type::HTuple(bt,_ct) => {
-            self.kinds_of(kinds,bt);
-            kinds.insert(tt.clone(), self.term_kind.clone());
-            Some(self.term_kind.clone())
-         },
-         Type::Arrow(p,b) => {
-            self.kinds_of(kinds,p);
-            self.kinds_of(kinds,b)
-         },
-         Type::Ratio(p,b) => {
-                self.kinds_of(kinds,p);
-            let k = self.kinds_of(kinds,b);
-            if let Some(ref k) = k {
-               kinds.insert(tt.clone(), k.clone());
-            };
-            k
-         },
-         Type::Named(cn,_) => {
-            if let Some(t) = kinds.get(tt) { return Some(t.clone()); }
-            let mut k = None;
-            if let Some(ti) = self.typedef_index.get(cn) {
-            if let TypeRule::Typedef(tr) = &self.rules[*ti] {
-               kinds.insert(tt.clone(), tr.kind.clone());
-               k = Some(tr.kind.clone());
-            }}
-            k
-         },
-      }
-   }
    pub fn compile_rules(&mut self) -> Result<(),Error> {
       for rule in self.rules.clone().iter() { match rule {
          TypeRule::Forall(fr) => { if self.strict && !fr.axiom {
@@ -486,6 +417,7 @@ impl TLC {
    pub fn soundck(&mut self, tt: &Type, span: &Span) -> Result<(),Error> {
       match tt {
          Type::Any => Ok(()),
+         Type::MaybeZero(_tt) => Ok(()),
          Type::Arrow(p,b) => { self.soundck(p,span)?; self.soundck(b,span)?; Ok(()) },
          Type::Ratio(p,b) => { self.soundck(p,span)?; self.soundck(b,span)?; Ok(()) },
          Type::And(ts) => {
@@ -531,6 +463,7 @@ impl TLC {
    pub fn extend_implied(&self, tt: &Type) -> Type {
       match tt {
          Type::Any => tt.clone(),
+         Type::MaybeZero(tt) => Type::MaybeZero(Box::new(self.extend_implied(tt))),
          Type::Arrow(p,b) => Type::Arrow(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Type::Ratio(p,b) => Type::Ratio(Box::new(self.extend_implied(p)),Box::new(self.extend_implied(b))),
          Type::Named(tn,ts) => {
@@ -579,13 +512,7 @@ impl TLC {
       }
    }
    pub fn kind(&self, tt:&Type) -> Kind {
-      let mut kinds = HashMap::new();
-      self.kinds_of(&mut kinds,tt);
-      if let Some(k) = kinds.get(tt) {
-         k.clone()
-      } else {
-         panic!("kinds_of did not ascribe a kind for type {:?}", tt)
-      }
+      self.term_kind.clone()
    }
    pub fn is_knormal(&self, k:&Kind) -> bool {
       let ks = k.flatten();
@@ -594,6 +521,7 @@ impl TLC {
    pub fn is_normal(&self, tt:&Type) -> bool {
       match tt {
          Type::Any => false,
+         Type::MaybeZero(tt) => self.is_normal(tt),
          Type::And(ts) => ts.iter().any(|ct|self.is_normal(ct)),
          Type::Named(tn,ts) => self.type_is_normal.contains(&Type::Named(tn.clone(),Vec::new())) &&
                               ts.iter().all(|ct|self.is_normal(ct)),
@@ -608,6 +536,11 @@ impl TLC {
    pub fn narrow(&self, kinds: &HashMap<Type,Kind>, projection: &Kind, tt: &Type) -> Type {
       match tt {
          Type::Any => Type::Any,
+         Type::MaybeZero(tt) => {
+            let tt = self.narrow(kinds,projection,tt);
+            if tt.is_bottom() { return tt.clone(); }
+            Type::MaybeZero(Box::new(tt))
+         }
          Type::Named(_t,_ts) => {
             //should named types protect their parameters from narrowing?
             let nk = if let Some(nk) = kinds.get(tt) { nk.clone() }
@@ -672,14 +605,6 @@ impl TLC {
             }
          }
       }
-   }
-   fn kflat(kinds: &HashMap<Type,Kind>) -> HashSet<Kind> {
-      let mut ks = HashSet::new();
-      for (_,nw) in kinds.iter() {
-      for nw in nw.flatten() {
-         ks.insert(nw.clone());
-      }}
-      ks
    }
    pub fn make_scope(&mut self, parent: &Option<ScopeId>, sc: ScopeId, subs: &HashMap<Type,Type>) -> ScopeId {
       let scope = self.scopes[sc.id].clone();
@@ -820,17 +745,10 @@ impl TLC {
                candidates.push(tt.clone());
                if let Type::Arrow(_tp,_tb) = &tt {
                if let Some(it) = implied {
-                  let mut tkts = tkts.clone();
-                  self.kinds_of(&mut tkts, &tt);
-                  let ks = TLC::kflat(&tkts);
-                  self.kinds_of(&mut tkts, &it);
-                  for nw in ks.iter() {
-                     let narrow_it = self.narrow(&tkts, nw, &it);
-                     let rt = Type::implies(self, &narrow_it, &tt);
-                     if rt.is_bottom() { continue; }
-                     matches.push(rt.clone());
-                     self.visit(scope, vt, &rt)?;
-                  }
+                  let rt = Type::implies(self, &it, &tt);
+                  if rt.is_bottom() { continue; }
+                  matches.push(rt.clone());
+                  self.visit(scope, vt, &rt)?;
                }} else {
                   matches.push(tt.clone());
                   self.visit(scope, vt, &tt)?;
@@ -846,12 +764,6 @@ impl TLC {
             Ok(rt)
          } else if candidates.len() > 0 {
             let implied = implied.clone().unwrap_or(Type::Any);
-            let mut tkts = HashMap::new();
-            self.kinds_of(&mut tkts, &implied);
-            for (tn,tks,_,_) in sc.children.iter() {
-            if tn == v {
-               tkts.extend(tks.clone().into_iter());
-            }}
          Err(Error {
             kind: "Type Error".to_string(),
             rule: format!("variable {}: {:?} did not match any candidate {}",

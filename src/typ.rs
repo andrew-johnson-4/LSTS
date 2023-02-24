@@ -26,6 +26,7 @@ pub enum InArrow {
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Type {
    Any,
+   MaybeZero(Box<Type>),
    Named(String,Vec<Type>),
    And(Vec<Type>), //Bottom is the empty conjunctive
    Arrow(Box<Type>,Box<Type>),
@@ -94,6 +95,7 @@ impl Type {
    pub fn is_open(&self) -> bool {
       match self {
          Type::Any => true,
+         Type::MaybeZero(_tt) => true,
          Type::Named(tn,ts) => tn.chars().all(char::is_uppercase) || ts.iter().any(|tt| tt.is_open()),
          Type::Arrow(p,b) => p.is_open() || b.is_open(),
          Type::Ratio(p,b) => p.is_open() || b.is_open(),
@@ -121,20 +123,6 @@ impl Type {
             acc
          },
          _ => { Vec::new() },
-      }
-   }
-   pub fn mask(&self) -> Type {
-      match self {
-         Type::Any => Type::Any,
-         Type::Named(tn,_ts) if tn.chars().all(char::is_uppercase) => Type::Any,
-         Type::Named(tn,ts) => Type::Named(tn.clone(),ts.iter().map(|_|Type::Any).collect::<Vec<Type>>()),
-         Type::Arrow(p,b) => Type::Arrow(Box::new(p.mask()),Box::new(b.mask())),
-         Type::Ratio(p,b) => Type::Ratio(Box::new(p.mask()),Box::new(b.mask())),
-         Type::And(ts) => Type::And(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
-         Type::Tuple(ts) => Type::Tuple(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
-         Type::HTuple(bt,ct) => Type::HTuple(Box::new(bt.mask()),ct.clone()),
-         Type::Product(ts) => Type::Product(ts.iter().map(|ct|ct.mask()).collect::<Vec<Type>>()),
-         Type::Constant(cv) => Type::Constant(cv.clone())
       }
    }
    pub fn and(&self, other:&Type) -> Type {
@@ -215,6 +203,7 @@ impl Type {
    pub fn vars(&self) -> Vec<String> {
       match self {
          Type::Any => vec![],
+         Type::MaybeZero(tt) => { tt.vars() },
          Type::Named(tn,ts) => {
             let mut nv = vec![tn.clone()];
             for tt in ts.iter() {
@@ -319,6 +308,7 @@ impl Type {
       if self == x { return Type::And(Vec::new()); }
       match self {
          Type::Any => Type::Any,
+         Type::MaybeZero(tt) => Type::MaybeZero(Box::new(tt.remove(x))),
          Type::Arrow(p,b) => Type::Arrow(Box::new(p.remove(x)),Box::new(b.remove(x))),
          Type::Ratio(p,b) => Type::Ratio(Box::new(p.remove(x)),Box::new(b.remove(x))),
          Type::Named(tn,ts) => Type::Named(tn.clone(),ts.iter().map(|t| t.remove(x)).collect::<Vec<Type>>()),
@@ -335,6 +325,7 @@ impl Type {
       }
       match self {
          Type::Any => Type::Any,
+         Type::MaybeZero(tt) => Type::MaybeZero(Box::new(tt.substitute(subs))),
          Type::Arrow(p,b) => Type::Arrow(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
          Type::Ratio(p,b) => Type::Ratio(Box::new(p.substitute(subs)),Box::new(b.substitute(subs))),
          Type::Named(tn,ts) => Type::Named(tn.clone(),ts.iter().map(|t| t.substitute(subs)).collect::<Vec<Type>>()),
@@ -348,6 +339,7 @@ impl Type {
    pub fn is_concrete(&self) -> bool {
       match self {
          Type::Any => false,
+         Type::MaybeZero(_tt) => false,
          Type::Arrow(p,b) => p.is_concrete() && b.is_concrete(),
          Type::Ratio(p,b) => p.is_concrete() && b.is_concrete(),
          Type::Named(_tn,ts) => ts.iter().all(|tc| tc.is_concrete()),
@@ -625,6 +617,9 @@ impl Type {
             self.clone()
          },
 
+         (Type::MaybeZero(lt),_) => { Type::And(vec![]) },
+         (_,Type::MaybeZero(rt)) => { Type::And(vec![]) },
+
          //conjunctive normal form takes precedence
          (Type::And(_lts),Type::And(rts)) => {
             let mut mts = Vec::new();
@@ -748,6 +743,7 @@ impl std::fmt::Debug for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
            Type::Any => write!(f, "?"),
+           Type::MaybeZero(tt) => write!(f, "{:?}?", tt),
            Type::Named(t,ts) => {
               if ts.len()==0 { write!(f, "{}", t) }
               else { write!(f, "{}<{}>", t, ts.iter().map(|t|format!("{:?}",t)).collect::<Vec<String>>().join(",") ) }

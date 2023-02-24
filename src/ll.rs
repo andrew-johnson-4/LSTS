@@ -1069,14 +1069,21 @@ pub fn ll1_atom_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
 pub fn ll1_suffix_type(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<Type,Error> {
    let mut base = ll1_atom_type(tlc, scope, tokens)?;
    let mut ts = Vec::new();
-   while peek_is(tokens, &vec![Symbol::LeftBracket]) {
-      pop_is("suffix-type", tokens, &vec![Symbol::LeftBracket])?;
-      if peek_is(tokens, &vec![Symbol::RightBracket]) {
-         ts.push( Constant::Tuple(Vec::new()) );
+   while peek_is(tokens, &vec![Symbol::LeftBracket,Symbol::Question]) {
+      if peek_is(tokens, &vec![Symbol::Question]) {
+         pop_is("suffix-type", tokens, &vec![Symbol::Question])?;
+         base = Type::MaybeZero(Box::new(base));
+      } else if peek_is(tokens, &vec![Symbol::LeftBracket]) {
+         pop_is("suffix-type", tokens, &vec![Symbol::LeftBracket])?;
+         if peek_is(tokens, &vec![Symbol::RightBracket]) {
+            ts.push( Constant::Tuple(Vec::new()) );
+         } else {
+            ts.push( ll1_constant(tlc, scope, tokens)? );
+         }
+         pop_is("suffix-type", tokens, &vec![Symbol::RightBracket])?;
       } else {
-         ts.push( ll1_constant(tlc, scope, tokens)? );
+         pop_is("suffix-type", tokens, &vec![Symbol::LeftBracket,Symbol::Question])?;
       }
-      pop_is("suffix-type", tokens, &vec![Symbol::RightBracket])?;
    }
    for ct in ts.iter().rev() {
       base = Type::HTuple(Box::new(base), ct.clone());
