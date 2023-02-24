@@ -1224,7 +1224,7 @@ impl TLC {
                   r = Some(re.clone());
                   self.rows[t.id].typ = pat;
                   break;
-               } else if let Ok(nt) = self.implies(&pat,&i,&self.rows[t.id].span.clone()) {
+               } else if let Ok(nt) = self.implies(&i,&pat,&self.rows[t.id].span.clone()) {
                   r = Some(re.clone());
                   self.rows[t.id].typ = nt;
                   break;
