@@ -617,8 +617,8 @@ impl Type {
             self.clone()
          },
 
-         (Type::MaybeZero(lt),_) => { Type::And(vec![]) },
-         (_,Type::MaybeZero(rt)) => { Type::And(vec![]) },
+         (Type::MaybeZero(_lt),_) => { Type::And(vec![]) },
+         (_,Type::MaybeZero(_rt)) => { Type::And(vec![]) },
 
          //conjunctive normal form takes precedence
          (Type::And(_lts),Type::And(rts)) => {

@@ -228,7 +228,6 @@ impl TLC {
       if let Some(t) = term {
          self.untyped(t);
       }
-      let fi = self.rules.len();
       let fa = ForallRule {
          axiom: axiom,
          name: name.clone(),
@@ -511,7 +510,7 @@ impl TLC {
          Type::Constant(cv) => Type::Constant(cv.clone())
       }
    }
-   pub fn kind(&self, tt:&Type) -> Kind {
+   pub fn kind(&self, _tt:&Type) -> Kind {
       self.term_kind.clone()
    }
    pub fn is_knormal(&self, k:&Kind) -> bool {
@@ -707,7 +706,7 @@ impl TLC {
    pub fn visit(&mut self, scope: &Option<ScopeId>, vt: &Option<TermId>, tt: &Type) -> Result<(),Error> {
       if let Some(vt) = vt {
       if let Term::Let(ref lt) = self.rows[vt.id].term.clone() {
-      if let Some(ref b) = lt.body {
+      if let Some(ref _b) = lt.body {
          if self.poly_bindings.contains_key(&(lt.name.clone(),tt.clone())) {
             return Ok(());
          }
@@ -736,7 +735,7 @@ impl TLC {
          let mut candidates = Vec::new();
          let mut matches = Vec::new();
          let ref sc = self.scopes[sc.id].clone();
-         for (tn,tkts,tt,vt) in sc.children.iter() {
+         for (tn,_tkts,tt,vt) in sc.children.iter() {
             if tn==v {
                //match variable binding if
                //1) binding is not an arrow
@@ -818,7 +817,7 @@ impl TLC {
          _ => panic!("TODO untype term: {}", self.print_term(t))
       }
    }
-   pub fn cast_normal(&mut self, l_only: &Type, span: &Span) -> Result<Type,Error> {
+   pub fn cast_normal(&mut self, _l_only: &Type, _span: &Span) -> Result<Type,Error> {
       unimplemented!("Reimplement cast normalization")
    }
    pub fn implies(&mut self, lt: &Type, rt: &Type, span: &Span) -> Result<Type,Error> {
@@ -839,7 +838,7 @@ impl TLC {
          _ => { Ok(nt) }
       }
    }
-   pub fn cast_into_kind(&mut self, mut l_only: Type, into: &Type, span: &Span) -> Result<Type,Error> {
+   pub fn cast_into_kind(&mut self, mut _l_only: Type, _into: &Type, _span: &Span) -> Result<Type,Error> {
       unimplemented!("Reimplement cast into kind")
    }
 

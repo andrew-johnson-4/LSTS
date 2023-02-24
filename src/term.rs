@@ -137,7 +137,7 @@ impl Term {
          _ => unimplemented!("compile_lhs: {}", tlc.print_term(term))
       }
    }
-   pub fn compile_function(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>, term: TermId) -> Result<String,Error> {
+   pub fn compile_function(tlc: &TLC, _scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>, term: TermId) -> Result<String,Error> {
       let mangled = if let Term::Let(ref lt) = tlc.rows[term.id].term {
          let mut name = lt.name.clone();
          name += ":";
@@ -201,7 +201,7 @@ impl Term {
             if bt.is_open() {
                let Some(lbt) = tlc.poly_bindings.get(&(lb.name.clone(),ft.clone()))
                else { unreachable!("could not find template function {}: {:?}", lb.name, bt) };
-               let Term::Let(lbb) = &tlc.rows[lbt.id].term
+               let Term::Let(_lbb) = &tlc.rows[lbt.id].term
                else { unreachable!("template function must be let binding {}: {:?}", lb.name, bt) };
                let mangled = Term::compile_function(tlc, scope, funcs, *lbt)?;
                let e = Expression::apply(&mangled, args, span);

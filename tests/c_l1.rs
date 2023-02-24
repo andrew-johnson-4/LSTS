@@ -1,4 +1,3 @@
-/* TODO FIXME update this file to work with current L1 prelude
 use lsts::tlc::TLC;
 
 #[test]
@@ -107,4 +106,3 @@ fn l1_partial_tuples() {
    tlc.check(Some(l1), "match (3,4) { +((3,),x,(y,)) => 5 }  @reduce :[5];").unwrap();
    tlc.check(Some(l1), "match (3,4) { +((3,),(y,)) => 5 }  @reduce :[5];").unwrap();
 }
-*/
