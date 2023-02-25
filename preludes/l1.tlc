@@ -22,6 +22,24 @@ extern $"<"(x: U64, y: U64): U8 = $"<:(U64,U64)->U8";
 extern $"<="(x: U64, y: U64): U8 = $"<=:(U64,U64)->U8";
 extern $">"(x: U64, y: U64): U8 = $">:(U64,U64)->U8";
 extern $">="(x: U64, y: U64): U8 = $">=:(U64,U64)->U8";
+let pos(x: U64): U64 = x;
+let neg(x: U64): I64 = (0:I64) - (x as I64);
+
+extern $"+"(x: I64, y: I64): I64 = $"+:(I64,I64)->I64";
+extern $"-"(x: I64, y: I64): I64 = $"-:(I64,I64)->I64";
+extern $"*"(x: I64, y: I64): I64 = $"*:(I64,I64)->I64";
+extern $"/"(x: I64, y: I64): I64 = $"/:(I64,I64)->I64";
+extern $"%"(x: I64, y: I64): I64 = $"%:(I64,I64)->I64";
+
+extern $"=="(x: I64, y: I64): U8 = $"==:(I64,I64)->U8";
+extern $"!="(x: I64, y: I64): U8 = $"!=:(I64,I64)->U8";
+extern $"<"(x: I64, y: I64): U8 = $"<:(I64,I64)->U8";
+extern $"<="(x: I64, y: I64): U8 = $"<=:(I64,I64)->U8";
+extern $">"(x: I64, y: I64): U8 = $">:(I64,I64)->U8";
+extern $">="(x: I64, y: I64): U8 = $">=:(I64,I64)->U8";
+let pos(x: I64): I64 = x;
+let neg(x: I64): I64 = (0:I64) - x;
+extern $"as"(x: U64): I64 = $"as:(U64)->I64";
 
 extern not(b:U8): U8 = $"not:(U8)->U8";
 extern $"&&"(a:U8, b:U8): U8 = $"&&:(U8,U8)->U8";
