@@ -1,5 +1,6 @@
 use crate::debug::Error;
 use crate::tlc::TLC;
+use crate::typ::Type;
 use regex::Regex;
 use std::rc::Rc;
 use std::io::prelude::*;
@@ -107,10 +108,8 @@ pub enum Symbol {
    Fn,
    Literal,
    Fail,
-   LiteralV(String),
-   LiteralC(char,String),
-   LiteralS(String,String),
-   LiteralR(Vec<(char,char)>,String),
+   LiteralS(String),
+   LiteralV(String,Type),
 }
 impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -179,10 +178,8 @@ impl std::fmt::Debug for Symbol {
            Symbol::Literal            => write!(f, "literal"),
            Symbol::Fail               => write!(f, "fail"),
 
-           Symbol::LiteralV(v)        => write!(f, "{}", v),
-           Symbol::LiteralC(c,v)      => write!(f, "'{}'{}", c, v),
-           Symbol::LiteralS(s,v)      => write!(f, r#""{}"{}"#, s, v),
-           Symbol::LiteralR(_r,v)     => write!(f, "[?]{}", v),
+           Symbol::LiteralV(v,vt)     => write!(f, "v#{}:{:?}", v, vt),
+           Symbol::LiteralS(s)        => write!(f, r#""{}""#, s),
         }
     }
 }
@@ -345,7 +342,7 @@ impl TokenReader {
             }
             let litv = std::str::from_utf8(&token).unwrap();
             let t = Token {
-               symbol: Symbol::LiteralS(litv.to_string(),"".to_string()),
+               symbol: Symbol::LiteralS(litv.to_string()),
                span: self.span_of(token.len())
             };
             self.column += token.len();
