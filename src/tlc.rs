@@ -888,7 +888,8 @@ impl TLC {
       }}}}}
       None
    }
-   pub fn check_invariants(&mut self, _scope: &Option<ScopeId>, t: TermId) -> Result<(),Error> {
+   pub fn check_invariants(&mut self, _scope: &Option<ScopeId>, _t: TermId) -> Result<(),Error> {
+      /*
       let mut ground_types = Vec::new();
       let mut subs: HashMap<String,Constant> = HashMap::new();
       match self.rows[t.id].typ.clone() {
@@ -921,7 +922,6 @@ impl TLC {
                rule: format!("invariant not satisfied {}: {} | {:?}", tn, self.print_term(invariant.prop), invariant.algs),
                span: self.rows[t.id].span.clone(),
             })
-            /*
             } else if let Some((mut low,i,mut high,prop)) = self.is_exhaustive(invariant.prop) {
                if let Some(Constant::Integer(low)) = self.untyped_eval(&mut subs, &mut low, true) {
                if let Some(Constant::Integer(high)) = self.untyped_eval(&mut subs, &mut high, true) {
@@ -944,9 +944,9 @@ impl TLC {
                      }
                   }
                }}
-            */
          }
       }}}}
+      */
       Ok(())
    }
 
@@ -958,7 +958,6 @@ impl TLC {
          (_lhsx, Term::Ident(x)) => {
             let realized = self.rows[lhs.id].typ.clone();
             let required = self.typeof_var(scope, &x, &Some(realized.clone()), &self.rows[lhs.id].span.clone())?;
-            println!("realized type: {:?}, required type: {:?}", realized, required);
             self.implies(&realized, &required, &self.rows[lhs.id].span.clone())?;
             if let Some(prevx) = bound.get(&x) {
                if !Term::equals(self, lhs, *prevx) {
@@ -1225,9 +1224,9 @@ impl TLC {
                   r = Some(re.clone());
                   self.rows[t.id].typ = pat;
                   break;
-               } else if let Ok(nt) = self.implies(&i,&pat,&self.rows[t.id].span.clone()) {
+               } else if let Ok(_nt) = self.implies(&i,&pat,&self.rows[t.id].span.clone()) {
                   r = Some(re.clone());
-                  self.rows[t.id].typ = nt;
+                  self.rows[t.id].typ = i.clone();
                   break;
                }
             }

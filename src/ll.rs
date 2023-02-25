@@ -229,6 +229,9 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
                pop_is("type-stmt", tokens, &vec![Symbol::KAscript])?;
                kind = ll1_kind(tlc, tokens)?;
             }
+            if idn.is_none() && inf.is_none() && kind == tlc.term_kind {
+               break;
+            }
             itks.push((idn,inf,kind));
          }
          pop_is("type-stmt", tokens, &vec![Symbol::Dot])?;
