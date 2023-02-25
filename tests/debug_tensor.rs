@@ -1,4 +1,4 @@
-/* TODO: convert to n-ary tuple implicits
+/* TODO FIXME: use homogenous tuples and L1 prelude
 use lsts::tlc::TLC;
 
 #[test]

@@ -340,7 +340,7 @@ fn check_arrow_ratio() {
    assert_eq!( ta3, ta1.implication_unifier(&ta2) );
 }
 
-/* TODO figure what is going wrong here
+/* TODO FIXME what is happening here?
 #[test]
 fn check_constant_arrows() {
    let tany = Type::Any;

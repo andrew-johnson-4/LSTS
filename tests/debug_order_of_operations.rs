@@ -1,4 +1,4 @@
-/* TODO: define arithmetic
+/* TODO FIXME: solve with @reduce
 use lsts::tlc::TLC;
 
 #[test]

@@ -1,3 +1,4 @@
+//TODO FIXME: use strict mode
 use lsts::tlc::TLC;
 
 #[test]

@@ -1,4 +1,4 @@
-/* TODO remove
+/* TODO FIXME prove fundamental theorem of algebra in strict mode
 use lsts::tlc::TLC;
 
 #[test]

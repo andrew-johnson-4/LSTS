@@ -1,4 +1,4 @@
-/*
+/* TODO FIXME update to use @reduce and L1 prelude
 use lsts::tlc::TLC;
 
 #[test]

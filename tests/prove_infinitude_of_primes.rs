@@ -1,4 +1,4 @@
-/* TODO remove
+/* TODO FIXME prove infinitude of primes in strict mode
 use lsts::tlc::TLC;
 
 #[test]

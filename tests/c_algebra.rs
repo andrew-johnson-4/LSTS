@@ -1,5 +1,4 @@
-
-/* TODO, rework algebra concepts
+/* TODO FIXME, rework algebra concepts
 use lsts::tlc::TLC;
 
 #[test]
