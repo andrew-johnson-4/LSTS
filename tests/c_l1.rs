@@ -46,7 +46,6 @@ fn l1_reduce() {
    tlc.check(Some(l1), "- -1 @reduce;").unwrap();
 }
 
-/* TODO FIXME tuple projection
 #[test]
 fn l1_homogenous_tuples() {
    let mut tlc = TLC::new();
@@ -78,7 +77,6 @@ fn l1_homogenous_tuples() {
    tlc.check(Some(l1), "((3,4,7): Integer[]).length @reduce :[3];").unwrap();
    tlc.check(Some(l1), "((1,),(),(2,3,)).flatten().length @reduce :[3];").unwrap();
 }
-*/
 
 /* TODO FIXME destructure tuples
 #[test]
