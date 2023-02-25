@@ -340,7 +340,6 @@ fn check_arrow_ratio() {
    assert_eq!( ta3, ta1.implication_unifier(&ta2) );
 }
 
-/* TODO figure what is going wrong here
 #[test]
 fn check_constant_arrows() {
    let tany = Type::Any;
@@ -362,4 +361,3 @@ fn check_constant_arrows() {
    let ta5  = Type::Arrow( Box::new(tt2.clone()), Box::new(tt2.clone()) );
    assert_eq!( ta5, ta4.implication_unifier(&ta5) );
 }
-*/

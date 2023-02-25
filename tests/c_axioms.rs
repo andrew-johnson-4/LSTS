@@ -1,4 +1,4 @@
-/* TODO implement literal math in strict mode
+/* TODO FIXME implement literal math in strict mode
 use lsts::tlc::TLC;
 
 #[test]

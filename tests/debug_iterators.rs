@@ -1,4 +1,4 @@
-/*
+/* TODO FIXME use L1 and @reduce
 use lsts::tlc::TLC;
 
 #[test]

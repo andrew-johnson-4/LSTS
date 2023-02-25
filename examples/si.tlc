@@ -1,0 +1,8 @@
+import $"preludes/l1.tlc";
+import $"preludes/si.tlc";
+
+let v: Kilo<Metre>/Second = 123.456;
+let s: Minute = 78.9;
+let d: Mile = (v as (Mile/Minute)) * s;
+d;
+
