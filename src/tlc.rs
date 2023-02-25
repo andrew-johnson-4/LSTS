@@ -958,6 +958,7 @@ impl TLC {
          (_lhsx, Term::Ident(x)) => {
             let realized = self.rows[lhs.id].typ.clone();
             let required = self.typeof_var(scope, &x, &Some(realized.clone()), &self.rows[lhs.id].span.clone())?;
+            println!("realized type: {:?}, required type: {:?}", realized, required);
             self.implies(&realized, &required, &self.rows[lhs.id].span.clone())?;
             if let Some(prevx) = bound.get(&x) {
                if !Term::equals(self, lhs, *prevx) {
@@ -1258,22 +1259,22 @@ impl TLC {
                self.typeck(scope, lhs, None)?;
                let mut matched = false;
                self.rows[t.id].typ = self.rows[lhs.id].typ.clone();
+               let mut err_msg = Ok(());
                for fa in fas.iter() {
                   let fa_scope = fa.scope.clone();
                   let fa_inference = fa.inference.clone();
                   if let Some(rhs) = fa.rhs {
-                  if let Ok(_) = self.typeck_hint(&mut HashMap::new(), &Some(fa_scope), &h, lhs, rhs) {
-                     //at this point rule must have matched, so apply it
-                     let fat = fa_inference;
-                     self.rows[t.id].typ = self.rows[t.id].typ.and( &fat );
-                     matched = true;
-                  }}
+                     let r = self.typeck_hint(&mut HashMap::new(), &Some(fa_scope), &h, lhs, rhs);
+                     if let Ok(_) = r {
+                        let fat = fa_inference;
+                        self.rows[t.id].typ = self.rows[t.id].typ.and( &fat );
+                        matched = true;
+                     } else {
+                        err_msg = r;
+                     }
+                  }
                };
-               if !matched { return Err(Error {
-                  kind: "Type Error".to_string(),
-                  rule: format!("hint did not match any declared rule: {}", h),
-                  span: self.rows[t.id].span.clone(),
-               }) }
+               if !matched { err_msg?; }
             } else { return Err(Error {
                kind: "Type Error".to_string(),
                rule: format!("hint not found in statements: {}", h),

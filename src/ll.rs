@@ -316,7 +316,7 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
       }
 
       let mut ident = "_".to_string();
-      let mut typ = tlc.nil_type.clone();
+      let mut typ = Type::Any;
       let mut kind = tlc.term_kind.clone();
 
       if let Some(Symbol::Ident(v)) = tokens.peek_symbol()? {
