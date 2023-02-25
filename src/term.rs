@@ -239,15 +239,7 @@ impl Term {
          Term::Tuple(ts) => {
             let mut tes = Vec::new();
             for te in ts.iter() {
-               let mut te = Term::compile_expr(tlc, scope, funcs, preamble, *te)?;
-               let mut type_is_value = false;
-               if let Some(tet) = te.typ().name {
-               if tet == "String" {
-                  type_is_value = true;
-               }}
-               if !type_is_value {
-                  te = te.typed("Value");
-               }
+               let te = Term::compile_expr(tlc, scope, funcs, preamble, *te)?;
                tes.push(te);
             }
             Ok(Expression::tuple(tes,span).typed("Value"))
@@ -348,6 +340,12 @@ impl Term {
                },
                (Term::Ident(gv),Term::Tuple(ps)) => {
                   Term::apply_fn(tlc, scope, funcs, preamble, gv, ps, tlc.rows[g.id].typ.clone(), tt, span)
+               },
+               (Term::Project(Constant::Literal(cv)),_av) => {
+                  let base = Term::compile_expr(tlc, &Some(sc), funcs, preamble, *x)?.typed("Value");
+                  let index = Expression::literal(cv, span.clone()).typed("U64");
+                  let prj = Expression::apply("[]:(Tuple,U64)->Value", vec![base,index], span.clone()).typed(&tt.datatype());
+                  Ok(prj)
                },
                _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({})", tlc.print_term(*g), tlc.print_term(*x))
             }
