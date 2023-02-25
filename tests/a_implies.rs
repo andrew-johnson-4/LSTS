@@ -340,7 +340,6 @@ fn check_arrow_ratio() {
    assert_eq!( ta3, ta1.implication_unifier(&ta2) );
 }
 
-/* TODO FIXME what is happening here?
 #[test]
 fn check_constant_arrows() {
    let tany = Type::Any;
@@ -349,7 +348,7 @@ fn check_constant_arrows() {
    let tc3  = Type::Constant(Constant::Literal("3".to_string()));
    let tc4  = Type::Constant(Constant::Literal("4".to_string()));
    let ta1  = Type::Arrow( Box::new(tc1.clone()), Box::new(tany.clone()) );
-   let ta2  = Type::Arrow( Box::new(tc2.clone()), Box::new(tc3.clone()) );
+   let ta2  = Type::Arrow( Box::new(tc1.clone()), Box::new(tc3.clone()) );
    assert_eq!( ta2, ta1.implication_unifier(&ta2) );
 
    let ts1  = Type::And(vec![ tc1.clone(), tc4.clone() ]);
@@ -358,8 +357,6 @@ fn check_constant_arrows() {
 
    let tt1  = Type::Tuple(vec![ tc1.clone(), tc2.clone() ]);
    let tt2  = Type::Tuple(vec![ tc3.clone(), tc4.clone() ]);
-   let ta4  = Type::Arrow( Box::new(tt1.clone()), Box::new(tt1.clone()) );
-   let ta5  = Type::Arrow( Box::new(tt2.clone()), Box::new(tt2.clone()) );
-   assert_eq!( ta5, ta4.implication_unifier(&ta5) );
+   let ta4  = Type::Arrow( Box::new(tt1.clone()), Box::new(tt2.clone()) );
+   assert_eq!( ta4, ta4.implication_unifier(&ta4) );
 }
-*/

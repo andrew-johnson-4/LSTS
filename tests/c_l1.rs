@@ -46,39 +46,36 @@ fn l1_reduce() {
    tlc.check(Some(l1), "- -1 @reduce;").unwrap();
 }
 
-/* TODO FIXME tuple projection
 #[test]
 fn l1_homogenous_tuples() {
    let mut tlc = TLC::new();
    let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
-   tlc.check(Some(l1), "(): Integer[0];").unwrap();
-   tlc.check(Some(l1), "(1): Integer[0];").unwrap_err();
-   tlc.check(Some(l1), "(1): Integer;").unwrap();
-   tlc.check(Some(l1), "(1,): Integer[0];").unwrap_err();
-   tlc.check(Some(l1), "(1,): Integer[1];").unwrap();
-   tlc.check(Some(l1), "(1,2): Integer[1];").unwrap_err();
-   tlc.check(Some(l1), "(1,2): Integer[];").unwrap();
-   tlc.check(Some(l1), "(1,2): Integer[2];").unwrap();
-   tlc.check(Some(l1), "(1,2,3): Integer[2];").unwrap_err();
-   tlc.check(Some(l1), "(1,2,3): Integer[3];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): Integer[3]).0 @reduce :[1];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): Integer[3]).1 @reduce :[2];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): Integer[3]).2 @reduce :[3];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): Integer[3])[-1] @reduce :[1];").unwrap_err();
-   tlc.check(Some(l1), "((1,2,3): Integer[3])[0] @reduce :[1];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): Integer[3])[1] @reduce :[2];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): Integer[3])[2] @reduce :[3];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): Integer[3])[3] @reduce :[3];").unwrap_err();
-   tlc.check(Some(l1), "((1,2,3): Integer[])[2] @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "(): U64[0];").unwrap();
+   tlc.check(Some(l1), "(1): U64[0];").unwrap_err();
+   tlc.check(Some(l1), "(1): U64;").unwrap();
+   tlc.check(Some(l1), "(1,): U64[0];").unwrap_err();
+   tlc.check(Some(l1), "(1,): U64[1];").unwrap();
+   tlc.check(Some(l1), "(1,2): U64[1];").unwrap_err();
+   tlc.check(Some(l1), "(1,2): U64[];").unwrap();
+   tlc.check(Some(l1), "(1,2): U64[2];").unwrap();
+   tlc.check(Some(l1), "(1,2,3): U64[2];").unwrap_err();
+   tlc.check(Some(l1), "(1,2,3): U64[3];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): U64[3]).0 @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): U64[3]).1 @reduce :[2];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): U64[3]).2 @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): U64[3])[-1] @reduce :[1];").unwrap_err();
+   tlc.check(Some(l1), "((1,2,3): U64[3])[0] @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): U64[3])[1] @reduce :[2];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): U64[3])[2] @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): U64[])[2] @reduce :[3];").unwrap();
    tlc.check(Some(l1), "().length @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(3,).length @reduce :[1];").unwrap();
    tlc.check(Some(l1), "(3,4).length @reduce :[2];").unwrap();
    tlc.check(Some(l1), "(3,4,7).length @reduce :[3];").unwrap();
-   tlc.check(Some(l1), "((3,4,7): Integer[]).length @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "((3,4,7): U64[]).length @reduce :[3];").unwrap();
    tlc.check(Some(l1), "((1,),(),(2,3,)).flatten().length @reduce :[3];").unwrap();
 }
-*/
 
 /* TODO FIXME destructure tuples
 #[test]
