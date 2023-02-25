@@ -1,11 +1,11 @@
 //L1 is a term from linguistics that means "native language"
 
 //Types
-type U64: Whole           = /^[0-9]+$/;
-type I64: Integer         = /^[-]?[0-9]+$/;
+type U64                  = /^[0-9]+$/;
+type I64                  = /^[-]?[0-9]+$/;
 type Whole: Integer       = /^[0-9]+$/;
-type Integer              = /^[-]?[0-9]+$/;
-type U8: U64              = /^[0-9]+$/;
+type Integer: I64         = /^[-]?[0-9]+$/;
+type U8                   = /^[0-9]+$/;
 type Boolean: U8          = False | True;
 type String               = /^["][^"]*["]$/;
 
@@ -13,12 +13,9 @@ type Even: Integer
      where. self % 2 | 0;
 type Odd: Integer
      where. self % 2 | 1;
-
-extern $"+"(x: Integer, y: Integer): Integer = $"";
-extern $"-"(x: Integer, y: Integer): Integer = $"";
-extern $"*"(x: Integer, y: Integer): Integer = $"";
-extern $"/"(x: Integer, y: Integer): Integer = $"";
-extern $"%"(x: Integer, y: Integer): Integer = $"";
+type Prime: Integer
+     where. self > 1
+     and   a:Integer. 2 > a || a > self - 1 || self % a != 0;
 
 //Implicit Operators
 extern $"+"(x: U64, y: U64): U64 = $"+:(U64,U64)->U64";
