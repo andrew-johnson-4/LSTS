@@ -782,7 +782,7 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
          let mut lps = Vec::new();
          loop {
             match tokens.peek_symbol()? {
-               Some(Symbol::LiteralS(v,_vn)) => {
+               Some(Symbol::LiteralS(v)) => {
                   tokens.take_symbol()?; 
                   let v = Term::Value(format!("\"{}\"",v));
                   let v = tlc.push_term(v, &span);
@@ -802,7 +802,7 @@ pub fn ll1_value_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
                },
                Some(Symbol::Literal) => { break; },
                _ => {
-                  pop_is("value-term", tokens, &vec![Symbol::LeftBrace, Symbol::LiteralV("f'l'".to_string())])?;
+                  pop_is("value-term", tokens, &vec![Symbol::LeftBrace, Symbol::LiteralS("abc".to_string())])?;
                },
             };
          }
