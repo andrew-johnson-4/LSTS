@@ -229,6 +229,9 @@ pub fn ll1_type_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) ->
                pop_is("type-stmt", tokens, &vec![Symbol::KAscript])?;
                kind = ll1_kind(tlc, tokens)?;
             }
+            if idn.is_none() && inf.is_none() && kind == tlc.term_kind {
+               break;
+            }
             itks.push((idn,inf,kind));
          }
          pop_is("type-stmt", tokens, &vec![Symbol::Dot])?;
@@ -316,7 +319,7 @@ pub fn ll1_forall_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
       }
 
       let mut ident = "_".to_string();
-      let mut typ = tlc.nil_type.clone();
+      let mut typ = Type::Any;
       let mut kind = tlc.term_kind.clone();
 
       if let Some(Symbol::Ident(v)) = tokens.peek_symbol()? {

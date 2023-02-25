@@ -9,6 +9,17 @@ type U8: U64              = /^[0-9]+$/;
 type Boolean: U8          = False | True;
 type String               = /^["][^"]*["]$/;
 
+type Even: Integer
+     where. self % 2 | 0;
+type Odd: Integer
+     where. self % 2 | 1;
+
+extern $"+"(x: Integer, y: Integer): Integer = $"";
+extern $"-"(x: Integer, y: Integer): Integer = $"";
+extern $"*"(x: Integer, y: Integer): Integer = $"";
+extern $"/"(x: Integer, y: Integer): Integer = $"";
+extern $"%"(x: Integer, y: Integer): Integer = $"";
+
 //Implicit Operators
 extern $"+"(x: U64, y: U64): U64 = $"+:(U64,U64)->U64";
 extern $"-"(x: U64, y: U64): U64 = $"-:(U64,U64)->U64";
@@ -59,7 +70,7 @@ let $"^"(x: U64, n: U64): U64 = if n==0 then 1
                            else if n%2==0 then (x*x)^(n/2)
                            else x*((x*x)^((n - 1)/2));
 
-let .flatmap(iterable: X[], f: (X)->(T[])): T[]; //no body for now, must rewrite term to use
+extern .flatmap(iterable: X[], f: (X)->(T[])): T[] = $".flatmap:XYZ"; //no body for now, must rewrite term to use
 
 extern .join(xs: String[]): String = $".join(String[])->String";
 extern .join2(xs: String[],sep: String): String = $".join(String[],String)->String";

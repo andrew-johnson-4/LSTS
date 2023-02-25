@@ -888,7 +888,8 @@ impl TLC {
       }}}}}
       None
    }
-   pub fn check_invariants(&mut self, _scope: &Option<ScopeId>, t: TermId) -> Result<(),Error> {
+   pub fn check_invariants(&mut self, _scope: &Option<ScopeId>, _t: TermId) -> Result<(),Error> {
+      /*
       let mut ground_types = Vec::new();
       let mut subs: HashMap<String,Constant> = HashMap::new();
       match self.rows[t.id].typ.clone() {
@@ -921,7 +922,6 @@ impl TLC {
                rule: format!("invariant not satisfied {}: {} | {:?}", tn, self.print_term(invariant.prop), invariant.algs),
                span: self.rows[t.id].span.clone(),
             })
-            /*
             } else if let Some((mut low,i,mut high,prop)) = self.is_exhaustive(invariant.prop) {
                if let Some(Constant::Integer(low)) = self.untyped_eval(&mut subs, &mut low, true) {
                if let Some(Constant::Integer(high)) = self.untyped_eval(&mut subs, &mut high, true) {
@@ -944,9 +944,9 @@ impl TLC {
                      }
                   }
                }}
-            */
          }
       }}}}
+      */
       Ok(())
    }
 
@@ -1224,9 +1224,9 @@ impl TLC {
                   r = Some(re.clone());
                   self.rows[t.id].typ = pat;
                   break;
-               } else if let Ok(nt) = self.implies(&i,&pat,&self.rows[t.id].span.clone()) {
+               } else if let Ok(_nt) = self.implies(&i,&pat,&self.rows[t.id].span.clone()) {
                   r = Some(re.clone());
-                  self.rows[t.id].typ = nt;
+                  self.rows[t.id].typ = i.clone();
                   break;
                }
             }
@@ -1258,22 +1258,22 @@ impl TLC {
                self.typeck(scope, lhs, None)?;
                let mut matched = false;
                self.rows[t.id].typ = self.rows[lhs.id].typ.clone();
+               let mut err_msg = Ok(());
                for fa in fas.iter() {
                   let fa_scope = fa.scope.clone();
                   let fa_inference = fa.inference.clone();
                   if let Some(rhs) = fa.rhs {
-                  if let Ok(_) = self.typeck_hint(&mut HashMap::new(), &Some(fa_scope), &h, lhs, rhs) {
-                     //at this point rule must have matched, so apply it
-                     let fat = fa_inference;
-                     self.rows[t.id].typ = self.rows[t.id].typ.and( &fat );
-                     matched = true;
-                  }}
+                     let r = self.typeck_hint(&mut HashMap::new(), &Some(fa_scope), &h, lhs, rhs);
+                     if let Ok(_) = r {
+                        let fat = fa_inference;
+                        self.rows[t.id].typ = self.rows[t.id].typ.and( &fat );
+                        matched = true;
+                     } else {
+                        err_msg = r;
+                     }
+                  }
                };
-               if !matched { return Err(Error {
-                  kind: "Type Error".to_string(),
-                  rule: format!("hint did not match any declared rule: {}", h),
-                  span: self.rows[t.id].span.clone(),
-               }) }
+               if !matched { err_msg?; }
             } else { return Err(Error {
                kind: "Type Error".to_string(),
                rule: format!("hint not found in statements: {}", h),
