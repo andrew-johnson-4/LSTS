@@ -43,9 +43,11 @@ fn string_formatting() {
    assert_eq!( val, Constant::parse(&tlc, r#""[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]""#).unwrap() );
 }
 
+/* TODO FIXME reintroduce SI prelude as a mixin
 #[test]
 fn si() {
    let mut tlc = TLC::new();
    let val = tlc.reduce_file(None, "examples/si.tlc").unwrap();
    assert_eq!( val, Constant::parse(&tlc, "1.23").unwrap() );
 }
+*/
