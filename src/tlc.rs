@@ -721,7 +721,7 @@ impl TLC {
                }
                hs
             };
-            assert!(!merge.is_bottom());
+            assert!(!merge.is_bottom() || lt.is_extern);
             let template = self.make_template(scope, *vt, &subs);
             self.poly_bindings.insert((lt.name.clone(),tt.clone()),template);
             self.typeck(&Some(lt.scope), template, None)?;

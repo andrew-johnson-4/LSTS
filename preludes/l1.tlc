@@ -47,6 +47,10 @@ extern $"||"(a:U8, b:U8): U8 = $"||:(U8,U8)->U8";
 
 extern $"as"(x:U64): String = $"as:(U64)->String";
 
+extern $"[]"(base: T[], index: U64): T = $"[]:(Tuple,U64)->Value";
+extern .length(base: T[]): U64 = $".length:(Tuple)->U64";
+extern .flatten(base: T[][]): T[] = $".flatten:(Tuple)->Tuple";
+
 extern range(to: U64): U64[] = $"range:(U64)->U64[]";
 extern range(from: U64, to: U64): U64[] = $"range:(U64,U64)->U64[]";
 extern range(from: U64, to: U64, step: U64): U64[] = $"range:(U64,U64,U64)->U64[]";

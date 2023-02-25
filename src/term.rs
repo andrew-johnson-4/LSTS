@@ -198,7 +198,14 @@ impl Term {
          if let Term::Let(lb) = &tlc.rows[binding.id].term {
             if lb.parameters.len() > 1 { unimplemented!("Term::reduce, beta-reduce curried functions") }
             let bt = lb.typeof_binding();
-            if bt.is_open() {
+            if lb.is_extern {
+               let body = lb.body.expect(&format!("extern function body must be a mangled symbol: {}", f));
+               if let Term::Ident(mangled) = &tlc.rows[body.id].term {
+                  let e = Expression::apply(&mangled, args, span);
+                  let e = e.typed(&rt.datatype());
+                  Ok(e)
+               } else { unreachable!("extern function body must be a mangled symbol: {}", f) }
+            } else if bt.is_open() {
                let Some(lbt) = tlc.poly_bindings.get(&(lb.name.clone(),ft.clone()))
                else { unreachable!("could not find template function {}: {:?}", lb.name, bt) };
                let Term::Let(_lbb) = &tlc.rows[lbt.id].term
@@ -207,13 +214,6 @@ impl Term {
                let e = Expression::apply(&mangled, args, span);
                let e = e.typed(&rt.datatype());
                Ok(e)
-            } else if lb.is_extern {
-               let body = lb.body.expect(&format!("extern function body must be a mangled symbol: {}", f));
-               if let Term::Ident(mangled) = &tlc.rows[body.id].term {
-                  let e = Expression::apply(&mangled, args, span);
-                  let e = e.typed(&rt.datatype());
-                  Ok(e)
-               } else { unreachable!("extern function body must be a mangled symbol: {}", f) }
             } else {
                let mangled = Term::compile_function(tlc, scope, funcs, binding)?;
                let e = Expression::apply(&mangled, args, span);
@@ -252,7 +252,7 @@ impl Term {
             let tt = tlc.rows[term.id].typ.clone();
             let span = tlc.rows[term.id].span.clone();
             let sc = scope.expect("Term::compile_expr scope was None");
-            let term = Scope::lookup_term(tlc, sc, &n, &tt).expect("Term::compile_expr variable not found in scope");
+            let term = Scope::lookup_term(tlc, sc, &n, &tt).expect(&format!("Term::compile_expr variable not found in scope: {}: {:?}", n, tt));
             let e = Expression::variable(term.id, span).typed(&tt.datatype());
             Ok(e)
          },
