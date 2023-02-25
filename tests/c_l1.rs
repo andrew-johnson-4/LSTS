@@ -1,4 +1,3 @@
-/* TODO FIXME update this file to work with current L1 prelude
 use lsts::tlc::TLC;
 
 #[test]
@@ -47,6 +46,7 @@ fn l1_reduce() {
    tlc.check(Some(l1), "- -1 @reduce;").unwrap();
 }
 
+/* TODO FIXME tuple projection
 #[test]
 fn l1_homogenous_tuples() {
    let mut tlc = TLC::new();
@@ -76,9 +76,11 @@ fn l1_homogenous_tuples() {
    tlc.check(Some(l1), "(3,4).length @reduce :[2];").unwrap();
    tlc.check(Some(l1), "(3,4,7).length @reduce :[3];").unwrap();
    tlc.check(Some(l1), "((3,4,7): Integer[]).length @reduce :[3];").unwrap();
-   tlc.check(Some(l1), "(+((1,),(),(2,3,)): Integer[]).length @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "((1,),(),(2,3,)).flatten().length @reduce :[3];").unwrap();
 }
+*/
 
+/* TODO FIXME destructure tuples
 #[test]
 fn l1_destructure_tuples() {
    let mut tlc = TLC::new();
@@ -95,7 +97,9 @@ fn l1_destructure_tuples() {
    tlc.check(Some(l1), "match (3,4) { (x,y) => 1 }  @reduce :[1];").unwrap();
    tlc.check(Some(l1), "match (3,4) { (x,y) => x }  @reduce :[3];").unwrap();
 }
+*/
 
+/* TODO FIXME update tuple LHS syntax
 #[test]
 fn l1_partial_tuples() {
    let mut tlc = TLC::new();

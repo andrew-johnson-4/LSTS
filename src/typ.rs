@@ -39,7 +39,7 @@ pub enum Type {
 
 impl Type {
    pub fn datatype(&self) -> String {
-      let dts = vec!["U8","U64","Unit","String"];
+      let dts = vec!["U8","U64","I64","Unit","String"];
       match self {
          Type::Tuple(_) => "Tuple".to_string(),
          Type::HTuple(_,_) => "Tuple".to_string(),
@@ -617,8 +617,8 @@ impl Type {
             self.clone()
          },
 
-         (Type::MaybeZero(lt),_) => { Type::And(vec![]) },
-         (_,Type::MaybeZero(rt)) => { Type::And(vec![]) },
+         (Type::MaybeZero(_lt),_) => { Type::And(vec![]) },
+         (_,Type::MaybeZero(_rt)) => { Type::And(vec![]) },
 
          //conjunctive normal form takes precedence
          (Type::And(_lts),Type::And(rts)) => {
