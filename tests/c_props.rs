@@ -13,7 +13,7 @@ fn check_contradictions() {
    tlc.check(Some(l1), "let a:True+False;").unwrap_err();
 }
 
-/* TODO FIXME: define prime with invariants on integers in L1
+/* TODO FIXME check invariants at runtime
 #[test]
 fn check_prime_factors() {
    let mut tlc = TLC::new();

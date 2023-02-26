@@ -5,12 +5,12 @@ fn l1_literals() {
    let mut tlc = TLC::new();
    let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
-   tlc.check(Some(l1), "0: Integer;").unwrap();
-   tlc.check(Some(l1), "0: Whole;").unwrap();
-   tlc.check(Some(l1), "1: Integer;").unwrap();
-   tlc.check(Some(l1), "1: Whole;").unwrap();
-   tlc.check(Some(l1), "-1: Integer;").unwrap();
-   tlc.check(Some(l1), "-1: Whole;").unwrap_err();
+   tlc.check(Some(l1), "0: I64;").unwrap();
+   tlc.check(Some(l1), "0: U64;").unwrap();
+   tlc.check(Some(l1), "1: I64;").unwrap();
+   tlc.check(Some(l1), "1: U64;").unwrap();
+   tlc.check(Some(l1), "-1: I64;").unwrap();
+   tlc.check(Some(l1), "-1: U64;").unwrap_err();
 }
 
 #[test]
@@ -18,11 +18,11 @@ fn l1_functions() {
    let mut tlc = TLC::new();
    let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
-   tlc.check(Some(l1), "let f(x:Integer): Integer = x; f(1);").unwrap();
-   tlc.check(Some(l1), "let f(x:Whole): Whole = x; f(1:Whole);").unwrap();
-   tlc.check(Some(l1), "let f(x:Integer): Integer = x; f(-1);").unwrap();
-   tlc.check(Some(l1), "let f(x:Whole): Whole = x; f(-1);").unwrap_err();
-   tlc.check(Some(l1), "let f(x:Whole): Integer = x; f(-1);").unwrap_err();
+   tlc.check(Some(l1), "let f(x:I64): I64 = x; f(1:I64);").unwrap();
+   tlc.check(Some(l1), "let f(x:U64): U64 = x; f(1:U64);").unwrap();
+   tlc.check(Some(l1), "let f(x:I64): I64 = x; f(-1);").unwrap();
+   tlc.check(Some(l1), "let f(x:U64): U64 = x; f(-1);").unwrap_err();
+   tlc.check(Some(l1), "let f(x:U64): I64 = x; f(-1);").unwrap_err();
 }
 
 #[test]
@@ -30,9 +30,9 @@ fn l1_dot_functions() {
    let mut tlc = TLC::new();
    let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
-   tlc.check(Some(l1), "let .f(x:Integer): Integer = x; (1).f: Integer;").unwrap();
-   tlc.check(Some(l1), "let .f(x:Integer, y:Integer): Integer = x; (1).f(2): Integer;").unwrap();
-   tlc.check(Some(l1), "let .f(x:Integer, y:Integer, z:Integer): Integer = x; (1).f(2,3): Integer;").unwrap();
+   tlc.check(Some(l1), "let .f(x:I64): I64 = x; (1:I64).f: I64;").unwrap();
+   tlc.check(Some(l1), "let .f(x:I64, y:I64): I64 = x; (1:I64).f(2:I64): I64;").unwrap();
+   tlc.check(Some(l1), "let .f(x:I64, y:I64, z:I64): I64 = x; (1:I64).f(2:I64,3:I64): I64;").unwrap();
 }
 
 #[test]
