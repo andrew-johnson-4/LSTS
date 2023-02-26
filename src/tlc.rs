@@ -852,103 +852,6 @@ impl TLC {
          _ => false,
       }
    }
-   pub fn is_exhaustive(&mut self, t: TermId) -> Option<(TermId,String,TermId,TermId)> {
-      if let Term::App(or1,app1) = &self.rows[t.id].term {
-      if let Term::Ident(orop) = &self.rows[or1.id].term {
-      if orop=="||" {
-      if let Term::Tuple(app1s) = &self.rows[app1.id].term {
-      if app1s.len()==2 {
-         if let Term::App(or2,app2) = &self.rows[app1s[0].id].term {
-         if let Term::Ident(orop) = &self.rows[or2.id].term {
-         if orop=="||" {
-         if let Term::Tuple(app2s) = &self.rows[app2.id].term {
-         if app2s.len()==2 {
-            let prop = app1s[1];
-            if let Term::App(gt,gt1) = &self.rows[app2s[0].id].term {
-            if let Term::Ident(gtop) = &self.rows[gt.id].term {
-            if gtop==">" {
-            if let Term::Tuple(gt1s) = &self.rows[gt1.id].term {
-            if let Term::Ident(lower_i) = &self.rows[gt1s[1].id].term {
-            if gt1s.len()==2 {
-               let lower_bounds = gt1s[0];
-               if let Term::App(gt,gt2) = &self.rows[app2s[1].id].term {
-               if let Term::Ident(gtop) = &self.rows[gt.id].term {
-               if gtop==">" {
-               if let Term::Tuple(gt2s) = &self.rows[gt2.id].term {
-               if gt2s.len()==2 {
-                  let upper_i = gt2s[0];
-                  let upper_bounds = gt2s[1];
-                  if let Term::Ident(i2) = &self.rows[upper_i.id].term {
-                  if lower_i==i2 {
-                     return Some((lower_bounds,lower_i.clone(),upper_bounds,prop));
-                  }}
-               }}}}}
-            }}}}}}
-         }}}}}
-      }}}}}
-      None
-   }
-   pub fn check_invariants(&mut self, _scope: &Option<ScopeId>, _t: TermId) -> Result<(),Error> {
-      /*
-      let mut ground_types = Vec::new();
-      let mut subs: HashMap<String,Constant> = HashMap::new();
-      match self.rows[t.id].typ.clone() {
-         Type::Named(tn,ts) => {
-            ground_types.push(Type::Named(tn.clone(),ts.clone()));
-         },
-         Type::And(tcs) => {
-            for tc in tcs.iter() {
-            match tc {
-               Type::Named(tn,ts) => {
-                  ground_types.push(Type::Named(tn.clone(),ts.clone()));
-               }, Type::Constant(ref cv) => {
-                  subs.insert("self".to_string(), cv.clone());
-               }, _ => {},
-            }}
-         },
-         _ => {},
-      }
-      for g in ground_types.iter() {
-      if let Type::Named(tn,_ts) = g {
-      if let Some(ti) = self.typedef_index.get(tn) {
-      if let TypeRule::Typedef(tr) = &self.rules[*ti] {
-         for invariant in tr.invariants.clone().iter() {
-            let p = Term::reduce(self, &Some(invariant.scope), invariant.prop)?;
-            if p == invariant.algs {
-               continue;
-            }
-            return Err(Error {
-               kind: "Type Error".to_string(),
-               rule: format!("invariant not satisfied {}: {} | {:?}", tn, self.print_term(invariant.prop), invariant.algs),
-               span: self.rows[t.id].span.clone(),
-            })
-            } else if let Some((mut low,i,mut high,prop)) = self.is_exhaustive(invariant.prop) {
-               if let Some(Constant::Integer(low)) = self.untyped_eval(&mut subs, &mut low, true) {
-               if let Some(Constant::Integer(high)) = self.untyped_eval(&mut subs, &mut high, true) {
-                  for ival in low..=high {
-                     let mut prop_mut = prop;
-
-                     let ic = Constant::Integer(ival);
-                     subs.insert(i.clone(), ic);
-
-                     if let Some(Constant::Boolean(true)) = self.untyped_eval(&mut subs, &mut prop_mut, true) {
-                        //pass
-                     } else {
-                        let st = subs.get("self").unwrap_or(&Constant::NaN);
-                        return Err(Error {
-                           kind: "Type Error".to_string(),
-                           rule: format!("invariant not satisfied for self={:?}, {}={}: {}",
-                                 st, i, ival, self.print_term(prop)),
-                           span: self.rows[t.id].span.clone(),
-                        })
-                     }
-                  }
-               }}
-         }
-      }}}}
-      */
-      Ok(())
-   }
 
    pub fn typeck_hint(&mut self, bound: &mut HashMap<String,TermId>, scope: &Option<ScopeId>, hint: &String, lhs: TermId, rhs: TermId) -> Result<(),Error> {
       match ( self.rows[lhs.id].term.clone(), self.rows[rhs.id].term.clone() ) {
@@ -1211,7 +1114,6 @@ impl TLC {
                   self.rows[t.id].typ = into.clone();
                }
             }
-            self.check_invariants(scope, t)?;
          },
          Term::Ident(x) => {
             self.rows[t.id].typ = self.typeof_var(&scope, &x, &implied, &self.rows[t.id].span.clone())?;
@@ -1246,7 +1148,6 @@ impl TLC {
                })
             }
             self.rows[t.id].typ = self.rows[t.id].typ.and( &Type::Constant(Constant::parse(self,&x).unwrap()) );
-            self.check_invariants(scope, t)?;
 	 },
          Term::RuleApplication(lhs,h) => {
             //borrowing self even in a .clone'd expression fails the borrow checker
