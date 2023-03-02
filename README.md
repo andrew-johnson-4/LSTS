@@ -46,3 +46,4 @@ forall @dec_even x: Even. Odd = x - 1;
 ## Tutorial
 
 For further information there is a [tutorial and reference documentation](https://andrew-johnson-4.github.io/lsts-tutorial/).
+- [Español](https://andrew-johnson-4.github.io/lsts-tutorial-es/)
