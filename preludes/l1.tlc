@@ -49,7 +49,7 @@ let pos(x: I64): I64 = x;
 let neg(x: I64): I64 = (0:I64) - x;
 extern $"as"(x: U64): I64 = $"as:(U64)->I64";
 
-extern not(b:U8): U8 = $"not:(U8)->U8";
+extern not(x:U8): U8 = $"not:(U8)->U8";
 extern $"&&"(a:U8, b:U8): U8 = $"&&:(U8,U8)->U8";
 extern $"||"(a:U8, b:U8): U8 = $"||:(U8,U8)->U8";
 
