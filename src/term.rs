@@ -244,6 +244,12 @@ impl Term {
             }
             Ok(Expression::tuple(tes,span).typed("Value"))
          },
+         Term::Constructor(c,cs) if c=="True" && cs.len()==0 => {
+            Ok(Expression::literal("1", span).typed("U8"))
+         },
+         Term::Constructor(c,cs) if c=="False" && cs.len()==0 => {
+            Ok(Expression::literal("0", span).typed("U8"))
+         },
          Term::Value(v) => {
             let e = Expression::literal(&v, span).typed(&tt.datatype());
             Ok(e)
