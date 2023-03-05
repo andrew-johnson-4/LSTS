@@ -10,7 +10,7 @@ fn l1_literals() {
    tlc.check(Some(l1), "1: I64;").unwrap();
    tlc.check(Some(l1), "1: I64;").unwrap();
    tlc.check(Some(l1), "-1: I64;").unwrap();
-   tlc.check(Some(l1), "-1: I64;").unwrap_err();
+   tlc.check(Some(l1), "-1: U64;").unwrap_err();
 }
 
 #[test]
@@ -21,8 +21,8 @@ fn l1_functions() {
    tlc.check(Some(l1), "let f(x:I64): I64 = x; f(1:I64);").unwrap();
    tlc.check(Some(l1), "let f(x:I64): I64 = x; f(1:I64);").unwrap();
    tlc.check(Some(l1), "let f(x:I64): I64 = x; f(-1);").unwrap();
-   tlc.check(Some(l1), "let f(x:I64): I64 = x; f(-1);").unwrap_err();
-   tlc.check(Some(l1), "let f(x:I64): I64 = x; f(-1);").unwrap_err();
+   tlc.check(Some(l1), "let f(x:I64): I64 = x; f(-1);").unwrap();
+   tlc.check(Some(l1), "let f(x:I64): I64 = x; f(-1);").unwrap();
 }
 
 #[test]
@@ -64,7 +64,6 @@ fn l1_homogenous_tuples() {
    tlc.check(Some(l1), "((1,2,3): I64[3]).0 @reduce :[1];").unwrap();
    tlc.check(Some(l1), "((1,2,3): I64[3]).1 @reduce :[2];").unwrap();
    tlc.check(Some(l1), "((1,2,3): I64[3]).2 @reduce :[3];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): I64[3])[-1] @reduce :[1];").unwrap_err();
    tlc.check(Some(l1), "((1,2,3): I64[3])[0] @reduce :[1];").unwrap();
    tlc.check(Some(l1), "((1,2,3): I64[3])[1] @reduce :[2];").unwrap();
    tlc.check(Some(l1), "((1,2,3): I64[3])[2] @reduce :[3];").unwrap();

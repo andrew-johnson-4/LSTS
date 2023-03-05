@@ -176,7 +176,7 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(10 / 1) @reduce :[10];").unwrap();
    tlc.check(Some(l1), "(345 / 67) @reduce :[5];").unwrap();
    tlc.check(Some(l1), "(-5 / 67) @reduce :[0];").unwrap();
-   tlc.check(Some(l1), "(-5 / -5) @reduce :[-1];").unwrap();
+   tlc.check(Some(l1), "(-5 / -5) @reduce :[1];").unwrap();
 
    tlc.check(Some(l1), "(0 % 1) @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(1 % 1) @reduce :[0];").unwrap();
@@ -186,6 +186,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "(4 % 123) @reduce :[4];").unwrap();
    tlc.check(Some(l1), "(10 % 1) @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(345 % 67) @reduce :[10];").unwrap();
-   tlc.check(Some(l1), "(-5 % 67) @reduce :[62];").unwrap();
+   tlc.check(Some(l1), "(-5 % 67) @reduce :[-5];").unwrap();
    tlc.check(Some(l1), "(-5 % -5) @reduce :[0];").unwrap();
 }
