@@ -6,9 +6,9 @@ fn l1_literals() {
    let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
    tlc.check(Some(l1), "0: I64;").unwrap();
-   tlc.check(Some(l1), "0: U64;").unwrap();
+   tlc.check(Some(l1), "0: I64;").unwrap();
    tlc.check(Some(l1), "1: I64;").unwrap();
-   tlc.check(Some(l1), "1: U64;").unwrap();
+   tlc.check(Some(l1), "1: I64;").unwrap();
    tlc.check(Some(l1), "-1: I64;").unwrap();
    tlc.check(Some(l1), "-1: U64;").unwrap_err();
 }
@@ -19,10 +19,10 @@ fn l1_functions() {
    let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
    tlc.check(Some(l1), "let f(x:I64): I64 = x; f(1:I64);").unwrap();
-   tlc.check(Some(l1), "let f(x:U64): U64 = x; f(1:U64);").unwrap();
+   tlc.check(Some(l1), "let f(x:I64): I64 = x; f(1:I64);").unwrap();
    tlc.check(Some(l1), "let f(x:I64): I64 = x; f(-1);").unwrap();
-   tlc.check(Some(l1), "let f(x:U64): U64 = x; f(-1);").unwrap_err();
-   tlc.check(Some(l1), "let f(x:U64): I64 = x; f(-1);").unwrap_err();
+   tlc.check(Some(l1), "let f(x:I64): I64 = x; f(-1);").unwrap();
+   tlc.check(Some(l1), "let f(x:I64): I64 = x; f(-1);").unwrap();
 }
 
 #[test]
@@ -51,29 +51,28 @@ fn l1_homogenous_tuples() {
    let mut tlc = TLC::new();
    let l1 = tlc.import_file(None, "preludes/l1.tlc").unwrap();
 
-   tlc.check(Some(l1), "(): U64[0];").unwrap();
-   tlc.check(Some(l1), "(1): U64[0];").unwrap_err();
-   tlc.check(Some(l1), "(1): U64;").unwrap();
-   tlc.check(Some(l1), "(1,): U64[0];").unwrap_err();
-   tlc.check(Some(l1), "(1,): U64[1];").unwrap();
-   tlc.check(Some(l1), "(1,2): U64[1];").unwrap_err();
-   tlc.check(Some(l1), "(1,2): U64[];").unwrap();
-   tlc.check(Some(l1), "(1,2): U64[2];").unwrap();
-   tlc.check(Some(l1), "(1,2,3): U64[2];").unwrap_err();
-   tlc.check(Some(l1), "(1,2,3): U64[3];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): U64[3]).0 @reduce :[1];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): U64[3]).1 @reduce :[2];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): U64[3]).2 @reduce :[3];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): U64[3])[-1] @reduce :[1];").unwrap_err();
-   tlc.check(Some(l1), "((1,2,3): U64[3])[0] @reduce :[1];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): U64[3])[1] @reduce :[2];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): U64[3])[2] @reduce :[3];").unwrap();
-   tlc.check(Some(l1), "((1,2,3): U64[])[2] @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "(): I64[0];").unwrap();
+   tlc.check(Some(l1), "(1): I64[0];").unwrap_err();
+   tlc.check(Some(l1), "(1): I64;").unwrap();
+   tlc.check(Some(l1), "(1,): I64[0];").unwrap_err();
+   tlc.check(Some(l1), "(1,): I64[1];").unwrap();
+   tlc.check(Some(l1), "(1,2): I64[1];").unwrap_err();
+   tlc.check(Some(l1), "(1,2): I64[];").unwrap();
+   tlc.check(Some(l1), "(1,2): I64[2];").unwrap();
+   tlc.check(Some(l1), "(1,2,3): I64[2];").unwrap_err();
+   tlc.check(Some(l1), "(1,2,3): I64[3];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): I64[3]).0 @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): I64[3]).1 @reduce :[2];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): I64[3]).2 @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): I64[3])[0] @reduce :[1];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): I64[3])[1] @reduce :[2];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): I64[3])[2] @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "((1,2,3): I64[])[2] @reduce :[3];").unwrap();
    tlc.check(Some(l1), "().length @reduce :[0];").unwrap();
    tlc.check(Some(l1), "(3,).length @reduce :[1];").unwrap();
    tlc.check(Some(l1), "(3,4).length @reduce :[2];").unwrap();
    tlc.check(Some(l1), "(3,4,7).length @reduce :[3];").unwrap();
-   tlc.check(Some(l1), "((3,4,7): U64[]).length @reduce :[3];").unwrap();
+   tlc.check(Some(l1), "((3,4,7): I64[]).length @reduce :[3];").unwrap();
    tlc.check(Some(l1), "((1,),(),(2,3,)).flatten().length @reduce :[3];").unwrap();
 }
 

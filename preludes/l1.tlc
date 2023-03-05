@@ -1,8 +1,8 @@
 //L1 is a term from linguistics that means "native language"
 
 //Types
-type U64                  = /^[0-9]+$/;
 type I64                  = /^[-]?[0-9]+$/;
+type U64                  = /^[0-9]+$/;
 type Whole: Integer       = /^[0-9]+$/;
 type Integer: I64         = /^[-]?[0-9]+$/;
 type U8                   = /^[0-9]+$/;
@@ -47,23 +47,23 @@ extern $">"(x: I64, y: I64): U8 = $">:(I64,I64)->U8";
 extern $">="(x: I64, y: I64): U8 = $">=:(I64,I64)->U8";
 let pos(x: I64): I64 = x;
 let neg(x: I64): I64 = (0:I64) - x;
-extern $"as"(x: U64): I64 = $"as:(U64)->I64";
 
 extern not(x:U8): U8 = $"not:(U8)->U8";
 extern $"&&"(a:U8, b:U8): U8 = $"&&:(U8,U8)->U8";
 extern $"||"(a:U8, b:U8): U8 = $"||:(U8,U8)->U8";
 
 extern $"as"(x:U64): String = $"as:(U64)->String";
+extern $"as"(x:I64): String = $"as:(I64)->String";
 
-extern $"[]"(base: T[], index: U64): T = $"[]:(Tuple,U64)->Value";
-extern .length(base: T[]): U64 = $".length:(Tuple)->U64";
+extern $"[]"(base: T[], index: I64): T = $"[]:(Tuple,U64)->Value";
+extern .length(base: T[]): I64 = $".length:(Tuple)->U64";
 extern .flatten(base: T[][]): T[] = $".flatten:(Tuple)->Tuple";
 
-extern range(to: U64): U64[] = $"range:(U64)->U64[]";
-extern range(from: U64, to: U64): U64[] = $"range:(U64,U64)->U64[]";
-extern range(from: U64, to: U64, step: U64): U64[] = $"range:(U64,U64,U64)->U64[]";
+extern range(to: I64): I64[] = $"range:(I64)->I64[]";
+extern range(from: I64, to: I64): I64[] = $"range:(I64,I64)->I64[]";
+extern range(from: I64, to: I64, step: I64): I64[] = $"range:(I64,I64,I64)->I64[]";
 
-let $"^"(x: U64, n: U64): U64 = if n==0 then 1
+let $"^"(x: I64, n: I64): I64 = if n==0 then 1
                            else if n%2==0 then (x*x)^(n/2)
                            else x*((x*x)^((n - 1)/2));
 

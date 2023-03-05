@@ -1,7 +1,7 @@
 import $"preludes/l1.tlc";
 
-( for c:U64 in range(1,11) 
-  for b:U64 in range(1,c)
-  for a:U64 in range(1,b)
+( for c:I64 in range(1,11) 
+  for b:I64 in range(1,c)
+  for a:I64 in range(1,b)
   if a^2 + b^2 == c^2 && a+b+c == 24
   yield (a,b,c) );
