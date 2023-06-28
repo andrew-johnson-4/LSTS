@@ -1,8 +1,10 @@
 //L1 is a term from linguistics that means "native language"
 
 //Types
+
 type I64                  = /^[-]?[0-9]+$/;
 type U64                  = /^[0-9]+$/;
+type F64                  = /^[0-9]+(\.[0-9]+)?$/;
 type Whole: Integer       = /^[0-9]+$/;
 type Integer: I64         = /^[-]?[0-9]+$/;
 type U8                   = /^[0-9]+$/;
@@ -47,6 +49,21 @@ extern $">"(x: I64, y: I64): U8 = $">:(I64,I64)->U8";
 extern $">="(x: I64, y: I64): U8 = $">=:(I64,I64)->U8";
 let pos(x: I64): I64 = x;
 let neg(x: I64): I64 = (0:I64) - x;
+
+extern $"+"(x: F64, y: F64): F64 = $"+:(F64,F64)->F64";
+extern $"-"(x: F64, y: F64): F64 = $"-:(F64,F64)->F64";
+extern $"*"(x: F64, y: F64): F64 = $"*:(F64,F64)->F64";
+extern $"/"(x: F64, y: F64): F64 = $"/:(F64,F64)->F64";
+extern $"%"(x: F64, y: F64): F64 = $"%:(F64,F64)->F64";
+
+extern $"=="(x: F64, y: F64): U8 = $"==:(F64,F64)->U8";
+extern $"!="(x: F64, y: F64): U8 = $"!=:(F64,F64)->U8";
+extern $"<"(x: F64, y: F64): U8 = $"<:(F64,F64)->U8";
+extern $"<="(x: F64, y: F64): U8 = $"<=:(F64,F64)->U8";
+extern $">"(x: F64, y: F64): U8 = $">:(F64,F64)->U8";
+extern $">="(x: F64, y: F64): U8 = $">=:(F64,F64)->U8";
+let pos(x: F64): F64 = x;
+let neg(x: F64): F64 = (0:F64) - x;
 
 extern not(x:U8): U8 = $"not:(U8)->U8";
 extern $"&&"(a:U8, b:U8): U8 = $"&&:(U8,U8)->U8";
