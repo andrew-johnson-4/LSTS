@@ -195,7 +195,7 @@ pub fn is_value_char(c: u8) -> bool {
 }
 
 pub struct TokenReader {
-   //prelex defined tokens require infinite look-ahead 
+   //prelex defined tokens require infinite look-ahead
    source_name: Rc<String>,
    offset_start: usize,
    line: usize,
