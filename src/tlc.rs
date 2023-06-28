@@ -1182,14 +1182,10 @@ impl TLC {
             }) }
          },
          Term::Arrow(ref sc,p,rt,b) => {
-            let Term::Ascript(pt,ptt) = &self.rows[p.id].term.clone()
-            else { return Err(Error {
-               kind: "Type Error".to_string(),
-               rule: format!("Arrow lhs must be ascripted"),
-               span: self.rows[t.id].span.clone(),
-            }) };
-            self.rows[pt.id].typ = ptt.clone();
-            self.rows[p.id].typ = ptt.clone();
+            if let Term::Ascript(pt,ptt) = &self.rows[p.id].term.clone() {
+               self.rows[pt.id].typ = ptt.clone();
+               self.rows[p.id].typ = ptt.clone();
+            }
             self.typeck(&Some(*sc), b, rt)?;
             self.rows[t.id].typ = Type::Arrow(
                Box::new(self.rows[p.id].typ.clone()),

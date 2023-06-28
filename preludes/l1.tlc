@@ -73,3 +73,5 @@ extern .join(xs: String[]): String = $".join(String[])->String";
 extern .join2(xs: String[],sep: String): String = $".join(String[],String)->String";
 
 let .join(xs: T[],sep: String): String = (for x:T in xs yield (x as String)).join2(sep);
+
+let $"+"(x: String, y: String): String = f"{x}{y}";
