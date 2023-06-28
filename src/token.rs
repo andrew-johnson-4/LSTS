@@ -539,10 +539,16 @@ pub fn tokenize_file<'a>(tlc: &mut TLC, source_name: &str) -> Result<TokenReader
    if tlc.value_regexes.len() == 0 && source_name != "preludes/l1.tlc" {
       tokenize_file(tlc, "preludes/l1.tlc")?;
    }
-   if let Ok(mut f) = File::open(source_name) {
+   if source_name == "preludes/l1.tlc" {
+      tokenize_string(tlc, &source_name, include_str!("../preludes/l1.tlc"))
+   } else if source_name == "preludes/si.tlc" {
+      tokenize_string(tlc, &source_name, include_str!("../preludes/si.tlc"))
+   } else if source_name == "preludes/algebra.tlc" {
+      tokenize_string(tlc, &source_name, include_str!("../preludes/algebra.tlc"))
+   } else if let Ok(mut f) = File::open(&source_name) {
       let mut line = Vec::new();
       if let Ok(_len) = f.read_to_end(&mut line) {
-         tokenize_bytes(tlc, source_name, line)
+         tokenize_bytes(tlc, &source_name, line)
       } else {
          Err(Error{
             kind: "Tokenization Error".to_string(),
