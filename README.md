@@ -14,7 +14,6 @@ Terms are Lambda Calculus expressions with some extensions.
 
 ```lsts
 1;
-3.0;
 "abc";
 2 + 3;
 "[" + (for x in range(1,25) yield x^3).join(",") + "]";

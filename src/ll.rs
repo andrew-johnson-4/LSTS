@@ -1254,7 +1254,7 @@ pub fn ll1_import_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
    if let Some(Symbol::Ident(fp)) = tokens.peek_symbol()? {
       tokens.take_symbol()?;
       let mut tks = tokenize_file(tlc, &fp)?;
-      ll1_file(tlc, scope, &mut tks)
+      ll1_file_impl(tlc, scope, &mut tks, false)
    } else {
       Err(Error {
          kind: "Parse Error".to_string(),
@@ -1284,7 +1284,18 @@ pub fn ll1_block_stmt(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -
 }
 
 pub fn ll1_file(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
+   ll1_file_impl(tlc, scope, tokens, true)
+}
+
+fn ll1_file_impl(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader, user: bool) -> Result<TermId,Error> {
    let mut es = Vec::new();
+
+   //default to L1 prelude if none specified
+   if user && !peek_is(tokens, &vec![Symbol::Import]) {
+      let mut tks = tokenize_file(tlc, "preludes/l1.tlc")?;
+      es.push( ll1_file_impl(tlc, scope, &mut tks, false)? );
+   }
+
    while !peek_is(tokens, &vec![Symbol::EOF]) {
       es.push( ll1_stmt(tlc, scope, tokens)? );
    }

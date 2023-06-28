@@ -92,6 +92,9 @@ impl Term {
       match &tlc.rows[lhs.id].term.clone() {
          Term::Ident(n) if n=="_" => {},
          Term::Ident(n) => {
+            if tlc.rows[lhs.id].typ == Type::Any {
+               tlc.rows[lhs.id].typ = Type::Named("I64".to_string(),vec![]);
+            }
             children.push((n.clone(), HashMap::new(), tlc.rows[lhs.id].typ.clone(), Some(lhs)));
          },
          Term::Ascript(lt,ltt) => {
