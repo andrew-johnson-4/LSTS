@@ -1,3 +1,4 @@
+
 use std::collections::HashMap;
 use crate::constant::Constant;
 use crate::kind::Kind;
@@ -39,7 +40,7 @@ pub enum Type {
 
 impl Type {
    pub fn datatype(&self) -> String {
-      let dts = vec!["U8","U64","I64","Unit","String"];
+      let dts = vec!["U8","U64","I64","F32","F64","Unit","String"];
       match self {
          Type::Tuple(_) => "Tuple".to_string(),
          Type::HTuple(_,_) => "Tuple".to_string(),
