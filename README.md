@@ -23,7 +23,7 @@ Terms are Lambda Calculus expressions with some extensions.
 
 Type definitions define logical statements that are then attached to Terms. All valid Terms have at least one Type. Some Terms may have more than one Type. Types may define invariant properties. These invariant properties impose preconditions and postconditions on what values may occupy that Type. Values going into a Type must satisfy that Type's preconditions. Values coming out of a Term are then known to have satisfied each Type's invariants.
 
-Multiple types are implemented through the use of a Logical Conjunction Type, similar to a Sum or Product. Types can be put into a Conjunction or projected out. Subtyping relations are then used to determine whether one conjunction implies another. There is no logical OR, only AND, and types are expected to be normalized into conjunctive normal form.
+Multiple types are implemented through the use of a Logical Conjunction Type, similar to a Sum or Product. Types can be put into a Conjunction or projected out. Subtyping relations are then used to determine whether one conjunction implies another. There is no logical OR, only AND (unless you count arrows), and types are expected to be normalized into conjunctive normal form.
 
 ```lsts
 type Even: Integer
