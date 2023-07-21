@@ -1,5 +1,6 @@
 use crate::tlc::TLC;
-use l1_ir::value::{Tag,Value};
+
+use lambda_mountain::Rhs;
 
 #[derive(Clone,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub enum Constant {
@@ -22,15 +23,11 @@ impl Constant {
    pub fn parse(_tlc: &TLC, v: &str) -> Option<Constant> {
       Some(Constant::Literal(v.to_string()))
    }
-   pub fn from_value(v: Value) -> Constant {
-      match v.tag() {
-         Tag::Unit => Constant::Tuple(Vec::new()),
-         Tag::U8 => Constant::Literal(format!("{:?}",v)),
-         Tag::U64 => Constant::Literal(format!("{:?}",v)),
-         Tag::I64 => Constant::Literal(format!("{:?}",v)),
-         Tag::Tuple => Constant::Literal(format!("{:?}",v)),
-         Tag::String => Constant::Literal(format!("{:?}",v)),
-         t => unimplemented!("Constant::from_value Tag: {:?}", t)
+   pub fn from_value(v: Rhs) -> Constant {
+      match v {
+         Rhs::App(vs) => Constant::Tuple(vs.iter().map(|v| Constant::from_value(v.clone())).collect::<Vec<Constant>>()),
+         Rhs::Literal(l) => Constant::Literal(l.clone()),
+         t => unimplemented!("Constant::from_value {}", t)
       }
    }
 }
