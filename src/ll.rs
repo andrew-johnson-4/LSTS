@@ -684,16 +684,43 @@ pub fn ll1_divmul_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) 
 
 pub fn ll1_power_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
    let span = span_of(tokens);
-   let mut term = ll1_prefix_term(tlc, scope, tokens)?;
+   let mut term = ll1_infix_term(tlc, scope, tokens)?;
    while peek_is(tokens, &vec![Symbol::Pow]) {
       let op = pop_is("power-term", tokens, &vec![Symbol::Pow])?;
       let op = format!("{:?}", op);
-      let term2 = ll1_prefix_term(tlc, scope, tokens)?;
+      let term2 = ll1_infix_term(tlc, scope, tokens)?;
       let t = Term::App(
          tlc.push_term(Term::Ident(op),&span),
          tlc.push_term(Term::Tuple(vec![term,term2]),&span),
       );
       term = tlc.push_term(t,&span);
+   }
+   Ok(term)
+}
+
+// Implement infix syntax sugar.
+// We can replace "add(1,2)" with "1 `add` 2"
+pub fn ll1_infix_term(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader) -> Result<TermId,Error> {
+   let span = span_of(tokens);
+   let mut term = ll1_prefix_term(tlc, scope, tokens)?;
+   while peek_is(tokens, &vec![Symbol::BackQuote]) {
+      pop_is("infix-term", tokens, &vec![Symbol::BackQuote])?;
+
+      if let Some(Symbol::Ident(op)) = tokens.take_symbol()? {
+         pop_is("infix-term", tokens, &vec![Symbol::BackQuote])?;
+         
+         let term2 = ll1_prefix_term(tlc, scope, tokens)?;
+         let t = Term::App(
+            tlc.push_term(Term::Ident(op),&span),
+            tlc.push_term(Term::Tuple(vec![term,term2]),&span),
+         );
+         term = tlc.push_term(t,&span);
+      } else {
+          pop_is("infix-term",tokens,&vec![
+             Symbol::Ident("identifier".to_string())
+          ])?;
+          unreachable!("infix-term expected identifier after backquote")
+      }
    }
    Ok(term)
 }
@@ -1302,4 +1329,3 @@ fn ll1_file_impl(tlc: &mut TLC, scope: ScopeId, tokens: &mut TokenReader, user: 
    pop_is("file", tokens, &vec![Symbol::EOF])?;
    Ok(tlc.push_term(Term::Block(scope,es), &span_of(tokens)))
 }
-

@@ -13,7 +13,7 @@ pub struct Span {
    pub offset_end: usize,
    pub linecol_start: (usize,usize),
    pub linecol_end: (usize,usize),
-}
+} 
 impl std::fmt::Debug for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{},{}\n", self.filename, self.linecol_start.0, self.linecol_start.1)
@@ -87,6 +87,7 @@ pub enum Symbol {
    AndAlso,
    Typeof,
    At,
+   BackQuote,
    As,
    Match,
    Import,
@@ -146,6 +147,7 @@ impl std::fmt::Debug for Symbol {
            Symbol::BackSlash          => write!(f, "\\"),
            Symbol::Arrow              => write!(f, "->"),
            Symbol::At                 => write!(f, "@"),
+           Symbol::BackQuote          => write!(f, "`"),
 
            Symbol::LeftBracket        => write!(f, "["),
            Symbol::RightBracket       => write!(f, "]"),
@@ -244,6 +246,7 @@ impl TokenReader {
          [b',', ..] => Some((1,Symbol::Comma)),
          [b';', ..] => Some((1,Symbol::SemiColon)),
          [b'@', ..] => Some((1,Symbol::At)),
+         [b'`', ..] => Some((1,Symbol::BackQuote)),
          [b'\\', ..] => Some((1,Symbol::BackSlash)),
          [b'[', ..] => Some((1,Symbol::LeftBracket)),
          [b']', ..] => Some((1,Symbol::RightBracket)),
