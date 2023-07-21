@@ -12,8 +12,8 @@ keywords = ["type","logic","automated","theorem","proof"]
 
 [dependencies]
 regex = { version = "1" }
-l1_ir = { version = "0.0.52" }
-#l1_ir = { path = "../L1IR" }
+lambda_mountain = { version = "0.0.16" }
+#lambda_mountain = { path = "../-" }
 gag   = { version = "1" }
 
 [[bench]]
