@@ -295,8 +295,17 @@ impl Term {
             ]))
          },
          Term::App(g,x) => {
-            let g = Term::compile_expr(tlc, scope, funcs, preamble, *g)?;
             let x = Term::compile_expr(tlc, scope, funcs, preamble, *x)?;
+
+            if let Term::Project(Constant::Literal(cv)) = &tlc.rows[g.id].term {
+               return Ok(Rhs::App(vec![
+                  Rhs::Variable("π".to_string()),
+                  Rhs::Literal(cv.clone()),
+                  x
+               ]));
+            }
+
+            let g = Term::compile_expr(tlc, scope, funcs, preamble, *g)?;
             Ok(Rhs::App(vec![ g, x ]))
             /*
             match (&tlc.rows[g.id].term,&tlc.rows[x.id].term) {
@@ -350,9 +359,6 @@ impl Term {
             }
             */
          },
-         Term::Project(Constant::Literal(cv)) => {
-            Ok(Rhs::App(vec![ Rhs::Literal("π".to_string()), Rhs::Literal(cv.clone()) ]))
-         },
          _ => unimplemented!("Term::compile_expr {}", tlc.print_term(term)),
       }
    }
@@ -360,6 +366,8 @@ impl Term {
       let span = tlc.rows[term.id].span.clone();
 
       let mut policy = Policy::new();
+      policy.bind_extern("π", &pi);
+
       let mut preamble = Vec::new();
       let mut funcs = Vec::new();
       let pe = Term::compile_expr(tlc, scope, &mut funcs, &mut preamble, term)?;
@@ -383,4 +391,15 @@ impl Term {
 
       Ok(Constant::from_value(last_e))
    }
+}
+
+fn pi(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(i), Rhs::App(ts)] = args {
+      let i = i.parse::<usize>().unwrap();
+      return ts[i].clone();
+   }
+   Rhs::App(vec![
+      Rhs::Literal("π".to_string()),
+      Rhs::App(args.to_vec())
+   ])
 }

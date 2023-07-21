@@ -26,6 +26,7 @@ impl Constant {
    pub fn from_value(v: Rhs) -> Constant {
       match v {
          Rhs::App(vs) => Constant::Tuple(vs.iter().map(|v| Constant::from_value(v.clone())).collect::<Vec<Constant>>()),
+         Rhs::Variable(l) => Constant::Literal(l.clone()),
          Rhs::Literal(l) => Constant::Literal(l.clone()),
          t => unimplemented!("Constant::from_value {}", t)
       }
