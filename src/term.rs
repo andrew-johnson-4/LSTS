@@ -6,7 +6,7 @@ use crate::constant::Constant;
 use crate::debug::{Error};
 use crate::token::{Span};
 use std::collections::HashMap;
-use lambda_mountain::Rhs;
+use lambda_mountain::*;
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -357,11 +357,30 @@ impl Term {
       }
    }
    pub fn reduce(tlc: &TLC, scope: &Option<ScopeId>, term: TermId) -> Result<Constant,Error> {
+      let span = tlc.rows[term.id].span.clone();
+
+      let mut policy = Policy::new();
       let mut preamble = Vec::new();
       let mut funcs = Vec::new();
       let pe = Term::compile_expr(tlc, scope, &mut funcs, &mut preamble, term)?;
       preamble.push(pe);
 
-      Ok(Constant::Literal("(TODO: evaluate LM Program)".to_string()))
+      let context = Context::new(&policy);
+      let mut last_e = Rhs::App(Vec::new());
+      for pe in preamble {
+         match eval_rhs(context.clone(), &[pe]) {
+            Err(e) => {
+               return Err(Error {
+                  kind: "Runtime".to_string(),
+                  rule: "reduce".to_string(),
+                  span: span.clone(),
+               });
+            }, Ok(e) => {
+               last_e = e.clone();
+            },
+         }
+      }
+
+      Ok(Constant::from_value(last_e))
    }
 }
