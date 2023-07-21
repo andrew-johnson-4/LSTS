@@ -346,15 +346,12 @@ impl Term {
                (Term::Ident(gv),Term::Tuple(ps)) => {
                   Term::apply_fn(tlc, scope, funcs, preamble, gv, ps, tlc.rows[g.id].typ.clone(), tt, span)
                },
-               (Term::Project(Constant::Literal(cv)),_av) => {
-                  let base = Term::compile_expr(tlc, &Some(sc), funcs, preamble, *x)?.typed("Value");
-                  let index = Expression::literal(cv, span.clone()).typed("U64");
-                  let prj = Expression::apply("[]:(Tuple,U64)->Value", vec![base,index], span.clone()).typed(&tt.datatype());
-                  Ok(prj)
-               },
                _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({})", tlc.print_term(*g), tlc.print_term(*x))
             }
             */
+         },
+         Term::Project(Constant::Literal(cv)) => {
+            Ok(Rhs::App(vec![ Rhs::Literal("π".to_string()), Rhs::Literal(cv.clone()) ]))
          },
          _ => unimplemented!("Term::compile_expr {}", tlc.print_term(term)),
       }
