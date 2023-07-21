@@ -306,7 +306,14 @@ impl Term {
             }
 
             let g = Term::compile_expr(tlc, scope, funcs, preamble, *g)?;
-            Ok(Rhs::App(vec![ g, x ]))
+
+            if let Rhs::App(xs) = x {
+               let mut xs = xs.clone();
+               xs.insert(0, g);
+               Ok(Rhs::App(xs))
+            } else {
+               Ok(Rhs::App(vec![ g, x ]))
+            }
             /*
             match (&tlc.rows[g.id].term,&tlc.rows[x.id].term) {
                (Term::Ident(gv),Term::Tuple(ps)) if gv==".flatmap" && ps.len()==2 => {
@@ -367,6 +374,8 @@ impl Term {
 
       let mut policy = Policy::new();
       policy.bind_extern("π", &pi);
+      policy.bind_extern("[]", &get_index);
+      policy.bind_extern(".length", &dot_length);
 
       let mut preamble = Vec::new();
       let mut funcs = Vec::new();
@@ -398,8 +407,26 @@ fn pi(args: &[Rhs]) -> Rhs {
       let i = i.parse::<usize>().unwrap();
       return ts[i].clone();
    }
-   Rhs::App(vec![
-      Rhs::Literal("π".to_string()),
-      Rhs::App(args.to_vec())
-   ])
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("π".to_string()));
+   Rhs::App(args)
+}
+
+fn get_index(args: &[Rhs]) -> Rhs {
+   if let [Rhs::App(ts), Rhs::Literal(i)] = args {
+      let i = i.parse::<usize>().unwrap();
+      return ts[i].clone();
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("[]".to_string()));
+   Rhs::App(args)
+}
+
+fn dot_length(args: &[Rhs]) -> Rhs {
+   if let [Rhs::App(ts)] = args {
+      return Rhs::Literal(format!("{}",ts.len()));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal(".length".to_string()));
+   Rhs::App(args)
 }
