@@ -154,7 +154,6 @@ impl Term {
          name += &format!("{:?}", lt.rtype);
          name
       } else { panic!("Term::compile_function must be a Let binding") };
-      println!("mangled: {}", mangled);
       for fd in funcs.iter() {
          if fd.0 == mangled { return Ok(mangled); }
       }
@@ -379,6 +378,36 @@ impl Term {
       policy.bind_extern("[]:(Tuple,U64)->Value", &get_index);
       policy.bind_extern(".length:(Tuple)->U64", &dot_length);
 
+      policy.bind_extern("not:(U8)->U8", &not_u8);
+      policy.bind_extern("&&:(U8,U8)->U8", &and_u8);
+      policy.bind_extern("||:(U8,U8)->U8", &or_u8);
+
+      policy.bind_extern("+:(U64,U64)->U64", &add_u64);
+      policy.bind_extern("-:(U64,U64)->U64", &sub_u64);
+      policy.bind_extern("*:(U64,U64)->U64", &mul_u64);
+      policy.bind_extern("/:(U64,U64)->U64", &div_u64);
+      policy.bind_extern("%:(U64,U64)->U64", &mod_u64);
+      policy.bind_extern("==:(U64,U64)->U8", &eq_u64);
+      policy.bind_extern("!=:(U64,U64)->U8", &ne_u64);
+      policy.bind_extern("<:(U64,U64)->U8", &lt_u64);
+      policy.bind_extern("<=:(U64,U64)->U8", &lte_u64);
+      policy.bind_extern(">:(U64,U64)->U8", &gt_u64);
+      policy.bind_extern(">=:(U64,U64)->U8", &gte_u64);
+
+      policy.bind_extern("+:(I64,I64)->I64", &add_i64);
+      policy.bind_extern("-:(I64,I64)->I64", &sub_i64);
+      policy.bind_extern("*:(I64,I64)->I64", &mul_i64);
+      policy.bind_extern("/:(I64,I64)->I64", &div_i64);
+      policy.bind_extern("%:(I64,I64)->I64", &mod_i64);
+      policy.bind_extern("==:(I64,I64)->U8", &eq_i64);
+      policy.bind_extern("!=:(I64,I64)->U8", &ne_i64);
+      policy.bind_extern("<:(I64,I64)->U8", &lt_i64);
+      policy.bind_extern("<=:(I64,I64)->U8", &lte_i64);
+      policy.bind_extern(">:(I64,I64)->U8", &gt_i64);
+      policy.bind_extern(">=:(I64,I64)->U8", &gte_i64);
+      policy.bind_extern("pos:(I64)->I64", &pos_i64);
+      policy.bind_extern("neg:(I64)->I64", &neg_i64);
+
       let mut preamble = Vec::new();
       let mut funcs = Vec::new();
       let pe = Term::compile_expr(tlc, scope, &mut funcs, &mut preamble, term)?;
@@ -433,3 +462,281 @@ fn dot_length(args: &[Rhs]) -> Rhs {
    Rhs::App(args)
 }
 
+fn add_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",x+y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("+:(U64,U64)->U64".to_string()));
+   Rhs::App(args)
+}
+fn sub_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",x-y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("-:(U64,U64)->U64".to_string()));
+   Rhs::App(args)
+}
+fn mul_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",x*y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("*:(U64,U64)->U64".to_string()));
+   Rhs::App(args)
+}
+fn div_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",x/y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("/:(U64,U64)->U64".to_string()));
+   Rhs::App(args)
+}
+fn mod_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",x%y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("%:(U64,U64)->U64".to_string()));
+   Rhs::App(args)
+}
+fn eq_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",(x==y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("==:(U64,U64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn ne_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",(x != y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("!=:(U64,U64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn lt_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",(x<y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("<:(U64,U64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn lte_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",(x<=y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("<=:(U64,U64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn gt_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",(x>y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal(">:(U64,U64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn gte_u64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<u64>().unwrap();
+      let y = y.parse::<u64>().unwrap();
+      return Rhs::Literal(format!("{}",(x>=y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal(">=:(U64,U64)->U8".to_string()));
+   Rhs::App(args)
+}
+
+fn add_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",x+y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("+:(i64,i64)->i64".to_string()));
+   Rhs::App(args)
+}
+fn sub_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",x-y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("-:(i64,i64)->i64".to_string()));
+   Rhs::App(args)
+}
+fn mul_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",x*y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("*:(i64,i64)->i64".to_string()));
+   Rhs::App(args)
+}
+fn div_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",x/y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("/:(i64,i64)->i64".to_string()));
+   Rhs::App(args)
+}
+fn mod_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",x%y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("%:(i64,i64)->i64".to_string()));
+   Rhs::App(args)
+}
+fn eq_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",(x==y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("==:(i64,i64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn ne_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",(x != y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("!=:(i64,i64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn lt_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",(x<y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("<:(i64,i64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn lte_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",(x<=y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("<=:(i64,i64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn gt_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",(x>y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal(">:(i64,i64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn gte_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",(x>=y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal(">=:(i64,i64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn pos_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x)] = args {
+      let x = x.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",x));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("pos:(I64)->I64".to_string()));
+   Rhs::App(args)
+}
+fn neg_i64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x)] = args {
+      let x = x.parse::<i64>().unwrap();
+      return Rhs::Literal(format!("{}",-x));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("neg:(I64)->I64".to_string()));
+   Rhs::App(args)
+}
+
+fn bool_as_u8(x: &str) -> u8 {
+   if x == "True" {
+      1
+   } else if x == "False" {
+      0
+   } else {
+      x.parse::<u8>().unwrap()
+   }
+}
+fn not_u8(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x)] = args {
+      let x = bool_as_u8(x);
+      return Rhs::Literal(format!("{}",if x==0 {1} else {0}));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("not:(U8)->U8".to_string()));
+   Rhs::App(args)
+}
+fn and_u8(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = bool_as_u8(x);
+      let y = bool_as_u8(y);
+      return Rhs::Literal(format!("{}",x & y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("&&:(U8,U8)->U8".to_string()));
+   Rhs::App(args)
+}
+fn or_u8(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = bool_as_u8(x);
+      let y = bool_as_u8(y);
+      return Rhs::Literal(format!("{}",x | y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("||:(U8,U8)->U8".to_string()));
+   Rhs::App(args)
+}

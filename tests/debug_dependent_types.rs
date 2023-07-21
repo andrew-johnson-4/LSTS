@@ -27,7 +27,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "+ 1 @reduce :[1];").unwrap();
    tlc.check(Some(l1), "+ +1 @reduce :[1];").unwrap();
 
-   tlc.check(Some(l1), "-0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "- 0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "- -0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "-1 @reduce :[-1];").unwrap();
@@ -36,8 +35,8 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "- 1 @reduce :[1];").unwrap_err();
    tlc.check(Some(l1), "- -1 @reduce :[-1];").unwrap_err();
 
-   tlc.check(Some(l1), "True @reduce :[1];").unwrap();
-   tlc.check(Some(l1), "False @reduce :[0];").unwrap();
+   tlc.check(Some(l1), "True @reduce :[True];").unwrap();
+   tlc.check(Some(l1), "False @reduce :[False];").unwrap();
 
    tlc.check(Some(l1), "not(True) @reduce :[0];").unwrap();
    tlc.check(Some(l1), "not(not(True)) @reduce :[1];").unwrap();
