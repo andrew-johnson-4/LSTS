@@ -6,8 +6,7 @@ use crate::constant::Constant;
 use crate::debug::{Error};
 use crate::token::{Span};
 use std::collections::HashMap;
-use l1_ir::opt::{JProgram};
-use l1_ir::ast::{self,Expression,Program,FunctionDefinition,LHSPart,TIPart};
+use lambda_mountain::*;
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -114,7 +113,7 @@ impl Term {
       });
       sid
    }
-   pub fn compile_lhs(tlc: &TLC, scope: ScopeId, term: TermId) -> Result<LHSPart,Error> {
+   pub fn compile_lhs(tlc: &TLC, scope: ScopeId, term: TermId) -> Result<Rhs,Error> {
       let tt = tlc.rows[term.id].typ.clone();
       match &tlc.rows[term.id].term {
          Term::Value(lv) => {
@@ -140,7 +139,7 @@ impl Term {
          _ => unimplemented!("compile_lhs: {}", tlc.print_term(term))
       }
    }
-   pub fn compile_function(tlc: &TLC, _scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>, term: TermId) -> Result<String,Error> {
+   pub fn compile_function(tlc: &TLC, _scope: &Option<ScopeId>, funcs: &mut Vec<Rhs>, term: TermId) -> Result<String,Error> {
       let mangled = if let Term::Let(ref lt) = tlc.rows[term.id].term {
          let mut name = lt.name.clone();
          name += ":";
@@ -189,9 +188,9 @@ impl Term {
       }}
       Ok(mangled)
    }
-   pub fn apply_fn(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>,
-                   preamble: &mut Vec<Expression<Span>>, f: &str, ps: &Vec<TermId>,
-                   ft: Type, rt: Type, span: Span) -> Result<Expression<Span>,Error> {
+   pub fn apply_fn(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>,
+                   preamble: &mut Vec<Rhs>, f: &str, ps: &Vec<TermId>,
+                   ft: Type, rt: Type, span: Span) -> Result<Rhs,Error> {
       let sc = if let Some(sc) = scope { *sc } else { panic!("Term::apply_fn, function application has no scope at {}", f) };
       let mut args = Vec::new();
       for p in ps.iter() {
@@ -228,8 +227,8 @@ impl Term {
          }
       } else { panic!("Term::reduce, failed to lookup function {}: {:?}", f, &ft) }
    }
-   pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<FunctionDefinition<Span>>,
-                       preamble: &mut Vec<Expression<Span>>, term: TermId) -> Result<Expression<Span>,Error> {
+   pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>,
+                       preamble: &mut Vec<Rhs>, term: TermId) -> Result<Rhs,Error> {
       let tt = tlc.rows[term.id].typ.clone();
       let span = tlc.rows[term.id].span.clone();
       match &tlc.rows[term.id].term {
