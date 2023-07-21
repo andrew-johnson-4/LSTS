@@ -6,7 +6,7 @@ use crate::constant::Constant;
 use crate::debug::{Error};
 use crate::token::{Span};
 use std::collections::HashMap;
-use lambda_mountain::*;
+use lambda_mountain::Rhs;
 
 #[derive(Clone,Copy,Eq,PartialEq,Ord,PartialOrd,Hash)]
 pub struct TermId {
@@ -117,29 +117,28 @@ impl Term {
       let tt = tlc.rows[term.id].typ.clone();
       match &tlc.rows[term.id].term {
          Term::Value(lv) => {
-            Ok(LHSPart::literal(lv))
+            Ok(Rhs::Literal(lv.clone()))
          },
          Term::Ident(ln) => {
-            if ln == "_" {
-               Ok(LHSPart::any())
-            } else {
-               let term = Scope::lookup_term(tlc, scope, ln, &tt).expect("Term::compile_lhs identifier not found in scope");
-               Ok(LHSPart::variable(term.id))
-            }
+            Ok(Rhs::Variable(ln.clone()))
          },
          Term::Ascript(t,_tt) => {
             Term::compile_lhs(tlc, scope, *t)
          },
-         Term::Constructor(cname,_) if cname=="False" => {
-            Ok(LHSPart::literal("0"))
-         },
-         Term::Constructor(cname,_) if cname=="True" => {
-            Ok(LHSPart::literal("1"))
+         Term::Constructor(cname,cts) => {
+            if cts.len()==0 {
+               return Ok(Rhs::Literal(cname.clone()));
+            }
+            let mut cas = vec![Rhs::Literal(cname.clone())];
+            for (_fieldname,ct) in cts {
+               cas.push(Term::compile_lhs(tlc, scope, *ct)?);
+            }
+            Ok(Rhs::App(cas))
          },
          _ => unimplemented!("compile_lhs: {}", tlc.print_term(term))
       }
    }
-   pub fn compile_function(tlc: &TLC, _scope: &Option<ScopeId>, funcs: &mut Vec<Rhs>, term: TermId) -> Result<String,Error> {
+   pub fn compile_function(tlc: &TLC, _scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>, term: TermId) -> Result<String,Error> {
       let mangled = if let Term::Let(ref lt) = tlc.rows[term.id].term {
          let mut name = lt.name.clone();
          name += ":";
@@ -157,8 +156,10 @@ impl Term {
       } else { panic!("Term::compile_function must be a Let binding") };
       println!("mangled: {}", mangled);
       for fd in funcs.iter() {
-         if fd.name == mangled { return Ok(mangled); }
+         if fd.0 == mangled { return Ok(mangled); }
       }
+      Ok(mangled)
+      /* TODO: drop function definition into global namespace
       let mut l1_args = Vec::new();
       if let Term::Let(ref lt) = tlc.rows[term.id].term {
          if lt.parameters.len()==0 { unimplemented!("Term::compile_function valued let binding") }
@@ -171,7 +172,7 @@ impl Term {
             l1_args.push(( term.id, ast::Type::nominal(&dt) ));
          }
       }
-      funcs.push(FunctionDefinition::define(
+      funcs.push((mangled.clone()
          &mangled,
          l1_args,
          vec![],
@@ -186,7 +187,7 @@ impl Term {
       if fd.name == mangled {
          fd.body = preamble; break;
       }}
-      Ok(mangled)
+      */
    }
    pub fn apply_fn(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>,
                    preamble: &mut Vec<Rhs>, f: &str, ps: &Vec<TermId>,
@@ -203,9 +204,8 @@ impl Term {
             if lb.is_extern {
                let body = lb.body.expect(&format!("extern function body must be a mangled symbol: {}", f));
                if let Term::Ident(mangled) = &tlc.rows[body.id].term {
-                  let e = Expression::apply(&mangled, args, span);
-                  let e = e.typed(&rt.datatype());
-                  Ok(e)
+                  args.insert(0, Rhs::Variable(mangled.clone()));
+                  Ok(Rhs::App(args))
                } else { unreachable!("extern function body must be a mangled symbol: {}", f) }
             } else if bt.is_open() {
                let Some(lbt) = tlc.poly_bindings.get(&(lb.name.clone(),ft.clone()))
@@ -213,14 +213,12 @@ impl Term {
                let Term::Let(_lbb) = &tlc.rows[lbt.id].term
                else { unreachable!("template function must be let binding {}: {:?}", lb.name, bt) };
                let mangled = Term::compile_function(tlc, scope, funcs, *lbt)?;
-               let e = Expression::apply(&mangled, args, span);
-               let e = e.typed(&rt.datatype());
-               Ok(e)
+               args.insert(0, Rhs::Variable(mangled.clone()));
+               Ok(Rhs::App(args))
             } else {
                let mangled = Term::compile_function(tlc, scope, funcs, binding)?;
-               let e = Expression::apply(&mangled, args, span);
-               let e = e.typed(&rt.datatype());
-               Ok(e)
+               args.insert(0, Rhs::Variable(mangled.clone()));
+               Ok(Rhs::App(args))
             }
          } else {
             panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
@@ -233,10 +231,7 @@ impl Term {
       let span = tlc.rows[term.id].span.clone();
       match &tlc.rows[term.id].term {
          Term::Let(_) => {
-            Ok(Expression::unit(span))
-         },
-         Term::Tuple(ts) if ts.len()==0 => {
-            Ok(Expression::unit(span))
+            Ok(Rhs::App(Vec::new()))
          },
          Term::Tuple(ts) => {
             let mut tes = Vec::new();
@@ -244,25 +239,20 @@ impl Term {
                let te = Term::compile_expr(tlc, scope, funcs, preamble, *te)?;
                tes.push(te);
             }
-            Ok(Expression::tuple(tes,span).typed("Value"))
+            Ok(Rhs::App(tes))
          },
-         Term::Constructor(c,cs) if c=="True" && cs.len()==0 => {
-            Ok(Expression::literal("1", span).typed("U8"))
-         },
-         Term::Constructor(c,cs) if c=="False" && cs.len()==0 => {
-            Ok(Expression::literal("0", span).typed("U8"))
+         Term::Constructor(c,cs) if cs.len()==0 => {
+            Ok(Rhs::Literal(c.to_string()))
          },
          Term::Value(v) => {
-            let e = Expression::literal(&v, span).typed(&tt.datatype());
-            Ok(e)
+            Ok(Rhs::Literal(v.to_string()))
          },
          Term::Ident(n) => {
             let tt = tlc.rows[term.id].typ.clone();
             let span = tlc.rows[term.id].span.clone();
             let sc = scope.expect("Term::compile_expr scope was None");
             let term = Scope::lookup_term(tlc, sc, &n, &tt).expect(&format!("Term::compile_expr variable not found in scope: {}: {:?}", n, tt));
-            let e = Expression::variable(term.id, span).typed(&tt.datatype());
-            Ok(e)
+            Ok(Rhs::Variable(n.clone()))
          },
          Term::Ascript(t,_tt) => {
             //TODO gradual type
@@ -280,7 +270,7 @@ impl Term {
          },
          Term::Block(sc,es) => {
             if es.len()==0 {
-               Ok(Expression::unit(tlc.rows[term.id].span.clone()))
+               Ok(Rhs::App(Vec::new()))
             } else {
                for ei in 0..(es.len()-1) {
                   let pe = Term::compile_expr(tlc, &Some(*sc), funcs, preamble, es[ei])?;
@@ -296,12 +286,19 @@ impl Term {
             for (lrc,l,r) in lrs.iter() {
                let lhs = Term::compile_lhs(tlc, *lrc, *l)?;
                let rhs = Term::compile_expr(tlc, &Some(*lrc), funcs, preamble, *r)?;
-               plrs.push((lhs,rhs));
+               plrs.push(Rhs::Lambda(vec![lhs],vec![rhs]));
             }
-            Ok(Expression::pattern(pe, plrs, span).typed(&tt.datatype()))
+            Ok(Rhs::App(vec![
+               Rhs::Variable("match".to_string()),
+               pe,
+               Rhs::App(plrs),
+            ]))
          },
          Term::App(g,x) => {
-            let sc = if let Some(sc) = scope { *sc } else { panic!("Term::reduce, function application has no scope at {:?}", &tlc.rows[term.id].span) };
+            let g = Term::compile_expr(tlc, scope, funcs, preamble, *g)?;
+            let x = Term::compile_expr(tlc, scope, funcs, preamble, *x)?;
+            Ok(Rhs::App(vec![ g, x ]))
+            /*
             match (&tlc.rows[g.id].term,&tlc.rows[x.id].term) {
                (Term::Ident(gv),Term::Tuple(ps)) if gv==".flatmap" && ps.len()==2 => {
                   let Term::Arrow(asc,lhs,_att,rhs) = tlc.rows[ps[1].id].term.clone()
@@ -357,6 +354,7 @@ impl Term {
                },
                _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({})", tlc.print_term(*g), tlc.print_term(*x))
             }
+            */
          },
          _ => unimplemented!("Term::compile_expr {}", tlc.print_term(term)),
       }
@@ -367,17 +365,6 @@ impl Term {
       let pe = Term::compile_expr(tlc, scope, &mut funcs, &mut preamble, term)?;
       preamble.push(pe);
 
-      let nojit = Program::program(
-         funcs,
-         preamble,
-      );
-      println!("compile program");
-      let jit = JProgram::compile(&nojit);
-      println!("eval program");
-      let jval = jit.eval(&[]);
-
-      Ok(Constant::from_value(
-         jval
-      ))
+      Ok(Constant::Literal("(TODO: evaluate LM Program)".to_string()))
    }
 }
