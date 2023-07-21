@@ -191,7 +191,7 @@ impl Term {
    }
    pub fn apply_fn(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>,
                    preamble: &mut Vec<Rhs>, f: &str, ps: &Vec<TermId>,
-                   ft: Type, rt: Type, span: Span) -> Result<Rhs,Error> {
+                   ft: Type, span: Span) -> Result<Rhs,Error> {
       let sc = if let Some(sc) = scope { *sc } else { panic!("Term::apply_fn, function application has no scope at {}", f) };
       let mut args = Vec::new();
       for p in ps.iter() {
@@ -224,6 +224,20 @@ impl Term {
             panic!("Term::reduce, unexpected lambda format in beta-reduction {}", tlc.print_term(binding))
          }
       } else { panic!("Term::reduce, failed to lookup function {}: {:?}", f, &ft) }
+   }
+   pub fn mangle_fn(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>,
+                    preamble: &mut Vec<Rhs>, g: TermId, x: TermId) -> Result<Rhs,Error> {
+      let span = tlc.rows[g.id].span.clone();
+      if let Term::Ident(gn) = &tlc.rows[g.id].term {
+         let gt = tlc.rows[g.id].typ.clone();
+         if let Term::Tuple(ts) = &tlc.rows[x.id].term {
+            Term::apply_fn(tlc, scope, funcs, preamble, gn, ts, gt, span)
+         } else {
+            Term::apply_fn(tlc, scope, funcs, preamble, gn, &vec![x], gt, span)
+         }
+      } else {
+         Term::compile_expr(tlc, scope, funcs, preamble, g)
+      }
    }
    pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>,
                        preamble: &mut Vec<Rhs>, term: TermId) -> Result<Rhs,Error> {
@@ -265,7 +279,7 @@ impl Term {
             } else {
                let bts = Type::Tuple(vec![bt]);
                let gt = Type::Arrow(Box::new(bts), Box::new(tt.clone()));
-               Term::apply_fn(tlc, scope, funcs, preamble, "as", &vec![*t], gt, tt.clone(), span)
+               Term::apply_fn(tlc, scope, funcs, preamble, "as", &vec![*t], gt, span)
             }
          },
          Term::Block(sc,es) => {
@@ -294,26 +308,17 @@ impl Term {
                Rhs::App(plrs),
             ]))
          },
-         Term::App(g,x) => {
-            let x = Term::compile_expr(tlc, scope, funcs, preamble, *x)?;
+         Term::App(gt,xt) => {
+            let x = Term::compile_expr(tlc, scope, funcs, preamble, *xt)?;
 
-            if let Term::Project(Constant::Literal(cv)) = &tlc.rows[g.id].term {
+            if let Term::Project(Constant::Literal(cv)) = &tlc.rows[gt.id].term {
                return Ok(Rhs::App(vec![
                   Rhs::Variable("π".to_string()),
                   Rhs::Literal(cv.clone()),
                   x
                ]));
             }
-
-            let g = Term::compile_expr(tlc, scope, funcs, preamble, *g)?;
-
-            if let Rhs::App(xs) = x {
-               let mut xs = xs.clone();
-               xs.insert(0, g);
-               Ok(Rhs::App(xs))
-            } else {
-               Ok(Rhs::App(vec![ g, x ]))
-            }
+            Term::mangle_fn(tlc, scope, funcs, preamble, *gt, *xt)
             /*
             match (&tlc.rows[g.id].term,&tlc.rows[x.id].term) {
                (Term::Ident(gv),Term::Tuple(ps)) if gv==".flatmap" && ps.len()==2 => {
@@ -359,9 +364,6 @@ impl Term {
                   let flatmap = Expression::apply(".flatten:(Tuple)->Tuple", vec![map], span).typed("Value");
                   Ok(flatmap)
                },
-               (Term::Ident(gv),Term::Tuple(ps)) => {
-                  Term::apply_fn(tlc, scope, funcs, preamble, gv, ps, tlc.rows[g.id].typ.clone(), tt, span)
-               },
                _ => unimplemented!("Term::reduce, implement Call-by-Value function call: {}({})", tlc.print_term(*g), tlc.print_term(*x))
             }
             */
@@ -374,8 +376,8 @@ impl Term {
 
       let mut policy = Policy::new();
       policy.bind_extern("π", &pi);
-      policy.bind_extern("[]", &get_index);
-      policy.bind_extern(".length", &dot_length);
+      policy.bind_extern("[]:(Tuple,U64)->Value", &get_index);
+      policy.bind_extern(".length:(Tuple)->U64", &dot_length);
 
       let mut preamble = Vec::new();
       let mut funcs = Vec::new();
@@ -418,7 +420,7 @@ fn get_index(args: &[Rhs]) -> Rhs {
       return ts[i].clone();
    }
    let mut args = args.to_vec();
-   args.insert(0, Rhs::Literal("[]".to_string()));
+   args.insert(0, Rhs::Literal("[]:(Tuple,U64)->Value".to_string()));
    Rhs::App(args)
 }
 
@@ -427,6 +429,7 @@ fn dot_length(args: &[Rhs]) -> Rhs {
       return Rhs::Literal(format!("{}",ts.len()));
    }
    let mut args = args.to_vec();
-   args.insert(0, Rhs::Literal(".length".to_string()));
+   args.insert(0, Rhs::Literal(".length:(Tuple)->U64".to_string()));
    Rhs::App(args)
 }
+
