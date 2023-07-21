@@ -86,8 +86,8 @@ let $"^"(x: I64, n: I64): I64 = if n==0 then 1
 
 extern .flatmap(iterable: X[], f: (X)->(T[])): T[] = $".flatmap:XYZ"; //no body for now, must rewrite term to use
 
-extern .join(xs: String[]): String = $".join(String[])->String";
-extern .join2(xs: String[],sep: String): String = $".join(String[],String)->String";
+extern .join(xs: String[]): String = $".join:(String[])->String";
+extern .join2(xs: String[],sep: String): String = $".join:(String[],String)->String";
 
 let .join(xs: T[],sep: String): String = (for x:T in xs yield (x as String)).join2(sep);
 

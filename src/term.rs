@@ -378,6 +378,11 @@ impl Term {
       policy.bind_extern("[]:(Tuple,U64)->Value", &get_index);
       policy.bind_extern(".length:(Tuple)->U64", &dot_length);
 
+      policy.bind_extern("range:(I64,I64,I64)->I64[]", &range);
+
+      policy.bind_extern(".join:(String[])->String", &string_join);
+      policy.bind_extern(".join:(String[],String)->String", &string_join2);
+
       policy.bind_extern("not:(U8)->U8", &not_u8);
       policy.bind_extern("&&:(U8,U8)->U8", &and_u8);
       policy.bind_extern("||:(U8,U8)->U8", &or_u8);
@@ -440,6 +445,50 @@ fn pi(args: &[Rhs]) -> Rhs {
    }
    let mut args = args.to_vec();
    args.insert(0, Rhs::Literal("π".to_string()));
+   Rhs::App(args)
+}
+
+fn range(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y),Rhs::Literal(z)] = args {
+      let x = x.parse::<i64>().unwrap();
+      let y = y.parse::<i64>().unwrap();
+      let z = z.parse::<usize>().unwrap();
+      let mut cs = Vec::new();
+      for i in (x..y).step_by(z) {
+         cs.push(Rhs::Literal(format!("{}",i)))
+      }
+      return Rhs::App(cs);
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("range:(I64,I64,I64)->I64[]".to_string()));
+   Rhs::App(args)
+}
+
+fn string_join(args: &[Rhs]) -> Rhs {
+   if let [Rhs::App(ts)] = args {
+      let mut s = String::new();
+      for t in ts {
+         s.push_str(&t.to_string());
+      }
+      return Rhs::Literal(s)
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal(".join:(String[])->String".to_string()));
+   Rhs::App(args)
+}
+fn string_join2(args: &[Rhs]) -> Rhs {
+   if let [Rhs::App(ts),Rhs::Literal(sep)] = args {
+      let mut s = String::new();
+      for (ti,t) in ts.iter().enumerate() {
+         if ti>0 {
+            s.push_str(sep);
+         }
+         s.push_str(&t.to_string());
+      }
+      return Rhs::Literal(s)
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal(".join:(String[],String)->String".to_string()));
    Rhs::App(args)
 }
 
