@@ -30,6 +30,7 @@ fn parse_simplytyped() {
    tlc.parse_str(None,"let f(a:A::Term);").unwrap();
    tlc.parse_str(None,"let f():A;").unwrap();
    tlc.parse_str(None,"let f()::Term;").unwrap();
+   tlc.parse_str(None,"a `f` b;").unwrap();
    tlc.parse_str(None,"type A;").unwrap();
    tlc.parse_str(None,"forall :A,:B::C. (A,B);").unwrap();
    tlc.parse_str(None,"forall :A,:B::C. (A,B) :: R;").unwrap();

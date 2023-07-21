@@ -4,7 +4,7 @@ use lsts::token::{Symbol,tokenize_string};
 #[test]
 fn tokenize_literals() {
    let mut tlc = TLC::new();
-   let mut tks = tokenize_string(&mut tlc, "[string]", r#"f"abc{d}{e:F}gh""#).unwrap();
+   let mut tks = tokenize_string(&mut tlc, "[string]", r#"f"abc{d}{e:F}gh"`"#).unwrap();
    assert_eq!( tks.take().unwrap().unwrap().symbol, Symbol::Literal );
    assert_eq!( tks.take().unwrap().unwrap().symbol, Symbol::LiteralS("abc".to_string()) );
    assert_eq!( tks.take().unwrap().unwrap().symbol, Symbol::LeftBrace );
@@ -17,5 +17,6 @@ fn tokenize_literals() {
    assert_eq!( tks.take().unwrap().unwrap().symbol, Symbol::RightBrace );
    assert_eq!( tks.take().unwrap().unwrap().symbol, Symbol::LiteralS("gh".to_string()) );
    assert_eq!( tks.take().unwrap().unwrap().symbol, Symbol::Literal );
+   assert_eq!( tks.take().unwrap().unwrap().symbol, Symbol::BackQuote );
    assert_eq!( tks.take().unwrap().unwrap().symbol, Symbol::EOF );
 }
