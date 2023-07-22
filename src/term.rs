@@ -114,7 +114,6 @@ impl Term {
       sid
    }
    pub fn compile_lhs(tlc: &TLC, scope: ScopeId, term: TermId) -> Result<Rhs,Error> {
-      let tt = tlc.rows[term.id].typ.clone();
       match &tlc.rows[term.id].term {
          Term::Value(lv) => {
             Ok(Rhs::Literal(lv.clone()))
@@ -124,6 +123,12 @@ impl Term {
          },
          Term::Ascript(t,_tt) => {
             Term::compile_lhs(tlc, scope, *t)
+         },
+         Term::Constructor(cname,cts) if cname=="False" && cts.len()==0 => {
+            Ok(Rhs::Literal("0".to_string()))
+         },
+         Term::Constructor(cname,cts) if cname=="True" && cts.len()==0 => {
+            Ok(Rhs::Literal("1".to_string()))
          },
          Term::Constructor(cname,cts) => {
             if cts.len()==0 {
@@ -165,7 +170,7 @@ impl Term {
             for args in l.iter() {
                let name = args.0.clone();
                let typ = args.1.clone();
-               let term = Scope::lookup_term(tlc, lt.scope, &name, &typ).expect("Term::compile_function parameter not found in scope");
+               let _term = Scope::lookup_term(tlc, lt.scope, &name, &typ).expect("Term::compile_function parameter not found in scope");
                lhs.push( Rhs::Variable(name) );
             }
          }
@@ -187,7 +192,7 @@ impl Term {
    }
    pub fn apply_fn(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>,
                    preamble: &mut Vec<Rhs>, f: &str, ps: &Vec<TermId>,
-                   ft: Type, span: Span) -> Result<Rhs,Error> {
+                   ft: Type, _span: Span) -> Result<Rhs,Error> {
       let sc = if let Some(sc) = scope { *sc } else { panic!("Term::apply_fn, function application has no scope at {}", f) };
       let mut args = Vec::new();
       for p in ps.iter() {
@@ -237,7 +242,6 @@ impl Term {
    }
    pub fn compile_expr(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>,
                        preamble: &mut Vec<Rhs>, term: TermId) -> Result<Rhs,Error> {
-      let tt = tlc.rows[term.id].typ.clone();
       let span = tlc.rows[term.id].span.clone();
       match &tlc.rows[term.id].term {
          Term::Let(_) => {
@@ -251,6 +255,12 @@ impl Term {
             }
             Ok(Rhs::App(tes))
          },
+         Term::Constructor(c,cs) if c=="False" && cs.len()==0 => {
+            Ok(Rhs::Literal("0".to_string()))
+         },
+         Term::Constructor(c,cs) if c=="True" && cs.len()==0 => {
+            Ok(Rhs::Literal("1".to_string()))
+         },
          Term::Constructor(c,cs) if cs.len()==0 => {
             Ok(Rhs::Literal(c.to_string()))
          },
@@ -258,10 +268,6 @@ impl Term {
             Ok(Rhs::Literal(v.to_string()))
          },
          Term::Ident(n) => {
-            let tt = tlc.rows[term.id].typ.clone();
-            let span = tlc.rows[term.id].span.clone();
-            let sc = scope.expect("Term::compile_expr scope was None");
-            let term = Scope::lookup_term(tlc, sc, &n, &tt).expect(&format!("Term::compile_expr variable not found in scope: {}: {:?}", n, tt));
             Ok(Rhs::Variable(n.clone()))
          },
          Term::Ascript(t,_tt) => {
@@ -304,7 +310,7 @@ impl Term {
                Rhs::App(plrs),
             ]))
          },
-         Term::Arrow(sc,lhs,lt,rhs) => {
+         Term::Arrow(sc,lhs,_lt,rhs) => {
             let lhs = Term::compile_lhs(tlc, *sc, *lhs)?;
             let rhs = Term::compile_expr(tlc, &Some(*sc), funcs, preamble, *rhs)?;
             Ok(Rhs::Lambda(vec![lhs], vec![rhs]))

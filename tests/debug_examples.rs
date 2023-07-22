@@ -38,7 +38,9 @@ fn right_triangles() {
    let val = tlc.reduce_file(None, "examples/right_triangles.tlc").unwrap();
    assert_eq!( format!("{:?}",val), "((6,8,10))" );
 }
+*/
 
+/*
 #[test]
 fn string_formatting() {
    let mut tlc = TLC::new();
