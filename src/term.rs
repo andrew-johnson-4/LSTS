@@ -421,6 +421,20 @@ impl Term {
       policy.bind_extern("pos:(I64)->I64", &pos_i64);
       policy.bind_extern("neg:(I64)->I64", &neg_i64);
 
+      policy.bind_extern("+:(F64,F64)->F64", &add_f64);
+      policy.bind_extern("-:(F64,F64)->F64", &sub_f64);
+      policy.bind_extern("*:(F64,F64)->F64", &mul_f64);
+      policy.bind_extern("/:(F64,F64)->F64", &div_f64);
+      policy.bind_extern("%:(F64,F64)->F64", &mod_f64);
+      policy.bind_extern("==:(F64,F64)->U8", &eq_f64);
+      policy.bind_extern("!=:(F64,F64)->U8", &ne_f64);
+      policy.bind_extern("<:(F64,F64)->U8", &lt_f64);
+      policy.bind_extern("<=:(F64,F64)->U8", &lte_f64);
+      policy.bind_extern(">:(F64,F64)->U8", &gt_f64);
+      policy.bind_extern(">=:(F64,F64)->U8", &gte_f64);
+      policy.bind_extern("pos:(F64)->F64", &pos_f64);
+      policy.bind_extern("neg:(F64)->F64", &neg_f64);
+
       let mut preamble = Vec::new();
       let mut funcs = Vec::new();
       let pe = Term::compile_expr(tlc, scope, &mut funcs, &mut preamble, term)?;
@@ -799,5 +813,134 @@ fn or_u8(args: &[Rhs]) -> Rhs {
    }
    let mut args = args.to_vec();
    args.insert(0, Rhs::Literal("||:(U8,U8)->U8".to_string()));
+   Rhs::App(args)
+}
+
+fn add_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",x+y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("+:(f64,f64)->f64".to_string()));
+   Rhs::App(args)
+}
+fn sub_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",x-y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("-:(f64,f64)->f64".to_string()));
+   Rhs::App(args)
+}
+fn mul_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",x*y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("*:(f64,f64)->f64".to_string()));
+   Rhs::App(args)
+}
+fn div_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",x/y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("/:(f64,f64)->f64".to_string()));
+   Rhs::App(args)
+}
+fn mod_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",x%y));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("%:(f64,f64)->f64".to_string()));
+   Rhs::App(args)
+}
+fn eq_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",(x==y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("==:(f64,f64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn ne_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",(x != y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("!=:(f64,f64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn lt_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",(x<y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("<:(f64,f64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn lte_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",(x<=y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("<=:(f64,f64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn gt_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",(x>y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal(">:(f64,f64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn gte_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x),Rhs::Literal(y)] = args {
+      let x = x.parse::<f64>().unwrap();
+      let y = y.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",(x>=y) as u8));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal(">=:(f64,f64)->U8".to_string()));
+   Rhs::App(args)
+}
+fn pos_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x)] = args {
+      let x = x.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",x));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("pos:(f64)->f64".to_string()));
+   Rhs::App(args)
+}
+fn neg_f64(args: &[Rhs]) -> Rhs {
+   if let [Rhs::Literal(x)] = args {
+      let x = x.parse::<f64>().unwrap();
+      return Rhs::Literal(format!("{}",-x));
+   }
+   let mut args = args.to_vec();
+   args.insert(0, Rhs::Literal("neg:(f64)->f64".to_string()));
    Rhs::App(args)
 }
