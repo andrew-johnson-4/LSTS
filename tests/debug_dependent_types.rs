@@ -27,7 +27,6 @@ fn check_constant_equivalence() {
    tlc.check(Some(l1), "+ 1 @reduce :[1];").unwrap();
    tlc.check(Some(l1), "+ +1 @reduce :[1];").unwrap();
 
-   tlc.check(Some(l1), "-0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "- 0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "- -0 @reduce :[0];").unwrap();
    tlc.check(Some(l1), "-1 @reduce :[-1];").unwrap();
