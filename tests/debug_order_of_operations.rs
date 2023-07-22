@@ -23,4 +23,6 @@ fn check_precedence() {
    tlc.check(Some(si), "1^2 / 3 * 4 + 5 < 6 && 7 == 8 - 1 @reduce: [1];").unwrap();
    tlc.check(Some(si), "1^2 / 3 * 4 + 5 < 6 && 7 == 8 - 1 @reduce: [1];").unwrap();
    tlc.check(Some(si), "1^2 / 3 * 4 + 5 < 6 && 7 == 8 - 1 @reduce: [1];").unwrap();
+
+   tlc.check(Some(si), "1.2 / 3.4 + 5.6 < 6.7 - 8.9 @reduce: [0];").unwrap();
 }
