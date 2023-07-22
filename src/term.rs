@@ -299,6 +299,11 @@ impl Term {
                Rhs::App(plrs),
             ]))
          },
+         Term::Arrow(sc,lhs,lt,rhs) => {
+            let lhs = Term::compile_lhs(tlc, *sc, *lhs)?;
+            let rhs = Term::compile_expr(tlc, &Some(*sc), funcs, preamble, *rhs)?;
+            Ok(Rhs::Lambda(vec![lhs], vec![rhs]))
+         },
          Term::App(gt,xt) => {
             let x = Term::compile_expr(tlc, scope, funcs, preamble, *xt)?;
 
