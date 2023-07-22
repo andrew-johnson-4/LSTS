@@ -170,6 +170,7 @@ impl Term {
             }
          }
       }
+      funcs.push((mangled.clone(), Rhs::App(Vec::new())));
       let mut rhs = Vec::new();
       if let Term::Let(ref lt) = tlc.rows[term.id].term {
       if let Some(body) = lt.body {
@@ -177,7 +178,11 @@ impl Term {
          let ret = Term::compile_expr(tlc, &Some(lt.scope), funcs, &mut preamble, body)?;
          rhs.push(ret);
       }}
-      funcs.push((mangled.clone(), Rhs::Lambda(lhs, rhs)));
+      for ref mut fd in funcs.iter_mut() {
+      if fd.0 == mangled {
+         fd.1 = Rhs::Lambda(lhs, rhs);
+         break;
+      }}
       Ok(mangled)
    }
    pub fn apply_fn(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>,
