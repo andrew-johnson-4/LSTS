@@ -157,36 +157,28 @@ impl Term {
       for fd in funcs.iter() {
          if fd.0 == mangled { return Ok(mangled); }
       }
-      Ok(mangled)
-      /* TODO: drop function definition into global namespace
-      let mut l1_args = Vec::new();
+      let mut lhs = Vec::new();
       if let Term::Let(ref lt) = tlc.rows[term.id].term {
          if lt.parameters.len()==0 { unimplemented!("Term::compile_function valued let binding") }
          if lt.parameters.len()>1 { unimplemented!("Term::compile_function curried let binding") }
-         for args in lt.parameters[0].iter() {
-            let name = args.0.clone();
-            let typ = args.1.clone();
-            let dt = typ.datatype();
-            let term = Scope::lookup_term(tlc, lt.scope, &name, &typ).expect("Term::compile_function parameter not found in scope");
-            l1_args.push(( term.id, ast::Type::nominal(&dt) ));
+         for l in lt.parameters.iter() {
+            for args in l.iter() {
+               let name = args.0.clone();
+               let typ = args.1.clone();
+               let term = Scope::lookup_term(tlc, lt.scope, &name, &typ).expect("Term::compile_function parameter not found in scope");
+               lhs.push( Rhs::Variable(name) );
+            }
          }
       }
-      funcs.push((mangled.clone()
-         &mangled,
-         l1_args,
-         vec![],
-      ));
-      let mut preamble = Vec::new();
+      let mut rhs = Vec::new();
       if let Term::Let(ref lt) = tlc.rows[term.id].term {
       if let Some(body) = lt.body {
+         let mut preamble = Vec::new();
          let ret = Term::compile_expr(tlc, &Some(lt.scope), funcs, &mut preamble, body)?;
-         preamble.push(ret);
+         rhs.push(ret);
       }}
-      for ref mut fd in funcs.iter_mut() {
-      if fd.name == mangled {
-         fd.body = preamble; break;
-      }}
-      */
+      funcs.push((mangled.clone(), Rhs::Lambda(lhs, rhs)));
+      Ok(mangled)
    }
    pub fn apply_fn(tlc: &TLC, scope: &Option<ScopeId>, funcs: &mut Vec<(String,Rhs)>,
                    preamble: &mut Vec<Rhs>, f: &str, ps: &Vec<TermId>,
@@ -418,6 +410,10 @@ impl Term {
       let pe = Term::compile_expr(tlc, scope, &mut funcs, &mut preamble, term)?;
       preamble.push(pe);
 
+      for (k,v) in funcs.iter() {
+         policy.bind(k, v.clone());
+      }
+
       let context = Context::new(&policy);
       let mut last_e = Rhs::App(Vec::new());
       for pe in preamble {
@@ -425,7 +421,7 @@ impl Term {
             Err(e) => {
                return Err(Error {
                   kind: "Runtime".to_string(),
-                  rule: "reduce".to_string(),
+                  rule: format!("reduce: {}", e),
                   span: span.clone(),
                });
             }, Ok(e) => {
