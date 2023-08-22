@@ -23,6 +23,7 @@ $$\frac{x \in let \ x}{\bot}$$
 $$\frac{X \in type \ X}{\bot}$$
 
 ### note: data and types can potentially be recursive but the AST graph cannot
+### relaxing this rule _will_ cause inference to diverge
 
 ### pun is absurd:commute by type
 ### pun is absurd:commute by term
