@@ -1,7 +1,7 @@
-### commute is absurd:commute by type
+### commute is absurd:commute by type (false has been proven)
 $$\frac{x:X \quad x:\neg X}{\bot}$$
 
-### commute is absurd:commute by term
+### commute is absurd:commute by term (unreachable has been reached)
 $$\frac{f:X \to ! \quad x:X \quad f(x)}{\bot}$$
 
 ### commute is absurd:type of term (term undefined)
