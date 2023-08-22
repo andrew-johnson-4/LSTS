@@ -15,6 +15,78 @@ $$\frac{\Gamma \quad termof(X)}{\bot}$$
 ### commute is absurd:term definition
 ### commute is absurd:type definition
 
+### pun is absurd:commute by type
+### pun is absurd:commute by term
+### pun is absurd:type of term
+### pun is absurd:term of type
+### pun is absurd:term introduction
+### pun is absurd:type introduction
+### pun is absurd:term definition
+### pun is absurd:type definition
+
+### reduction by terms commute:commute by type
+### reduction by terms commute:commute by term
+### reduction by terms commute:type of term
+### reduction by terms commute:term of type
+### reduction by terms commute:term introduction
+### reduction by terms commute:type introduction
+### reduction by terms commute:term definition
+### reduction by terms commute:type definition
+
+### reduction by types commute:commute by type
+### reduction by types commute:commute by term
+### reduction by types commute:type of term
+### reduction by types commute:term of type
+### reduction by types commute:term introduction
+### reduction by types commute:type introduction
+### reduction by types commute:term definition
+### reduction by types commute:type definition
+
+### blame, does not diverge:commute by type
+### blame, does not diverge:commute by term
+### blame, does not diverge:type of term
+### blame, does not diverge:term of type
+### blame, does not diverge:term introduction
+### blame, does not diverge:type introduction
+### blame, does not diverge:term definition
+### blame, does not diverge:type definition
+
+### soft-eval:commute by type
+### soft-eval:commute by term
+### soft-eval:type of term
+### soft-eval:term of type
+### soft-eval:term introduction
+### soft-eval:type introduction
+### soft-eval:term definition
+### soft-eval:type definition
+
+### blame, diverges:commute by type
+### blame, diverges:commute by term
+### blame, diverges:type of term
+### blame, diverges:term of type
+### blame, diverges:term introduction
+### blame, diverges:type introduction
+### blame, diverges:term definition
+### blame, diverges:type definition
+
+### hard-eval:commute by type
+### hard-eval:commute by term
+### hard-eval:type of term
+### hard-eval:term of type
+### hard-eval:term introduction
+### hard-eval:type introduction
+### hard-eval:term definition
+### hard-eval:type definition
+
+### β-reduction:commute by type
+### β-reduction:commute by term
+### β-reduction:type of term
+### β-reduction:term of type
+### β-reduction:term introduction
+### β-reduction:type introduction
+### β-reduction:term definition
+### β-reduction:type definition
+
 ### Primary Transitions
 orange -> grey = pun is absurd (ambiguity is impossible to resolve)
 yellow -> grey = commute is absurd (False has been proven)
