@@ -11,9 +11,16 @@ $$\frac{\Gamma \quad typeof(x)}{\bot}$$
 $$\frac{\Gamma \quad termof(X)}{\bot}$$
 
 ### commute is absurd:term introduction (data is recursive)
+$$\frac{x \in x}{\bot}$$
+
 ### commute is absurd:type introduction (label is recursive)
+$$\frac{X \in X}{\bot}$$
+
 ### commute is absurd:term definition (datatype is recursive)
+$$\frac{x \in let \ x}{\bot}$$
+
 ### commute is absurd:type definition (alias is recursive)
+$$\frac{X \in type \ X}{\bot}$$
 
 ### pun is absurd:commute by type
 ### pun is absurd:commute by term
