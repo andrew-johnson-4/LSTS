@@ -22,6 +22,8 @@ $$\frac{x \in let \ x}{\bot}$$
 ### commute is absurd:type definition (alias is recursive)
 $$\frac{X \in type \ X}{\bot}$$
 
+### note: data and types can potentially be recursive but the AST graph cannot
+
 ### pun is absurd:commute by type
 ### pun is absurd:commute by term
 ### pun is absurd:type of term
