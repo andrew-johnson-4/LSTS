@@ -10,10 +10,10 @@ $$\frac{\Gamma \quad typeof(x)}{\bot}$$
 ### commute is absurd:term of type (type undefined)
 $$\frac{\Gamma \quad termof(X)}{\bot}$$
 
-### commute is absurd:term introduction
-### commute is absurd:type introduction
-### commute is absurd:term definition
-### commute is absurd:type definition
+### commute is absurd:term introduction (data is recursive)
+### commute is absurd:type introduction (label is recursive)
+### commute is absurd:term definition (datatype is recursive)
+### commute is absurd:type definition (alias is recursive)
 
 ### pun is absurd:commute by type
 ### pun is absurd:commute by term
