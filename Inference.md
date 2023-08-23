@@ -25,10 +25,12 @@ $$\frac{X \in type \ X}{\bot}$$
 ### note: data and types can potentially be recursive but the AST graph cannot
 ### relaxing this rule _will_ cause inference to diverge
 
-### pun is absurd:commute by type
+### pun is absurd:commute by type (rejected conjunction)
 $$\frac{x:A \quad x:B \quad x:\neg (A+B)}{\bot}$$
 
-### pun is absurd:commute by term
+### pun is absurd:commute by term (diamond problem)
+$$\frac{x:A \quad x:B \quad f:A\to B \quad f:B\to B \quad f(x)}{\bot}$$
+
 ### pun is absurd:type of term
 ### pun is absurd:term of type
 ### pun is absurd:term introduction
