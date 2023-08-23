@@ -31,8 +31,12 @@ $$\frac{x:A \quad x:B \quad x:\neg (A+B)}{\bot}$$
 ### pun is absurd:commute by term (diamond problem)
 $$\frac{x:A \quad x:B \quad f:A\to B \quad f:B\to B \quad f(x)}{\bot}$$
 
-### pun is absurd:type of term
-### pun is absurd:term of type
+### pun is absurd:type of term (cannot determine object or morphism)
+$$\frac{let \ x:A \quad let \ x:B\to C}{\bot}$$
+
+### pun is absurd:term of type (cannot determine color)
+$$\frac{let \ x:A\to B \quad let \ x:B\to C \quad let \ x:A\to C}{\bot}$$
+
 ### pun is absurd:term introduction (value of plural)
 $$\frac{let \ x:A \quad let \ x:B \quad concrete \ x}{\bot}$$
 
