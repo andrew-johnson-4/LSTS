@@ -33,10 +33,17 @@ $$\frac{x:A \quad x:B \quad f:A\to B \quad f:B\to B \quad f(x)}{\bot}$$
 
 ### pun is absurd:type of term
 ### pun is absurd:term of type
-### pun is absurd:term introduction
-### pun is absurd:type introduction
-### pun is absurd:term definition
-### pun is absurd:type definition
+### pun is absurd:term introduction (value of plural)
+$$\frac{let \ x:A \quad let \ x:B \quad concrete \ x}{\bot}$$
+
+### pun is absurd:type introduction (cycle in proof tree)
+$$\frac{A\Rightarrow B \quad B\Rightarrow A}{\bot}$$
+
+### pun is absurd:term definition ()
+
+
+### pun is absurd:type definition (circular type alias)
+$$\frac{type \ A=B \quad type \ B=A}{\bot}$$
 
 ### reduction by terms commute:commute by type
 ### reduction by terms commute:commute by term
