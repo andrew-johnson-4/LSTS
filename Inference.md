@@ -49,6 +49,8 @@ $$\frac{let \ x:A \quad let \ x:B \quad let \ y=x}{\bot}$$
 ### pun is absurd:type definition (circular type alias)
 $$\frac{type \ A=B \quad type \ B=A}{\bot}$$
 
+### note: color, object, and morphisms is category sensitive
+
 ### reduction by terms commute:commute by type
 ### reduction by terms commute:commute by term
 ### reduction by terms commute:type of term
