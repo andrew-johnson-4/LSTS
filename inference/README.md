@@ -16,6 +16,8 @@
 
 ![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/equation%20(6).png)
 
+![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/equation%20(15).png)
+
 ![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/equation%20(7).png)
 
 ![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/equation%20(8).png)
