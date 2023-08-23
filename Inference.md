@@ -26,6 +26,8 @@ $$\frac{X \in type \ X}{\bot}$$
 ### relaxing this rule _will_ cause inference to diverge
 
 ### pun is absurd:commute by type
+$$\frac{x:A \quad x:B \quad x:\neg (A+B)}{\bot}$$
+
 ### pun is absurd:commute by term
 ### pun is absurd:type of term
 ### pun is absurd:term of type
