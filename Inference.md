@@ -39,8 +39,8 @@ $$\frac{let \ x:A \quad let \ x:B \quad concrete \ x}{\bot}$$
 ### pun is absurd:type introduction (cycle in proof tree)
 $$\frac{A\Rightarrow B \quad B\Rightarrow A}{\bot}$$
 
-### pun is absurd:term definition ()
-
+### pun is absurd:term definition (binding of plural)
+$$\frac{let \ x:A \quad let \ x:B \quad let \ y=x}{\bot}$$
 
 ### pun is absurd:type definition (circular type alias)
 $$\frac{type \ A=B \quad type \ B=A}{\bot}$$
