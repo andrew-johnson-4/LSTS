@@ -51,6 +51,11 @@ $$\frac{type \ A=B \quad type \ B=A}{\bot}$$
 
 ### note: color, object, and morphisms is category sensitive
 
+### uncategorized
+$$\frac{f:A \to B \quad x:A}{f(x):B}$$
+
+$$\frac{x:A \quad x:B}{x:A+B}$$
+
 ### reduction by terms commute:commute by type
 ### reduction by terms commute:commute by term
 ### reduction by terms commute:type of term
