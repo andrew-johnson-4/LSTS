@@ -52,7 +52,7 @@ $$\frac{type \ A=B \quad type \ B=A}{\bot}$$
 ### note: color, object, and morphisms is category sensitive
 
 ### uncategorized
-$$\frac{f:A \to B \quad x:A}{f(x):B}$$
+$$\frac{f:A \to B \quad x:A \quad f(x)}{f(x):B}$$
 
 $$\frac{x:A \quad x:B}{x:A+B}$$
 
