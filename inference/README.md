@@ -34,7 +34,7 @@
 
 ![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/equation%20(14).png)
 
-## MGU
+## Most General Unifier
 
 ![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/mgu_identity.png)
 
