@@ -56,6 +56,18 @@ $$\frac{f:A \to B \quad x:A \quad f(x)}{f(x):B}$$
 
 $$\frac{x:A \quad x:B}{x:A+B}$$
 
+## MGU
+
+$$\frac{mgu(X,X)}{X}$$
+
+$$\frac{mgu(X,+Y)}{+\forall Z\in Y \ mgu(X,Z)}$$
+
+$$\frac{mgu(+X,Y)}{mgu(Y,X)}$$
+
+$$\frac{mgu(X<..XS>,Y<..YS>)}{mgu(X,Y)<\forall x\in XS,y\in YS. mgu(x,y))>}$$
+
+$$\frac{mgu(A\to B,X\to Y)}{mgu(A,X)\to mgu(B,Y)}$$
+
 ### reduction by terms commute:commute by type
 ### reduction by terms commute:commute by term
 ### reduction by terms commute:type of term
