@@ -34,6 +34,18 @@
 
 ![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/equation%20(14).png)
 
+## MGU
+
+![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/mgu_identity.png)
+
+![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/mgu_plural.png)
+
+![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/mgu_flip_plural.png)
+
+![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/mgu_named.png)
+
+![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/mgu_arrow.png)
+
 ## Uncategorized
 
 ![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/function_application.png)
