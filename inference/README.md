@@ -33,3 +33,9 @@
 ![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/equation%20(13).png)
 
 ![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/equation%20(14).png)
+
+## Uncategorized
+
+![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/function_application.png)
+
+![1](https://github.com/andrew-johnson-4/LSTS/blob/main/inference/introduce_conjunction.png)
