@@ -51,8 +51,8 @@ forall @dec_even x: Even. Odd = x - 1;
 ```λ☶
 #λ☶ programs try to apply the first function candidate,
 #    followed by the next, in descending order
-f := λ(A a). a
-f := λ(B b). b
+f := λ(: a A). a
+f := λ(: a B). b
 (: (f x) A)
 (: (f y) B)
 ```
