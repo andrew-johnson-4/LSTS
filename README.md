@@ -52,3 +52,11 @@ For further information there is a [tutorial and reference documentation](https:
 Current effort is being directed to bring the [Lambda Mountain](https://github.com/andrew-johnson-4/-) compiler backend up to parity with LSTS logic.
 LM and LSTS programs are equivalent at the AST level.
 Any LM or LSTS program can be mechanically converted back and forth.
+
+### Logic Backend
+
+The language here is based on [System F-sub](https://en.wikipedia.org/wiki/System_F) with the following inference rules added.
+
+$$abstraction \quad \frac{\Gamma \vdash a:A \quad \Gamma \vdash b:B \quad \Gamma \vdash x:X \quad \Gamma \vdash y:Y \quad λ⟨a.b⟩⟨x.y⟩}{\Gamma \vdash λ⟨a.b⟩⟨x.y⟩:(A \to B) + (X \to Y)}$$
+
+$$application \quad \frac{\Gamma \vdash f:(A \to B) + (C \to D) + (X \to Y) \quad \Gamma \vdash x:A + X \quad f(x)}{\Gamma \vdash f(x):B + Y}$$
