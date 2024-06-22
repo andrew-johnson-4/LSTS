@@ -4,7 +4,7 @@
 [![Documentation](https://img.shields.io/badge/api-rustdoc-blue.svg)](https://docs.rs/lsts/latest/lsts/)
 [![Read the Docs](https://img.shields.io/badge/book-reference-blue)](https://andrew-johnson-4.github.io/lsts-tutorial/)
 
-LSTS is a proof assistant and maybe a programming language.
+LSTS is a proof assistant and maybe a programming language that is unusually "performance sensitive". Type Inference can be a great tool but can often be hard to determine how long it will run. Words like "strongly normalizing" are used to say that run time is finite... but who knows how many eons that might take.
 
 Proofs in LSTS are built by connecting terms, type definitions, and quantified statements. Terms can be evaluated to obtain Values. Types describe properties of Terms. Statements describe relations between Terms and Types.
 
