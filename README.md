@@ -4,9 +4,14 @@
 [![Documentation](https://img.shields.io/badge/api-rustdoc-blue.svg)](https://docs.rs/lsts/latest/lsts/)
 [![Read the Docs](https://img.shields.io/badge/book-reference-blue)](https://andrew-johnson-4.github.io/lsts-tutorial/)
 
-LSTS is a proof assistant and maybe a programming language that is unusually "performance sensitive". Type Inference can be a great tool but can often be hard to determine how long it will run. Words like "strongly normalizing" are used to say that run time is finite... but who knows how many eons that might take.
+LSTS is a proof assistant and maybe a programming language that is unusually "performance sensitive".
+Type Inference can be a great tool but can often be hard to determine how long it will run.
+Words like "strongly normalizing" are used to say that run time is finite... but who knows how many eons that might take.
 
-Proofs in LSTS are built by connecting terms, type definitions, and quantified statements. Terms can be evaluated to obtain Values. Types describe properties of Terms. Statements describe relations between Terms and Types.
+Proofs in LSTS are built by connecting terms, type definitions, and quantified statements.
+Terms can be evaluated to obtain Values.
+Types describe properties of Terms.
+Statements describe relations between Terms and Types.
 
 ### Terms
 
@@ -21,7 +26,11 @@ Terms are Lambda Calculus expressions with some extensions.
 
 ### Types
 
-Type definitions define logical statements that are then attached to Terms. All valid Terms have at least one Type. Some Terms may have more than one Type. Types may define invariant properties. These invariant properties impose preconditions and postconditions on what values may occupy that Type. Values going into a Type must satisfy that Type's preconditions. Values coming out of a Term are then known to have satisfied each Type's invariants.
+Type definitions define logical statements that are then attached to Terms.
+All valid Terms have at least one Type. Some Terms may have more than one Type.
+Types may define invariant properties.
+These invariant properties impose preconditions and postconditions on what values may occupy that Type.
+Values going into a Type must satisfy that Type's preconditions. Values coming out of a Term are then known to have satisfied each Type's invariants.
 
 ```lsts
 type Even: Integer
@@ -31,7 +40,10 @@ type Odd: Integer
 ```
 
 ### Statements
-Statements connect logic to form conclusions. Each Statement has a Term part and a Type part. A Statement may optionally have a label so it can be referenced directly later. Statements, when applied, provide new information to the Type of a Term. When a Statement is applied, it must match the pattern of its application context. An application context consists of a Term and a Type, which is then compared to the Term and Type of the Statement. These Term x Type relations form the basis of strict reasoning for LSTS.
+Statements connect logic to form conclusions. Each Statement has a Term part and a Type part.
+Statements, when applied, provide new information to the Type of a Term. When a Statement is applied, it must match the pattern of its application context.
+An application context consists of a Term and a Type, which is then compared to the Term and Type of the Statement.
+These Term x Type relations form the basis of strict reasoning for LSTS.
 
 ```lsts
 forall @inc_odd x: Odd. Even = x + 1;
