@@ -57,8 +57,9 @@ forall @dec_even x: Even. Odd = x - 1;
 ### Compiler Backend
 
 Current effort is being directed to bring the [Lambda Mountain](https://github.com/andrew-johnson-4/-) compiler backend up to parity with LSTS logic.
-LM and LSTS programs are equivalent at the AST level.
-Any LM or LSTS program can be mechanically converted back and forth.
+Further development of LSTS is effectively blocked on waiting for a suitable backend.
+
+There are [many open issues](https://github.com/andrew-johnson-4/lambda-mountain) on LM that could use help such as adding support for new platforms.
 
 ### Logic Backend
 
