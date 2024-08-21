@@ -59,7 +59,7 @@ forall @dec_even x: Even. Odd = x - 1;
 Current effort is being directed to bring the [Lambda Mountain](https://github.com/andrew-johnson-4/-) compiler backend up to parity with LSTS logic.
 Further development of LSTS is effectively blocked on waiting for a suitable backend.
 
-There are [many open issues](https://github.com/andrew-johnson-4/lambda-mountain) on LM that could use help such as adding support for new platforms.
+There are [many open issues](https://github.com/andrew-johnson-4/lambda-mountain/issues) on LM that could use help such as adding support for new platforms.
 
 ### Logic Backend
 
