@@ -16,6 +16,16 @@ To address these concerns we employ two strategies somewhat unique to LSTS:
    * Punning is key here: ["well designed puns can lead to asymptotically different inference performance"](https://github.com/andrew-johnson-4/lambda-mountain/wiki#%CE%BB-name-origin) 
 * [full control over every instruction](https://github.com/andrew-johnson-4/lambda-mountain) for control-freak style performance tuning
 
+### Installation
+
+LSTS is now bundled by default with the [Lambda Mountain](https://github.com/andrew-johnson-4/lambda-mountain) compiler.
+
+```
+git clone https://github.com/andrew-johnson-4/lambda-mountain.git
+cd lambda-mountain
+make install
+```
+
 ### Terms
 
 Terms are Lambda Calculus expressions with some extensions.
