@@ -67,10 +67,6 @@ forall @dec_even x: Even. Odd = x - 1;
 ((8: Even) + 1) @inc_even : Odd
 ```
 
-### Further Reading
-
-* [Wiki](https://github.com/andrew-johnson-4/LSTS/wiki)
-
 ### Logic Backend
 
 The language here is based on [System F-sub](https://en.wikipedia.org/wiki/System_F) with the following inference rules added.
@@ -78,3 +74,7 @@ The language here is based on [System F-sub](https://en.wikipedia.org/wiki/Syste
 $$abstraction \quad \frac{\Gamma \vdash a:A \quad \Gamma \vdash b:B \quad \Gamma \vdash x:X \quad \Gamma \vdash y:Y \quad λ⟨a.b⟩⟨x.y⟩}{\Gamma \vdash λ⟨a.b⟩⟨x.y⟩:(A \to B) + (X \to Y)}$$
 
 $$application \quad \frac{\Gamma \vdash f:(A \to B) + (C \to D) + (X \to Y) \quad \Gamma \vdash x:A + X \quad f(x)}{\Gamma \vdash f(x):B + Y}$$
+
+### Further Reading
+
+* [Wiki](https://github.com/andrew-johnson-4/LSTS/wiki)
