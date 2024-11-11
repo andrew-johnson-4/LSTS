@@ -67,6 +67,10 @@ forall @dec_even x: Even. Odd = x - 1;
 ((8: Even) + 1) @inc_even : Odd
 ```
 
+### Further Reading
+
+* [Wiki](https://github.com/andrew-johnson-4/LSTS/wiki)
+
 ### Logic Backend
 
 The language here is based on [System F-sub](https://en.wikipedia.org/wiki/System_F) with the following inference rules added.
