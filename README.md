@@ -31,7 +31,7 @@ make install
 
 The default LSTS backend compiles to C with little or no overhead or runtime dependencies.
 Previously, the compiler generated x86-Linux objects directly, however this was approximately 3x slower than the C backend.
-We will revist the direct targets to generate fully certified builds.
+We will revisit the direct targets to generate fully certified builds.
 Until then, C is the default backend.
 
 ### Terms
