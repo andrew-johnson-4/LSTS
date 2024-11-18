@@ -1,21 +1,10 @@
 <a href="https://andrew-johnson-4.github.io/lsts-tutorial/"><img src="https://repository-images.githubusercontent.com/404928261/4b75e965-a631-4489-a00a-d84b19a09eb9" alt="logo image" width=40%></a>
 
-[![Crates.IO](https://img.shields.io/crates/v/LSTS.svg)](https://crates.rs/crates/LSTS)
-[![Documentation](https://img.shields.io/badge/api-rustdoc-blue.svg)](https://docs.rs/lsts/latest/lsts/)
-[![Read the Docs](https://img.shields.io/badge/book-reference-blue)](https://andrew-johnson-4.github.io/lsts-tutorial/)
-
-LSTS is a proof assistant and maybe a programming language.
+LSTS is a programming language and proof assistant.
 Proofs in LSTS are built by connecting terms, type definitions, and quantified statements.
 Terms can be evaluated to obtain Values.
 Types describe properties of Terms.
 Statements describe relations between Terms and Types.
-
-Runtime and performance are the primary constraint on theorem proving.
-To address these concerns we employ several strategies somewhat unique to LSTS:
-* aggressive search-space [pruning](https://github.com/andrew-johnson-4/lambda-mountain/wiki/Type-System)
-   * Punning is key here: ["well designed puns can lead to asymptotically different inference performance"](https://github.com/andrew-johnson-4/lambda-mountain/wiki#%CE%BB-name-origin) 
-* [full control over every instruction](https://github.com/andrew-johnson-4/lambda-mountain) for control-freak style performance tuning
-* (not implemented yet) parallel inference: the specialization rule is highly amenable to parallel execution
 
 ### Installation
 
@@ -74,6 +63,15 @@ forall @dec_even x: Even. Odd = x - 1;
 
 ((8: Even) + 1) @inc_even : Odd
 ```
+
+### Theorem Proving
+
+Runtime and performance are the primary constraint on theorem proving.
+To address these concerns we employ several strategies somewhat unique to LSTS:
+* aggressive search-space [pruning](https://github.com/andrew-johnson-4/lambda-mountain/wiki/Type-System)
+   * Punning is key here: ["well designed puns can lead to asymptotically different inference performance"](https://github.com/andrew-johnson-4/lambda-mountain/wiki#%CE%BB-name-origin) 
+* [full control over every instruction](https://github.com/andrew-johnson-4/lambda-mountain) for control-freak style performance tuning
+* (not implemented yet) parallel inference: the specialization rule is highly amenable to parallel execution
 
 ### Logic Backend
 
