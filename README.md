@@ -69,7 +69,7 @@ forall @dec_even x: Even. Odd = x - 1;
 Runtime and performance are the primary constraint on theorem proving.
 To address these concerns we employ several strategies somewhat unique to LSTS:
 * aggressive search-space [pruning](https://github.com/andrew-johnson-4/lambda-mountain/wiki/Type-System)
-   * Punning is key here: ["well designed puns can lead to asymptotically different inference performance"](https://github.com/andrew-johnson-4/lambda-mountain/wiki#%CE%BB-name-origin) 
+   * Punning is key here: ["well designed puns can lead to asymptotically different inference performance"](https://github.com/andrew-johnson-4/LSTS/wiki/Propositional-Types) 
 * [full control over every instruction](https://github.com/andrew-johnson-4/lambda-mountain) for control-freak style performance tuning
 * (not implemented yet) parallel inference: the specialization rule is highly amenable to parallel execution
 
