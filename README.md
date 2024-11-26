@@ -66,7 +66,7 @@ forall @dec_even x: Even. Odd = x - 1;
 
 ### Theorem Proving
 
-Runtime and performance are the primary constraint on theorem proving.
+Runtime and performance are the primary constraint on assisted theorem proving.
 To address these concerns we employ several strategies somewhat unique to LSTS:
 * aggressive search-space [pruning](https://github.com/andrew-johnson-4/lambda-mountain/wiki/Type-System)
    * Punning is key here: ["well designed puns can lead to asymptotically different inference performance"](https://github.com/andrew-johnson-4/LSTS/wiki/Propositional-Types) 
