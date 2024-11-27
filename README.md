@@ -16,6 +16,12 @@ cd lambda-mountain
 make install
 ```
 
+### Examples
+
+The LM compiler is currently the largest codebase written in LSTS.
+
+* [EXAMPLES](https://github.com/andrew-johnson-4/lambda-mountain/tree/main/EXAMPLES)
+
 ### Performance
 
 The default LSTS backend compiles to C with little or no overhead or runtime dependencies.
