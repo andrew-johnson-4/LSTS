@@ -16,12 +16,6 @@ cd lambda-mountain
 make install
 ```
 
-### Examples
-
-The LM compiler is currently the largest codebase written in LSTS.
-
-* [EXAMPLES](https://github.com/andrew-johnson-4/lambda-mountain/tree/main/EXAMPLES)
-
 ### Performance
 
 The default LSTS backend compiles to C with little or no overhead or runtime dependencies.
@@ -29,63 +23,60 @@ Previously, the compiler generated x86-Linux objects directly, however this was 
 We will revisit the direct targets to generate fully certified builds.
 Until then, C is the default backend.
 
-### Terms
+### Example
 
-Terms are Lambda Calculus expressions with some extensions.
+The lsts tokenizer is an example of an efficient tokenization algorithm written in LSTS.
 
-```lsts
-1;
-"abc";
-2 + 3;
-"[" + (for x in range(1,25) yield x^3).join(",") + "]";
 ```
+let lsts-tokenize-string(file-path: String, text: String): List<String> = (
 
-### Types
+   let tokens = [] :: List<String>;
+   while non-zero(text) {match text {
+      # ignore whitespace
+      "\s".. rest => text = rest;
+      "\t".. rest => text = rest;
+      "\n".. rest => text = rest;
 
-Type definitions define logical statements that are then attached to Terms.
-All valid Terms have at least one Type. Some Terms may have more than one Type.
-Types may define invariant properties.
-These invariant properties impose preconditions and postconditions on what values may occupy that Type.
-Values going into a Type must satisfy that Type's preconditions. Values coming out of a Term are then known to have satisfied each Type's invariants.
+      # consume tokens that start with these strings
+      "~=".. rest => (tokens = cons(text[:"~=".length], tokens); text = rest;);
+      "+=".. rest => (tokens = cons(text[:"+=".length], tokens); text = rest;);
+      ...
 
-```lsts
-type Even: Integer
-     where self % 2 | 0;
-type Odd: Integer
-     where self % 2 | 1;
+      # consume tokens that start with these regular expressions
+      (lit=r/^["]([^"\\]|([\\].))*["]/).. rest => (
+         tokens = cons(text[:lit.length], tokens); text = rest;
+      );
+      (rgx=r/^r[\/]([^\/]|([\\].))*[\/]/).. rest => (
+         tokens = cons(text[:rgx.length], tokens); text = rest;
+      );
+      ...
+
+      # otherwise complain about unexpected token
+      rest => ( fail("Unrecognized Token in File \{file-path}: \{clone-rope(rest[0])}"); );
+   }};
+
+   tokens;
+);
+
+# token source location and snippets can be derived from the original source substrings
+# this information is only calculated when there is a demand for it
+let .token-location(t: String): SourceLocation = (
+   let file-path = token-file-paths.lookup( t.data as U64, "[Unknown File]" );
+   let line = 1;
+   let column = 1;
+   let data = t.data;
+   while data < t.start {
+      if data[0] == $"10_u8" then {
+         line = line + 1;
+         column = 1;
+      } else {
+         column = column + 1;
+      };
+      data = data + 1;
+   };
+   SourceLocation { file-path, line, column }
+);
 ```
-
-### Statements
-Statements connect logic to form conclusions. Each Statement has a Term part and a Type part.
-Statements, when applied, provide new information to the Type of a Term. When a Statement is applied, it must match the pattern of its application context.
-An application context consists of a Term and a Type, which is then compared to the Term and Type of the Statement.
-These Term x Type relations form the basis of strict reasoning for LSTS.
-
-```lsts
-forall @inc_odd x: Odd. Even = x + 1;
-forall @dec_odd x: Odd. Even = x - 1;
-forall @inc_even x: Even. Odd = x + 1;
-forall @dec_even x: Even. Odd = x - 1;
-
-((8: Even) + 1) @inc_even : Odd
-```
-
-### Theorem Proving
-
-Runtime and performance are the primary constraint on assisted theorem proving.
-To address these concerns we employ several strategies somewhat unique to LSTS:
-* aggressive search-space [pruning](https://github.com/andrew-johnson-4/lambda-mountain/wiki/Type-System)
-   * Punning is key here: ["well designed puns can lead to asymptotically different inference performance"](https://github.com/andrew-johnson-4/LSTS/wiki/Propositional-Types) 
-* [full control over every instruction](https://github.com/andrew-johnson-4/lambda-mountain) for control-freak style performance tuning
-* (not implemented yet) parallel inference: the specialization rule is highly amenable to parallel execution
-
-### Logic Backend
-
-The language here is based on [System F-sub](https://en.wikipedia.org/wiki/System_F) with the following inference rules added.
-
-$$abstraction \quad \frac{\Gamma \vdash a:A \quad \Gamma \vdash b:B \quad \Gamma \vdash x:X \quad \Gamma \vdash y:Y \quad λ⟨a.b⟩⟨x.y⟩}{\Gamma \vdash λ⟨a.b⟩⟨x.y⟩:(A \to B) + (X \to Y)}$$
-
-$$application \quad \frac{\Gamma \vdash f:(A \to B) + (C \to D) + (X \to Y) \quad \Gamma \vdash x:A + X \quad f(x)}{\Gamma \vdash f(x):B + Y}$$
 
 ### Further Reading
 
