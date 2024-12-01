@@ -6,15 +6,9 @@ Terms can be evaluated to obtain Values.
 Types describe properties of Terms.
 Statements describe relations between Terms and Types.
 
-### Installation
+### Tutorial
 
-LSTS is now bundled by default with the [Lambda Mountain](https://github.com/andrew-johnson-4/lambda-mountain) compiler.
-
-```
-git clone https://github.com/andrew-johnson-4/lambda-mountain.git
-cd lambda-mountain
-make install
-```
+A tutorial is available on [the wiki](https://github.com/andrew-johnson-4/LSTS/wiki).
 
 ### Performance
 
@@ -77,7 +71,3 @@ let .token-location(t: String): SourceLocation = (
    SourceLocation { file-path, line, column }
 );
 ```
-
-### Further Reading
-
-* [Wiki](https://github.com/andrew-johnson-4/LSTS/wiki)
