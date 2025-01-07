@@ -6,9 +6,8 @@ Terms can be evaluated to obtain Values.
 Types describe properties of Terms.
 Statements describe relations between Terms and Types.
 
-### Tutorial
-
-A tutorial is available on [the wiki](https://github.com/andrew-johnson-4/LSTS/wiki).
+### [Tutorial](https://github.com/andrew-johnson-4/LSTS/wiki)
+### [Documentation](https://andrew-johnson-4.github.io/lsts-language-reference/)
 
 ### Performance
 
