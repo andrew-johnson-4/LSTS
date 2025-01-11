@@ -6,6 +6,20 @@ Terms can be evaluated to obtain Values.
 Types describe properties of Terms.
 Statements describe relations between Terms and Types.
 
+### Much Like C
+C is a portable assembler, and does a pretty good job at that.
+LM/LSTS is a portable assembler, and tries to do a better job at that.
+
+Things removed from C
+* weird syntax and AST quirks
+* text-based preprocessor
+
+Things added to C
+* hygienic macros
+* functionally sound type system
+* generics / templates
+* truly platform agnostic output (how about compiling an MP3 file? can C do that?)
+
 ### [Tutorial](https://github.com/andrew-johnson-4/LSTS/wiki)
 ### [Documentation](https://andrew-johnson-4.github.io/lsts-language-reference/)
 
