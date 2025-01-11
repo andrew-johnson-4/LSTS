@@ -19,7 +19,7 @@ Things added to C
 * hygienic macros
 * functionally sound type system
 * generics / templates
-* truly platform agnostic output (how about compiling an MP3 file? can C do that?)
+* truly platform agnostic output (MP3 / HTML / etc.)
 
 ### [Tutorial](https://github.com/andrew-johnson-4/LSTS/wiki)
 ### [Documentation](https://andrew-johnson-4.github.io/lsts-language-reference/)
