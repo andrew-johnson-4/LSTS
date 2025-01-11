@@ -15,6 +15,7 @@ Things removed from C
 * text-based preprocessor
 
 Things added to C
+* specialization
 * hygienic macros
 * functionally sound type system
 * generics / templates
