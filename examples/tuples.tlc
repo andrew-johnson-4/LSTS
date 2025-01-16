@@ -1,3 +1,0 @@
-import $"preludes/l1.tlc";
-
-range(4,400,44);

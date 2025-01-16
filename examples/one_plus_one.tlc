@@ -1,3 +1,0 @@
-import $"preludes/l1.tlc";
-
-1 + 1;

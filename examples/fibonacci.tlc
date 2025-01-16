@@ -1,9 +1,0 @@
-import $"preludes/l1.tlc";
-
-let fib(x: I64): I64 = match x {
-   0 => 0,
-   1 => 1,
-   _ => fib(x - 1) + fib(x - 2)
-};
-
-fib(25);
