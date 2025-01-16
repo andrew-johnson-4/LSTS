@@ -23,6 +23,7 @@ Things added to C
 
 ### [Tutorial](https://github.com/andrew-johnson-4/LSTS/wiki)
 ### [Documentation](https://andrew-johnson-4.github.io/lsts-language-reference/)
+### [Discord](https://discord.gg/sW2ksPY9jj)
 
 ### Performance
 
