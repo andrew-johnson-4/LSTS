@@ -1,3 +1,0 @@
-import $"preludes/l1.tlc";
-
-f"[{range(25).join(",")}]";

@@ -1,5 +1,0 @@
-import $"preludes/l1.tlc";
-
-let add(x: I64, y: I64): I64 = x + y;
-
-add(101, 25);
