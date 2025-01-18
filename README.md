@@ -1,6 +1,10 @@
 <a href="https://andrew-johnson-4.github.io/lsts-tutorial/"><img src="https://repository-images.githubusercontent.com/404928261/4b75e965-a631-4489-a00a-d84b19a09eb9" alt="logo image" width=40%></a>
 
 LSTS is a programming language and proof assistant.
+The goal for this project is to integrate formal methods with natural programming habits.
+By moving proof-theoretical concepts entirely to libraries,
+programmers can hopefully benefit from improved sanity without too much additional stress.
+
 Proofs in LSTS are built by connecting terms, type definitions, and quantified statements.
 Terms can be evaluated to obtain Values.
 Types describe properties of Terms.
